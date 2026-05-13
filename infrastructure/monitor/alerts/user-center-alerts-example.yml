@@ -1,0 +1,29 @@
+groups:
+  - name: user-center-alerts
+    rules:
+      - alert: UserCenterDown
+        expr: up{service="user-center"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: user-center unavailable
+          description: user-center has not been scrapeable for more than 1 minute.
+
+      - alert: UserCenterCreateFailureRateHigh
+        expr: increase(user_create_failed_total{service="user-center"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: user-center create user failures detected
+          description: user-center has create user failures in the last 5 minutes.
+
+      - alert: UserCenterPrometheusScrapeMissing
+        expr: absent(up{service="user-center"})
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: user-center scrape target missing
+          description: Prometheus cannot find the user-center scrape target.
