@@ -15,8 +15,8 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 6,
+        "w": 6,
         "x": 0,
         "y": 0
       },
@@ -37,24 +37,54 @@
         "uid": "prometheus"
       },
       "fieldConfig": {
-        "defaults": {},
+        "defaults": {
+          "unit": "percentunit"
+        },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
+        "h": 6,
+        "w": 6,
+        "x": 6,
         "y": 0
       },
       "id": 2,
       "targets": [
         {
-          "expr": "rate(http_server_requests_seconds_count{service=\"user-center\"}[5m])",
-          "legendFormat": "{{uri}} {{method}}",
+          "expr": "process_cpu_usage{service=\"user-center\"}",
+          "legendFormat": "cpu",
           "refId": "A"
         }
       ],
-      "title": "HTTP Request Rate",
+      "title": "CPU Usage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "sum(jvm_memory_used_bytes{service=\"user-center\",area=\"heap\"})",
+          "legendFormat": "heap memory",
+          "refId": "A"
+        }
+      ],
+      "title": "Heap Memory Usage",
       "type": "timeseries"
     },
     {
@@ -67,12 +97,66 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 8
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 0
       },
-      "id": 3,
+      "id": 4,
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{service=\"user-center\"}[5m]))",
+          "legendFormat": "qps",
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP QPS",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 6
+      },
+      "id": 5,
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{service=\"user-center\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{service=\"user-center\"}[5m])), 0.000001)",
+          "legendFormat": "5xx error rate",
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP 5xx Error Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 8,
+        "y": 6
+      },
+      "id": 6,
       "targets": [
         {
           "expr": "rate(user_create_total{service=\"user-center\"}[5m])",
@@ -83,9 +167,14 @@
           "expr": "rate(user_create_failed_total{service=\"user-center\"}[5m])",
           "legendFormat": "create failure",
           "refId": "B"
+        },
+        {
+          "expr": "rate(user_query_not_found_total{service=\"user-center\"}[5m])",
+          "legendFormat": "query not found",
+          "refId": "C"
         }
       ],
-      "title": "User Create Throughput",
+      "title": "Business Throughput",
       "type": "timeseries"
     },
     {
@@ -94,24 +183,26 @@
         "uid": "prometheus"
       },
       "fieldConfig": {
-        "defaults": {},
+        "defaults": {
+          "unit": "s"
+        },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 8
+        "h": 6,
+        "w": 8,
+        "x": 16,
+        "y": 6
       },
-      "id": 4,
+      "id": 7,
       "targets": [
         {
-          "expr": "rate(user_create_duration_seconds_sum{service=\"user-center\"}[5m]) / rate(user_create_duration_seconds_count{service=\"user-center\"}[5m])",
+          "expr": "rate(user_create_duration_seconds_sum{service=\"user-center\"}[5m]) / clamp_min(rate(user_create_duration_seconds_count{service=\"user-center\"}[5m]), 0.000001)",
           "legendFormat": "create duration",
           "refId": "A"
         },
         {
-          "expr": "rate(user_query_duration_seconds_sum{service=\"user-center\"}[5m]) / rate(user_query_duration_seconds_count{service=\"user-center\"}[5m])",
+          "expr": "rate(user_query_duration_seconds_sum{service=\"user-center\"}[5m]) / clamp_min(rate(user_query_duration_seconds_count{service=\"user-center\"}[5m]), 0.000001)",
           "legendFormat": "query duration",
           "refId": "B"
         }
@@ -121,29 +212,67 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
+        "type": "loki",
+        "uid": "loki"
       },
       "gridPos": {
-        "h": 8,
-        "w": 24,
+        "h": 10,
+        "w": 12,
         "x": 0,
-        "y": 16
+        "y": 12
       },
-      "id": 5,
+      "id": 8,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      },
       "targets": [
         {
-          "expr": "jvm_memory_used_bytes{service=\"user-center\"}",
-          "legendFormat": "{{area}} {{id}}",
+          "expr": "{service=\"user-center\",level=~\"$logLevel\"} |= \"$keyword\" | json",
+          "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "JVM Memory Usage",
-      "type": "timeseries"
+      "title": "Recent Logs",
+      "type": "logs"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
+      "id": 9,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      },
+      "targets": [
+        {
+          "expr": "{service=\"user-center\"} |= \"$traceId\" | json",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "TraceId Log Lookup",
+      "type": "logs"
     }
   ],
   "refresh": "30s",
@@ -154,7 +283,67 @@
     "observability"
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": ".*",
+          "value": ".*"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Log Level",
+        "name": "logLevel",
+        "options": [
+          {
+            "selected": true,
+            "text": ".*",
+            "value": ".*"
+          },
+          {
+            "selected": false,
+            "text": "INFO",
+            "value": "INFO"
+          },
+          {
+            "selected": false,
+            "text": "WARN",
+            "value": "WARN"
+          },
+          {
+            "selected": false,
+            "text": "ERROR",
+            "value": "ERROR"
+          }
+        ],
+        "query": ".*,INFO,WARN,ERROR",
+        "type": "custom"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "",
+          "value": ""
+        },
+        "hide": 0,
+        "label": "Keyword",
+        "name": "keyword",
+        "query": "",
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "",
+          "value": ""
+        },
+        "hide": 0,
+        "label": "TraceId",
+        "name": "traceId",
+        "query": "",
+        "type": "textbox"
+      }
+    ]
   },
   "time": {
     "from": "now-30m",
@@ -163,5 +352,5 @@
   "timepicker": {},
   "timezone": "",
   "title": "user-center-overview",
-  "version": 1
+  "version": 2
 }

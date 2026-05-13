@@ -1,0 +1,71 @@
+services:
+  user-center:
+    build:
+      context: ../..
+      dockerfile: user-center/Dockerfile
+    container_name: sybase-user-center
+    restart: unless-stopped
+    ports:
+      - "${USER_CENTER_HOST_PORT:-18080}:8080"
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: sybase-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../../infrastructure/monitor/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../../infrastructure/monitor/alerts/user-center-alerts.yml:/etc/prometheus/alerts/user-center-alerts.yml:ro
+    depends_on:
+      - user-center
+
+  loki:
+    image: grafana/loki:3.1.1
+    container_name: sybase-loki
+    restart: unless-stopped
+    command:
+      - -config.file=/etc/loki/loki.yml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ../../infrastructure/monitor/loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki-data:/loki
+
+  alloy:
+    image: grafana/alloy:v1.4.2
+    container_name: sybase-alloy
+    restart: unless-stopped
+    command:
+      - run
+      - /etc/alloy/config.alloy
+    volumes:
+      - ../../infrastructure/monitor/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - user-center
+      - loki
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: sybase-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../../infrastructure/monitor/grafana/datasources/prometheus.yml:/etc/grafana/provisioning/datasources/prometheus.yml:ro
+      - ../../infrastructure/monitor/grafana/datasources/loki.yml:/etc/grafana/provisioning/datasources/loki.yml:ro
+      - ../../infrastructure/monitor/grafana/dashboards/dashboard-provider.yml:/etc/grafana/provisioning/dashboards/dashboard-provider.yml:ro
+      - ../../infrastructure/monitor/grafana/dashboards/user-center-overview.json:/var/lib/grafana/dashboards/user-center-overview.json:ro
+    depends_on:
+      - prometheus
+      - loki
+
+volumes:
+  loki-data:

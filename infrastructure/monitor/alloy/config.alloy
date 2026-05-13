@@ -1,0 +1,64 @@
+discovery.docker "user_center" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "user_center" {
+  targets = discovery.docker.user_center.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex         = "user-center"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+    replacement   = "$1"
+  }
+
+  rule {
+    target_label = "service"
+    replacement  = "user-center"
+  }
+
+  rule {
+    target_label = "module"
+    replacement  = "user-center"
+  }
+
+  rule {
+    target_label = "compose_service"
+    replacement  = "user-center"
+  }
+}
+
+loki.source.docker "user_center" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.user_center.output
+  forward_to = [loki.process.user_center.receiver]
+}
+
+loki.process "user_center" {
+  stage.json {
+    expressions = {
+      level = "level",
+    }
+  }
+
+  stage.labels {
+    values = {
+      level = "level",
+    }
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
