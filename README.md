@@ -8,6 +8,7 @@
 - `common/common-web`：统一响应、全局异常处理、`traceId` 过滤器
 - `common/common-test`：测试依赖和测试支撑基类
 - `user-center`：示例业务模块，演示 `interfaces -> application -> domain -> infrastructure` 四层分离
+- `tools/app-cli`：基于 `Picocli + Spring Boot` 的标准 CLI 模块，演示命令式应用入口
 
 ## 目录骨架
 
@@ -36,6 +37,12 @@
 
 ```bash
 mvn -pl user-center spring-boot:run
+```
+
+运行 CLI 样例：
+
+```bash
+./mvnw -pl tools/app-cli -am spring-boot:run -Dspring-boot.run.arguments="version"
 ```
 
 执行测试：

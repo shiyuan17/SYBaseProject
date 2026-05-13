@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: app-cli
+  main:
+    web-application-type: none
+    banner-mode: off
+
+observability:
+  metrics:
+    common-tags:
+      module: app-cli
+
