@@ -17,13 +17,14 @@
 1. `AGENTS.md`
 2. `CODING_RULES.md`
 3. `XINCHUANG_RULES.md`
-4. `JAVA_RULES.md`
-5. `DDD_RULES.md`
-6. `API_RULES.md`
-7. `DB_RULES.md`
-8. `GIT_RULES.md`
-9. `RELEASE.md`
-10. 任务涉及模块的说明文档与现有源码
+4. `OBSERVABILITY_RULES.md`
+5. `JAVA_RULES.md`
+6. `DDD_RULES.md`
+7. `API_RULES.md`
+8. `DB_RULES.md`
+9. `GIT_RULES.md`
+10. `RELEASE.md`
+11. 任务涉及模块的说明文档与现有源码
 
 ### 2. 规范映射表
 
@@ -31,7 +32,8 @@
 |------|----------|
 | 通用编码与测试基线 | `CODING_RULES.md` |
 | 国产化兼容、替代评估、例外审批 | `XINCHUANG_RULES.md` |
-| Java 17 / Spring Boot 3 实现 | `JAVA_RULES.md` |
+| 监控、指标、告警、看板 | `OBSERVABILITY_RULES.md` |
+| Java 17 / Spring Boot 3 / Lombok / Slf4j + Logback 实现 | `JAVA_RULES.md` |
 | 领域建模与分层边界 | `DDD_RULES.md` |
 | REST API 与接口文档 | `API_RULES.md` |
 | 数据库、SQL、迁移与回滚 | `DB_RULES.md` |
@@ -72,6 +74,7 @@
 - 需要修改数据库表结构、索引、约束或迁移脚本
 - 需要引入新的中间件、外部依赖或基础设施组件
 - 需要引入未验证信创兼容的依赖、驱动、镜像、Agent 或脚本工具
+- 需要调整监控端点暴露、告警阈值、采样或抓取策略、指标标签模型
 - 需求描述与现有业务逻辑冲突
 - 需要调整权限模型、认证机制、数据脱敏策略
 - 无法从上下文确定业务规则，且不同实现会改变外部行为
@@ -134,6 +137,7 @@
 
 - [CODING_RULES.md](./CODING_RULES.md)
 - [XINCHUANG_RULES.md](./XINCHUANG_RULES.md)
+- [OBSERVABILITY_RULES.md](./OBSERVABILITY_RULES.md)
 - [JAVA_RULES.md](./JAVA_RULES.md)
 - [DDD_RULES.md](./DDD_RULES.md)
 - [API_RULES.md](./API_RULES.md)

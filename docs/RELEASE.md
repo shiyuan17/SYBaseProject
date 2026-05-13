@@ -71,6 +71,8 @@
 - 新增数据库脚本已在 `staging` 验证
 - 新增或变更接口已同步文档并完成消费者确认
 - 信创环境验证通过，兼容矩阵、例外审批、替代方案状态已更新
+- `/actuator/health`、`/actuator/prometheus` 已验证可用
+- Prometheus 抓取成功，Grafana 基础看板和核心告警规则已配置并验证
 - 发布、回滚负责人明确，沟通通知完成
 
 ### 6. 回滚要求
@@ -111,6 +113,8 @@
 - [ ] CI、回归、UAT、依赖检查全部通过
 - [ ] 数据库脚本、配置变更和兼容性影响已审核
 - [ ] 信创兼容矩阵结果、例外审批、替代方案状态已确认
+- [ ] `/actuator/health`、`/actuator/prometheus` 已完成验证
+- [ ] Prometheus 抓取、Grafana 基础看板与核心告警规则已验证
 - [ ] 国产环境回滚验证已完成或已留档
 - [ ] 发布窗口、通知、负责人、监控与告警已准备
 - [ ] 回滚方案和验证步骤已确认
@@ -121,4 +125,5 @@
 - [DB_RULES.md](./DB_RULES.md)
 - [API_RULES.md](./API_RULES.md)
 - [XINCHUANG_RULES.md](./XINCHUANG_RULES.md)
+- [OBSERVABILITY_RULES.md](./OBSERVABILITY_RULES.md)
 - [AGENTS.md](./AGENTS.md)
