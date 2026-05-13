@@ -19,12 +19,13 @@
 3. `XINCHUANG_RULES.md`
 4. `OBSERVABILITY_RULES.md`
 5. `JAVA_RULES.md`
-6. `DDD_RULES.md`
-7. `API_RULES.md`
-8. `DB_RULES.md`
-9. `GIT_RULES.md`
-10. `RELEASE.md`
-11. 任务涉及模块的说明文档与现有源码
+6. `CLI_RULES.md`
+7. `DDD_RULES.md`
+8. `API_RULES.md`
+9. `DB_RULES.md`
+10. `GIT_RULES.md`
+11. `RELEASE.md`
+12. 任务涉及模块的说明文档与现有源码
 
 ### 2. 规范映射表
 
@@ -33,7 +34,8 @@
 | 通用编码与测试基线 | `CODING_RULES.md` |
 | 国产化兼容、替代评估、例外审批 | `XINCHUANG_RULES.md` |
 | 监控、指标、告警、看板 | `OBSERVABILITY_RULES.md` |
-| Java 17 / Spring Boot 3 / Lombok / Slf4j + Logback 实现 | `JAVA_RULES.md` |
+| Java 17 / Spring Boot 3 / Lombok / Slf4j + Logback / Picocli 实现 | `JAVA_RULES.md` |
+| CLI 应用、批处理命令、工具命令 | `CLI_RULES.md` |
 | 领域建模与分层边界 | `DDD_RULES.md` |
 | REST API 与接口文档 | `API_RULES.md` |
 | 数据库、SQL、迁移与回滚 | `DB_RULES.md` |
@@ -139,6 +141,7 @@
 - [XINCHUANG_RULES.md](./XINCHUANG_RULES.md)
 - [OBSERVABILITY_RULES.md](./OBSERVABILITY_RULES.md)
 - [JAVA_RULES.md](./JAVA_RULES.md)
+- [CLI_RULES.md](./CLI_RULES.md)
 - [DDD_RULES.md](./DDD_RULES.md)
 - [API_RULES.md](./API_RULES.md)
 - [DB_RULES.md](./DB_RULES.md)

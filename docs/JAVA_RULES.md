@@ -14,6 +14,7 @@
 
 - Java 版本统一为 `Java 17+`
 - Spring Boot 版本统一为 `3.x`
+- `Picocli` 作为项目标准 CLI 技术栈的一部分，适用于命令式工具应用与批处理入口
 - `Lombok` 作为默认开发工具链的一部分，允许用于减少样板代码，但必须服从分层与封装边界
 - 日志技术栈统一为 `Slf4j + Logback`
 - 监控技术栈统一为 `Spring Boot Actuator + Micrometer + Prometheus + Grafana`
@@ -85,7 +86,15 @@
 - 全局异常处理统一通过 `@RestControllerAdvice`
 - 数据库驱动、连接池、任务调度、对象存储、MQ 客户端不得默认假设特定 OS、CPU 架构或 glibc 环境
 
-### 6. 日志规范
+### 6. Java CLI 实现
+
+- Java CLI 应用统一采用 `Picocli + Spring Boot`
+- CLI 模块默认独立于 Web 服务模块，不得把命令入口和 `Spring MVC` 主入口混在同一应用中
+- CLI 只负责命令参数绑定、帮助输出、调用应用服务与结果渲染
+- CLI 如需复用既有业务能力，必须依赖 `application` 层，不得直接复用 Controller 或 HTTP 响应对象
+- CLI 详细规范以 `CLI_RULES.md` 为准
+
+### 7. 日志规范
 
 - 应用日志统一通过 `Slf4j` 门面输出，底层实现统一为 `Logback`
 - 业务代码中禁止直接使用 `System.out.println`、`printStackTrace()`、`java.util.logging`、`Log4j API` 作为主日志入口
@@ -127,7 +136,7 @@ public class CreateUserAppService {
 }
 ```
 
-### 7. 可观测性规范
+### 8. 可观测性规范
 
 - 运行时指标统一通过 `Micrometer` 输出，Prometheus 负责抓取，Grafana 负责展示
 - 默认暴露的管理端点仅限 `health`、`info`、`prometheus` 等必要监控端点，禁止随意暴露高风险管理端点
@@ -191,7 +200,7 @@ public class CreateUserAppService {
 }
 ```
 
-### 8. 对象设计与映射
+### 9. 对象设计与映射
 
 - 请求对象、响应对象、领域对象、持久化对象必须分层定义
 - DTO / Command / Query / VO 不得直接复用持久化对象
@@ -234,7 +243,7 @@ public class User {
 }
 ```
 
-### 9. 异常、日志与校验
+### 10. 异常、日志与校验
 
 - 业务异常必须使用项目统一异常体系，不得直接抛裸 `RuntimeException`
 - 参数非法、资源不存在、权限不足、并发冲突必须区分异常类型
@@ -242,7 +251,7 @@ public class User {
 - 日志中不得输出密码、密钥、身份证号、手机号完整值、Token
 - Controller 入参必须显式校验；跨字段复杂校验放到应用层或自定义校验器
 
-### 10. 测试要求
+### 11. 测试要求
 
 - 新增业务逻辑必须补充测试
 - 领域规则优先写单元测试
