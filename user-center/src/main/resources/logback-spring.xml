@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <springProperty scope="context" name="springApplicationName" source="spring.application.name" defaultValue="user-center" />
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp>
+                    <fieldName>@timestamp</fieldName>
+                </timestamp>
+                <pattern>
+                    <pattern>
+                        {
+                          "service": "${springApplicationName}"
+                        }
+                    </pattern>
+                </pattern>
+                <logLevel>
+                    <fieldName>level</fieldName>
+                </logLevel>
+                <loggerName>
+                    <fieldName>logger</fieldName>
+                </loggerName>
+                <threadName>
+                    <fieldName>thread</fieldName>
+                </threadName>
+                <message>
+                    <fieldName>message</fieldName>
+                </message>
+                <mdc />
+                <stackTrace>
+                    <fieldName>exception</fieldName>
+                </stackTrace>
+            </providers>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+    </root>
+</configuration>

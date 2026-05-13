@@ -16,3 +16,12 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
+observability:
+  logging:
+    access:
+      enabled: true
+  metrics:
+    enabled: true
+    common-tags:
+      module: user-center
