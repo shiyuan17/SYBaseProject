@@ -1,0 +1,7 @@
+.git
+.idea
+**/target
+**/.DS_Store
+**/*.log
+.gitlab-ci.yml
+deploy/docker/user-center/.env
