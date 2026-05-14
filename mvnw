@@ -39,9 +39,50 @@ if [ ! -f "$WRAPPER_JAR" ]; then
   download_wrapper_jar
 fi
 
-exec java \
+resolve_java_cmd() {
+  if [ -n "${JAVA_HOME:-}" ]; then
+    echo "$JAVA_HOME/bin/java"
+    return
+  fi
+
+  if [ "$(uname -s)" = "Darwin" ] && command -v /usr/libexec/java_home >/dev/null 2>&1; then
+    jdk17_home=$(/usr/libexec/java_home -v 17 2>/dev/null || true)
+    if [ -n "$jdk17_home" ]; then
+      echo "$jdk17_home/bin/java"
+      return
+    fi
+  fi
+
+  if command -v java >/dev/null 2>&1; then
+    command -v java
+    return
+  fi
+
+  echo ""
+}
+
+JAVA_CMD=$(resolve_java_cmd)
+
+if [ -z "$JAVA_CMD" ] || [ ! -x "$JAVA_CMD" ]; then
+  echo "A JDK 17 installation is required to run ./mvnw." >&2
+  echo "Set JAVA_HOME to JDK 17 or install one discoverable by /usr/libexec/java_home -v 17." >&2
+  exit 1
+fi
+
+JAVA_VERSION_OUTPUT=$("$JAVA_CMD" -version 2>&1 | sed -n '1p')
+case "$JAVA_VERSION_OUTPUT" in
+  *\"17* ) ;;
+  * )
+    echo "SY Base Project requires JDK 17 for Maven Wrapper builds." >&2
+    echo "Resolved Java: $JAVA_CMD" >&2
+    echo "Version line: $JAVA_VERSION_OUTPUT" >&2
+    echo "Set JAVA_HOME to a JDK 17 installation and retry." >&2
+    exit 1
+    ;;
+esac
+
+exec "$JAVA_CMD" \
   -Dmaven.multiModuleProjectDirectory="$BASE_DIR" \
   -classpath "$WRAPPER_JAR" \
   "$WRAPPER_MAIN" \
   "$@"
-

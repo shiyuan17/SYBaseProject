@@ -19,5 +19,22 @@ IF NOT EXIST "%WRAPPER_JAR%" (
     "$ProgressPreference='SilentlyContinue'; Invoke-WebRequest -UseBasicParsing '%WRAPPER_URL%' -OutFile '%WRAPPER_JAR%'"
 )
 
-java -Dmaven.multiModuleProjectDirectory="%BASE_DIR%" -classpath "%WRAPPER_JAR%" org.apache.maven.wrapper.MavenWrapperMain %*
+SET "JAVA_CMD=java"
+IF DEFINED JAVA_HOME SET "JAVA_CMD=%JAVA_HOME%\bin\java.exe"
 
+FOR /F "delims=" %%A IN ('"%JAVA_CMD%" -version 2^>^&1') DO (
+  SET "JAVA_VERSION_LINE=%%A"
+  GOTO check_java_version
+)
+
+:check_java_version
+ECHO %JAVA_VERSION_LINE% | findstr /C:"\"17" >NUL
+IF ERRORLEVEL 1 (
+  ECHO SY Base Project requires JDK 17 for Maven Wrapper builds.
+  ECHO Resolved Java: %JAVA_CMD%
+  ECHO Version line: %JAVA_VERSION_LINE%
+  ECHO Set JAVA_HOME to a JDK 17 installation and retry.
+  EXIT /B 1
+)
+
+"%JAVA_CMD%" -Dmaven.multiModuleProjectDirectory="%BASE_DIR%" -classpath "%WRAPPER_JAR%" org.apache.maven.wrapper.MavenWrapperMain %*
