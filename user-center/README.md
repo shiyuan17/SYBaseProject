@@ -22,4 +22,5 @@
 
 - 仓储采用内存实现，便于在未确定数据库选型前先验证分层与接口契约
 - 全局错误响应统一返回 `code`、`message`、`traceId`
+- `/api/**` 业务接口默认自动包装为统一返回体；特殊接口可用 `@IgnoreApiResponseWrap` 显式跳过
 - DTO / Command / Domain / DO / VO 分层建模，不直接复用

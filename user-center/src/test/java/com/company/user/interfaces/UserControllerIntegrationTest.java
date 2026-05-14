@@ -6,16 +6,20 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(classes = UserCenterApplication.class)
@@ -109,5 +113,83 @@ class UserControllerIntegrationTest extends BaseWebIntegrationTest {
         mockMvc.perform(get("/actuator/prometheus"))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("user_query_not_found_total")));
+    }
+
+    @Test
+    void shouldWrapPlainObjectResponseForApiEndpoints() throws Exception {
+        mockMvc.perform(get("/api/v1/wrap-test/plain"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code", is("SUCCESS")))
+            .andExpect(jsonPath("$.traceId", notNullValue()))
+            .andExpect(jsonPath("$.data.value", is("ok")));
+    }
+
+    @Test
+    void shouldPreserveResponseEntityStatusAndHeadersWhenWrapping() throws Exception {
+        mockMvc.perform(get("/api/v1/wrap-test/entity"))
+            .andExpect(status().isCreated())
+            .andExpect(header().string("X-Test-Header", "wrapped"))
+            .andExpect(header().exists("X-Trace-Id"))
+            .andExpect(jsonPath("$.code", is("SUCCESS")))
+            .andExpect(jsonPath("$.data.value", is("created")));
+    }
+
+    @Test
+    void shouldNotWrapApiResponseTwice() throws Exception {
+        mockMvc.perform(get("/api/v1/wrap-test/already"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code", is("SUCCESS")))
+            .andExpect(jsonPath("$.data.value", is("already")))
+            .andExpect(jsonPath("$.data.code").doesNotExist());
+    }
+
+    @Test
+    void shouldWrapNullResponseBodyForApiEndpoints() throws Exception {
+        mockMvc.perform(get("/api/v1/wrap-test/null"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code", is("SUCCESS")))
+            .andExpect(jsonPath("$.traceId", notNullValue()))
+            .andExpect(jsonPath("$.data", nullValue()));
+    }
+
+    @Test
+    void shouldKeepNoContentResponseUnwrapped() throws Exception {
+        mockMvc.perform(get("/api/v1/wrap-test/no-content"))
+            .andExpect(status().isNoContent())
+            .andExpect(content().string(""));
+    }
+
+    @Test
+    void shouldSkipWrappingWhenIgnoreAnnotationIsPresent() throws Exception {
+        mockMvc.perform(get("/api/v1/wrap-test/ignored"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.value", is("ignored")))
+            .andExpect(jsonPath("$.code").doesNotExist());
+    }
+
+    @Test
+    void shouldSkipWrappingForPlainTextResponses() throws Exception {
+        mockMvc.perform(get("/api/v1/wrap-test/string"))
+            .andExpect(status().isOk())
+            .andExpect(content().string("raw-text"));
+    }
+
+    @Test
+    void shouldSkipWrappingForResourceResponses() throws Exception {
+        mockMvc.perform(get("/api/v1/wrap-test/resource"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("Content-Disposition", "attachment; filename=test.txt"))
+            .andExpect(content().bytes("download".getBytes()));
+    }
+
+    @Test
+    void shouldSkipWrappingForStreamingResponses() throws Exception {
+        MvcResult mvcResult = mockMvc.perform(get("/api/v1/wrap-test/stream"))
+            .andExpect(request().asyncStarted())
+            .andReturn();
+
+        mockMvc.perform(asyncDispatch(mvcResult))
+            .andExpect(status().isOk())
+            .andExpect(content().string("stream"));
     }
 }
