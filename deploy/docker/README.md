@@ -6,6 +6,7 @@
 
 - `docker-compose.observability.yml`：本地可观测性联调编排
 - `gitlab/`：`GitLab CE` Docker Compose 启动模板
+- `gitlab-runner/`：`GitLab Runner` Docker 主机部署模板
 - `user-center/`：`user-center` Docker 主机部署模板
 
 约定：
@@ -94,3 +95,35 @@ docker compose --env-file deploy/docker/gitlab/.env -f deploy/docker/gitlab/dock
 - Web：`http://127.0.0.1:8929`
 - SSH：`ssh://git@127.0.0.1:2424/<group>/<project>.git`
 - Registry：`127.0.0.1:5050`
+
+## GitLab Runner 部署
+
+`GitLab Runner` 标准模板位于：
+
+- `deploy/docker/gitlab-runner/docker-compose.yml`
+- `deploy/docker/gitlab-runner/.env`
+- `deploy/docker/gitlab-runner/config.template.toml`
+
+目标主机默认目录：
+
+```text
+/opt/sybase/gitlab-runner
+```
+
+通过脚本部署：
+
+```bash
+DEPLOY_HOST=runner.example.com \
+DEPLOY_USER=deploy \
+GITLAB_URL=https://gitlab.example.com \
+RUNNER_AUTH_TOKEN=glrt-xxxxxxxxxxxxxxxxxxxx \
+RUNNER_NAME=sybase-docker-runner \
+scripts/ci/deploy-gitlab-runner.sh
+```
+
+手工启动方式：
+
+```bash
+docker compose --env-file /opt/sybase/gitlab-runner/.env -f /opt/sybase/gitlab-runner/docker-compose.yml up -d
+docker compose -f /opt/sybase/gitlab-runner/docker-compose.yml exec -T gitlab-runner gitlab-runner verify
+```

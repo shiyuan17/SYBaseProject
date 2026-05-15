@@ -26,7 +26,8 @@
 
 - `develop` 分支：
   - 自动执行 `verify`、`package`、`image`
-  - 自动部署到 `test`
+  - 自动部署到 `local`
+  - 本地联调通过后，手动推进到 `test`
 - `release/*` 分支：
   - 自动执行 `verify`、`package`、`image`
   - 仅允许手动部署到 `staging`
@@ -41,6 +42,12 @@
 - 需要出现在流水线中的密钥必须设置为 `Masked`
 - 仅供 `staging`、`prod` 使用的变量必须设置为 `Protected`
 - 环境相关变量统一使用以下命名：
+  - `DEPLOY_LOCAL_HOST`
+  - `DEPLOY_LOCAL_USER`
+  - `DEPLOY_LOCAL_SSH_KEY`
+  - `DEPLOY_LOCAL_APP_DIR`
+  - `DEPLOY_LOCAL_PORT`
+  - `DEPLOY_LOCAL_SPRING_PROFILE`
   - `DEPLOY_TEST_HOST`
   - `DEPLOY_TEST_USER`
   - `DEPLOY_TEST_SSH_KEY`
@@ -49,6 +56,22 @@
   - `DEPLOY_TEST_SPRING_PROFILE`
   - `DEPLOY_STAGING_*`
   - `DEPLOY_PROD_*`
+
+Runner 部署类变量建议单独建组，避免与业务服务部署变量混用，例如：
+
+- `RUNNER_DEPLOY_HOST`
+- `RUNNER_DEPLOY_USER`
+- `RUNNER_DEPLOY_APP_DIR`
+- `RUNNER_GITLAB_URL`
+- `RUNNER_AUTH_TOKEN`
+- `RUNNER_NAME`
+
+在 job 中再显式映射为脚本入参：
+
+- `DEPLOY_HOST="$RUNNER_DEPLOY_HOST"`
+- `DEPLOY_USER="$RUNNER_DEPLOY_USER"`
+- `DEPLOY_APP_DIR="$RUNNER_DEPLOY_APP_DIR"`
+- `GITLAB_URL="$RUNNER_GITLAB_URL"`
 
 ### 4. 镜像与部署契约
 
@@ -63,7 +86,8 @@
 
 ### 5. 失败处理与审批
 
-- `test` 环境允许自动部署，但失败必须阻断后续同一流水线的更高环境部署
+- `local` 环境允许自动部署，失败必须阻断后续手动推进 `test`
+- `test`、`staging`、`prod` 必须保留人工确认点或明确的人工触发动作
 - `staging`、`prod` 必须保留人工确认点
 - `prod` job 必须绑定 GitLab Protected Environment，并限制可执行角色
 - 任何失败部署都必须保留日志、失败命令和镜像 tag，便于追溯
@@ -82,6 +106,7 @@
 - 为 `deploy` job 明确设置 `environment` 名称，便于 GitLab 环境面板追踪
 - 将测试产物、Jar 包、镜像 tag 和部署日志统一留档，提升问题定位效率
 - 对 `prod` 部署启用双人复核或受保护环境审批
+- 本地 GitLab 联调与开发服务器测试环境的完整步骤见 [GITLAB_LOCAL_TEST_FLOW.md](./GITLAB_LOCAL_TEST_FLOW.md)
 
 ## 反例/禁用项
 
@@ -105,5 +130,6 @@
 
 - [CONTAINER_RULES.md](./CONTAINER_RULES.md)
 - [GIT_RULES.md](./GIT_RULES.md)
+- [GITLAB_LOCAL_TEST_FLOW.md](./GITLAB_LOCAL_TEST_FLOW.md)
 - [RELEASE.md](./RELEASE.md)
 - [XINCHUANG_RULES.md](./XINCHUANG_RULES.md)

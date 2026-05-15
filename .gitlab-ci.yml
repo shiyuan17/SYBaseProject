@@ -84,8 +84,26 @@ image_user_center:
   script:
     - sh scripts/ci/deploy-user-center.sh
 
+deploy_local:
+  extends: .deploy_user_center
+  environment:
+    name: local
+  variables:
+    DEPLOY_HOST: "$DEPLOY_LOCAL_HOST"
+    DEPLOY_USER: "$DEPLOY_LOCAL_USER"
+    DEPLOY_SSH_KEY: "$DEPLOY_LOCAL_SSH_KEY"
+    DEPLOY_APP_DIR: "$DEPLOY_LOCAL_APP_DIR"
+    DEPLOY_PORT: "$DEPLOY_LOCAL_PORT"
+    DEPLOY_SPRING_PROFILE: "$DEPLOY_LOCAL_SPRING_PROFILE"
+    IMAGE_TAG: "$CI_COMMIT_REF_SLUG"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+
 deploy_test:
   extends: .deploy_user_center
+  needs:
+    - image_user_center
+    - deploy_local
   environment:
     name: test
   variables:
@@ -98,6 +116,8 @@ deploy_test:
     IMAGE_TAG: "$CI_COMMIT_REF_SLUG"
   rules:
     - if: '$CI_COMMIT_BRANCH == "develop"'
+      when: manual
+      allow_failure: false
 
 deploy_staging:
   extends: .deploy_user_center

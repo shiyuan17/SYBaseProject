@@ -1,0 +1,9 @@
+[[runners]]
+  cache_dir = "/cache"
+  [runners.docker]
+    tls_verify = false
+    privileged = false
+    disable_cache = false
+    volumes = ["/cache", "/var/run/docker.sock:/var/run/docker.sock"]
+    shm_size = 0
+    network_mtu = 0

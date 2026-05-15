@@ -29,6 +29,7 @@
 当前目录契约与占位说明见 [docs/PROJECT_DIRECTORY.md](./docs/PROJECT_DIRECTORY.md)。
 模板初始化、包名替换、数据库/Flyway、profile 与接口文档约定见 [docs/TEMPLATE_CUSTOMIZATION.md](./docs/TEMPLATE_CUSTOMIZATION.md)。
 本地 GitLab 启动模板见 [deploy/docker/gitlab/README.md](./deploy/docker/gitlab/README.md)。
+如需按“本地 GitLab 开发环境 + 开发服务器测试环境”运行 CI/CD，请参考 [docs/GITLAB_LOCAL_TEST_FLOW.md](./docs/GITLAB_LOCAL_TEST_FLOW.md)。
 
 ## 启动方式
 

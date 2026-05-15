@@ -1,0 +1,12 @@
+services:
+  gitlab-runner:
+    image: ${RUNNER_IMAGE:-gitlab/gitlab-runner:latest}
+    container_name: ${RUNNER_CONTAINER_NAME:-sybase-gitlab-runner}
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - ${RUNNER_CONFIG_DIR:-./config}:/etc/gitlab-runner
+      - ${RUNNER_CACHE_DIR:-./cache}:/cache
+      - ${DOCKER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock
+      - ./config.template.toml:/opt/gitlab-runner/config.template.toml:ro
