@@ -5,6 +5,7 @@
 ## 目录说明
 
 - `docker-compose.observability.yml`：本地可观测性联调编排
+- `gitlab/`：`GitLab CE` Docker Compose 启动模板
 - `user-center/`：`user-center` Docker 主机部署模板
 
 约定：
@@ -48,7 +49,7 @@ docker compose -f deploy/docker/docker-compose.observability.yml up --build
 
 - `deploy/docker/user-center/docker-compose.yml`
 - `deploy/docker/user-center/.env`
-- `deploy/docker/user-center/env.local`
+- `deploy/docker/user-center/.env.local`
 
 目标主机默认目录：
 
@@ -73,3 +74,23 @@ docker compose --env-file deploy/docker/user-center/.env.local -f deploy/docker/
 
 - 将 `.env` 中的 `IMAGE_TAG` 切回上一稳定版本
 - 重新执行 `docker compose up -d`
+
+## GitLab 部署
+
+`GitLab` 标准模板位于：
+
+- `deploy/docker/gitlab/docker-compose.yml`
+- `deploy/docker/gitlab/.env`
+- `deploy/docker/gitlab/README.md`
+
+标准启动命令：
+
+```bash
+docker compose --env-file deploy/docker/gitlab/.env -f deploy/docker/gitlab/docker-compose.yml up -d
+```
+
+本地默认访问地址：
+
+- Web：`http://127.0.0.1:8929`
+- SSH：`ssh://git@127.0.0.1:2424/<group>/<project>.git`
+- Registry：`127.0.0.1:5050`
