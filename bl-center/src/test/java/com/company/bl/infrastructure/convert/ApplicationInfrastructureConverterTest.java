@@ -23,11 +23,20 @@ class ApplicationInfrastructureConverterTest {
             new ApplicationId("app-1"),
             "APP-001",
             "patient-1",
+            "Patient One",
+            "M",
+            "35",
             "ROUTINE",
             ApplicationStatus.SUBMITTED,
             ApplicationFormStatus.UPLOADED,
             "ext-1",
             "HIS",
+            "HOSP-1",
+            "Hospital One",
+            "DEPT-1",
+            "Surgery",
+            "DOC-1",
+            "Doctor One",
             "Diagnosis",
             "Symptom",
             "Lung",
@@ -41,9 +50,11 @@ class ApplicationInfrastructureConverterTest {
         Application restored = converter.toDomain(dataObject);
 
         assertThat(dataObject.getApplicationNo()).isEqualTo("APP-001");
+        assertThat(dataObject.getPatientName()).isEqualTo("Patient One");
         assertThat(dataObject.getStatus()).isEqualTo("SUBMITTED");
         assertThat(restored.getId().value()).isEqualTo("app-1");
         assertThat(restored.getApplicationFormStatus()).isEqualTo(ApplicationFormStatus.UPLOADED);
+        assertThat(restored.getSubmittingDoctorName()).isEqualTo("Doctor One");
         assertThat(restored.getApplicationDate()).isEqualTo(LocalDate.of(2026, 5, 18));
         assertThat(restored.getCreatedAt()).isEqualTo(now);
     }

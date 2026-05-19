@@ -1,0 +1,20 @@
+package com.company.bl.domain.model;
+
+import java.time.LocalDateTime;
+
+public record TrackingEvent(
+    String id,
+    String applicationId,
+    String specimenId,
+    String caseId,
+    String transportOrderId,
+    String nodeCode,
+    String eventType,
+    String eventStatus,
+    LocalDateTime eventTime,
+    String operatorUserId,
+    String operatorName,
+    String sourceTerminal,
+    String eventContent
+) {
+}

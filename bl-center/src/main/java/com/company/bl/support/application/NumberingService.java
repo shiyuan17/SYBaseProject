@@ -83,6 +83,11 @@ public class NumberingService {
     }
 
     @Transactional
+    public String generateTransportOrderNo() {
+        return generate("TRANSPORT_ORDER_NO", "GLOBAL");
+    }
+
+    @Transactional
     public String generateSpecimenNo(String scopeKey) {
         return generate("SPECIMEN_NO", normalizeScope(scopeKey));
     }

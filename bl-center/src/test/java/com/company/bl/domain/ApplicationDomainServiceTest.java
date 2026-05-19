@@ -47,7 +47,8 @@ class ApplicationDomainServiceTest {
     @Test
     void shouldCreateApplicationWithDefaultStatuses() {
         Application application = applicationDomainService.register(
-            "APP-001", null, "ROUTINE", null, null, null, null, null, null, null, null, null);
+            "APP-001", null, null, null, null, "ROUTINE", null, null, null,
+            null, null, null, null, null, null, null, null, null, null, null, null);
 
         assertNotNull(application.getId());
         assertEquals("APP-001", application.getApplicationNo());
@@ -58,12 +59,14 @@ class ApplicationDomainServiceTest {
     @Test
     void shouldRejectDuplicateApplicationNumber() {
         applicationRepository.save(applicationDomainService.register(
-            "APP-001", null, null, null, null, null, null, null, null, null, null, null));
+            "APP-001", null, null, null, null, null, null, null, null,
+            null, null, null, null, null, null, null, null, null, null, null, null));
 
         ApplicationDomainException exception = assertThrows(
             ApplicationDomainException.class,
             () -> applicationDomainService.register(
-                "APP-001", null, null, null, null, null, null, null, null, null, null, null));
+                "APP-001", null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null));
 
         assertEquals(ApplicationErrorCode.APPLICATION_NO_CONFLICT.code(), exception.getErrorCode().code());
     }
@@ -73,7 +76,8 @@ class ApplicationDomainServiceTest {
         ApplicationDomainException exception = assertThrows(
             ApplicationDomainException.class,
             () -> applicationDomainService.register(
-                "   ", null, null, null, null, null, null, null, null, null, null, null));
+                "   ", null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null));
 
         assertEquals(ApplicationErrorCode.INVALID_APPLICATION_NO.code(), exception.getErrorCode().code());
     }
@@ -83,7 +87,8 @@ class ApplicationDomainServiceTest {
         ApplicationDomainException exception = assertThrows(
             ApplicationDomainException.class,
             () -> applicationDomainService.register(
-                "APP-002", null, null, "UNKNOWN", null, null, null, null, null, null, null, null));
+                "APP-002", null, null, null, null, null, "UNKNOWN", null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null));
 
         assertEquals(ApplicationErrorCode.INVALID_APPLICATION_STATUS.code(), exception.getErrorCode().code());
     }

@@ -24,6 +24,15 @@ public class ApplicationDataObject {
     @TableField("patient_id")
     private String patientId;
 
+    @TableField("patient_name")
+    private String patientName;
+
+    @TableField("patient_gender")
+    private String patientGender;
+
+    @TableField("patient_age")
+    private String patientAge;
+
     @TableField("application_type")
     private String applicationType;
 
@@ -35,6 +44,24 @@ public class ApplicationDataObject {
 
     @TableField("third_party_source")
     private String thirdPartySource;
+
+    @TableField("source_hospital_id")
+    private String sourceHospitalId;
+
+    @TableField("source_hospital_name")
+    private String sourceHospitalName;
+
+    @TableField("submitting_department_id")
+    private String submittingDepartmentId;
+
+    @TableField("submitting_department_name")
+    private String submittingDepartmentName;
+
+    @TableField("submitting_doctor_user_id")
+    private String submittingDoctorUserId;
+
+    @TableField("submitting_doctor_name")
+    private String submittingDoctorName;
 
     @TableField("application_form_status")
     private String applicationFormStatus;

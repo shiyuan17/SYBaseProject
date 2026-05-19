@@ -5,7 +5,10 @@ import com.company.bl.domain.exception.ApplicationDomainException;
 public enum ApplicationStatus {
     DRAFT,
     SUBMITTED,
+    IN_TRANSIT,
     RECEIVED,
+    PARTIALLY_RECEIVED,
+    REJECTED,
     CLOSED,
     CANCELLED;
 
