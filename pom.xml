@@ -22,6 +22,7 @@
         <module>common/common-core</module>
         <module>common/common-web</module>
         <module>common/common-test</module>
+        <module>bl-center</module>
         <module>user-center</module>
         <module>tools/app-cli</module>
     </modules>

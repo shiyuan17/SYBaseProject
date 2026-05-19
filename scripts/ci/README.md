@@ -6,6 +6,8 @@
 
 - `build-user-center-image.sh`：构建并推送 `user-center` 镜像
 - `deploy-user-center.sh`：通过 SSH 在 Docker 主机拉取镜像并执行 `docker compose up -d`
+- `build-bl-center-image.sh`：构建并推送 `bl-center` 镜像
+- `deploy-bl-center.sh`：通过 SSH 在 Docker 主机拉取镜像并执行 `docker compose up -d`
 - `deploy-gitlab-runner.sh`：通过 SSH 下发 `GitLab Runner` compose 模板并完成非交互注册
 
 设计要求：

@@ -1,0 +1,6 @@
+spring:
+  datasource:
+    driver-class-name: dm.jdbc.driver.DmDriver
+    url: "jdbc:dm://dbserver?dbserver=(192.168.0.6:1522)&loginMode=4&schema=SYSTEM"
+    username: system
+    password: d9ell8

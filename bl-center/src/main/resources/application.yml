@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: bl-center
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+observability:
+  logging:
+    access:
+      enabled: true
+  metrics:
+    enabled: true
+    common-tags:
+      module: bl-center
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true

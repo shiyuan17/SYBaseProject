@@ -1,0 +1,19 @@
+services:
+  bl-center:
+    image: ${IMAGE_REPO}:${IMAGE_TAG}
+    container_name: ${CONTAINER_NAME:-sybase-bl-center}
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-8080}:${SERVER_PORT:-8080}"
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      JAVA_OPTS: ${JAVA_OPTS:--Xms256m -Xmx512m -XX:+UseContainerSupport}
+    volumes:
+      - ${APP_DATA_DIR:-./data}:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: "${LOG_MAX_FILE:-5}"

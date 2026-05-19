@@ -1,0 +1,29 @@
+groups:
+  - name: bl-center-alerts
+    rules:
+      - alert: BlCenterDown
+        expr: up{service="bl-center"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: bl-center unavailable
+          description: bl-center has not been scrapeable for more than 1 minute.
+
+      - alert: BlCenterCreateFailureRateHigh
+        expr: increase(application_create_failed_total{service="bl-center"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: bl-center create application failures detected
+          description: bl-center has create application failures in the last 5 minutes.
+
+      - alert: BlCenterPrometheusScrapeMissing
+        expr: absent(up{service="bl-center"})
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: bl-center scrape target missing
+          description: Prometheus cannot find the bl-center scrape target.
