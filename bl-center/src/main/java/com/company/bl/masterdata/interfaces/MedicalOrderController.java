@@ -1,5 +1,7 @@
 package com.company.bl.masterdata.interfaces;
 
+import com.company.bl.interfaces.auth.M1PermissionCodes;
+import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.masterdata.application.MedicalOrderService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
@@ -28,17 +30,20 @@ public class MedicalOrderController {
         this.medicalOrderService = medicalOrderService;
     }
 
+    @RequirePermission(M1PermissionCodes.ORDER_DICT_QUERY)
     @GetMapping("/medical-order-dicts")
     public List<MedicalOrderService.MedicalOrderCategoryNode> listMedicalOrderDicts() {
         return medicalOrderService.listMedicalOrderDicts();
     }
 
+    @RequirePermission(M1PermissionCodes.ORDER_DICT_CREATE)
     @PostMapping("/medical-order-dicts/categories")
     public MedicalOrderService.MedicalOrderCategoryNode createCategory(@Valid @RequestBody CreateCategoryRequest request) {
         return medicalOrderService.createMedicalOrderCategory(new MedicalOrderService.CreateMedicalOrderCategoryCommand(
             request.parentId(), request.categoryCode(), request.categoryName(), request.sortOrder(), request.enabled()));
     }
 
+    @RequirePermission(M1PermissionCodes.ORDER_DICT_CREATE)
     @PostMapping("/medical-order-dicts/items")
     public MedicalOrderService.MedicalOrderItemView createItem(@Valid @RequestBody CreateItemRequest request) {
         return medicalOrderService.createMedicalOrderItem(new MedicalOrderService.CreateMedicalOrderItemCommand(
@@ -46,17 +51,20 @@ public class MedicalOrderController {
             request.defaultContent(), request.executionScope(), request.sortOrder(), request.enabled()));
     }
 
+    @RequirePermission(M1PermissionCodes.ORDER_DICT_CREATE)
     @PatchMapping("/medical-order-dicts/items/{id}/enabled")
     public MedicalOrderService.MedicalOrderItemView updateItemEnabled(@PathVariable("id") String id,
                                                                       @Valid @RequestBody UpdateEnabledRequest request) {
         return medicalOrderService.updateMedicalOrderItemEnabled(id, request.enabled());
     }
 
+    @RequirePermission(M1PermissionCodes.ORDER_CHARGE_QUERY)
     @GetMapping("/medical-order-charge-items")
     public List<MedicalOrderService.ChargeItemView> listChargeItems() {
         return medicalOrderService.listChargeItems();
     }
 
+    @RequirePermission(M1PermissionCodes.ORDER_CHARGE_QUERY)
     @GetMapping("/medical-order-charge-items/page")
     public MedicalOrderService.PagedResult<MedicalOrderService.ChargeItemView> listChargeItemsPage(
         @RequestParam(name = "page", defaultValue = "1") int page,
@@ -67,6 +75,7 @@ public class MedicalOrderController {
         return medicalOrderService.listChargeItemsPage(page, size, enabled, keyword, orderDictItemId);
     }
 
+    @RequirePermission(M1PermissionCodes.ORDER_CHARGE_CREATE)
     @PostMapping("/medical-order-charge-items")
     public MedicalOrderService.ChargeItemView createChargeItem(@Valid @RequestBody CreateChargeItemRequest request) {
         return medicalOrderService.createChargeItem(new MedicalOrderService.CreateChargeItemCommand(
@@ -74,17 +83,20 @@ public class MedicalOrderController {
             request.unit(), request.price(), request.sortOrder(), request.enabled()));
     }
 
+    @RequirePermission(M1PermissionCodes.ORDER_CHARGE_CREATE)
     @PatchMapping("/medical-order-charge-items/{id}/enabled")
     public MedicalOrderService.ChargeItemView updateChargeEnabled(@PathVariable("id") String id,
                                                                   @Valid @RequestBody UpdateEnabledRequest request) {
         return medicalOrderService.updateChargeItemEnabled(id, request.enabled());
     }
 
+    @RequirePermission(M1PermissionCodes.PACKAGE_QUERY)
     @GetMapping("/medical-order-packages")
     public List<MedicalOrderService.PackageView> listPackages() {
         return medicalOrderService.listPackages();
     }
 
+    @RequirePermission(M1PermissionCodes.PACKAGE_QUERY)
     @GetMapping("/medical-order-packages/page")
     public MedicalOrderService.PagedResult<MedicalOrderService.PackageView> listPackagesPage(
         @RequestParam(name = "page", defaultValue = "1") int page,
@@ -95,6 +107,7 @@ public class MedicalOrderController {
         return medicalOrderService.listPackagesPage(page, size, enabled, keyword, packageType);
     }
 
+    @RequirePermission(M1PermissionCodes.PACKAGE_CREATE)
     @PostMapping("/medical-order-packages")
     public MedicalOrderService.PackageView createPackage(@Valid @RequestBody CreatePackageRequest request) {
         return medicalOrderService.createPackage(new MedicalOrderService.CreatePackageCommand(
@@ -102,6 +115,7 @@ public class MedicalOrderController {
             request.enabled(), request.remarks(), request.itemIds()));
     }
 
+    @RequirePermission(M1PermissionCodes.PACKAGE_CREATE)
     @PatchMapping("/medical-order-packages/{id}/enabled")
     public MedicalOrderService.PackageView updatePackageEnabled(@PathVariable("id") String id,
                                                                 @Valid @RequestBody UpdateEnabledRequest request) {

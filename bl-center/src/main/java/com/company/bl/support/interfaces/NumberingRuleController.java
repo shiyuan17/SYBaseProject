@@ -1,5 +1,7 @@
 package com.company.bl.support.interfaces;
 
+import com.company.bl.interfaces.auth.M1PermissionCodes;
+import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.support.application.NumberingService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -25,11 +27,13 @@ public class NumberingRuleController {
         this.numberingService = numberingService;
     }
 
+    @RequirePermission(M1PermissionCodes.NUMBERING_QUERY)
     @GetMapping
     public List<NumberingService.NumberingRuleView> listRules() {
         return numberingService.listRules();
     }
 
+    @RequirePermission(M1PermissionCodes.NUMBERING_UPDATE)
     @PatchMapping("/{id}")
     public NumberingService.NumberingRuleView updateRule(@PathVariable("id") String id,
                                                          @Valid @RequestBody UpdateNumberingRuleRequest request) {

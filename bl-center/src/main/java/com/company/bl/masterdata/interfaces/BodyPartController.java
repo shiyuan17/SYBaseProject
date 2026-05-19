@@ -1,5 +1,7 @@
 package com.company.bl.masterdata.interfaces;
 
+import com.company.bl.interfaces.auth.M1PermissionCodes;
+import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.masterdata.application.BodyPartService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -25,11 +27,13 @@ public class BodyPartController {
         this.bodyPartService = bodyPartService;
     }
 
+    @RequirePermission(M1PermissionCodes.BODY_PART_QUERY)
     @GetMapping
     public List<BodyPartService.BodyPartNode> listBodyParts() {
         return bodyPartService.listBodyParts();
     }
 
+    @RequirePermission(M1PermissionCodes.BODY_PART_CREATE)
     @PostMapping
     public BodyPartService.BodyPartNode createBodyPart(@Valid @RequestBody CreateBodyPartRequest request) {
         return bodyPartService.createBodyPart(new BodyPartService.CreateBodyPartCommand(
@@ -37,6 +41,7 @@ public class BodyPartController {
             request.partLevel(), request.sortOrder(), request.enabled()));
     }
 
+    @RequirePermission(M1PermissionCodes.BODY_PART_CREATE)
     @PatchMapping("/{id}/enabled")
     public BodyPartService.BodyPartNode updateBodyPartEnabled(@PathVariable("id") String id,
                                                               @Valid @RequestBody UpdateEnabledRequest request) {

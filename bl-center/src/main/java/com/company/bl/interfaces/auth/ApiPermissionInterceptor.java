@@ -10,14 +10,11 @@ import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 @Component
-public class M2PermissionInterceptor implements HandlerInterceptor {
-
-    public static final String CURRENT_USER_ID = "CURRENT_USER_ID";
-    public static final String USER_ID_HEADER = "X-User-Id";
+public class ApiPermissionInterceptor implements HandlerInterceptor {
 
     private final RbacPermissionRepository permissionRepository;
 
-    public M2PermissionInterceptor(RbacPermissionRepository permissionRepository) {
+    public ApiPermissionInterceptor(RbacPermissionRepository permissionRepository) {
         this.permissionRepository = permissionRepository;
     }
 
@@ -33,15 +30,17 @@ public class M2PermissionInterceptor implements HandlerInterceptor {
         if (permission == null) {
             return true;
         }
-        String userId = request.getHeader(USER_ID_HEADER);
+        String userId = request.getHeader(ApiPermissionContext.USER_ID_HEADER);
         if (userId == null || userId.isBlank()) {
-            throw new BlBusinessException(BlErrorCode.AUTHENTICATION_REQUIRED, 401, "X-User-Id header is required");
+            throw new BlBusinessException(BlErrorCode.AUTHENTICATION_REQUIRED, 401,
+                ApiPermissionContext.USER_ID_HEADER + " header is required");
         }
         String normalizedUserId = userId.trim();
         if (!permissionRepository.hasPermission(normalizedUserId, permission.value())) {
-            throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403, "User does not have permission: " + permission.value());
+            throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403,
+                "User does not have permission: " + permission.value());
         }
-        request.setAttribute(CURRENT_USER_ID, normalizedUserId);
+        request.setAttribute(ApiPermissionContext.CURRENT_USER_ID, normalizedUserId);
         return true;
     }
 }

@@ -1,5 +1,6 @@
 package com.company.bl.interfaces;
 
+import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.common.test.BaseWebIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,6 +14,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 abstract class AbstractSpecimenWorkflowIntegrationTest extends BaseWebIntegrationTest {
+
+    protected static final String USER_ID_HEADER = ApiPermissionContext.USER_ID_HEADER;
 
     protected static final String USER_ADMIN = "USER_M2_ADMIN";
     protected static final String USER_REGISTER = "USER_M2_REGISTER";
@@ -120,7 +123,7 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends BaseWebIntegratio
 
     protected ResultActions postJson(String path, String userId, String content) throws Exception {
         return mockMvc.perform(post(path)
-            .header("X-User-Id", userId)
+            .header(USER_ID_HEADER, userId)
             .contentType(MediaType.APPLICATION_JSON)
             .content(content));
     }

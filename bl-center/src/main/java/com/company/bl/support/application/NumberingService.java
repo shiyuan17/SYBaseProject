@@ -111,10 +111,17 @@ public class NumberingService {
         LocalDateTime now = LocalDateTime.now(clock);
         String datePart = supportJdbcRepository.resolveDatePart(rule.datePattern(), now);
         String periodKey = resolvePeriodKey(rule.resetPolicy(), now, datePart);
-        long nextValue = supportJdbcRepository.nextCounterValue(rule.ruleCode(), periodKey, scopeKey);
+        long nextValue = supportJdbcRepository.nextCounterValue(rule.ruleCode(), periodKey, resolveScopeKey(rule, scopeKey));
         return (blank(rule.prefixPattern()) ? "" : rule.prefixPattern())
             + datePart
             + pad(nextValue, rule.seqLength());
+    }
+
+    private String resolveScopeKey(SupportJdbcRepository.NumberingRuleRow rule, String requestedScopeKey) {
+        if ("GLOBAL".equalsIgnoreCase(rule.scopeType())) {
+            return "GLOBAL";
+        }
+        return normalizeScope(requestedScopeKey);
     }
 
     private String resolvePeriodKey(String resetPolicy, LocalDateTime now, String datePart) {

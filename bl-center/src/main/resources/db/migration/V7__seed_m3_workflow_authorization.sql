@@ -1,0 +1,70 @@
+INSERT INTO menus (id, parent_id, menu_code, menu_name, menu_type, path, component_name, permission_prefix, sort_order) VALUES
+('MENU_M3_WORKFLOW', NULL, 'M3_WORKFLOW', 'M3 Workflow', 'DIRECTORY', '/technical-workflow', 'TechnicalWorkflowRoot', 'm3', 120),
+('MENU_M3_GROSSING', 'MENU_M3_WORKFLOW', 'M3_GROSSING', 'Grossing', 'MENU', '/api/v1/grossings', 'Grossing', 'm3:grossing', 121),
+('MENU_M3_DEHYDRATION', 'MENU_M3_WORKFLOW', 'M3_DEHYDRATION', 'Dehydration', 'MENU', '/api/v1/dehydration-batches', 'Dehydration', 'm3:dehydration', 122),
+('MENU_M3_EMBEDDING', 'MENU_M3_WORKFLOW', 'M3_EMBEDDING', 'Embedding', 'MENU', '/api/v1/embeddings', 'Embedding', 'm3:embedding', 123),
+('MENU_M3_SLICING', 'MENU_M3_WORKFLOW', 'M3_SLICING', 'Slicing', 'MENU', '/api/v1/slicings', 'Slicing', 'm3:slicing', 124),
+('MENU_M3_STAINING', 'MENU_M3_WORKFLOW', 'M3_STAINING', 'Staining', 'MENU', '/api/v1/slide-stainings', 'Staining', 'm3:staining', 125),
+('MENU_M3_REWORK', 'MENU_M3_WORKFLOW', 'M3_REWORK', 'Rework', 'MENU', '/api/v1/rework-orders', 'Rework', 'm3:rework', 126),
+('MENU_M3_TRACKING', 'MENU_M3_WORKFLOW', 'M3_TRACKING', 'Technical Tracking', 'MENU', '/api/v1/pathology-cases/{id}/technical-tracking', 'TechnicalTracking', 'm3:tracking', 127),
+('MENU_M3_TASKS', 'MENU_M3_WORKFLOW', 'M3_TASKS', 'Technical Tasks', 'MENU', '/api/v1/technical-tasks/pending', 'TechnicalTasks', 'm3:tasks', 128);
+
+INSERT INTO permissions (id, permission_code, permission_name, menu_id, action_key, http_method, resource_path, permission_group, sort_order) VALUES
+('PERM_M3_GROSSING', 'PERM_M3_GROSSING', 'Grossing operate', 'MENU_M3_GROSSING', 'OPERATE', 'POST', '/api/v1/grossings', 'M3', 121),
+('PERM_M3_DEHYDRATION', 'PERM_M3_DEHYDRATION', 'Dehydration operate', 'MENU_M3_DEHYDRATION', 'OPERATE', 'POST', '/api/v1/dehydration-batches', 'M3', 122),
+('PERM_M3_EMBEDDING', 'PERM_M3_EMBEDDING', 'Embedding operate', 'MENU_M3_EMBEDDING', 'OPERATE', 'POST', '/api/v1/embeddings', 'M3', 123),
+('PERM_M3_SLICING', 'PERM_M3_SLICING', 'Slicing operate', 'MENU_M3_SLICING', 'OPERATE', 'POST', '/api/v1/slicings', 'M3', 124),
+('PERM_M3_STAINING', 'PERM_M3_STAINING', 'Staining operate', 'MENU_M3_STAINING', 'OPERATE', 'POST', '/api/v1/slide-stainings', 'M3', 125),
+('PERM_M3_REWORK', 'PERM_M3_REWORK', 'Rework operate', 'MENU_M3_REWORK', 'OPERATE', 'POST', '/api/v1/rework-orders', 'M3', 126),
+('PERM_M3_TECH_TRACKING_QUERY', 'PERM_M3_TECH_TRACKING_QUERY', 'Technical tracking query', 'MENU_M3_TRACKING', 'QUERY', 'GET', '/api/v1/pathology-cases/{id}/technical-tracking', 'M3', 127),
+('PERM_M3_TECH_TASK_QUERY', 'PERM_M3_TECH_TASK_QUERY', 'Technical task query', 'MENU_M3_TASKS', 'QUERY', 'GET', '/api/v1/technical-tasks/pending', 'M3', 128);
+
+INSERT INTO roles (id, role_code, role_name, role_type, data_scope, remarks) VALUES
+('ROLE_M3_GROSSING', 'M3_GROSSING', 'M3 Grossing', 'BUSINESS', 'DEPARTMENT', 'M3 grossing workstation'),
+('ROLE_M3_DEHYDRATION', 'M3_DEHYDRATION', 'M3 Dehydration', 'BUSINESS', 'DEPARTMENT', 'M3 dehydration workstation'),
+('ROLE_M3_EMBEDDING', 'M3_EMBEDDING', 'M3 Embedding', 'BUSINESS', 'DEPARTMENT', 'M3 embedding workstation'),
+('ROLE_M3_SLICING', 'M3_SLICING', 'M3 SLICING', 'BUSINESS', 'DEPARTMENT', 'M3 slicing workstation'),
+('ROLE_M3_STAINING', 'M3_STAINING', 'M3 Staining', 'BUSINESS', 'DEPARTMENT', 'M3 staining workstation'),
+('ROLE_M3_REWORK', 'M3_REWORK', 'M3 Rework', 'BUSINESS', 'DEPARTMENT', 'M3 rework workstation'),
+('ROLE_M3_TRACKING', 'M3_TRACKING', 'M3 Tracking', 'BUSINESS', 'DEPARTMENT', 'M3 technical tracking workstation');
+
+INSERT INTO role_permissions (id, role_id, permission_id, assigned_at) VALUES
+('RP_M3_ADMIN_GROSSING', 'ROLE_PATHOLOGY_ADMIN', 'PERM_M3_GROSSING', CURRENT_TIMESTAMP),
+('RP_M3_ADMIN_DEHYDRATION', 'ROLE_PATHOLOGY_ADMIN', 'PERM_M3_DEHYDRATION', CURRENT_TIMESTAMP),
+('RP_M3_ADMIN_EMBEDDING', 'ROLE_PATHOLOGY_ADMIN', 'PERM_M3_EMBEDDING', CURRENT_TIMESTAMP),
+('RP_M3_ADMIN_SLICING', 'ROLE_PATHOLOGY_ADMIN', 'PERM_M3_SLICING', CURRENT_TIMESTAMP),
+('RP_M3_ADMIN_STAINING', 'ROLE_PATHOLOGY_ADMIN', 'PERM_M3_STAINING', CURRENT_TIMESTAMP),
+('RP_M3_ADMIN_REWORK', 'ROLE_PATHOLOGY_ADMIN', 'PERM_M3_REWORK', CURRENT_TIMESTAMP),
+('RP_M3_ADMIN_TRACKING', 'ROLE_PATHOLOGY_ADMIN', 'PERM_M3_TECH_TRACKING_QUERY', CURRENT_TIMESTAMP),
+('RP_M3_ADMIN_TASKS', 'ROLE_PATHOLOGY_ADMIN', 'PERM_M3_TECH_TASK_QUERY', CURRENT_TIMESTAMP),
+('RP_M3_GROSSING_ROLE', 'ROLE_M3_GROSSING', 'PERM_M3_GROSSING', CURRENT_TIMESTAMP),
+('RP_M3_GROSSING_TASK_ROLE', 'ROLE_M3_GROSSING', 'PERM_M3_TECH_TASK_QUERY', CURRENT_TIMESTAMP),
+('RP_M3_DEHYDRATION_ROLE', 'ROLE_M3_DEHYDRATION', 'PERM_M3_DEHYDRATION', CURRENT_TIMESTAMP),
+('RP_M3_DEHYDRATION_TASK_ROLE', 'ROLE_M3_DEHYDRATION', 'PERM_M3_TECH_TASK_QUERY', CURRENT_TIMESTAMP),
+('RP_M3_EMBEDDING_ROLE', 'ROLE_M3_EMBEDDING', 'PERM_M3_EMBEDDING', CURRENT_TIMESTAMP),
+('RP_M3_EMBEDDING_TASK_ROLE', 'ROLE_M3_EMBEDDING', 'PERM_M3_TECH_TASK_QUERY', CURRENT_TIMESTAMP),
+('RP_M3_SLICING_ROLE', 'ROLE_M3_SLICING', 'PERM_M3_SLICING', CURRENT_TIMESTAMP),
+('RP_M3_SLICING_TASK_ROLE', 'ROLE_M3_SLICING', 'PERM_M3_TECH_TASK_QUERY', CURRENT_TIMESTAMP),
+('RP_M3_STAINING_ROLE', 'ROLE_M3_STAINING', 'PERM_M3_STAINING', CURRENT_TIMESTAMP),
+('RP_M3_STAINING_TASK_ROLE', 'ROLE_M3_STAINING', 'PERM_M3_TECH_TASK_QUERY', CURRENT_TIMESTAMP),
+('RP_M3_REWORK_ROLE', 'ROLE_M3_REWORK', 'PERM_M3_REWORK', CURRENT_TIMESTAMP),
+('RP_M3_REWORK_TASK_ROLE', 'ROLE_M3_REWORK', 'PERM_M3_TECH_TASK_QUERY', CURRENT_TIMESTAMP),
+('RP_M3_TRACKING_ROLE', 'ROLE_M3_TRACKING', 'PERM_M3_TECH_TRACKING_QUERY', CURRENT_TIMESTAMP);
+
+INSERT INTO users (id, user_code, login_name, name, role, enabled, created_at, updated_at) VALUES
+('USER_M3_GROSSING', 'U-M3-GROSSING', 'm3.grossing', 'M3 Grossing', 'M3_GROSSING', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('USER_M3_DEHYDRATION', 'U-M3-DEHYDRATION', 'm3.dehydration', 'M3 Dehydration', 'M3_DEHYDRATION', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('USER_M3_EMBEDDING', 'U-M3-EMBEDDING', 'm3.embedding', 'M3 Embedding', 'M3_EMBEDDING', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('USER_M3_SLICING', 'U-M3-SLICING', 'm3.slicing', 'M3 Slicing', 'M3_SLICING', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('USER_M3_STAINING', 'U-M3-STAINING', 'm3.staining', 'M3 Staining', 'M3_STAINING', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('USER_M3_REWORK', 'U-M3-REWORK', 'm3.rework', 'M3 Rework', 'M3_REWORK', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('USER_M3_TRACKING', 'U-M3-TRACKING', 'm3.tracking', 'M3 Tracking', 'M3_TRACKING', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO user_roles (id, user_id, role_id, is_primary, assigned_at, assigned_by_name) VALUES
+('UR_M3_GROSSING', 'USER_M3_GROSSING', 'ROLE_M3_GROSSING', 1, CURRENT_TIMESTAMP, 'system'),
+('UR_M3_DEHYDRATION', 'USER_M3_DEHYDRATION', 'ROLE_M3_DEHYDRATION', 1, CURRENT_TIMESTAMP, 'system'),
+('UR_M3_EMBEDDING', 'USER_M3_EMBEDDING', 'ROLE_M3_EMBEDDING', 1, CURRENT_TIMESTAMP, 'system'),
+('UR_M3_SLICING', 'USER_M3_SLICING', 'ROLE_M3_SLICING', 1, CURRENT_TIMESTAMP, 'system'),
+('UR_M3_STAINING', 'USER_M3_STAINING', 'ROLE_M3_STAINING', 1, CURRENT_TIMESTAMP, 'system'),
+('UR_M3_REWORK', 'USER_M3_REWORK', 'ROLE_M3_REWORK', 1, CURRENT_TIMESTAMP, 'system'),
+('UR_M3_TRACKING', 'USER_M3_TRACKING', 'ROLE_M3_TRACKING', 1, CURRENT_TIMESTAMP, 'system');

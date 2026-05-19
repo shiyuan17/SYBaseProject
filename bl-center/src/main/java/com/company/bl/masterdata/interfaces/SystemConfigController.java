@@ -1,5 +1,7 @@
 package com.company.bl.masterdata.interfaces;
 
+import com.company.bl.interfaces.auth.M1PermissionCodes;
+import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.masterdata.application.SystemConfigService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -24,11 +26,13 @@ public class SystemConfigController {
         this.systemConfigService = systemConfigService;
     }
 
+    @RequirePermission(M1PermissionCodes.CONFIG_QUERY)
     @GetMapping
     public List<SystemConfigService.ConfigCategoryNode> listSystemConfigs() {
         return systemConfigService.listSystemConfigs();
     }
 
+    @RequirePermission(M1PermissionCodes.CONFIG_UPDATE)
     @PostMapping("/categories")
     public SystemConfigService.ConfigCategoryNode createConfigCategory(@Valid @RequestBody CreateCategoryRequest request) {
         return systemConfigService.createConfigCategory(new SystemConfigService.CreateConfigCategoryCommand(
@@ -36,6 +40,7 @@ public class SystemConfigController {
             request.sortOrder(), request.enabled()));
     }
 
+    @RequirePermission(M1PermissionCodes.CONFIG_UPDATE)
     @PostMapping("/items")
     public SystemConfigService.ConfigItemView createConfigItem(@Valid @RequestBody CreateItemRequest request) {
         return systemConfigService.createConfigItem(new SystemConfigService.CreateConfigItemCommand(
@@ -43,6 +48,7 @@ public class SystemConfigController {
             request.valueType(), request.sortOrder(), request.enabled(), request.remarks()));
     }
 
+    @RequirePermission(M1PermissionCodes.CONFIG_UPDATE)
     @PatchMapping("/items/{id}")
     public SystemConfigService.ConfigItemView updateConfigItem(@PathVariable("id") String id,
                                                                @Valid @RequestBody UpdateItemRequest request) {

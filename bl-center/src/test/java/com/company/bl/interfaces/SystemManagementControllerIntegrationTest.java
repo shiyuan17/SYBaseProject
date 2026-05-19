@@ -1,6 +1,7 @@
 package com.company.bl.interfaces;
 
 import com.company.bl.BlCenterApplication;
+import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.bl.system.application.SystemManagementService;
 import com.company.common.test.BaseWebIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -11,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -32,6 +34,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(classes = BlCenterApplication.class)
 class SystemManagementControllerIntegrationTest extends BaseWebIntegrationTest {
 
+    private static final String USER_M1_ADMIN = "USER_M1_ADMIN";
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -47,7 +51,7 @@ class SystemManagementControllerIntegrationTest extends BaseWebIntegrationTest {
     @Test
     void shouldCreateUserAndAssignRole() throws Exception {
         String loginName = "user-" + System.nanoTime();
-        MvcResult createResult = mockMvc.perform(post("/api/v1/system-users")
+        MvcResult createResult = mockMvc.perform(asAdmin(post("/api/v1/system-users"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -65,7 +69,7 @@ class SystemManagementControllerIntegrationTest extends BaseWebIntegrationTest {
         JsonNode createNode = objectMapper.readTree(createResult.getResponse().getContentAsString());
         String userId = createNode.path("data").path("id").asText();
 
-        mockMvc.perform(put("/api/v1/system-users/{id}/roles", userId)
+        mockMvc.perform(asAdmin(put("/api/v1/system-users/{id}/roles", userId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -84,12 +88,12 @@ class SystemManagementControllerIntegrationTest extends BaseWebIntegrationTest {
 
     @Test
     void shouldExposeRoleAuthorizationAndMenus() throws Exception {
-        mockMvc.perform(get("/api/v1/roles/ROLE_PATHOLOGY_ADMIN/authorizations"))
+        mockMvc.perform(asAdmin(get("/api/v1/roles/ROLE_PATHOLOGY_ADMIN/authorizations")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.roleId", is("ROLE_PATHOLOGY_ADMIN")))
             .andExpect(jsonPath("$.data.permissionIds.length()", greaterThanOrEqualTo(1)));
 
-        mockMvc.perform(get("/api/v1/menus"))
+        mockMvc.perform(asAdmin(get("/api/v1/menus")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.length()", greaterThanOrEqualTo(1)));
     }
@@ -106,7 +110,7 @@ class SystemManagementControllerIntegrationTest extends BaseWebIntegrationTest {
         systemManagementService.recordUserLogin(new SystemManagementService.RecordUserLoginCommand(
             null, loginName, "FAILED", "10.0.0.2", "Unknown", "bad password", "failed login", failedAt));
 
-        mockMvc.perform(get("/api/v1/system-users/{id}/login-logs", userId)
+        mockMvc.perform(asAdmin(get("/api/v1/system-users/{id}/login-logs", userId))
                 .param("page", "1")
                 .param("size", "20"))
             .andExpect(status().isOk())
@@ -132,7 +136,7 @@ class SystemManagementControllerIntegrationTest extends BaseWebIntegrationTest {
     }
 
     private String createUser(String loginName) throws Exception {
-        MvcResult createResult = mockMvc.perform(post("/api/v1/system-users")
+        MvcResult createResult = mockMvc.perform(asAdmin(post("/api/v1/system-users"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -148,5 +152,9 @@ class SystemManagementControllerIntegrationTest extends BaseWebIntegrationTest {
             .andReturn();
         JsonNode createNode = objectMapper.readTree(createResult.getResponse().getContentAsString());
         return createNode.path("data").path("id").asText();
+    }
+
+    private MockHttpServletRequestBuilder asAdmin(MockHttpServletRequestBuilder requestBuilder) {
+        return requestBuilder.header(ApiPermissionContext.USER_ID_HEADER, USER_M1_ADMIN);
     }
 }

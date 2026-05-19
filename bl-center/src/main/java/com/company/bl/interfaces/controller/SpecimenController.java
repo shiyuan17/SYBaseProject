@@ -3,8 +3,8 @@ package com.company.bl.interfaces.controller;
 import com.company.bl.application.service.SpecimenWorkflowAppService;
 import com.company.bl.domain.model.ApplicationTracking;
 import com.company.bl.domain.model.Specimen;
+import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
-import com.company.bl.interfaces.auth.M2PermissionInterceptor;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.RegisterSpecimensRequest;
 import com.company.bl.interfaces.dto.RetryLabelPrintRequest;
@@ -153,7 +153,7 @@ public class SpecimenController {
         if (bodyUserId != null && !bodyUserId.isBlank()) {
             return bodyUserId.trim();
         }
-        Object currentUserId = request.getAttribute(M2PermissionInterceptor.CURRENT_USER_ID);
+        Object currentUserId = request.getAttribute(ApiPermissionContext.CURRENT_USER_ID);
         return currentUserId == null ? null : currentUserId.toString();
     }
 }

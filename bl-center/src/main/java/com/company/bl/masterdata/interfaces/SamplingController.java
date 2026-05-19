@@ -1,5 +1,7 @@
 package com.company.bl.masterdata.interfaces;
 
+import com.company.bl.interfaces.auth.M1PermissionCodes;
+import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.masterdata.application.SamplingService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -25,22 +27,26 @@ public class SamplingController {
         this.samplingService = samplingService;
     }
 
+    @RequirePermission(M1PermissionCodes.TEMPLATE_QUERY)
     @GetMapping("/sampling-templates")
     public List<SamplingService.TemplateCategoryNode> listSamplingTemplates() {
         return samplingService.listSamplingTemplates();
     }
 
+    @RequirePermission(M1PermissionCodes.TEMPLATE_QUERY)
     @GetMapping("/sampling-templates/{id}")
     public SamplingService.TemplateDetailView getSamplingTemplateDetail(@PathVariable("id") String id) {
         return samplingService.getSamplingTemplateDetail(id);
     }
 
+    @RequirePermission(M1PermissionCodes.TEMPLATE_CREATE)
     @PostMapping("/sampling-templates/categories")
     public SamplingService.TemplateCategoryNode createTemplateCategory(@Valid @RequestBody CreateTemplateCategoryRequest request) {
         return samplingService.createSamplingTemplateCategory(new SamplingService.CreateTemplateCategoryCommand(
             request.parentId(), request.categoryCode(), request.categoryName(), request.sortOrder(), request.enabled()));
     }
 
+    @RequirePermission(M1PermissionCodes.TEMPLATE_CREATE)
     @PostMapping("/sampling-templates")
     public SamplingService.TemplateDetailView createTemplate(@Valid @RequestBody CreateTemplateRequest request) {
         return samplingService.createSamplingTemplate(new SamplingService.CreateTemplateCommand(
@@ -48,28 +54,33 @@ public class SamplingController {
             request.splitPartCount(), request.applicableSpecimenType(), request.enabled(), request.bodyPartIds()));
     }
 
+    @RequirePermission(M1PermissionCodes.TEMPLATE_CREATE)
     @PatchMapping("/sampling-templates/{id}/enabled")
     public SamplingService.TemplateDetailView updateTemplateEnabled(@PathVariable("id") String id,
                                                                     @Valid @RequestBody UpdateEnabledRequest request) {
         return samplingService.updateSamplingTemplateEnabled(id, request.enabled());
     }
 
+    @RequirePermission(M1PermissionCodes.GUIDELINE_QUERY)
     @GetMapping("/sampling-guidelines")
     public List<SamplingService.GuidelineCategoryNode> listSamplingGuidelines() {
         return samplingService.listSamplingGuidelines();
     }
 
+    @RequirePermission(M1PermissionCodes.GUIDELINE_QUERY)
     @GetMapping("/sampling-guidelines/{id}")
     public SamplingService.GuidelineDetailView getSamplingGuidelineDetail(@PathVariable("id") String id) {
         return samplingService.getSamplingGuidelineDetail(id);
     }
 
+    @RequirePermission(M1PermissionCodes.GUIDELINE_CREATE)
     @PostMapping("/sampling-guidelines/categories")
     public SamplingService.GuidelineCategoryNode createGuidelineCategory(@Valid @RequestBody CreateGuidelineCategoryRequest request) {
         return samplingService.createGuidelineCategory(new SamplingService.CreateGuidelineCategoryCommand(
             request.parentId(), request.categoryCode(), request.categoryName(), request.sortOrder(), request.enabled()));
     }
 
+    @RequirePermission(M1PermissionCodes.GUIDELINE_CREATE)
     @PostMapping("/sampling-guidelines")
     public SamplingService.GuidelineDetailView createGuideline(@Valid @RequestBody CreateGuidelineRequest request) {
         return samplingService.createGuideline(new SamplingService.CreateGuidelineCommand(
@@ -77,6 +88,7 @@ public class SamplingController {
             request.versionNo(), request.enabled()));
     }
 
+    @RequirePermission(M1PermissionCodes.GUIDELINE_CREATE)
     @PatchMapping("/sampling-guidelines/{id}/enabled")
     public SamplingService.GuidelineDetailView updateGuidelineEnabled(@PathVariable("id") String id,
                                                                       @Valid @RequestBody UpdateEnabledRequest request) {

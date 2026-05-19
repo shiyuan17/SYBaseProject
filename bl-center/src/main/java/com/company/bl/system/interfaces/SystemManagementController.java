@@ -1,5 +1,7 @@
 package com.company.bl.system.interfaces;
 
+import com.company.bl.interfaces.auth.M1PermissionCodes;
+import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.system.application.SystemManagementService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -26,6 +28,7 @@ public class SystemManagementController {
         this.systemManagementService = systemManagementService;
     }
 
+    @RequirePermission(M1PermissionCodes.SYSTEM_USER_QUERY)
     @GetMapping("/api/v1/system-users")
     public SystemManagementService.PagedResult<SystemManagementService.UserView> listUsers(
         @RequestParam(name = "page", defaultValue = "1") int page,
@@ -33,6 +36,7 @@ public class SystemManagementController {
         return systemManagementService.listUsers(page, size);
     }
 
+    @RequirePermission(M1PermissionCodes.SYSTEM_USER_CREATE)
     @PostMapping("/api/v1/system-users")
     public SystemManagementService.UserView createUser(@Valid @RequestBody CreateUserRequest request) {
         return systemManagementService.createUser(new SystemManagementService.CreateUserCommand(
@@ -51,12 +55,14 @@ public class SystemManagementController {
             request.enabled()));
     }
 
+    @RequirePermission(M1PermissionCodes.SYSTEM_USER_UPDATE)
     @PatchMapping("/api/v1/system-users/{id}/enabled")
     public SystemManagementService.UserView updateUserEnabled(@PathVariable("id") String id,
                                                               @Valid @RequestBody UpdateEnabledRequest request) {
         return systemManagementService.updateUserEnabled(id, request.enabled());
     }
 
+    @RequirePermission(M1PermissionCodes.SYSTEM_USER_QUERY)
     @GetMapping("/api/v1/system-users/{id}/login-logs")
     public SystemManagementService.PagedResult<SystemManagementService.UserLoginLogView> listUserLoginLogs(
         @PathVariable("id") String id,
@@ -65,6 +71,7 @@ public class SystemManagementController {
         return systemManagementService.listUserLoginLogs(id, page, size);
     }
 
+    @RequirePermission(M1PermissionCodes.SYSTEM_USER_UPDATE)
     @PutMapping("/api/v1/system-users/{id}/roles")
     public SystemManagementService.UserView assignUserRoles(@PathVariable("id") String id,
                                                             @Valid @RequestBody AssignUserRolesRequest request) {
@@ -74,11 +81,13 @@ public class SystemManagementController {
                 .toList()));
     }
 
+    @RequirePermission(M1PermissionCodes.SYSTEM_ROLE_QUERY)
     @GetMapping("/api/v1/roles")
     public List<SystemManagementService.RoleView> listRoles() {
         return systemManagementService.listRoles();
     }
 
+    @RequirePermission(M1PermissionCodes.SYSTEM_ROLE_CREATE)
     @PostMapping("/api/v1/roles")
     public SystemManagementService.RoleView createRole(@Valid @RequestBody CreateRoleRequest request) {
         return systemManagementService.createRole(new SystemManagementService.CreateRoleCommand(
@@ -90,11 +99,13 @@ public class SystemManagementController {
             request.enabled()));
     }
 
+    @RequirePermission(M1PermissionCodes.SYSTEM_ROLE_QUERY)
     @GetMapping("/api/v1/roles/{id}/authorizations")
     public SystemManagementService.RoleAuthorizationView getRoleAuthorization(@PathVariable("id") String id) {
         return systemManagementService.getRoleAuthorization(id);
     }
 
+    @RequirePermission(M1PermissionCodes.SYSTEM_ROLE_ASSIGN)
     @PutMapping("/api/v1/roles/{id}/authorizations")
     public SystemManagementService.RoleAuthorizationView updateRoleAuthorization(@PathVariable("id") String id,
                                                                                  @Valid @RequestBody UpdateRoleAuthorizationRequest request) {
@@ -106,21 +117,25 @@ public class SystemManagementController {
                 request.statScopes() == null ? Map.of() : request.statScopes()));
     }
 
+    @RequirePermission(M1PermissionCodes.SYSTEM_ROLE_QUERY)
     @GetMapping("/api/v1/menus")
     public List<SystemManagementService.MenuView> listMenus() {
         return systemManagementService.listMenus();
     }
 
+    @RequirePermission(M1PermissionCodes.SYSTEM_ROLE_QUERY)
     @GetMapping("/api/v1/permissions")
     public List<SystemManagementService.PermissionView> listPermissions() {
         return systemManagementService.listPermissions();
     }
 
+    @RequirePermission(M1PermissionCodes.SYSTEM_ROLE_QUERY)
     @GetMapping("/api/v1/message-topics")
     public List<SystemManagementService.MessageTopicView> listMessageTopics() {
         return systemManagementService.listMessageTopics();
     }
 
+    @RequirePermission(M1PermissionCodes.SYSTEM_ROLE_QUERY)
     @GetMapping("/api/v1/stat-categories")
     public List<SystemManagementService.StatCategoryView> listStatCategories() {
         return systemManagementService.listStatCategories();

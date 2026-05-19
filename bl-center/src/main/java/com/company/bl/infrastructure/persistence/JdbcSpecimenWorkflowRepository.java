@@ -549,15 +549,20 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             from technical_pending_tasks
             where case_id = :caseId
               and task_type = 'GROSSING'
+              and object_type = 'CASE'
+              and object_id = :caseId
+              and task_status in ('PENDING', 'IN_PROGRESS')
             """, Map.of("caseId", caseId), Long.class);
         if (count != null && count > 0) {
             jdbcTemplate.update("""
                 update technical_pending_tasks
                 set payload = :payload,
-                    task_status = 'PENDING',
                     updated_at = :updatedAt
                 where case_id = :caseId
                   and task_type = 'GROSSING'
+                  and object_type = 'CASE'
+                  and object_id = :caseId
+                  and task_status in ('PENDING', 'IN_PROGRESS')
                 """, new MapSqlParameterSource()
                 .addValue("caseId", caseId)
                 .addValue("payload", payload)
@@ -566,9 +571,11 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         }
         jdbcTemplate.update("""
             insert into technical_pending_tasks
-                (id, application_id, case_id, task_type, task_status, payload, created_at, updated_at)
+                (id, application_id, case_id, specimen_id, task_type, task_status, object_type, object_id,
+                 parent_task_id, payload, created_at, updated_at, remarks)
             values
-                (:id, :applicationId, :caseId, 'GROSSING', 'PENDING', :payload, :createdAt, :updatedAt)
+                (:id, :applicationId, :caseId, null, 'GROSSING', 'PENDING', 'CASE', :caseId,
+                 null, :payload, :createdAt, :updatedAt, null)
             """, new MapSqlParameterSource()
             .addValue("id", nextId("TT"))
             .addValue("applicationId", applicationId)

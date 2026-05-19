@@ -1,6 +1,7 @@
 package com.company.bl.interfaces;
 
 import com.company.bl.BlCenterApplication;
+import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.bl.support.infrastructure.SupportJdbcRepository;
 import com.company.common.test.BaseWebIntegrationTest;
 import org.junit.jupiter.api.Test;
@@ -8,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,6 +26,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(classes = BlCenterApplication.class)
 class MasterDataControllerIntegrationTest extends BaseWebIntegrationTest {
 
+    private static final String USER_M1_ADMIN = "USER_M1_ADMIN";
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -32,11 +36,11 @@ class MasterDataControllerIntegrationTest extends BaseWebIntegrationTest {
 
     @Test
     void shouldQueryBodyPartsAndTemplateDetails() throws Exception {
-        mockMvc.perform(get("/api/v1/body-parts"))
+        mockMvc.perform(asAdmin(get("/api/v1/body-parts")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data[0].id", is("BP_ROOT")));
 
-        mockMvc.perform(get("/api/v1/sampling-templates/ST_HE_STOMACH"))
+        mockMvc.perform(asAdmin(get("/api/v1/sampling-templates/ST_HE_STOMACH")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.id", is("ST_HE_STOMACH")))
             .andExpect(jsonPath("$.data.bodyParts.length()", greaterThanOrEqualTo(1)));
@@ -45,7 +49,7 @@ class MasterDataControllerIntegrationTest extends BaseWebIntegrationTest {
     @Test
     void shouldCreatePackageUpdateConfigAndQueryPagedResources() throws Exception {
         String packageCode = "PK-" + System.nanoTime();
-        mockMvc.perform(post("/api/v1/medical-order-packages")
+        mockMvc.perform(asAdmin(post("/api/v1/medical-order-packages"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -60,7 +64,7 @@ class MasterDataControllerIntegrationTest extends BaseWebIntegrationTest {
             .andExpect(jsonPath("$.data.id", notNullValue()))
             .andExpect(jsonPath("$.data.items[0].orderItemId", is("ODI_HE")));
 
-        mockMvc.perform(get("/api/v1/medical-order-packages/page")
+        mockMvc.perform(asAdmin(get("/api/v1/medical-order-packages/page"))
                 .param("page", "1")
                 .param("size", "20")
                 .param("keyword", packageCode))
@@ -68,7 +72,7 @@ class MasterDataControllerIntegrationTest extends BaseWebIntegrationTest {
             .andExpect(jsonPath("$.data.total", greaterThanOrEqualTo(1)))
             .andExpect(jsonPath("$.data.items[0].packageCode", is(packageCode)));
 
-        mockMvc.perform(get("/api/v1/medical-order-charge-items/page")
+        mockMvc.perform(asAdmin(get("/api/v1/medical-order-charge-items/page"))
                 .param("page", "1")
                 .param("size", "20")
                 .param("orderDictItemId", "ODI_HE"))
@@ -76,7 +80,7 @@ class MasterDataControllerIntegrationTest extends BaseWebIntegrationTest {
             .andExpect(jsonPath("$.data.total", greaterThanOrEqualTo(1)))
             .andExpect(jsonPath("$.data.items[0].orderDictItemId", is("ODI_HE")));
 
-        mockMvc.perform(patch("/api/v1/system-configs/items/SCI_TEMPLATE_MATCH")
+        mockMvc.perform(asAdmin(patch("/api/v1/system-configs/items/SCI_TEMPLATE_MATCH"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -92,11 +96,11 @@ class MasterDataControllerIntegrationTest extends BaseWebIntegrationTest {
 
     @Test
     void shouldListUpdateAndAuditNumberingRules() throws Exception {
-        mockMvc.perform(get("/api/v1/numbering-rules"))
+        mockMvc.perform(asAdmin(get("/api/v1/numbering-rules")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.length()", greaterThanOrEqualTo(5)));
 
-        mockMvc.perform(patch("/api/v1/numbering-rules/NR_APPLICATION")
+        mockMvc.perform(asAdmin(patch("/api/v1/numbering-rules/NR_APPLICATION"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -117,5 +121,9 @@ class MasterDataControllerIntegrationTest extends BaseWebIntegrationTest {
             "update_numbering_rule".equals(log.get("operation_name"))
                 && "SUCCESS".equals(log.get("operation_result"))
                 && "NR_APPLICATION".equals(log.get("business_id"))));
+    }
+
+    private MockHttpServletRequestBuilder asAdmin(MockHttpServletRequestBuilder requestBuilder) {
+        return requestBuilder.header(ApiPermissionContext.USER_ID_HEADER, USER_M1_ADMIN);
     }
 }
