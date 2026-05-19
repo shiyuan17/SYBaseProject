@@ -5,23 +5,19 @@ import com.company.bl.domain.model.Application;
 import com.company.bl.domain.repository.ApplicationRepository;
 import com.company.bl.domain.valueobject.ApplicationId;
 import com.company.bl.infrastructure.convert.ApplicationInfrastructureConverter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
 @Repository
-@Profile("!test")
+@Profile("!test-no-db")
+@RequiredArgsConstructor
 public class DmApplicationRepository implements ApplicationRepository {
 
     private final ApplicationMapper applicationMapper;
     private final ApplicationInfrastructureConverter applicationInfrastructureConverter;
-
-    public DmApplicationRepository(ApplicationMapper applicationMapper,
-                                   ApplicationInfrastructureConverter applicationInfrastructureConverter) {
-        this.applicationMapper = applicationMapper;
-        this.applicationInfrastructureConverter = applicationInfrastructureConverter;
-    }
 
     @Override
     public Application save(Application application) {

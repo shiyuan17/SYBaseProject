@@ -6,19 +6,16 @@ import com.company.user.domain.repository.UserRepository;
 import com.company.user.domain.service.UserDomainService;
 import com.company.user.domain.valueobject.UserId;
 import com.company.user.infrastructure.observability.ObservedOperation;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class CreateUserAppService {
 
     private final UserDomainService userDomainService;
     private final UserRepository userRepository;
-
-    public CreateUserAppService(UserDomainService userDomainService, UserRepository userRepository) {
-        this.userDomainService = userDomainService;
-        this.userRepository = userRepository;
-    }
 
     @Transactional
     @ObservedOperation(

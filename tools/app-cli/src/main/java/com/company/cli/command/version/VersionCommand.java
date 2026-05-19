@@ -2,6 +2,7 @@ package com.company.cli.command.version;
 
 import com.company.cli.support.CliOutputWriter;
 import com.company.cli.support.OutputOptionMixin;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.core.env.Environment;
@@ -16,6 +17,7 @@ import java.util.concurrent.Callable;
 
 @Component
 @Command(name = "version", description = "Print CLI version and runtime information.")
+@RequiredArgsConstructor
 public class VersionCommand implements Callable<Integer> {
 
     private final CliOutputWriter outputWriter;
@@ -27,14 +29,6 @@ public class VersionCommand implements Callable<Integer> {
 
     @Spec
     private CommandSpec spec;
-
-    public VersionCommand(CliOutputWriter outputWriter,
-                          Environment environment,
-                          ObjectProvider<BuildProperties> buildPropertiesProvider) {
-        this.outputWriter = outputWriter;
-        this.environment = environment;
-        this.buildPropertiesProvider = buildPropertiesProvider;
-    }
 
     @Override
     public Integer call() throws Exception {
@@ -62,4 +56,3 @@ public class VersionCommand implements Callable<Integer> {
     private record VersionView(String application, String version, String javaVersion, String buildTime) {
     }
 }
-

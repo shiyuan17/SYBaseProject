@@ -4,9 +4,11 @@ import com.company.user.domain.enums.UserStatus;
 import com.company.user.domain.valueobject.UserEmail;
 import com.company.user.domain.valueobject.UserId;
 import com.company.user.domain.valueobject.UserName;
+import lombok.Data;
 
 import java.time.OffsetDateTime;
 
+@Data
 public class User {
 
     private final UserId id;
@@ -21,25 +23,5 @@ public class User {
         this.email = email;
         this.status = status;
         this.createdAt = createdAt;
-    }
-
-    public UserId getId() {
-        return id;
-    }
-
-    public UserName getName() {
-        return name;
-    }
-
-    public UserEmail getEmail() {
-        return email;
-    }
-
-    public UserStatus getStatus() {
-        return status;
-    }
-
-    public OffsetDateTime getCreatedAt() {
-        return createdAt;
     }
 }

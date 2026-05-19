@@ -1,7 +1,9 @@
 package com.company.cli.support;
 
+import lombok.Getter;
 import picocli.CommandLine.Option;
 
+@Getter
 public class OutputOptionMixin {
 
     @Option(
@@ -9,9 +11,4 @@ public class OutputOptionMixin {
         defaultValue = "text",
         description = "Output format: ${COMPLETION-CANDIDATES}.")
     private OutputFormat outputFormat;
-
-    public OutputFormat getOutputFormat() {
-        return outputFormat;
-    }
 }
-

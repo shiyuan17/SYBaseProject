@@ -4,6 +4,7 @@ import com.company.cli.support.CliOutputWriter;
 import com.company.cli.support.OutputOptionMixin;
 import com.company.user.application.service.CreateUserAppService;
 import com.company.user.application.service.GetUserAppService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
@@ -17,6 +18,7 @@ import java.util.concurrent.Callable;
 
 @Component
 @Command(name = "health", description = "Check CLI context and critical beans.")
+@RequiredArgsConstructor
 public class HealthCommand implements Callable<Integer> {
 
     private final CliOutputWriter outputWriter;
@@ -30,18 +32,6 @@ public class HealthCommand implements Callable<Integer> {
 
     @Spec
     private CommandSpec spec;
-
-    public HealthCommand(CliOutputWriter outputWriter,
-                         ApplicationContext applicationContext,
-                         Environment environment,
-                         CreateUserAppService createUserAppService,
-                         GetUserAppService getUserAppService) {
-        this.outputWriter = outputWriter;
-        this.applicationContext = applicationContext;
-        this.environment = environment;
-        this.createUserAppService = createUserAppService;
-        this.getUserAppService = getUserAppService;
-    }
 
     @Override
     public Integer call() throws Exception {
@@ -71,4 +61,3 @@ public class HealthCommand implements Callable<Integer> {
     private record HealthView(String status, String application, int beanCount, List<String> checks) {
     }
 }
-

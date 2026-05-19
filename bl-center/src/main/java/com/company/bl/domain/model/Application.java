@@ -3,10 +3,12 @@ package com.company.bl.domain.model;
 import com.company.bl.domain.enums.ApplicationFormStatus;
 import com.company.bl.domain.enums.ApplicationStatus;
 import com.company.bl.domain.valueobject.ApplicationId;
+import lombok.Data;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+@Data
 public class Application {
 
     private final ApplicationId id;
@@ -58,69 +60,5 @@ public class Application {
         this.remarks = remarks;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
-    }
-
-    public ApplicationId getId() {
-        return id;
-    }
-
-    public String getApplicationNo() {
-        return applicationNo;
-    }
-
-    public String getPatientId() {
-        return patientId;
-    }
-
-    public String getApplicationType() {
-        return applicationType;
-    }
-
-    public ApplicationStatus getStatus() {
-        return status;
-    }
-
-    public ApplicationFormStatus getApplicationFormStatus() {
-        return applicationFormStatus;
-    }
-
-    public String getExternalOrderNo() {
-        return externalOrderNo;
-    }
-
-    public String getThirdPartySource() {
-        return thirdPartySource;
-    }
-
-    public String getClinicalDiagnosis() {
-        return clinicalDiagnosis;
-    }
-
-    public String getClinicalSymptom() {
-        return clinicalSymptom;
-    }
-
-    public String getSpecimenSite() {
-        return specimenSite;
-    }
-
-    public LocalDate getApplicationDate() {
-        return applicationDate;
-    }
-
-    public LocalDate getSubmissionDate() {
-        return submissionDate;
-    }
-
-    public String getRemarks() {
-        return remarks;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
     }
 }

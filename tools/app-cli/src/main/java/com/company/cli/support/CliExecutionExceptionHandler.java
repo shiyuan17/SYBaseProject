@@ -2,22 +2,18 @@ package com.company.cli.support;
 
 import com.company.common.core.enums.CommonErrorCode;
 import com.company.common.core.exception.BaseException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 import picocli.CommandLine.ParseResult;
 
 @Component
+@Slf4j
+@RequiredArgsConstructor
 public class CliExecutionExceptionHandler implements CommandLine.IExecutionExceptionHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(CliExecutionExceptionHandler.class);
-
     private final CliOutputWriter outputWriter;
-
-    public CliExecutionExceptionHandler(CliOutputWriter outputWriter) {
-        this.outputWriter = outputWriter;
-    }
 
     @Override
     public int handleExecutionException(Exception ex, CommandLine commandLine, ParseResult parseResult) throws Exception {
@@ -40,4 +36,3 @@ public class CliExecutionExceptionHandler implements CommandLine.IExecutionExcep
         return 4;
     }
 }
-

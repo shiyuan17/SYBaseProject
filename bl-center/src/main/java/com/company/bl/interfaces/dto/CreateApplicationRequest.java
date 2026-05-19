@@ -1,13 +1,15 @@
 package com.company.bl.interfaces.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDate;
 
+@Getter
+@Setter
 public class CreateApplicationRequest {
 
-    @NotBlank(message = "Application number must not be blank")
     @Size(max = 64, message = "Application number must not exceed 64 characters")
     private String applicationNo;
 
@@ -40,100 +42,4 @@ public class CreateApplicationRequest {
 
     @Size(max = 500, message = "Remarks must not exceed 500 characters")
     private String remarks;
-
-    public String getApplicationNo() {
-        return applicationNo;
-    }
-
-    public void setApplicationNo(String applicationNo) {
-        this.applicationNo = applicationNo;
-    }
-
-    public String getPatientId() {
-        return patientId;
-    }
-
-    public void setPatientId(String patientId) {
-        this.patientId = patientId;
-    }
-
-    public String getApplicationType() {
-        return applicationType;
-    }
-
-    public void setApplicationType(String applicationType) {
-        this.applicationType = applicationType;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public String getExternalOrderNo() {
-        return externalOrderNo;
-    }
-
-    public void setExternalOrderNo(String externalOrderNo) {
-        this.externalOrderNo = externalOrderNo;
-    }
-
-    public String getThirdPartySource() {
-        return thirdPartySource;
-    }
-
-    public void setThirdPartySource(String thirdPartySource) {
-        this.thirdPartySource = thirdPartySource;
-    }
-
-    public String getClinicalDiagnosis() {
-        return clinicalDiagnosis;
-    }
-
-    public void setClinicalDiagnosis(String clinicalDiagnosis) {
-        this.clinicalDiagnosis = clinicalDiagnosis;
-    }
-
-    public String getClinicalSymptom() {
-        return clinicalSymptom;
-    }
-
-    public void setClinicalSymptom(String clinicalSymptom) {
-        this.clinicalSymptom = clinicalSymptom;
-    }
-
-    public String getSpecimenSite() {
-        return specimenSite;
-    }
-
-    public void setSpecimenSite(String specimenSite) {
-        this.specimenSite = specimenSite;
-    }
-
-    public LocalDate getApplicationDate() {
-        return applicationDate;
-    }
-
-    public void setApplicationDate(LocalDate applicationDate) {
-        this.applicationDate = applicationDate;
-    }
-
-    public LocalDate getSubmissionDate() {
-        return submissionDate;
-    }
-
-    public void setSubmissionDate(LocalDate submissionDate) {
-        this.submissionDate = submissionDate;
-    }
-
-    public String getRemarks() {
-        return remarks;
-    }
-
-    public void setRemarks(String remarks) {
-        this.remarks = remarks;
-    }
 }

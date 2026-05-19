@@ -5,7 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
 @Configuration
-@Profile("!test")
+@Profile("!test-no-db")
 @MapperScan("com.company.bl.infrastructure.persistence")
 public class MybatisPlusConfiguration {
 }

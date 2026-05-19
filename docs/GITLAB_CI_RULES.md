@@ -22,7 +22,18 @@
 - `image` 用于构建并推送镜像
 - `deploy` 用于执行环境级部署，不得混入源码构建
 
-### 2. 分支与环境映射
+### 2. Verify 门禁
+
+- `verify` 阶段必须执行仓库级自动测试与基础质量门禁
+- `verify` 阶段除业务测试外，必须包含仓库文件编码与文件健康度校验
+- 仓库文件编码与文件健康度校验至少覆盖以下内容：
+  - 文本文件可按 `UTF-8` 严格解码
+  - 文本文件不包含 `UTF-8 BOM`
+  - 换行符符合仓库规则，默认 `LF`，仅 `cmd/bat` 例外
+  - 行数与文件体积符合默认阈值，历史超大文件仅可通过显式豁免清单放宽
+- 未通过文件编码与文件健康度校验的分支，不得进入后续 `package`、`image`、`deploy`
+
+### 3. 分支与环境映射
 
 - `develop` 分支：
   - 自动执行 `verify`、`package`、`image`
@@ -36,7 +47,7 @@
   - 仅允许手动部署到 `prod`
 - `prod` 部署不得直接从普通分支触发
 
-### 3. 变量命名与保护
+### 4. 变量命名与保护
 
 - GitLab Variables 必须区分“通用变量”和“环境变量”
 - 需要出现在流水线中的密钥必须设置为 `Masked`
@@ -57,23 +68,7 @@
   - `DEPLOY_STAGING_*`
   - `DEPLOY_PROD_*`
 
-Runner 部署类变量建议单独建组，避免与业务服务部署变量混用，例如：
-
-- `RUNNER_DEPLOY_HOST`
-- `RUNNER_DEPLOY_USER`
-- `RUNNER_DEPLOY_APP_DIR`
-- `RUNNER_GITLAB_URL`
-- `RUNNER_AUTH_TOKEN`
-- `RUNNER_NAME`
-
-在 job 中再显式映射为脚本入参：
-
-- `DEPLOY_HOST="$RUNNER_DEPLOY_HOST"`
-- `DEPLOY_USER="$RUNNER_DEPLOY_USER"`
-- `DEPLOY_APP_DIR="$RUNNER_DEPLOY_APP_DIR"`
-- `GITLAB_URL="$RUNNER_GITLAB_URL"`
-
-### 4. 镜像与部署契约
+### 5. 镜像与部署约束
 
 - 镜像仓库默认使用 `CI_REGISTRY_IMAGE/<service>`
 - 镜像至少推送以下 tag：
@@ -84,16 +79,15 @@ Runner 部署类变量建议单独建组，避免与业务服务部署变量混�
 - 目标主机部署目录必须固定，默认使用 `/opt/sybase/<service>`
 - 回滚必须通过修改镜像 tag 并重新执行部署实现，不得在目标主机重新构建历史版本
 
-### 5. 失败处理与审批
+### 6. 失败处理与审批
 
 - `local` 环境允许自动部署，失败必须阻断后续手动推进 `test`
-- `test`、`staging`、`prod` 必须保留人工确认点或明确的人工触发动作
-- `staging`、`prod` 必须保留人工确认点
+- `test`、`staging`、`prod` 必须保留人工确认点或明确的人工作业触发动作
 - `prod` job 必须绑定 GitLab Protected Environment，并限制可执行角色
 - 任何失败部署都必须保留日志、失败命令和镜像 tag，便于追溯
 - 需要人工回滚时，必须能明确定位“上一稳定 tag”
 
-### 6. 与现有发布规范的关系
+### 7. 与现有发布规范的关系
 
 - GitLab 流水线不能绕过 `GIT_RULES.md` 的分支治理要求
 - GitLab 流水线不能替代 `RELEASE.md` 中的 UAT、信创验证、回滚确认职责
@@ -102,24 +96,26 @@ Runner 部署类变量建议单独建组，避免与业务服务部署变量混�
 ## 推荐实践
 
 - 把重复的构建与部署命令沉淀到 `scripts/ci/`，避免把复杂逻辑直接塞进 `.gitlab-ci.yml`
-- 为 `image` job 使用独立镜像仓库路径，避免不同服务共享同一 tag 空间
+- 为每个 `image` job 使用独立镜像仓库路径，避免不同服务共用同一 tag 空间
 - 为 `deploy` job 明确设置 `environment` 名称，便于 GitLab 环境面板追踪
 - 将测试产物、Jar 包、镜像 tag 和部署日志统一留档，提升问题定位效率
 - 对 `prod` 部署启用双人复核或受保护环境审批
-- 本地 GitLab 联调与开发服务器测试环境的完整步骤见 [GITLAB_LOCAL_TEST_FLOW.md](./GITLAB_LOCAL_TEST_FLOW.md)
+- 对文件健康度豁免清单的调整，与常规代码变更同样进入 MR 审查，避免例外失控
 
 ## 反例/禁用项
 
 - 在 `deploy` job 中直接执行源码构建或修改源文件
 - 使用一个共享 SSH 私钥同时控制所有环境且不做保护
 - 让 `main` 或普通功能分支自动发布到生产环境
-- 只记录“部署成功”而不记录镜像 tag、主机目录和验证结果
+- 只记录“部署成功”，却不记录镜像 tag、主机目录和验证结果
 - 在 GitLab Variables 中保存明文示例密码并长期复用
+- 为绕过 `verify` 门禁临时删除文件健康校验，事后不恢复
 
 ## 检查清单
 
 - [ ] 已按 `verify`、`package`、`image`、`deploy` 划分流水线
 - [ ] `develop`、`release/*`、`v*` 与环境映射已明确
+- [ ] `verify` 阶段已纳入仓库文件编码与文件健康度校验
 - [ ] SSH 私钥、主机地址、端口、部署目录、Spring Profile 已按环境拆分变量
 - [ ] `staging`、`prod` 变量已设置 `Protected`，密钥已设置 `Masked`
 - [ ] `staging`、`prod` 部署保留人工审批点

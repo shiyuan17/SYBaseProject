@@ -5,6 +5,7 @@ import com.company.cli.support.OutputOptionMixin;
 import com.company.user.application.command.CreateUserCommand;
 import com.company.user.application.service.CreateUserAppService;
 import com.company.user.domain.valueobject.UserId;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Mixin;
@@ -16,6 +17,7 @@ import java.util.concurrent.Callable;
 
 @Component
 @Command(name = "create", description = "Create a user.")
+@RequiredArgsConstructor
 public class UserCreateCommand implements Callable<Integer> {
 
     private final CreateUserAppService createUserAppService;
@@ -33,12 +35,6 @@ public class UserCreateCommand implements Callable<Integer> {
     @Spec
     private CommandSpec spec;
 
-    public UserCreateCommand(CreateUserAppService createUserAppService,
-                             CliOutputWriter outputWriter) {
-        this.createUserAppService = createUserAppService;
-        this.outputWriter = outputWriter;
-    }
-
     @Override
     public Integer call() throws Exception {
         UserId userId = createUserAppService.create(new CreateUserCommand(name, email));
@@ -54,4 +50,3 @@ public class UserCreateCommand implements Callable<Integer> {
     private record UserCreateView(String userId) {
     }
 }
-

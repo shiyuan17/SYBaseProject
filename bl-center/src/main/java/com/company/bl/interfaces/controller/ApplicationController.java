@@ -8,6 +8,7 @@ import com.company.bl.interfaces.dto.CreateApplicationRequest;
 import com.company.bl.interfaces.vo.ApplicationDetailResponse;
 import com.company.bl.interfaces.vo.ApplicationIdResponse;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,19 +19,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/applications")
+@RequiredArgsConstructor
 public class ApplicationController {
 
     private final CreateApplicationAppService createApplicationAppService;
     private final GetApplicationAppService getApplicationAppService;
     private final ApplicationRepresentationAssembler applicationRepresentationAssembler;
-
-    public ApplicationController(CreateApplicationAppService createApplicationAppService,
-                                 GetApplicationAppService getApplicationAppService,
-                                 ApplicationRepresentationAssembler applicationRepresentationAssembler) {
-        this.createApplicationAppService = createApplicationAppService;
-        this.getApplicationAppService = getApplicationAppService;
-        this.applicationRepresentationAssembler = applicationRepresentationAssembler;
-    }
 
     @PostMapping
     public ResponseEntity<ApplicationIdResponse> create(@Valid @RequestBody CreateApplicationRequest request) {

@@ -54,7 +54,7 @@ class ApplicationControllerIntegrationTest extends BaseWebIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "applicationNo": ""
+                      "applicationNo": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
                     }
                     """))
             .andExpect(status().isBadRequest())
@@ -84,6 +84,21 @@ class ApplicationControllerIntegrationTest extends BaseWebIntegrationTest {
         mockMvc.perform(get("/actuator/health"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status", is("UP")));
+    }
+
+    @Test
+    void shouldGenerateApplicationNumberWhenMissing() throws Exception {
+        mockMvc.perform(post("/api/v1/applications")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationType": "ROUTINE",
+                      "clinicalDiagnosis": "auto no"
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.code", is("SUCCESS")))
+            .andExpect(jsonPath("$.data.id", notNullValue()));
     }
 
     @Test

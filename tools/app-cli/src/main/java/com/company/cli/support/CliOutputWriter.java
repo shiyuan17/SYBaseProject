@@ -1,6 +1,7 @@
 package com.company.cli.support;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 import picocli.CommandLine.Model.CommandSpec;
@@ -9,13 +10,10 @@ import java.io.IOException;
 import java.io.PrintWriter;
 
 @Component
+@RequiredArgsConstructor
 public class CliOutputWriter {
 
     private final ObjectMapper objectMapper;
-
-    public CliOutputWriter(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
 
     public void write(CommandSpec spec, OutputFormat outputFormat, Object jsonData, String textOutput) throws IOException {
         PrintWriter out = spec.commandLine().getOut();
@@ -37,4 +35,3 @@ public class CliOutputWriter {
         err.flush();
     }
 }
-

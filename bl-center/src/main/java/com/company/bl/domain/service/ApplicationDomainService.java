@@ -6,19 +6,15 @@ import com.company.bl.domain.exception.ApplicationDomainException;
 import com.company.bl.domain.factory.ApplicationFactory;
 import com.company.bl.domain.model.Application;
 import com.company.bl.domain.repository.ApplicationRepository;
+import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDate;
 
+@RequiredArgsConstructor
 public class ApplicationDomainService {
 
     private final ApplicationRepository applicationRepository;
     private final ApplicationFactory applicationFactory;
-
-    public ApplicationDomainService(ApplicationRepository applicationRepository,
-                                    ApplicationFactory applicationFactory) {
-        this.applicationRepository = applicationRepository;
-        this.applicationFactory = applicationFactory;
-    }
 
     public Application register(String applicationNo,
                                 String patientId,

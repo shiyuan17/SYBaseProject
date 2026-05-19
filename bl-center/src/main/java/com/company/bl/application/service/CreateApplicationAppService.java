@@ -6,20 +6,18 @@ import com.company.bl.domain.repository.ApplicationRepository;
 import com.company.bl.domain.service.ApplicationDomainService;
 import com.company.bl.domain.valueobject.ApplicationId;
 import com.company.bl.infrastructure.observability.ObservedOperation;
+import com.company.bl.support.application.NumberingService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class CreateApplicationAppService {
 
     private final ApplicationDomainService applicationDomainService;
     private final ApplicationRepository applicationRepository;
-
-    public CreateApplicationAppService(ApplicationDomainService applicationDomainService,
-                                       ApplicationRepository applicationRepository) {
-        this.applicationDomainService = applicationDomainService;
-        this.applicationRepository = applicationRepository;
-    }
+    private final NumberingService numberingService;
 
     @Transactional
     @ObservedOperation(
@@ -28,8 +26,12 @@ public class CreateApplicationAppService {
         failureCounter = "application_create_failed_total",
         durationMetric = "application_create_duration")
     public ApplicationId create(CreateApplicationCommand command) {
+        String applicationNo = command.applicationNo();
+        if (applicationNo == null || applicationNo.isBlank()) {
+            applicationNo = numberingService.generateApplicationNo();
+        }
         Application application = applicationDomainService.register(
-            command.applicationNo(),
+            applicationNo,
             command.patientId(),
             command.applicationType(),
             command.status(),

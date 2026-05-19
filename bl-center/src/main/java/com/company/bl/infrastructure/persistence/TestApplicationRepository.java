@@ -11,7 +11,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Repository
-@Profile("test")
+@Profile("test-no-db")
 public class TestApplicationRepository implements ApplicationRepository {
 
     private final Map<String, Application> applications = new ConcurrentHashMap<>();

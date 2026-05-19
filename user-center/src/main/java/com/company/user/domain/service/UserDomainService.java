@@ -7,16 +7,13 @@ import com.company.user.domain.model.User;
 import com.company.user.domain.repository.UserRepository;
 import com.company.user.domain.valueobject.UserEmail;
 import com.company.user.domain.valueobject.UserName;
+import lombok.RequiredArgsConstructor;
 
+@RequiredArgsConstructor
 public class UserDomainService {
 
     private final UserRepository userRepository;
     private final UserFactory userFactory;
-
-    public UserDomainService(UserRepository userRepository, UserFactory userFactory) {
-        this.userRepository = userRepository;
-        this.userFactory = userFactory;
-    }
 
     public User register(String name, String email) {
         UserName userName = new UserName(name);

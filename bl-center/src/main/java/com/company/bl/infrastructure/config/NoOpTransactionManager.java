@@ -9,7 +9,7 @@ import org.springframework.transaction.support.AbstractPlatformTransactionManage
 import org.springframework.transaction.support.DefaultTransactionStatus;
 
 @Configuration
-@Profile("test")
+@Profile("test-no-db")
 public class NoOpTransactionManager {
 
     @Bean

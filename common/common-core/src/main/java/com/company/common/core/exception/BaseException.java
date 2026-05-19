@@ -1,7 +1,9 @@
 package com.company.common.core.exception;
 
 import com.company.common.core.enums.ErrorCode;
+import lombok.Getter;
 
+@Getter
 public abstract class BaseException extends RuntimeException {
 
     private final ErrorCode errorCode;
@@ -17,13 +19,5 @@ public abstract class BaseException extends RuntimeException {
         super(detailMessage);
         this.errorCode = errorCode;
         this.httpStatus = httpStatus;
-    }
-
-    public ErrorCode getErrorCode() {
-        return errorCode;
-    }
-
-    public int getHttpStatus() {
-        return httpStatus;
     }
 }

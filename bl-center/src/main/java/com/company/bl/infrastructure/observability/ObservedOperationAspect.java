@@ -2,6 +2,7 @@ package com.company.bl.infrastructure.observability;
 
 import com.company.bl.domain.enums.ApplicationErrorCode;
 import com.company.bl.domain.exception.ApplicationDomainException;
+import com.company.common.core.exception.BaseException;
 import com.company.bl.infrastructure.config.ObservabilityConfiguration;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -46,9 +47,11 @@ public class ObservedOperationAspect {
             Object result = joinPoint.proceed();
             incrementCounter(observedOperation.successCounter(), observedOperation.operation());
             return result;
-        } catch (ApplicationDomainException exception) {
+        } catch (BaseException exception) {
             incrementCounter(observedOperation.failureCounter(), observedOperation.operation());
-            incrementAdditionalCounter(observedOperation.operation(), exception);
+            if (exception instanceof ApplicationDomainException applicationException) {
+                incrementAdditionalCounter(observedOperation.operation(), applicationException);
+            }
             outcome = "business_failure";
             failure = exception;
             throw exception;
@@ -88,7 +91,7 @@ public class ObservedOperationAspect {
             logger.info("Observed business operation success");
             return;
         }
-        if (failure instanceof ApplicationDomainException) {
+        if (failure instanceof BaseException) {
             logger.warn("Observed business operation failure", failure);
             return;
         }

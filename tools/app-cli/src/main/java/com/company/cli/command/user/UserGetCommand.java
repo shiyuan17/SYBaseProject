@@ -5,6 +5,7 @@ import com.company.cli.support.OutputOptionMixin;
 import com.company.user.application.query.GetUserByIdQuery;
 import com.company.user.application.service.GetUserAppService;
 import com.company.user.domain.model.User;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Mixin;
@@ -16,6 +17,7 @@ import java.util.concurrent.Callable;
 
 @Component
 @Command(name = "get", description = "Get a user by id.")
+@RequiredArgsConstructor
 public class UserGetCommand implements Callable<Integer> {
 
     private final GetUserAppService getUserAppService;
@@ -29,12 +31,6 @@ public class UserGetCommand implements Callable<Integer> {
 
     @Spec
     private CommandSpec spec;
-
-    public UserGetCommand(GetUserAppService getUserAppService,
-                          CliOutputWriter outputWriter) {
-        this.getUserAppService = getUserAppService;
-        this.outputWriter = outputWriter;
-    }
 
     @Override
     public Integer call() throws Exception {
@@ -67,4 +63,3 @@ public class UserGetCommand implements Callable<Integer> {
     private record UserDetailView(String id, String name, String email, String status, String createdAt) {
     }
 }
-

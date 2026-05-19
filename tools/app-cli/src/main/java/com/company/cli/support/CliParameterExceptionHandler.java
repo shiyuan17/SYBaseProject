@@ -1,17 +1,15 @@
 package com.company.cli.support;
 
 import com.company.common.core.enums.CommonErrorCode;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
 @Component
+@RequiredArgsConstructor
 public class CliParameterExceptionHandler implements CommandLine.IParameterExceptionHandler {
 
     private final CliOutputWriter outputWriter;
-
-    public CliParameterExceptionHandler(CliOutputWriter outputWriter) {
-        this.outputWriter = outputWriter;
-    }
 
     @Override
     public int handleParseException(CommandLine.ParameterException ex, String[] args) throws Exception {

@@ -4,8 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
@@ -17,9 +16,8 @@ import java.io.IOException;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
+@Slf4j
 public class AccessLogFilter extends OncePerRequestFilter {
-
-    private static final Logger log = LoggerFactory.getLogger(AccessLogFilter.class);
     private static final String METHOD = "method";
     private static final String URI = "uri";
     private static final String STATUS = "status";
