@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    driver-class-name: ${BL_CENTER_DATASOURCE_DRIVER_CLASS_NAME:dm.jdbc.driver.DmDriver}
+    url: ${BL_CENTER_DATASOURCE_URL}
+    username: ${BL_CENTER_DATASOURCE_USERNAME}
+    password: ${BL_CENTER_DATASOURCE_PASSWORD}
+  flyway:
+    enabled: true

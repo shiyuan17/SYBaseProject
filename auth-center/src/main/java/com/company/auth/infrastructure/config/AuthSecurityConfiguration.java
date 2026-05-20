@@ -33,11 +33,12 @@ public class AuthSecurityConfiguration {
 
     @Bean
     public FilterRegistrationBean<BearerTokenAuthenticationFilter> bearerTokenAuthenticationFilter(
+        ObjectMapper objectMapper,
         Sm2JwtTokenService tokenService,
         TokenSessionValidator tokenSessionValidator
     ) {
         FilterRegistrationBean<BearerTokenAuthenticationFilter> bean = new FilterRegistrationBean<>();
-        bean.setFilter(new BearerTokenAuthenticationFilter(tokenService, tokenSessionValidator));
+        bean.setFilter(new BearerTokenAuthenticationFilter(tokenService, tokenSessionValidator, objectMapper));
         bean.addUrlPatterns("/*");
         bean.setOrder(20);
         return bean;

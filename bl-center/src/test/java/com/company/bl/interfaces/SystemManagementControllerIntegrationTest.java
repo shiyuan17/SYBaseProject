@@ -2,6 +2,7 @@ package com.company.bl.interfaces;
 
 import com.company.bl.BlCenterApplication;
 import com.company.bl.system.application.SystemManagementService;
+import com.company.common.security.crypto.Sm3PasswordEncoder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -20,7 +21,10 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -108,6 +112,40 @@ class SystemManagementControllerIntegrationTest extends AuthenticatedWebIntegrat
     }
 
     @Test
+    void shouldSeedBuiltInUsersWithLoginReadySm3Passwords() {
+        assertSeededPassword("USER_M1_ADMIN");
+        assertSeededPassword("USER_M2_REGISTER");
+        assertSeededPassword("USER_M3_GROSSING");
+    }
+
+    @Test
+    void shouldSeedRoleMenusForBuiltInAdminAndWorkflowRoles() throws Exception {
+        mockMvc.perform(asAdmin(get("/api/v1/roles/ROLE_PATHOLOGY_ADMIN/authorizations")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.menuIds", hasItems(
+                "MENU_SYSTEM",
+                "MENU_SYS_USERS",
+                "MENU_M2_WORKFLOW",
+                "MENU_M2_CLINICAL",
+                "MENU_M3_WORKFLOW",
+                "MENU_M3_GROSSING",
+                "MENU_M3_TASKS")));
+
+        mockMvc.perform(asAdmin(get("/api/v1/roles/ROLE_M2_CLINICAL_REGISTER/authorizations")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.menuIds", containsInAnyOrder(
+                "MENU_M2_WORKFLOW",
+                "MENU_M2_CLINICAL")));
+
+        mockMvc.perform(asAdmin(get("/api/v1/roles/ROLE_M3_GROSSING/authorizations")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.menuIds", containsInAnyOrder(
+                "MENU_M3_WORKFLOW",
+                "MENU_M3_GROSSING",
+                "MENU_M3_TASKS")));
+    }
+
+    @Test
     void shouldRecordLoginLogsAndExposePagedQuery() throws Exception {
         String loginName = "login-" + System.nanoTime();
         String userId = createUser(loginName);
@@ -161,6 +199,26 @@ class SystemManagementControllerIntegrationTest extends AuthenticatedWebIntegrat
             .andReturn();
         JsonNode createNode = objectMapper.readTree(createResult.getResponse().getContentAsString());
         return createNode.path("data").path("id").asText();
+    }
+
+    private void assertSeededPassword(String userId) {
+        Map<String, Object> passwordRow = jdbcTemplate.queryForMap("""
+            select password, password_algo, password_salt
+            from users
+            where id = :userId
+            """, Map.of("userId", userId));
+        Object passwordValue = passwordRow.get("password");
+        Object passwordAlgoValue = passwordRow.get("password_algo");
+        Object passwordSaltValue = passwordRow.get("password_salt");
+
+        assertNotNull(passwordValue);
+        assertNotNull(passwordAlgoValue);
+        assertNotNull(passwordSaltValue);
+        assertEquals("SM3", passwordAlgoValue);
+        assertTrue(new Sm3PasswordEncoder().matchesSm3(
+            "123456",
+            passwordSaltValue.toString(),
+            passwordValue.toString()));
     }
 
     private MockHttpServletRequestBuilder asAdmin(MockHttpServletRequestBuilder requestBuilder) {

@@ -5,4 +5,4 @@ spring:
     username: ${BL_CENTER_DATASOURCE_USERNAME:SYSDBA}
     password: ${BL_CENTER_DATASOURCE_PASSWORD:Dm.2027.Pwd.}
   flyway:
-    enabled: false
+    enabled: true

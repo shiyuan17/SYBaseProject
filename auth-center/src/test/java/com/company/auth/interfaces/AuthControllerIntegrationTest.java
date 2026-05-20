@@ -1,6 +1,8 @@
 package com.company.auth.interfaces;
 
 import com.company.auth.AuthCenterApplication;
+import com.company.common.security.jwt.JwtAccessTokenClaims;
+import com.company.common.security.jwt.Sm2JwtTokenService;
 import com.company.common.test.BaseWebIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,6 +15,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.Instant;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,6 +37,9 @@ class AuthControllerIntegrationTest extends BaseWebIntegrationTest {
     @Autowired
     private NamedParameterJdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private Sm2JwtTokenService tokenService;
+
     @Test
     void shouldLoginUpgradePlainPasswordAndPersistTokenSession() throws Exception {
         JsonNode loginResult = responseData(mockMvc.perform(post("/api/v1/auth/login")
@@ -52,7 +58,7 @@ class AuthControllerIntegrationTest extends BaseWebIntegrationTest {
             select password, password_algo, password_salt
             from users
             where id = 'AUTH_USER_PLAIN'
-            """);
+            """, Map.of());
         assertThat(user.get("password_algo")).isEqualTo("SM3");
         assertThat(user.get("password_salt")).isNotNull();
         assertThat(user.get("password")).isNotEqualTo("123456");
@@ -92,10 +98,35 @@ class AuthControllerIntegrationTest extends BaseWebIntegrationTest {
             where login_name = 'auth.fail'
             order by login_at desc
             fetch first 1 row only
-            """);
+            """, Map.of());
         assertThat(failedLog.get("login_name")).isEqualTo("auth.fail");
         assertThat(failedLog.get("login_result")).isEqualTo("FAILED");
         assertThat(failedLog.get("failure_reason")).isEqualTo("Bad credentials");
+    }
+
+    @Test
+    void shouldRejectDisabledUserAndRecordFailureLog() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "loginName": "auth.disabled",
+                      "password": "123456"
+                    }
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("USER_DISABLED"));
+
+        Map<String, Object> failedLog = jdbcTemplate.queryForMap("""
+            select login_name, login_result, failure_reason
+            from user_login_logs
+            where login_name = 'auth.disabled'
+            order by login_at desc
+            fetch first 1 row only
+            """, Map.of());
+        assertThat(failedLog.get("login_name")).isEqualTo("auth.disabled");
+        assertThat(failedLog.get("login_result")).isEqualTo("FAILED");
+        assertThat(failedLog.get("failure_reason")).isEqualTo("Account disabled");
     }
 
     @Test
@@ -132,6 +163,45 @@ class AuthControllerIntegrationTest extends BaseWebIntegrationTest {
                 .header("Authorization", bearerToken(accessToken)))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.code").value("ACCESS_TOKEN_REVOKED"));
+    }
+
+    @Test
+    void shouldRequireAuthenticationForProtectedEndpoints() throws Exception {
+        mockMvc.perform(get("/api/v1/auth/me"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+
+        mockMvc.perform(get("/api/v1/auth/access-codes"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+
+        mockMvc.perform(post("/api/v1/auth/logout"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+    }
+
+    @Test
+    void shouldRejectInvalidBearerToken() throws Exception {
+        mockMvc.perform(get("/api/v1/auth/me")
+                .header("Authorization", bearerToken("not-a-jwt")))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value("INVALID_ACCESS_TOKEN"));
+    }
+
+    @Test
+    void shouldRejectExpiredBearerToken() throws Exception {
+        Instant expiresAt = Instant.now().minusSeconds(60);
+        String accessToken = tokenService.generateToken(new JwtAccessTokenClaims(
+            "AT-EXPIRED",
+            "AUTH_USER_API",
+            "auth.api",
+            expiresAt.minusSeconds(300),
+            expiresAt));
+
+        mockMvc.perform(get("/api/v1/auth/me")
+                .header("Authorization", bearerToken(accessToken)))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value("ACCESS_TOKEN_EXPIRED"));
     }
 
     private String bearerToken(String accessToken) {

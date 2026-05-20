@@ -2,6 +2,7 @@ package com.company.bl.infrastructure.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
@@ -16,6 +17,7 @@ import java.sql.Statement;
 
 @Component
 @Profile("dev")
+@ConditionalOnProperty(prefix = "bl-center.dev-dm-schema-bootstrap", name = "enabled", havingValue = "true")
 public class DevDmSchemaBootstrap implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DevDmSchemaBootstrap.class);

@@ -8,9 +8,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -58,7 +58,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
             .body(ApiResponse.failure(
                 CommonErrorCode.VALIDATION_ERROR.code(),
-                "请求体不能为空或 JSON 格式不正确",
+                "Request body is required and must be valid JSON",
                 traceId(request)));
     }
 
