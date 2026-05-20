@@ -3,6 +3,10 @@ package com.company.bl.masterdata.interfaces;
 import com.company.bl.interfaces.auth.M1PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.masterdata.application.BodyPartService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -19,6 +23,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/body-parts")
+@Tag(name = "基础资料", description = "部位树查询与维护接口")
 public class BodyPartController {
 
     private final BodyPartService bodyPartService;
@@ -27,12 +32,14 @@ public class BodyPartController {
         this.bodyPartService = bodyPartService;
     }
 
+    @Operation(summary = "查询部位树", description = "查询系统部位树结构。")
     @RequirePermission(M1PermissionCodes.BODY_PART_QUERY)
     @GetMapping
     public List<BodyPartService.BodyPartNode> listBodyParts() {
         return bodyPartService.listBodyParts();
     }
 
+    @Operation(summary = "新增部位", description = "新增部位节点。")
     @RequirePermission(M1PermissionCodes.BODY_PART_CREATE)
     @PostMapping
     public BodyPartService.BodyPartNode createBodyPart(@Valid @RequestBody CreateBodyPartRequest request) {
@@ -41,30 +48,40 @@ public class BodyPartController {
             request.partLevel(), request.sortOrder(), request.enabled()));
     }
 
+    @Operation(summary = "更新部位启用状态", description = "更新指定部位节点的启停状态。")
     @RequirePermission(M1PermissionCodes.BODY_PART_CREATE)
     @PatchMapping("/{id}/enabled")
-    public BodyPartService.BodyPartNode updateBodyPartEnabled(@PathVariable("id") String id,
+    public BodyPartService.BodyPartNode updateBodyPartEnabled(@Parameter(description = "部位 ID") @PathVariable("id") String id,
                                                               @Valid @RequestBody UpdateEnabledRequest request) {
         return bodyPartService.updateBodyPartEnabled(id, request.enabled());
     }
 
+    @Schema(name = "CreateBodyPartRequest", description = "新增部位请求")
     public record CreateBodyPartRequest(
+        @Schema(description = "父级部位 ID，根节点可为空")
         String parentId,
+        @Schema(description = "部位编码", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "Part code must not be blank")
         @Size(max = 64, message = "Part code must not exceed 64 characters")
         String partCode,
+        @Schema(description = "部位名称", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "Part name must not be blank")
         @Size(max = 100, message = "Part name must not exceed 100 characters")
         String partName,
+        @Schema(description = "部位别名")
         @Size(max = 100, message = "Part alias must not exceed 100 characters")
         String partAlias,
+        @Schema(description = "部位层级，最小为 0")
         @Min(value = 0, message = "Part level must not be negative")
         int partLevel,
+        @Schema(description = "排序号")
         int sortOrder,
+        @Schema(description = "是否启用")
         boolean enabled
     ) {
     }
 
-    public record UpdateEnabledRequest(boolean enabled) {
+    @Schema(name = "BodyPartUpdateEnabledRequest", description = "更新部位启用状态请求")
+    public record UpdateEnabledRequest(@Schema(description = "是否启用") boolean enabled) {
     }
 }

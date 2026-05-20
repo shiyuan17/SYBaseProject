@@ -102,6 +102,6 @@
 ## 关联文档
 
 - [RELEASE.md](./RELEASE.md)
-- [AGENTS.md](./AGENTS.md)
+- [AGENTS.md](../AGENTS.md)
 - [DB_RULES.md](./DB_RULES.md)
 - [XINCHUANG_RULES.md](./XINCHUANG_RULES.md)

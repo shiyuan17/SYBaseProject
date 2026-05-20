@@ -9,6 +9,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.util.StringUtils;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -107,7 +108,7 @@ public class Sm2JwtTokenService {
                     "Access token is expired");
             }
             return new JwtAccessTokenClaims(tokenId, userId, loginName, issuedAt, expiresAt);
-        } catch (JsonProcessingException exception) {
+        } catch (IOException exception) {
             throw new SecurityAuthenticationException(
                 SecurityErrorCode.INVALID_ACCESS_TOKEN,
                 401,

@@ -9,6 +9,11 @@ import com.company.bl.interfaces.dto.CreateTransportOrderRequest;
 import com.company.bl.interfaces.dto.HandoverTransportOrderRequest;
 import com.company.bl.interfaces.dto.TransportOrderOperatorRequest;
 import com.company.bl.interfaces.vo.TransportOrderResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,10 +27,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/transport-orders")
 @RequiredArgsConstructor
+@Tag(name = "临床送检", description = "标本转运单创建、打印与交接接口")
 public class TransportOrderController {
 
     private final SpecimenWorkflowAppService specimenWorkflowAppService;
 
+    @Operation(summary = "创建转运单", description = "为申请单下指定标本创建转运单。")
+    @ApiResponses(@ApiResponse(responseCode = "201", description = "创建成功", useReturnTypeSchema = true))
     @RequirePermission(M2PermissionCodes.TRANSPORT_HANDOVER)
     @PostMapping
     public ResponseEntity<TransportOrderResponse> create(@Valid @RequestBody CreateTransportOrderRequest request,
@@ -44,9 +52,10 @@ public class TransportOrderController {
                 request.getRemarks()))));
     }
 
+    @Operation(summary = "打印转运单", description = "对指定转运单执行打印操作。")
     @RequirePermission(M2PermissionCodes.TRANSPORT_HANDOVER)
     @PostMapping("/{id}/print")
-    public TransportOrderResponse print(@PathVariable("id") String id,
+    public TransportOrderResponse print(@Parameter(description = "转运单 ID") @PathVariable("id") String id,
                                         @Valid @RequestBody TransportOrderOperatorRequest request,
                                         HttpServletRequest httpServletRequest) {
         return toResponse(specimenWorkflowAppService.printTransportOrder(
@@ -57,9 +66,10 @@ public class TransportOrderController {
                 request.getTerminalCode())));
     }
 
+    @Operation(summary = "交接转运单", description = "对指定转运单执行交接确认。")
     @RequirePermission(M2PermissionCodes.TRANSPORT_HANDOVER)
     @PostMapping("/{id}/handover")
-    public TransportOrderResponse handover(@PathVariable("id") String id,
+    public TransportOrderResponse handover(@Parameter(description = "转运单 ID") @PathVariable("id") String id,
                                            @Valid @RequestBody HandoverTransportOrderRequest request,
                                            HttpServletRequest httpServletRequest) {
         return toResponse(specimenWorkflowAppService.handoverTransportOrder(

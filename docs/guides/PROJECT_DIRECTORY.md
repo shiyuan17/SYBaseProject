@@ -15,15 +15,24 @@ project-root
 ├── README.md
 ├── .gitlab-ci.yml
 ├── docs/
-│   ├── API_RULES.md
-│   ├── DB_RULES.md
-│   ├── DDD_RULES.md
-│   ├── PROJECT_DIRECTORY.md
-│   └── TEMPLATE_CUSTOMIZATION.md
+│   ├── README.md
+│   ├── AGENTS.md
+│   ├── rules/
+│   ├── guides/
+│   ├── plans/
+│   ├── database/
+│   └── detailed_list/
 ├── common/
 │   ├── common-core
+│   ├── common-security
 │   ├── common-web
 │   └── common-test
+├── auth-center/
+│   ├── pom.xml
+│   └── src/
+├── bl-center/
+│   ├── pom.xml
+│   └── src/
 ├── user-center/
 │   ├── pom.xml
 │   └── src/
@@ -33,9 +42,9 @@ project-root
 
 说明：
 
-- 根 `pom.xml` 当前只聚合 `common-core`、`common-web`、`common-test`、`user-center`、`tools/app-cli`
-- `user-center` 是当前唯一真实业务样板
-- `tools/app-cli` 是当前唯一真实工具模块
+- 根 `pom.xml` 当前聚合 `common-core`、`common-security`、`common-web`、`common-test`、`auth-center`、`bl-center`、`user-center`、`tools/app-cli`
+- `bl-center` 是当前病理主业务模块，`user-center` 保留为示例业务样板
+- `tools/app-cli` 是当前 CLI 工具模块
 
 ## 预留目录与启用条件
 

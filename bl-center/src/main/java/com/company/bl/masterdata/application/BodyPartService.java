@@ -4,6 +4,7 @@ import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.masterdata.infrastructure.BodyPartJdbcRepository;
 import com.company.bl.support.application.OperationAuditService;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataAccessException;
@@ -92,8 +93,17 @@ public class BodyPartService {
             row.partLevel(), row.sortOrder(), row.enabled(), new ArrayList<>());
     }
 
-    public record BodyPartNode(String id, String parentId, String partCode, String partName, String partAlias,
-                               int partLevel, int sortOrder, boolean enabled, List<BodyPartNode> children) {
+    @Schema(name = "BodyPartNode", description = "部位树节点")
+    public record BodyPartNode(
+        @Schema(description = "部位 ID") String id,
+        @Schema(description = "父级部位 ID") String parentId,
+        @Schema(description = "部位编码") String partCode,
+        @Schema(description = "部位名称") String partName,
+        @Schema(description = "部位别名") String partAlias,
+        @Schema(description = "部位层级") int partLevel,
+        @Schema(description = "排序号") int sortOrder,
+        @Schema(description = "是否启用") boolean enabled,
+        @Schema(description = "子节点列表") List<BodyPartNode> children) {
     }
 
     public record CreateBodyPartCommand(String parentId, String partCode, String partName, String partAlias,

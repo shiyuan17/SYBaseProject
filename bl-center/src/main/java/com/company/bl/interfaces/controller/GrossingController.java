@@ -7,6 +7,8 @@ import com.company.bl.interfaces.dto.GrossingCompleteRequest;
 import com.company.bl.interfaces.dto.TechnicalTaskStartRequest;
 import com.company.bl.interfaces.vo.GrossingResponse;
 import com.company.bl.interfaces.vo.TaskOperationResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/grossings")
+@Tag(name = "技术流程", description = "取材开始与完成接口")
 public class GrossingController extends TechnicalControllerSupport {
 
     private final TechnicalWorkflowAppService technicalWorkflowAppService;
@@ -24,6 +27,7 @@ public class GrossingController extends TechnicalControllerSupport {
         this.technicalWorkflowAppService = technicalWorkflowAppService;
     }
 
+    @Operation(summary = "开始取材", description = "将技术任务推进到取材中状态。")
     @RequirePermission(M3PermissionCodes.GROSSING)
     @PostMapping("/start")
     public TaskOperationResponse start(@Valid @RequestBody TechnicalTaskStartRequest request,
@@ -38,6 +42,7 @@ public class GrossingController extends TechnicalControllerSupport {
         return new TaskOperationResponse(result.taskId(), result.caseId(), result.caseStatus(), result.taskStatus());
     }
 
+    @Operation(summary = "完成取材", description = "完成取材并生成后续脱水任务。")
     @RequirePermission(M3PermissionCodes.GROSSING)
     @PostMapping("/complete")
     public GrossingResponse complete(@Valid @RequestBody GrossingCompleteRequest request,

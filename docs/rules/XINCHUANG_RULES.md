@@ -80,7 +80,7 @@
 
 ## 关联文档
 
-- [AGENTS.md](./AGENTS.md)
+- [AGENTS.md](../AGENTS.md)
 - [CODING_RULES.md](./CODING_RULES.md)
 - [JAVA_RULES.md](./JAVA_RULES.md)
 - [DB_RULES.md](./DB_RULES.md)

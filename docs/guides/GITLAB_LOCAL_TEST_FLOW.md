@@ -280,7 +280,7 @@ scripts/ci/deploy-gitlab-runner.sh
 
 ## 关联文档
 
-- [GITLAB_CI_RULES.md](./GITLAB_CI_RULES.md)
-- [RELEASE.md](./RELEASE.md)
-- [../deploy/docker/gitlab/README.md](../deploy/docker/gitlab/README.md)
-- [deploy/docker/README.md](../deploy/docker/README.md)
+- [GITLAB_CI_RULES.md](../rules/GITLAB_CI_RULES.md)
+- [RELEASE.md](../rules/RELEASE.md)
+- [../../deploy/docker/gitlab/README.md](../../deploy/docker/gitlab/README.md)
+- [../../deploy/docker/README.md](../../deploy/docker/README.md)

@@ -38,10 +38,10 @@ infrastructure/monitor/
 
 ## 关联关系
 
-- 监控技术栈与指标规则遵循 [OBSERVABILITY_RULES.md](../../docs/OBSERVABILITY_RULES.md)
-- Java 侧集成方式遵循 [JAVA_RULES.md](../../docs/JAVA_RULES.md)
-- 发布门禁遵循 [RELEASE.md](../../docs/RELEASE.md)
-- 国产环境兼容要求遵循 [XINCHUANG_RULES.md](../../docs/XINCHUANG_RULES.md)
+- 监控技术栈与指标规则遵循 [OBSERVABILITY_RULES.md](../../docs/rules/OBSERVABILITY_RULES.md)
+- Java 侧集成方式遵循 [JAVA_RULES.md](../../docs/rules/JAVA_RULES.md)
+- 发布门禁遵循 [RELEASE.md](../../docs/rules/RELEASE.md)
+- 国产环境兼容要求遵循 [XINCHUANG_RULES.md](../../docs/rules/XINCHUANG_RULES.md)
 
 ## 当前示例资产
 

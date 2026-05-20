@@ -10,6 +10,9 @@ import com.company.bl.interfaces.dto.ReceiveSpecimensRequest;
 import com.company.bl.interfaces.vo.PendingSpecimenItemResponse;
 import com.company.bl.interfaces.vo.PendingSpecimenPageResponse;
 import com.company.bl.interfaces.vo.SpecimenReceiptResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,10 +26,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/specimen-receipts")
 @RequiredArgsConstructor
+@Tag(name = "临床送检", description = "标本接收与待接收查询接口")
 public class SpecimenReceiptController {
 
     private final SpecimenWorkflowAppService specimenWorkflowAppService;
 
+    @Operation(summary = "按转运单接收标本", description = "基于转运单和接收明细批量接收标本。")
     @RequirePermission(M2PermissionCodes.SPECIMEN_RECEIVE)
     @PostMapping
     public SpecimenReceiptResponse receive(@Valid @RequestBody ReceiveSpecimensRequest request,
@@ -47,6 +52,7 @@ public class SpecimenReceiptController {
         return new SpecimenReceiptResponse(result.caseId(), result.pathologyNo(), result.receiptStatus(), result.unreceivedCount());
     }
 
+    @Operation(summary = "按条码直接接收标本", description = "不依赖转运单，直接根据标本条码完成接收。")
     @RequirePermission(M2PermissionCodes.SPECIMEN_RECEIVE)
     @PostMapping("/by-barcodes")
     public SpecimenReceiptResponse receiveByBarcodes(@Valid @RequestBody DirectReceiveSpecimensRequest request,
@@ -66,14 +72,15 @@ public class SpecimenReceiptController {
         return new SpecimenReceiptResponse(result.caseId(), result.pathologyNo(), result.receiptStatus(), result.unreceivedCount());
     }
 
+    @Operation(summary = "查询待接收标本", description = "分页查询当前待接收的标本列表。")
     @RequirePermission(M2PermissionCodes.SPECIMEN_RECEIVE)
     @GetMapping("/pending")
-    public PendingSpecimenPageResponse listPending(@RequestParam(defaultValue = "1") int page,
-                                                   @RequestParam(defaultValue = "20") int size,
-                                                   @RequestParam(required = false) String applicationId,
-                                                   @RequestParam(required = false) String departmentId,
-                                                   @RequestParam(required = false) String dateFrom,
-                                                   @RequestParam(required = false) String dateTo) {
+    public PendingSpecimenPageResponse listPending(@Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
+                                                   @Parameter(description = "每页条数，默认 20") @RequestParam(defaultValue = "20") int size,
+                                                   @Parameter(description = "申请单 ID") @RequestParam(required = false) String applicationId,
+                                                   @Parameter(description = "送检科室 ID") @RequestParam(required = false) String departmentId,
+                                                   @Parameter(description = "开始日期") @RequestParam(required = false) String dateFrom,
+                                                   @Parameter(description = "结束日期") @RequestParam(required = false) String dateTo) {
         SpecimenWorkflowAppService.PendingSpecimenPage result = specimenWorkflowAppService.listPendingReceipts(
             new SpecimenWorkflowAppService.PendingSpecimenQuery(page, size, applicationId, departmentId, dateFrom, dateTo));
         return new PendingSpecimenPageResponse(

@@ -1,6 +1,8 @@
 spring:
   datasource:
-    driver-class-name: dm.jdbc.driver.DmDriver
-    url: "jdbc:dm://dbserver?dbserver=(192.168.0.6:1522)&loginMode=4&schema=SYSTEM"
-    username: system
-    password: d9ell8
+    driver-class-name: ${BL_CENTER_DATASOURCE_DRIVER_CLASS_NAME:dm.jdbc.driver.DmDriver}
+    url: ${BL_CENTER_DATASOURCE_URL:jdbc:dm://127.0.0.1:5236}
+    username: ${BL_CENTER_DATASOURCE_USERNAME:SYSDBA}
+    password: ${BL_CENTER_DATASOURCE_PASSWORD:Dm.2027.Pwd.}
+  flyway:
+    enabled: false

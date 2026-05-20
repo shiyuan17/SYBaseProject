@@ -15,32 +15,32 @@
 开始任务前，必须按以下顺序读取上下文：
 
 1. `AGENTS.md`
-2. `CODING_RULES.md`
-3. `XINCHUANG_RULES.md`
-4. `OBSERVABILITY_RULES.md`
-5. `JAVA_RULES.md`
-6. `CLI_RULES.md`
-7. `DDD_RULES.md`
-8. `API_RULES.md`
-9. `DB_RULES.md`
-10. `GIT_RULES.md`
-11. `RELEASE.md`
+2. `rules/CODING_RULES.md`
+3. `rules/XINCHUANG_RULES.md`
+4. `rules/OBSERVABILITY_RULES.md`
+5. `rules/JAVA_RULES.md`
+6. `rules/CLI_RULES.md`
+7. `rules/DDD_RULES.md`
+8. `rules/API_RULES.md`
+9. `rules/DB_RULES.md`
+10. `rules/GIT_RULES.md`
+11. `rules/RELEASE.md`
 12. 任务涉及模块的说明文档与现有源码
 
 ### 2. 规范映射表
 
 | 场景 | 必读文档 |
 |------|----------|
-| 通用编码与测试基线 | `CODING_RULES.md` |
-| 国产化兼容、替代评估、例外审批 | `XINCHUANG_RULES.md` |
-| 监控、指标、告警、看板 | `OBSERVABILITY_RULES.md` |
-| Java 17 / Spring Boot 3 / Lombok / Slf4j + Logback / Picocli 实现 | `JAVA_RULES.md` |
-| CLI 应用、批处理命令、工具命令 | `CLI_RULES.md` |
-| 领域建模与分层边界 | `DDD_RULES.md` |
-| REST API 与接口文档 | `API_RULES.md` |
-| 数据库、SQL、迁移与回滚 | `DB_RULES.md` |
-| 分支、提交、PR、合并协作 | `GIT_RULES.md` |
-| 版本、环境、上线与回滚 | `RELEASE.md` |
+| 通用编码与测试基线 | `rules/CODING_RULES.md` |
+| 国产化兼容、替代评估、例外审批 | `rules/XINCHUANG_RULES.md` |
+| 监控、指标、告警、看板 | `rules/OBSERVABILITY_RULES.md` |
+| Java 17 / Spring Boot 3 / Lombok / Slf4j + Logback / Picocli 实现 | `rules/JAVA_RULES.md` |
+| CLI 应用、批处理命令、工具命令 | `rules/CLI_RULES.md` |
+| 领域建模与分层边界 | `rules/DDD_RULES.md` |
+| REST API 与接口文档 | `rules/API_RULES.md` |
+| 数据库、SQL、迁移与回滚 | `rules/DB_RULES.md` |
+| 分支、提交、PR、合并协作 | `rules/GIT_RULES.md` |
+| 版本、环境、上线与回滚 | `rules/RELEASE.md` |
 
 ### 3. 任务开始模板
 
@@ -107,8 +107,8 @@
 
 - 与用户沟通：默认使用用户当前语言
 - 代码注释与 JavaDoc：遵循模块既有语言风格，无现存风格时优先中文
-- Git 提交信息：遵循 `GIT_RULES.md` 中的 Conventional Commits
-- 发布说明：遵循 `RELEASE.md` 中的版本与变更说明要求
+- Git 提交信息：遵循 `rules/GIT_RULES.md` 中的 Conventional Commits
+- 发布说明：遵循 `rules/RELEASE.md` 中的版本与变更说明要求
 
 ## 推荐实践
 
@@ -137,13 +137,13 @@
 
 ## 关联文档
 
-- [CODING_RULES.md](./CODING_RULES.md)
-- [XINCHUANG_RULES.md](./XINCHUANG_RULES.md)
-- [OBSERVABILITY_RULES.md](./OBSERVABILITY_RULES.md)
-- [JAVA_RULES.md](./JAVA_RULES.md)
-- [CLI_RULES.md](./CLI_RULES.md)
-- [DDD_RULES.md](./DDD_RULES.md)
-- [API_RULES.md](./API_RULES.md)
-- [DB_RULES.md](./DB_RULES.md)
-- [GIT_RULES.md](./GIT_RULES.md)
-- [RELEASE.md](./RELEASE.md)
+- [CODING_RULES.md](./rules/CODING_RULES.md)
+- [XINCHUANG_RULES.md](./rules/XINCHUANG_RULES.md)
+- [OBSERVABILITY_RULES.md](./rules/OBSERVABILITY_RULES.md)
+- [JAVA_RULES.md](./rules/JAVA_RULES.md)
+- [CLI_RULES.md](./rules/CLI_RULES.md)
+- [DDD_RULES.md](./rules/DDD_RULES.md)
+- [API_RULES.md](./rules/API_RULES.md)
+- [DB_RULES.md](./rules/DB_RULES.md)
+- [GIT_RULES.md](./rules/GIT_RULES.md)
+- [RELEASE.md](./rules/RELEASE.md)

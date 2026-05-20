@@ -103,4 +103,4 @@
 - [JAVA_RULES.md](./JAVA_RULES.md)
 - [DB_RULES.md](./DB_RULES.md)
 - [API_RULES.md](./API_RULES.md)
-- [AGENTS.md](./AGENTS.md)
+- [AGENTS.md](../AGENTS.md)

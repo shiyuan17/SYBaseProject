@@ -13,6 +13,11 @@ import com.company.bl.interfaces.vo.LabelPrintRetryResponse;
 import com.company.bl.interfaces.vo.SpecimenRegistrationResponse;
 import com.company.bl.interfaces.vo.SpecimenSummaryResponse;
 import com.company.bl.interfaces.vo.TrackingEventResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,10 +34,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/specimens")
 @RequiredArgsConstructor
+@Tag(name = "临床送检", description = "标本登记、标签补打与按条码追踪接口")
 public class SpecimenController {
 
     private final SpecimenWorkflowAppService specimenWorkflowAppService;
 
+    @Operation(summary = "登记标本", description = "登记申请单下的标本并尝试打印标签。")
+    @ApiResponses(@ApiResponse(responseCode = "201", description = "登记成功", useReturnTypeSchema = true))
     @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
     @PostMapping("/register")
     public ResponseEntity<SpecimenRegistrationResponse> register(@Valid @RequestBody RegisterSpecimensRequest request,
@@ -62,9 +70,10 @@ public class SpecimenController {
             result.specimens().stream().map(this::toSpecimenSummary).toList()));
     }
 
+    @Operation(summary = "重试打印标本标签", description = "对指定标签批次重新发起标签打印。")
     @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
     @PostMapping("/label-batches/{batchNo}/retry")
-    public LabelPrintRetryResponse retryLabelPrint(@PathVariable("batchNo") String batchNo,
+    public LabelPrintRetryResponse retryLabelPrint(@Parameter(description = "标签打印批次号") @PathVariable("batchNo") String batchNo,
                                                    @Valid @RequestBody RetryLabelPrintRequest request,
                                                    HttpServletRequest httpServletRequest) {
         SpecimenWorkflowAppService.LabelPrintRetryResult result = specimenWorkflowAppService.retryLabelPrint(
@@ -84,9 +93,10 @@ public class SpecimenController {
             result.message());
     }
 
+    @Operation(summary = "按条码查询标本追踪", description = "根据标本条码查询所属申请单及完整追踪信息。")
     @RequirePermission(M2PermissionCodes.SPECIMEN_TRACKING_QUERY)
     @GetMapping("/barcodes/{barcode}/tracking")
-    public ApplicationDetailResponse getTrackingByBarcode(@PathVariable("barcode") String barcode) {
+    public ApplicationDetailResponse getTrackingByBarcode(@Parameter(description = "标本条码") @PathVariable("barcode") String barcode) {
         return toApplicationDetail(specimenWorkflowAppService.getTrackingByBarcode(barcode));
     }
 

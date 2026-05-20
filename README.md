@@ -26,10 +26,11 @@
 - `admin-web/`
 - 顶层 `infrastructure/`
 
-当前目录契约与占位说明见 [docs/PROJECT_DIRECTORY.md](./docs/PROJECT_DIRECTORY.md)。
-模板初始化、包名替换、数据库/Flyway、profile 与接口文档约定见 [docs/TEMPLATE_CUSTOMIZATION.md](./docs/TEMPLATE_CUSTOMIZATION.md)。
+完整文档导航见 [docs/README.md](./docs/README.md)。
+当前目录契约与占位说明见 [docs/guides/PROJECT_DIRECTORY.md](./docs/guides/PROJECT_DIRECTORY.md)。
+模板初始化、包名替换、数据库/Flyway、profile 与接口文档约定见 [docs/guides/TEMPLATE_CUSTOMIZATION.md](./docs/guides/TEMPLATE_CUSTOMIZATION.md)。
 本地 GitLab 启动模板见 [deploy/docker/gitlab/README.md](./deploy/docker/gitlab/README.md)。
-如需按“本地 GitLab 开发环境 + 开发服务器测试环境”运行 CI/CD，请参考 [docs/GITLAB_LOCAL_TEST_FLOW.md](./docs/GITLAB_LOCAL_TEST_FLOW.md)。
+如需按“本地 GitLab 开发环境 + 开发服务器测试环境”运行 CI/CD，请参考 [docs/guides/GITLAB_LOCAL_TEST_FLOW.md](./docs/guides/GITLAB_LOCAL_TEST_FLOW.md)。
 
 ## 启动方式
 
@@ -91,5 +92,5 @@
 
 1. 将 `com.company` 替换为真实组织域名倒序包名
 2. 为 `user-center` 引入真实 `infrastructure.persistence` 实现，并保留 `domain.repository` 作为稳定抽象
-3. 按 `docs/DB_RULES.md` 增加数据库迁移与达梦兼容验证记录
-4. 按 `docs/API_RULES.md` 补充 OpenAPI / Apifox 文档
+3. 按 `docs/rules/DB_RULES.md` 增加数据库迁移与达梦兼容验证记录
+4. 按 `docs/rules/API_RULES.md` 补充 OpenAPI / Apifox 文档

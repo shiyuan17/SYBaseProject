@@ -5,6 +5,7 @@ import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.masterdata.infrastructure.MedicalOrderPageJdbcRepository;
 import com.company.bl.masterdata.infrastructure.MedicalOrderJdbcRepository;
 import com.company.bl.support.application.OperationAuditService;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataAccessException;
@@ -274,21 +275,69 @@ public class MedicalOrderService {
             row.orderItemName(), row.sortOrder(), row.remarks());
     }
 
-    public record MedicalOrderCategoryNode(String id, String parentId, String categoryCode, String categoryName,
-                                           int sortOrder, boolean enabled, List<MedicalOrderCategoryNode> children, List<MedicalOrderItemView> items) {}
-    public record MedicalOrderItemView(String id, String categoryId, String orderItemCode, String orderItemName,
-                                       String orderType, String defaultContent, String executionScope, int sortOrder, boolean enabled) {}
+    @Schema(name = "MedicalOrderCategoryNode", description = "医嘱字典分类树节点")
+    public record MedicalOrderCategoryNode(
+        @Schema(description = "分类 ID") String id,
+        @Schema(description = "父级分类 ID") String parentId,
+        @Schema(description = "分类编码") String categoryCode,
+        @Schema(description = "分类名称") String categoryName,
+        @Schema(description = "排序号") int sortOrder,
+        @Schema(description = "是否启用") boolean enabled,
+        @Schema(description = "子分类列表") List<MedicalOrderCategoryNode> children,
+        @Schema(description = "分类下的医嘱条目") List<MedicalOrderItemView> items) {}
+    @Schema(name = "MedicalOrderItemView", description = "医嘱字典条目")
+    public record MedicalOrderItemView(
+        @Schema(description = "条目 ID") String id,
+        @Schema(description = "所属分类 ID") String categoryId,
+        @Schema(description = "医嘱条目编码") String orderItemCode,
+        @Schema(description = "医嘱条目名称") String orderItemName,
+        @Schema(description = "医嘱类型") String orderType,
+        @Schema(description = "默认内容") String defaultContent,
+        @Schema(description = "执行范围") String executionScope,
+        @Schema(description = "排序号") int sortOrder,
+        @Schema(description = "是否启用") boolean enabled) {}
     public record CreateMedicalOrderCategoryCommand(String parentId, String categoryCode, String categoryName, int sortOrder, boolean enabled) {}
     public record CreateMedicalOrderItemCommand(String categoryId, String orderItemCode, String orderItemName,
                                                 String orderType, String defaultContent, String executionScope, int sortOrder, boolean enabled) {}
-    public record ChargeItemView(String id, String orderDictItemId, String orderItemName, String chargeItemCode,
-                                 String chargeItemName, String specification, String unit, BigDecimal price, int sortOrder, boolean enabled) {}
-    public record PagedResult<T>(List<T> items, int page, int size, long total) {}
+    @Schema(name = "ChargeItemView", description = "收费项目")
+    public record ChargeItemView(
+        @Schema(description = "收费项目 ID") String id,
+        @Schema(description = "关联医嘱条目 ID") String orderDictItemId,
+        @Schema(description = "医嘱条目名称") String orderItemName,
+        @Schema(description = "收费项目编码") String chargeItemCode,
+        @Schema(description = "收费项目名称") String chargeItemName,
+        @Schema(description = "规格") String specification,
+        @Schema(description = "计量单位") String unit,
+        @Schema(description = "价格") BigDecimal price,
+        @Schema(description = "排序号") int sortOrder,
+        @Schema(description = "是否启用") boolean enabled) {}
+    @Schema(name = "MedicalOrderPagedResult", description = "医嘱模块分页结果")
+    public record PagedResult<T>(
+        @Schema(description = "当前页数据") List<T> items,
+        @Schema(description = "页码，从 1 开始") int page,
+        @Schema(description = "每页条数") int size,
+        @Schema(description = "总记录数") long total) {}
     public record CreateChargeItemCommand(String orderDictItemId, String chargeItemCode, String chargeItemName,
                                           String specification, String unit, BigDecimal price, int sortOrder, boolean enabled) {}
-    public record PackageView(String id, String packageCode, String packageName, String packageType,
-                              String ownerUserId, boolean enabled, String remarks, List<PackageItemView> items) {}
-    public record PackageItemView(String id, String packageId, String orderItemId, String orderItemCode, String orderItemName, int sortOrder, String remarks) {}
+    @Schema(name = "PackageView", description = "医嘱套餐")
+    public record PackageView(
+        @Schema(description = "套餐 ID") String id,
+        @Schema(description = "套餐编码") String packageCode,
+        @Schema(description = "套餐名称") String packageName,
+        @Schema(description = "套餐类型") String packageType,
+        @Schema(description = "负责人用户 ID") String ownerUserId,
+        @Schema(description = "是否启用") boolean enabled,
+        @Schema(description = "备注") String remarks,
+        @Schema(description = "套餐明细") List<PackageItemView> items) {}
+    @Schema(name = "PackageItemView", description = "套餐条目")
+    public record PackageItemView(
+        @Schema(description = "条目 ID") String id,
+        @Schema(description = "套餐 ID") String packageId,
+        @Schema(description = "医嘱条目 ID") String orderItemId,
+        @Schema(description = "医嘱条目编码") String orderItemCode,
+        @Schema(description = "医嘱条目名称") String orderItemName,
+        @Schema(description = "排序号") int sortOrder,
+        @Schema(description = "备注") String remarks) {}
     public record CreatePackageCommand(String packageCode, String packageName, String packageType,
                                        String ownerUserId, boolean enabled, String remarks, List<String> itemIds) {}
 }

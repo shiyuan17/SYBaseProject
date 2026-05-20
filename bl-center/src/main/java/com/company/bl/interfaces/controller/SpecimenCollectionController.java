@@ -8,6 +8,10 @@ import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.RegisterSpecimensRequest;
 import com.company.bl.interfaces.vo.SpecimenRegistrationResponse;
 import com.company.bl.interfaces.vo.SpecimenSummaryResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,10 +24,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/specimen-collections")
 @RequiredArgsConstructor
+@Tag(name = "临床送检", description = "标本采集登记接口")
 public class SpecimenCollectionController {
 
     private final SpecimenWorkflowAppService specimenWorkflowAppService;
 
+    @Operation(summary = "采集场景登记标本", description = "在采集场景下登记申请单标本并触发标签打印。")
+    @ApiResponses(@ApiResponse(responseCode = "201", description = "登记成功", useReturnTypeSchema = true))
     @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
     @PostMapping
     public ResponseEntity<SpecimenRegistrationResponse> register(@Valid @RequestBody RegisterSpecimensRequest request,

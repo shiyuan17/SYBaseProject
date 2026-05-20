@@ -116,4 +116,4 @@ management:
 - [JAVA_RULES.md](./JAVA_RULES.md)
 - [RELEASE.md](./RELEASE.md)
 - [XINCHUANG_RULES.md](./XINCHUANG_RULES.md)
-- [AGENTS.md](./AGENTS.md)
+- [AGENTS.md](../AGENTS.md)

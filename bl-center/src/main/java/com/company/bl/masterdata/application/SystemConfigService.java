@@ -4,6 +4,7 @@ import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.masterdata.infrastructure.SystemConfigJdbcRepository;
 import com.company.bl.support.application.OperationAuditService;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataAccessException;
@@ -111,14 +112,30 @@ public class SystemConfigService {
             row.valueType(), row.sortOrder(), row.enabled(), row.remarks());
     }
 
-    public record ConfigCategoryNode(String id, String parentId, String categoryCode, String categoryName,
-                                     String categoryType, int sortOrder, boolean enabled,
-                                     List<ConfigCategoryNode> children, List<ConfigItemView> items) {
+    @Schema(name = "ConfigCategoryNode", description = "系统配置分类树节点")
+    public record ConfigCategoryNode(
+        @Schema(description = "分类 ID") String id,
+        @Schema(description = "父级分类 ID") String parentId,
+        @Schema(description = "分类编码") String categoryCode,
+        @Schema(description = "分类名称") String categoryName,
+        @Schema(description = "分类类型") String categoryType,
+        @Schema(description = "排序号") int sortOrder,
+        @Schema(description = "是否启用") boolean enabled,
+        @Schema(description = "子分类列表") List<ConfigCategoryNode> children,
+        @Schema(description = "分类下配置项") List<ConfigItemView> items) {
     }
 
-    public record ConfigItemView(String id, String categoryId, String configKey, String configName,
-                                 String configValue, String valueType, int sortOrder, boolean enabled,
-                                 String remarks) {
+    @Schema(name = "ConfigItemView", description = "系统配置项")
+    public record ConfigItemView(
+        @Schema(description = "配置项 ID") String id,
+        @Schema(description = "分类 ID") String categoryId,
+        @Schema(description = "配置键") String configKey,
+        @Schema(description = "配置名称") String configName,
+        @Schema(description = "配置值") String configValue,
+        @Schema(description = "值类型") String valueType,
+        @Schema(description = "排序号") int sortOrder,
+        @Schema(description = "是否启用") boolean enabled,
+        @Schema(description = "备注") String remarks) {
     }
 
     public record CreateConfigCategoryCommand(String parentId, String categoryCode, String categoryName,

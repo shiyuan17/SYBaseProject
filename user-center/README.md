@@ -2,9 +2,9 @@
 
 `user-center` 是脚手架中的示例业务模块，用于演示以下规范在代码中的落地方式：
 
-- [docs/JAVA_RULES.md](../docs/JAVA_RULES.md)
-- [docs/DDD_RULES.md](../docs/DDD_RULES.md)
-- [docs/API_RULES.md](../docs/API_RULES.md)
+- [docs/rules/JAVA_RULES.md](../docs/rules/JAVA_RULES.md)
+- [docs/rules/DDD_RULES.md](../docs/rules/DDD_RULES.md)
+- [docs/rules/API_RULES.md](../docs/rules/API_RULES.md)
 
 ## 结构映射
 

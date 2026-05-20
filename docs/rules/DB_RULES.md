@@ -87,4 +87,4 @@
 - [JAVA_RULES.md](./JAVA_RULES.md)
 - [XINCHUANG_RULES.md](./XINCHUANG_RULES.md)
 - [RELEASE.md](./RELEASE.md)
-- [AGENTS.md](./AGENTS.md)
+- [AGENTS.md](../AGENTS.md)

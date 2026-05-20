@@ -5,6 +5,7 @@ import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.support.application.OperationAuditService;
 import com.company.bl.system.infrastructure.SystemJdbcRepository;
 import com.company.common.security.crypto.Sm3PasswordEncoder;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -318,47 +319,59 @@ public class SystemManagementService {
             row.remarks());
     }
 
-    public record PagedResult<T>(List<T> items, int page, int size, long total) {
+    @Schema(name = "SystemManagementPagedResult", description = "系统管理分页结果")
+    public record PagedResult<T>(
+        @Schema(description = "当前页数据") List<T> items,
+        @Schema(description = "页码，从 1 开始") int page,
+        @Schema(description = "每页条数") int size,
+        @Schema(description = "总记录数") long total) {
     }
 
+    @Schema(name = "UserView", description = "系统用户")
     public record UserView(
-        String id,
-        String userCode,
-        String loginName,
-        String name,
-        String jobNo,
-        String titleName,
-        String departmentId,
-        String departmentName,
-        String phone,
-        String email,
-        String avatar,
-        String loginTagCode,
-        boolean enabled,
-        List<AssignedRoleView> roles,
-        String lastLoginAt,
-        String lastLoginIp,
-        String lastLoginDevice,
-        String createdAt,
-        String updatedAt
+        @Schema(description = "用户 ID") String id,
+        @Schema(description = "用户编码") String userCode,
+        @Schema(description = "登录名") String loginName,
+        @Schema(description = "姓名") String name,
+        @Schema(description = "工号") String jobNo,
+        @Schema(description = "职称") String titleName,
+        @Schema(description = "科室 ID") String departmentId,
+        @Schema(description = "科室名称") String departmentName,
+        @Schema(description = "手机号") String phone,
+        @Schema(description = "邮箱") String email,
+        @Schema(description = "头像地址") String avatar,
+        @Schema(description = "登录标签编码") String loginTagCode,
+        @Schema(description = "是否启用") boolean enabled,
+        @Schema(description = "已分配角色") List<AssignedRoleView> roles,
+        @Schema(description = "最近登录时间") String lastLoginAt,
+        @Schema(description = "最近登录 IP") String lastLoginIp,
+        @Schema(description = "最近登录设备") String lastLoginDevice,
+        @Schema(description = "创建时间") String createdAt,
+        @Schema(description = "更新时间") String updatedAt
     ) {
     }
 
+    @Schema(name = "UserLoginLogView", description = "用户登录日志")
     public record UserLoginLogView(
-        String id,
-        String userId,
-        String loginName,
-        String loginResult,
-        String clientIp,
-        String clientDevice,
-        String loginAt,
-        String logoutAt,
-        String failureReason,
-        String remarks
+        @Schema(description = "日志 ID") String id,
+        @Schema(description = "用户 ID") String userId,
+        @Schema(description = "登录名") String loginName,
+        @Schema(description = "登录结果") String loginResult,
+        @Schema(description = "客户端 IP") String clientIp,
+        @Schema(description = "客户端设备") String clientDevice,
+        @Schema(description = "登录时间") String loginAt,
+        @Schema(description = "登出时间") String logoutAt,
+        @Schema(description = "失败原因") String failureReason,
+        @Schema(description = "备注") String remarks
     ) {
     }
 
-    public record AssignedRoleView(String roleId, String roleCode, String roleName, boolean primary) {
+    @Schema(name = "AssignedRoleView", description = "已分配角色")
+    public record AssignedRoleView(
+        @Schema(description = "角色 ID") String roleId,
+        @Schema(description = "角色编码") String roleCode,
+        @Schema(description = "角色名称") String roleName,
+        @Schema(description = "是否主角色") boolean primary) {
     }
 
     public record CreateUserCommand(
@@ -384,16 +397,17 @@ public class SystemManagementService {
     public record RoleAssignmentInput(String roleId, boolean primary) {
     }
 
+    @Schema(name = "RoleView", description = "系统角色")
     public record RoleView(
-        String id,
-        String roleCode,
-        String roleName,
-        String roleType,
-        String dataScope,
-        String remarks,
-        boolean enabled,
-        String createdAt,
-        String updatedAt
+        @Schema(description = "角色 ID") String id,
+        @Schema(description = "角色编码") String roleCode,
+        @Schema(description = "角色名称") String roleName,
+        @Schema(description = "角色类型") String roleType,
+        @Schema(description = "数据范围") String dataScope,
+        @Schema(description = "备注") String remarks,
+        @Schema(description = "是否启用") boolean enabled,
+        @Schema(description = "创建时间") String createdAt,
+        @Schema(description = "更新时间") String updatedAt
     ) {
     }
 
@@ -407,12 +421,13 @@ public class SystemManagementService {
     ) {
     }
 
+    @Schema(name = "RoleAuthorizationView", description = "角色授权视图")
     public record RoleAuthorizationView(
-        String roleId,
-        List<String> menuIds,
-        List<String> permissionIds,
-        List<String> topicIds,
-        Map<String, String> statScopes
+        @Schema(description = "角色 ID") String roleId,
+        @Schema(description = "菜单 ID 列表") List<String> menuIds,
+        @Schema(description = "权限 ID 列表") List<String> permissionIds,
+        @Schema(description = "消息主题 ID 列表") List<String> topicIds,
+        @Schema(description = "统计范围映射，key 为统计分类 ID，value 为范围值") Map<String, String> statScopes
     ) {
     }
 
@@ -436,53 +451,57 @@ public class SystemManagementService {
     ) {
     }
 
+    @Schema(name = "MenuView", description = "菜单定义")
     public record MenuView(
-        String id,
-        String parentId,
-        String menuCode,
-        String menuName,
-        String menuType,
-        String path,
-        String componentName,
-        String icon,
-        String permissionPrefix,
-        int sortOrder,
-        boolean visible,
-        boolean enabled
+        @Schema(description = "菜单 ID") String id,
+        @Schema(description = "父级菜单 ID") String parentId,
+        @Schema(description = "菜单编码") String menuCode,
+        @Schema(description = "菜单名称") String menuName,
+        @Schema(description = "菜单类型") String menuType,
+        @Schema(description = "路由路径") String path,
+        @Schema(description = "前端组件名") String componentName,
+        @Schema(description = "图标") String icon,
+        @Schema(description = "权限前缀") String permissionPrefix,
+        @Schema(description = "排序号") int sortOrder,
+        @Schema(description = "是否可见") boolean visible,
+        @Schema(description = "是否启用") boolean enabled
     ) {
     }
 
+    @Schema(name = "PermissionView", description = "权限定义")
     public record PermissionView(
-        String id,
-        String permissionCode,
-        String permissionName,
-        String menuId,
-        String actionKey,
-        String httpMethod,
-        String resourcePath,
-        String permissionGroup,
-        int sortOrder,
-        boolean enabled
+        @Schema(description = "权限 ID") String id,
+        @Schema(description = "权限码") String permissionCode,
+        @Schema(description = "权限名称") String permissionName,
+        @Schema(description = "关联菜单 ID") String menuId,
+        @Schema(description = "动作标识") String actionKey,
+        @Schema(description = "HTTP 方法") String httpMethod,
+        @Schema(description = "资源路径") String resourcePath,
+        @Schema(description = "权限分组") String permissionGroup,
+        @Schema(description = "排序号") int sortOrder,
+        @Schema(description = "是否启用") boolean enabled
     ) {
     }
 
+    @Schema(name = "MessageTopicView", description = "消息主题定义")
     public record MessageTopicView(
-        String id,
-        String topicCode,
-        String topicName,
-        String topicCategory,
-        String description,
-        boolean enabled
+        @Schema(description = "主题 ID") String id,
+        @Schema(description = "主题编码") String topicCode,
+        @Schema(description = "主题名称") String topicName,
+        @Schema(description = "主题分类") String topicCategory,
+        @Schema(description = "说明") String description,
+        @Schema(description = "是否启用") boolean enabled
     ) {
     }
 
+    @Schema(name = "StatCategoryView", description = "统计分类定义")
     public record StatCategoryView(
-        String id,
-        String statCode,
-        String statName,
-        String statScope,
-        String description,
-        boolean enabled
+        @Schema(description = "统计分类 ID") String id,
+        @Schema(description = "统计分类编码") String statCode,
+        @Schema(description = "统计分类名称") String statName,
+        @Schema(description = "统计范围类型") String statScope,
+        @Schema(description = "说明") String description,
+        @Schema(description = "是否启用") boolean enabled
     ) {
     }
 

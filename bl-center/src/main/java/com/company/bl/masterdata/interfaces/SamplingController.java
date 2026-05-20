@@ -3,6 +3,10 @@ package com.company.bl.masterdata.interfaces;
 import com.company.bl.interfaces.auth.M1PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.masterdata.application.SamplingService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -19,6 +23,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1")
+@Tag(name = "基础资料", description = "取材模板与取材规范维护接口")
 public class SamplingController {
 
     private final SamplingService samplingService;
@@ -27,18 +32,21 @@ public class SamplingController {
         this.samplingService = samplingService;
     }
 
+    @Operation(summary = "查询取材模板树", description = "查询取材模板分类树及模板摘要。")
     @RequirePermission(M1PermissionCodes.TEMPLATE_QUERY)
     @GetMapping("/sampling-templates")
     public List<SamplingService.TemplateCategoryNode> listSamplingTemplates() {
         return samplingService.listSamplingTemplates();
     }
 
+    @Operation(summary = "查询取材模板详情", description = "按模板 ID 查询取材模板详情。")
     @RequirePermission(M1PermissionCodes.TEMPLATE_QUERY)
     @GetMapping("/sampling-templates/{id}")
-    public SamplingService.TemplateDetailView getSamplingTemplateDetail(@PathVariable("id") String id) {
+    public SamplingService.TemplateDetailView getSamplingTemplateDetail(@Parameter(description = "模板 ID") @PathVariable("id") String id) {
         return samplingService.getSamplingTemplateDetail(id);
     }
 
+    @Operation(summary = "新增取材模板分类", description = "新增取材模板分类节点。")
     @RequirePermission(M1PermissionCodes.TEMPLATE_CREATE)
     @PostMapping("/sampling-templates/categories")
     public SamplingService.TemplateCategoryNode createTemplateCategory(@Valid @RequestBody CreateTemplateCategoryRequest request) {
@@ -46,6 +54,7 @@ public class SamplingController {
             request.parentId(), request.categoryCode(), request.categoryName(), request.sortOrder(), request.enabled()));
     }
 
+    @Operation(summary = "新增取材模板", description = "新增取材模板。")
     @RequirePermission(M1PermissionCodes.TEMPLATE_CREATE)
     @PostMapping("/sampling-templates")
     public SamplingService.TemplateDetailView createTemplate(@Valid @RequestBody CreateTemplateRequest request) {
@@ -54,25 +63,29 @@ public class SamplingController {
             request.splitPartCount(), request.applicableSpecimenType(), request.enabled(), request.bodyPartIds()));
     }
 
+    @Operation(summary = "更新取材模板启用状态", description = "更新指定取材模板的启停状态。")
     @RequirePermission(M1PermissionCodes.TEMPLATE_CREATE)
     @PatchMapping("/sampling-templates/{id}/enabled")
-    public SamplingService.TemplateDetailView updateTemplateEnabled(@PathVariable("id") String id,
+    public SamplingService.TemplateDetailView updateTemplateEnabled(@Parameter(description = "模板 ID") @PathVariable("id") String id,
                                                                     @Valid @RequestBody UpdateEnabledRequest request) {
         return samplingService.updateSamplingTemplateEnabled(id, request.enabled());
     }
 
+    @Operation(summary = "查询取材规范树", description = "查询取材规范分类树及规范摘要。")
     @RequirePermission(M1PermissionCodes.GUIDELINE_QUERY)
     @GetMapping("/sampling-guidelines")
     public List<SamplingService.GuidelineCategoryNode> listSamplingGuidelines() {
         return samplingService.listSamplingGuidelines();
     }
 
+    @Operation(summary = "查询取材规范详情", description = "按规范 ID 查询取材规范详情。")
     @RequirePermission(M1PermissionCodes.GUIDELINE_QUERY)
     @GetMapping("/sampling-guidelines/{id}")
-    public SamplingService.GuidelineDetailView getSamplingGuidelineDetail(@PathVariable("id") String id) {
+    public SamplingService.GuidelineDetailView getSamplingGuidelineDetail(@Parameter(description = "规范 ID") @PathVariable("id") String id) {
         return samplingService.getSamplingGuidelineDetail(id);
     }
 
+    @Operation(summary = "新增取材规范分类", description = "新增取材规范分类节点。")
     @RequirePermission(M1PermissionCodes.GUIDELINE_CREATE)
     @PostMapping("/sampling-guidelines/categories")
     public SamplingService.GuidelineCategoryNode createGuidelineCategory(@Valid @RequestBody CreateGuidelineCategoryRequest request) {
@@ -80,6 +93,7 @@ public class SamplingController {
             request.parentId(), request.categoryCode(), request.categoryName(), request.sortOrder(), request.enabled()));
     }
 
+    @Operation(summary = "新增取材规范", description = "新增取材规范。")
     @RequirePermission(M1PermissionCodes.GUIDELINE_CREATE)
     @PostMapping("/sampling-guidelines")
     public SamplingService.GuidelineDetailView createGuideline(@Valid @RequestBody CreateGuidelineRequest request) {
@@ -88,73 +102,103 @@ public class SamplingController {
             request.versionNo(), request.enabled()));
     }
 
+    @Operation(summary = "更新取材规范启用状态", description = "更新指定取材规范的启停状态。")
     @RequirePermission(M1PermissionCodes.GUIDELINE_CREATE)
     @PatchMapping("/sampling-guidelines/{id}/enabled")
-    public SamplingService.GuidelineDetailView updateGuidelineEnabled(@PathVariable("id") String id,
+    public SamplingService.GuidelineDetailView updateGuidelineEnabled(@Parameter(description = "规范 ID") @PathVariable("id") String id,
                                                                       @Valid @RequestBody UpdateEnabledRequest request) {
         return samplingService.updateGuidelineEnabled(id, request.enabled());
     }
 
-    public record UpdateEnabledRequest(boolean enabled) {
+    @Schema(name = "SamplingUpdateEnabledRequest", description = "更新启用状态请求")
+    public record UpdateEnabledRequest(@Schema(description = "是否启用") boolean enabled) {
     }
 
+    @Schema(name = "CreateTemplateCategoryRequest", description = "新增取材模板分类请求")
     public record CreateTemplateCategoryRequest(
+        @Schema(description = "父级分类 ID，根节点可为空")
         String parentId,
+        @Schema(description = "分类编码", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "Category code must not be blank")
         @Size(max = 64, message = "Category code must not exceed 64 characters")
         String categoryCode,
+        @Schema(description = "分类名称", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "Category name must not be blank")
         @Size(max = 100, message = "Category name must not exceed 100 characters")
         String categoryName,
+        @Schema(description = "排序号")
         int sortOrder,
+        @Schema(description = "是否启用")
         boolean enabled
     ) {
     }
 
+    @Schema(name = "CreateTemplateRequest", description = "新增取材模板请求")
     public record CreateTemplateRequest(
+        @Schema(description = "模板分类 ID", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "Category id must not be blank")
         String categoryId,
+        @Schema(description = "模板编码", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "Template code must not be blank")
         @Size(max = 64, message = "Template code must not exceed 64 characters")
         String templateCode,
+        @Schema(description = "模板名称", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "Template name must not be blank")
         @Size(max = 100, message = "Template name must not exceed 100 characters")
         String templateName,
+        @Schema(description = "模板内容")
         String templateContent,
+        @Schema(description = "默认分材份数，最小为 1")
         @Min(value = 1, message = "Split part count must be at least 1")
         int splitPartCount,
+        @Schema(description = "适用标本类型")
         @Size(max = 100, message = "Applicable specimen type must not exceed 100 characters")
         String applicableSpecimenType,
+        @Schema(description = "是否启用")
         boolean enabled,
+        @Schema(description = "适用部位 ID 列表")
         List<String> bodyPartIds
     ) {
     }
 
+    @Schema(name = "CreateGuidelineCategoryRequest", description = "新增取材规范分类请求")
     public record CreateGuidelineCategoryRequest(
+        @Schema(description = "父级分类 ID，根节点可为空")
         String parentId,
+        @Schema(description = "分类编码", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "Category code must not be blank")
         @Size(max = 64, message = "Category code must not exceed 64 characters")
         String categoryCode,
+        @Schema(description = "分类名称", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "Category name must not be blank")
         @Size(max = 100, message = "Category name must not exceed 100 characters")
         String categoryName,
+        @Schema(description = "排序号")
         int sortOrder,
+        @Schema(description = "是否启用")
         boolean enabled
     ) {
     }
 
+    @Schema(name = "CreateGuidelineRequest", description = "新增取材规范请求")
     public record CreateGuidelineRequest(
+        @Schema(description = "规范分类 ID", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "Category id must not be blank")
         String categoryId,
+        @Schema(description = "规范编码", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "Guideline code must not be blank")
         @Size(max = 64, message = "Guideline code must not exceed 64 characters")
         String guidelineCode,
+        @Schema(description = "规范名称", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "Guideline name must not be blank")
         @Size(max = 100, message = "Guideline name must not exceed 100 characters")
         String guidelineName,
+        @Schema(description = "规范内容")
         String guidelineContent,
+        @Schema(description = "版本号")
         @Size(max = 32, message = "Version must not exceed 32 characters")
         String versionNo,
+        @Schema(description = "是否启用")
         boolean enabled
     ) {
     }

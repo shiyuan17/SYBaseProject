@@ -14,6 +14,11 @@ import com.company.bl.interfaces.vo.ApplicationDetailResponse;
 import com.company.bl.interfaces.vo.ApplicationIdResponse;
 import com.company.bl.interfaces.vo.SpecimenSummaryResponse;
 import com.company.bl.interfaces.vo.TrackingEventResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/applications")
 @RequiredArgsConstructor
+@Tag(name = "临床送检", description = "病理申请单创建、详情查询与流程追踪接口")
 public class ApplicationController {
 
     private final CreateApplicationAppService createApplicationAppService;
@@ -34,6 +40,8 @@ public class ApplicationController {
     private final SpecimenWorkflowAppService specimenWorkflowAppService;
     private final ApplicationRepresentationAssembler applicationRepresentationAssembler;
 
+    @Operation(summary = "创建病理申请单", description = "创建新的病理申请单。")
+    @ApiResponses(@ApiResponse(responseCode = "201", description = "创建成功", useReturnTypeSchema = true))
     @PostMapping
     public ResponseEntity<ApplicationIdResponse> create(@Valid @RequestBody CreateApplicationRequest request) {
         ApplicationIdResponse response = applicationRepresentationAssembler.toIdResponse(
@@ -41,15 +49,17 @@ public class ApplicationController {
         return ResponseEntity.status(201).body(response);
     }
 
+    @Operation(summary = "查询申请单详情", description = "按申请单 ID 查询申请单、标本与最近追踪事件。")
     @GetMapping("/{id}")
-    public ApplicationDetailResponse getById(@PathVariable("id") String id) {
+    public ApplicationDetailResponse getById(@Parameter(description = "申请单 ID") @PathVariable("id") String id) {
         ApplicationTracking tracking = specimenWorkflowAppService.getApplicationTracking(id);
         return toDetailResponse(tracking);
     }
 
+    @Operation(summary = "查询申请单追踪", description = "查询申请单当前节点、标本列表与追踪事件。")
     @RequirePermission(M2PermissionCodes.SPECIMEN_TRACKING_QUERY)
     @GetMapping("/{id}/tracking")
-    public ApplicationDetailResponse getTracking(@PathVariable("id") String id) {
+    public ApplicationDetailResponse getTracking(@Parameter(description = "申请单 ID") @PathVariable("id") String id) {
         return toDetailResponse(specimenWorkflowAppService.getApplicationTracking(id));
     }
 

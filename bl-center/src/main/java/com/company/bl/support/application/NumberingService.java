@@ -3,6 +3,7 @@ package com.company.bl.support.application;
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.support.infrastructure.SupportJdbcRepository;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -166,19 +167,20 @@ public class NumberingService {
             row.updatedAt().toString());
     }
 
+    @Schema(name = "NumberingRuleView", description = "业务编号规则")
     public record NumberingRuleView(
-        String id,
-        String ruleCode,
-        String bizType,
-        String prefixPattern,
-        String datePattern,
-        int seqLength,
-        String resetPolicy,
-        String scopeType,
-        boolean enabled,
-        String remarks,
-        String createdAt,
-        String updatedAt
+        @Schema(description = "规则 ID") String id,
+        @Schema(description = "规则编码") String ruleCode,
+        @Schema(description = "业务类型") String bizType,
+        @Schema(description = "前缀模式") String prefixPattern,
+        @Schema(description = "日期模式") String datePattern,
+        @Schema(description = "流水号长度") int seqLength,
+        @Schema(description = "重置策略") String resetPolicy,
+        @Schema(description = "作用域类型") String scopeType,
+        @Schema(description = "是否启用") boolean enabled,
+        @Schema(description = "备注") String remarks,
+        @Schema(description = "创建时间") String createdAt,
+        @Schema(description = "更新时间") String updatedAt
     ) {
     }
 
