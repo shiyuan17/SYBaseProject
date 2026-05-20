@@ -164,10 +164,10 @@ class TechnicalWorkflowIntegrationTest extends AbstractTechnicalWorkflowIntegrat
             }
             """.formatted(stainingTaskId, slideId))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.caseStatus").value("STAINING"));
+            .andExpect(jsonPath("$.data.caseStatus").value("DIAGNOSIS_PENDING"));
 
         JsonNode tracking = technicalTracking(context.caseId(), USER_M3_TRACKING);
-        assertThat(tracking.path("caseStatus").asText()).isEqualTo("STAINING");
+        assertThat(tracking.path("caseStatus").asText()).isEqualTo("DIAGNOSIS_PENDING");
         assertThat(tracking.path("blocks")).hasSize(1);
         assertThat(tracking.path("embeddingBoxes")).hasSize(1);
         assertThat(tracking.path("slides")).hasSize(1);

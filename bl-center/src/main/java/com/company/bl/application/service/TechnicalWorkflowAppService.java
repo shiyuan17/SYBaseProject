@@ -47,6 +47,7 @@ public class TechnicalWorkflowAppService {
     private final NumberingService numberingService;
     private final SamplingJdbcRepository samplingJdbcRepository;
     private final TechnicalMarkingGateway technicalMarkingGateway;
+    private final DiagnosticReportAppService diagnosticReportAppService;
 
     @Transactional(readOnly = true)
     public PendingTechnicalTaskPage listPendingTasks(PendingTechnicalTaskQuery query) {
@@ -354,12 +355,17 @@ public class TechnicalWorkflowAppService {
         technicalWorkflowRepository.completeTechnicalTask(task.id(), TASK_COMPLETED, command.remarks(), now);
         boolean hasRemainingStainingTasks = technicalWorkflowRepository.findActiveTechnicalTasksByCaseId(task.caseId()).stream()
             .anyMatch(activeTask -> NODE_STAINING.equals(activeTask.taskType()));
+        String caseStatus = "STAINING";
         if (!hasRemainingStainingTasks) {
-            technicalWorkflowRepository.updatePathologyCaseStatus(task.caseId(), "STAINING");
+            technicalWorkflowRepository.updatePathologyCaseStatus(task.caseId(), "DIAGNOSIS_PENDING");
+            diagnosticReportAppService.createPrimaryDiagnosticTaskIfAbsent(task.caseId(), "Auto created after staining completed");
+            insertWorkflowEvent(task.applicationId(), slide.specimenId(), task.caseId(), "DIAGNOSIS_ASSIGN", "CREATE", "SUCCESS",
+                command.operatorUserId(), command.operatorName(), command.terminalCode(), "Technical workflow handed off to diagnosis");
+            caseStatus = "DIAGNOSIS_PENDING";
         }
         insertWorkflowEvent(task.applicationId(), slide.specimenId(), task.caseId(), NODE_STAINING, "COMPLETE", "SUCCESS",
             command.operatorUserId(), command.operatorName(), command.terminalCode(), "Staining completed");
-        return new SlideStainingResult(task.id(), slide.id(), "STAINING");
+        return new SlideStainingResult(task.id(), slide.id(), caseStatus);
     }
 
     @Transactional

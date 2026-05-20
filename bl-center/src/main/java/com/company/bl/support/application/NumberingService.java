@@ -103,6 +103,11 @@ public class NumberingService {
         return generate("SLIDE_NO", "GLOBAL");
     }
 
+    @Transactional
+    public String generateReportNo() {
+        return generate("REPORT_NO", "GLOBAL");
+    }
+
     private String generate(String bizType, String scopeKey) {
         SupportJdbcRepository.NumberingRuleRow rule = supportJdbcRepository.findNumberingRuleByBizType(bizType);
         if (rule == null || !rule.enabled()) {

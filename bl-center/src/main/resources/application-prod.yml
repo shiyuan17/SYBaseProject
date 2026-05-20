@@ -5,4 +5,4 @@ spring:
     username: ${BL_CENTER_DATASOURCE_USERNAME}
     password: ${BL_CENTER_DATASOURCE_PASSWORD}
   flyway:
-    enabled: true
+    enabled: ${BL_CENTER_FLYWAY_ENABLED:false}

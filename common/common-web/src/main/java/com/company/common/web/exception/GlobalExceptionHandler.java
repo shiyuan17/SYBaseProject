@@ -13,6 +13,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
@@ -59,6 +60,16 @@ public class GlobalExceptionHandler {
             .body(ApiResponse.failure(
                 CommonErrorCode.VALIDATION_ERROR.code(),
                 "Request body is required and must be valid JSON",
+                traceId(request)));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFound(NoResourceFoundException exception,
+                                                                   HttpServletRequest request) {
+        return ResponseEntity.status(404)
+            .body(ApiResponse.failure(
+                CommonErrorCode.RESOURCE_NOT_FOUND.code(),
+                CommonErrorCode.RESOURCE_NOT_FOUND.message(),
                 traceId(request)));
     }
 
