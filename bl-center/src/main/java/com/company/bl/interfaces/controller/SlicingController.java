@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.TechnicalWorkflowAppService;
+import com.company.bl.application.service.TechnicalWorkflowModels;
 import com.company.bl.interfaces.auth.M3PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.SlicingCompleteRequest;
@@ -32,8 +33,8 @@ public class SlicingController extends TechnicalControllerSupport {
     @PostMapping("/start")
     public TaskOperationResponse start(@Valid @RequestBody TechnicalTaskStartRequest request,
                                        HttpServletRequest httpServletRequest) {
-        TechnicalWorkflowAppService.TaskStartResult result = technicalWorkflowAppService.startSlicing(
-            new TechnicalWorkflowAppService.TaskStartCommand(
+        TechnicalWorkflowModels.TaskStartResult result = technicalWorkflowAppService.startSlicing(
+            new TechnicalWorkflowModels.TaskStartCommand(
                 request.getTaskId(),
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 request.getOperatorName(),
@@ -47,8 +48,8 @@ public class SlicingController extends TechnicalControllerSupport {
     @PostMapping("/complete")
     public SlicingResponse complete(@Valid @RequestBody SlicingCompleteRequest request,
                                     HttpServletRequest httpServletRequest) {
-        TechnicalWorkflowAppService.SlicingResult result = technicalWorkflowAppService.completeSlicing(
-            new TechnicalWorkflowAppService.SlicingCompleteCommand(
+        TechnicalWorkflowModels.SlicingResult result = technicalWorkflowAppService.completeSlicing(
+            new TechnicalWorkflowModels.SlicingCompleteCommand(
                 request.getTaskId(),
                 request.getEmbeddingBoxId(),
                 request.getSlideCount(),

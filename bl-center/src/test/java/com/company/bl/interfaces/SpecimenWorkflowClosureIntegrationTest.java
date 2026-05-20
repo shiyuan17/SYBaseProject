@@ -123,7 +123,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             .andExpect(jsonPath("$.data.failedCount").value(0))
             .andExpect(jsonPath("$.data.allSuccessful").value(true));
 
-        mockMvc.perform(get("/api/v1/applications/{id}", applicationId))
+        mockMvc.perform(authorized(get("/api/v1/applications/{id}", applicationId), USER_TRACKING))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.specimens[0].labelPrintStatus").value("SUCCESS"));
     }

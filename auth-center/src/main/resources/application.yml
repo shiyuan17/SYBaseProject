@@ -28,6 +28,10 @@ observability:
 
 security:
   auth:
+    login-protection:
+      enabled: true
+      max-failed-attempts: 5
+      cooldown-duration: PT15M
     jwt:
       issuer: sy-base-project
       access-token-ttl: PT8H

@@ -29,7 +29,7 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
     protected ObjectMapper objectMapper;
 
     protected String createApplication(String applicationNo) throws Exception {
-        JsonNode data = createdBody("/api/v1/applications", """
+        JsonNode data = responseBody(postJson("/api/v1/applications", USER_REGISTER, """
             {
               "applicationNo": "%s",
               "patientId": "P-001",
@@ -39,9 +39,11 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
               "submittingDepartmentId": "DEPT-OR",
               "submittingDepartmentName": "OR",
               "submittingDoctorUserId": "DOC-001",
-              "submittingDoctorName": "Dr A"
+              "submittingDoctorName": "Dr A",
+              "clinicalDiagnosis": "Papillary thyroid carcinoma",
+              "specimenSite": "Thyroid"
             }
-            """.formatted(applicationNo));
+            """.formatted(applicationNo)), 201);
         return data.path("id").asText();
     }
 
@@ -121,12 +123,6 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
         return mockMvc.perform(authorized(post(path), userId)
             .contentType(MediaType.APPLICATION_JSON)
             .content(content));
-    }
-
-    protected JsonNode createdBody(String path, String content) throws Exception {
-        return responseBody(mockMvc.perform(post(path)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(content)), 201);
     }
 
     protected JsonNode responseBody(ResultActions resultActions, int expectedStatus) throws Exception {

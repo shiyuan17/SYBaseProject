@@ -21,21 +21,41 @@ public class AuthApplicationService {
     private final AuthJdbcRepository authJdbcRepository;
     private final Sm3PasswordEncoder sm3PasswordEncoder;
     private final Sm2JwtTokenService tokenService;
+    private final LoginAttemptGuard loginAttemptGuard;
 
     public AuthApplicationService(
         AuthJdbcRepository authJdbcRepository,
         Sm3PasswordEncoder sm3PasswordEncoder,
-        Sm2JwtTokenService tokenService
+        Sm2JwtTokenService tokenService,
+        LoginAttemptGuard loginAttemptGuard
     ) {
         this.authJdbcRepository = authJdbcRepository;
         this.sm3PasswordEncoder = sm3PasswordEncoder;
         this.tokenService = tokenService;
+        this.loginAttemptGuard = loginAttemptGuard;
     }
 
     public LoginResult login(String loginName, String password, String clientIp, String clientDevice) {
-        AuthJdbcRepository.AuthUserRow user = authJdbcRepository.findUserByLoginName(loginName);
         LocalDateTime loginAt = LocalDateTime.now();
+        if (loginAttemptGuard.isBlocked(loginName, clientIp)) {
+            authJdbcRepository.recordLogin(new AuthJdbcRepository.LoginLogRow(
+                "LOGIN-" + UUID.randomUUID(),
+                null,
+                loginName,
+                "FAILED",
+                clientIp,
+                clientDevice,
+                loginAt,
+                "Login temporarily locked",
+                "login failed"));
+            throw new AuthCenterException(
+                AuthCenterErrorCode.INVALID_CREDENTIALS,
+                401,
+                "Login name or password is incorrect");
+        }
+        AuthJdbcRepository.AuthUserRow user = authJdbcRepository.findUserByLoginName(loginName);
         if (user == null || !isPasswordMatched(user, password)) {
+            loginAttemptGuard.recordFailure(loginName, clientIp);
             authJdbcRepository.recordLogin(new AuthJdbcRepository.LoginLogRow(
                 "LOGIN-" + UUID.randomUUID(),
                 user == null ? null : user.id(),
@@ -52,6 +72,7 @@ public class AuthApplicationService {
                 "Login name or password is incorrect");
         }
         if (!user.enabled()) {
+            loginAttemptGuard.recordFailure(loginName, clientIp);
             authJdbcRepository.recordLogin(new AuthJdbcRepository.LoginLogRow(
                 "LOGIN-" + UUID.randomUUID(),
                 user.id(),
@@ -103,6 +124,7 @@ public class AuthApplicationService {
             loginAt,
             null,
             "login success"));
+        loginAttemptGuard.recordSuccess(loginName, clientIp);
 
         return new LoginResult(accessToken, expiresAt.toString());
     }

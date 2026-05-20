@@ -78,6 +78,29 @@ public class BodyPartService {
 
     @CacheEvict(value = "bodyPartTree", allEntries = true)
     @Transactional
+    public BodyPartNode updateBodyPart(String id, UpdateBodyPartCommand command) {
+        return operationAuditService.audit("MASTERDATA", "BODY_PART", "update_body_part", () -> {
+            if (bodyPartJdbcRepository.findBodyPartById(id) == null) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Body part not found");
+            }
+            try {
+                bodyPartJdbcRepository.updateBodyPart(id, new BodyPartJdbcRepository.UpdateBodyPartRow(
+                    command.parentId(),
+                    command.partCode(),
+                    command.partName(),
+                    command.partAlias(),
+                    command.partLevel(),
+                    command.sortOrder(),
+                    command.enabled()));
+            } catch (DataAccessException exception) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Body part code already exists");
+            }
+            return toNode(bodyPartJdbcRepository.findBodyPartById(id));
+        }, BodyPartNode::id, () -> id);
+    }
+
+    @CacheEvict(value = "bodyPartTree", allEntries = true)
+    @Transactional
     public BodyPartNode updateBodyPartEnabled(String id, boolean enabled) {
         return operationAuditService.audit("MASTERDATA", "BODY_PART", "update_body_part_enabled", () -> {
             if (bodyPartJdbcRepository.findBodyPartById(id) == null) {
@@ -86,6 +109,24 @@ public class BodyPartService {
             bodyPartJdbcRepository.updateBodyPartEnabled(id, enabled);
             return toNode(bodyPartJdbcRepository.findBodyPartById(id));
         }, BodyPartNode::id, () -> id);
+    }
+
+    @CacheEvict(value = "bodyPartTree", allEntries = true)
+    @Transactional
+    public void deleteBodyPart(String id) {
+        operationAuditService.audit("MASTERDATA", "BODY_PART", "delete_body_part", () -> {
+            if (bodyPartJdbcRepository.findBodyPartById(id) == null) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Body part not found");
+            }
+            if (bodyPartJdbcRepository.countChildren(id) > 0) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Body part still has child nodes");
+            }
+            if (bodyPartJdbcRepository.countTemplateReferences(id) > 0) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Body part is referenced by templates");
+            }
+            bodyPartJdbcRepository.deleteBodyPart(id);
+            return id;
+        }, value -> id, () -> id);
     }
 
     private BodyPartNode toNode(BodyPartJdbcRepository.BodyPartRow row) {
@@ -107,6 +148,10 @@ public class BodyPartService {
     }
 
     public record CreateBodyPartCommand(String parentId, String partCode, String partName, String partAlias,
+                                        int partLevel, int sortOrder, boolean enabled) {
+    }
+
+    public record UpdateBodyPartCommand(String parentId, String partCode, String partName, String partAlias,
                                         int partLevel, int sortOrder, boolean enabled) {
     }
 }

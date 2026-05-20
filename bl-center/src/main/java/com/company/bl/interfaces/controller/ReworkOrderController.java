@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.TechnicalWorkflowAppService;
+import com.company.bl.application.service.TechnicalWorkflowModels;
 import com.company.bl.interfaces.auth.M3PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.CreateReworkOrderRequest;
@@ -33,8 +34,8 @@ public class ReworkOrderController extends TechnicalControllerSupport {
     @PostMapping
     public ReworkOrderResponse create(@Valid @RequestBody CreateReworkOrderRequest request,
                                       HttpServletRequest httpServletRequest) {
-        TechnicalWorkflowAppService.ReworkOrderResult result = technicalWorkflowAppService.createReworkOrder(
-            new TechnicalWorkflowAppService.CreateReworkOrderCommand(
+        TechnicalWorkflowModels.ReworkOrderResult result = technicalWorkflowAppService.createReworkOrder(
+            new TechnicalWorkflowModels.CreateReworkOrderCommand(
                 request.getCaseId(),
                 request.getSpecimenId(),
                 request.getSamplingBlockId(),
@@ -56,8 +57,8 @@ public class ReworkOrderController extends TechnicalControllerSupport {
     public ReworkOrderResponse execute(@Parameter(description = "补做单 ID") @PathVariable("id") String id,
                                        @Valid @RequestBody ExecuteReworkOrderRequest request,
                                        HttpServletRequest httpServletRequest) {
-        TechnicalWorkflowAppService.ReworkOrderResult result = technicalWorkflowAppService.executeReworkOrder(
-            new TechnicalWorkflowAppService.ExecuteReworkOrderCommand(
+        TechnicalWorkflowModels.ReworkOrderResult result = technicalWorkflowAppService.executeReworkOrder(
+            new TechnicalWorkflowModels.ExecuteReworkOrderCommand(
                 id,
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 request.getOperatorName(),

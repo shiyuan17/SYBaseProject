@@ -7,6 +7,7 @@ public enum ApplicationErrorCode implements ErrorCode {
     APPLICATION_NO_CONFLICT("APPLICATION_NO_CONFLICT", "Application number already exists"),
     INVALID_APPLICATION_ID("INVALID_APPLICATION_ID", "Application id is invalid"),
     INVALID_APPLICATION_NO("INVALID_APPLICATION_NO", "Application number is invalid"),
+    INVALID_APPLICATION_FIELD("INVALID_APPLICATION_FIELD", "Application field is invalid"),
     INVALID_APPLICATION_STATUS("INVALID_APPLICATION_STATUS", "Application status is invalid");
 
     private final String code;

@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.TechnicalWorkflowAppService;
+import com.company.bl.application.service.TechnicalWorkflowModels;
 import com.company.bl.interfaces.auth.M3PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.BatchOperatorRequest;
@@ -38,8 +39,8 @@ public class DehydrationBatchController extends TechnicalControllerSupport {
     @PostMapping
     public ResponseEntity<DehydrationBatchResponse> create(@Valid @RequestBody CreateDehydrationBatchRequest request,
                                                            HttpServletRequest httpServletRequest) {
-        TechnicalWorkflowAppService.DehydrationBatchResult result = technicalWorkflowAppService.createDehydrationBatch(
-            new TechnicalWorkflowAppService.CreateDehydrationBatchCommand(
+        TechnicalWorkflowModels.DehydrationBatchResult result = technicalWorkflowAppService.createDehydrationBatch(
+            new TechnicalWorkflowModels.CreateDehydrationBatchCommand(
                 request.getCaseId(),
                 request.getBasketNo(),
                 request.getDeviceNo(),
@@ -58,8 +59,8 @@ public class DehydrationBatchController extends TechnicalControllerSupport {
     public DehydrationBatchResponse start(@Parameter(description = "脱水批次 ID") @PathVariable("id") String id,
                                           @Valid @RequestBody BatchOperatorRequest request,
                                           HttpServletRequest httpServletRequest) {
-        TechnicalWorkflowAppService.DehydrationBatchResult result = technicalWorkflowAppService.startDehydrationBatch(
-            new TechnicalWorkflowAppService.BatchOperatorCommand(
+        TechnicalWorkflowModels.DehydrationBatchResult result = technicalWorkflowAppService.startDehydrationBatch(
+            new TechnicalWorkflowModels.BatchOperatorCommand(
                 id,
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 request.getOperatorName(),
@@ -74,15 +75,15 @@ public class DehydrationBatchController extends TechnicalControllerSupport {
     public DehydrationBatchResponse complete(@Parameter(description = "脱水批次 ID") @PathVariable("id") String id,
                                              @Valid @RequestBody CompleteDehydrationBatchRequest request,
                                              HttpServletRequest httpServletRequest) {
-        TechnicalWorkflowAppService.DehydrationBatchResult result = technicalWorkflowAppService.completeDehydrationBatch(
-            new TechnicalWorkflowAppService.CompleteDehydrationBatchCommand(
+        TechnicalWorkflowModels.DehydrationBatchResult result = technicalWorkflowAppService.completeDehydrationBatch(
+            new TechnicalWorkflowModels.CompleteDehydrationBatchCommand(
                 id,
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 request.getOperatorName(),
                 request.getTerminalCode(),
                 request.getRemarks(),
                 request.getMediaAssets() == null ? java.util.List.of() : request.getMediaAssets().stream()
-                    .map(item -> new TechnicalWorkflowAppService.MediaAssetInput(item.getFileUrl(), item.getFileName()))
+                    .map(item -> new TechnicalWorkflowModels.MediaAssetInput(item.getFileUrl(), item.getFileName()))
                     .toList()));
         return new DehydrationBatchResponse(result.batchId(), result.batchNo(), result.batchStatus(), result.taskCount());
     }

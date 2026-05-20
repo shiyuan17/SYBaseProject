@@ -1,6 +1,13 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="BlCenter Dev" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
     <option name="ACTIVE_PROFILES" value="dev" />
+    <envs>
+      <env name="BL_CENTER_DATASOURCE_URL" value="jdbc:dm://127.0.0.1:5236" />
+      <env name="BL_CENTER_DATASOURCE_USERNAME" value="SYSDBA" />
+      <env name="BL_CENTER_DATASOURCE_PASSWORD" value="Dm.2027.Pwd." />
+      <env name="SECURITY_AUTH_JWT_SM2_PRIVATE_KEY" value="MIGTAgEAMBMGByqGSM49AgEGCCqBHM9VAYItBHkwdwIBAQQgFRpOClbX4u9Hpc+YDvXV7ShD1lfZk4EH0oyGF59PXQGgCgYIKoEcz1UBgi2hRANCAARrIcTZ4A4T3M55LVirPjtxhusNEndt2SmwXo5DfmQ+MHysYOCcFIOqI7YXUlrJ/e3D6owhe9Fo4nF7oZFzafRg" />
+      <env name="SECURITY_AUTH_JWT_SM2_PUBLIC_KEY" value="MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAEayHE2eAOE9zOeS1Yqz47cYbrDRJ3bdkpsF6OQ35kPjB8rGDgnBSDqiO2F1Jayf3tw+qMIXvRaOJxe6GRc2n0YA==" />
+    </envs>
     <option name="SPRING_BOOT_MAIN_CLASS" value="com.company.bl.BlCenterApplication" />
     <module name="bl-center" />
     <method v="2">

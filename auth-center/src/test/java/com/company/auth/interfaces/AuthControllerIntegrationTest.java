@@ -130,6 +130,51 @@ class AuthControllerIntegrationTest extends BaseWebIntegrationTest {
     }
 
     @Test
+    void shouldTemporarilyBlockLoginAfterRepeatedFailures() throws Exception {
+        for (int i = 0; i < 3; i++) {
+            mockMvc.perform(post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""
+                        {
+                          "loginName": "auth.lock",
+                          "password": "wrong-password"
+                        }
+                        """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+        }
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "loginName": "auth.lock",
+                      "password": "123456"
+                    }
+                    """))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+
+        Map<String, Object> failedLog = jdbcTemplate.queryForMap("""
+            select login_name, login_result, failure_reason
+            from user_login_logs
+            where login_name = 'auth.lock'
+            order by login_at desc
+            fetch first 1 row only
+            """, Map.of());
+        assertThat(failedLog.get("login_name")).isEqualTo("auth.lock");
+        assertThat(failedLog.get("login_result")).isEqualTo("FAILED");
+        assertThat(failedLog.get("failure_reason")).isEqualTo("Login temporarily locked");
+
+        Long tokenCount = jdbcTemplate.queryForObject("""
+            select count(*)
+            from auth_access_tokens
+            where user_id = 'AUTH_USER_LOCK'
+            """, Map.of(), Long.class);
+        assertThat(tokenCount).isEqualTo(0L);
+    }
+
+    @Test
     void shouldExposeCurrentUserAndAccessCodesAndRejectRevokedToken() throws Exception {
         JsonNode loginResult = responseData(mockMvc.perform(post("/api/v1/auth/login")
             .contentType(MediaType.APPLICATION_JSON)

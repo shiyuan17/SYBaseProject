@@ -1,7 +1,6 @@
 package com.company.bl.interfaces;
 
 import com.company.bl.BlCenterApplication;
-import com.company.common.test.BaseWebIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,20 +24,30 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @ActiveProfiles("test")
 @SpringBootTest(classes = BlCenterApplication.class)
-class ApplicationControllerIntegrationTest extends BaseWebIntegrationTest {
+class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTest {
+
+    private static final String USER_REGISTER = "USER_M2_REGISTER";
+    private static final String USER_TRACKING = "USER_M2_TRACKING";
+    private static final String USER_NO_PERMISSION = "USER_M2_NO_PERMISSION";
 
     @Autowired
     private MockMvc mockMvc;
 
     @Test
     void shouldCreateApplicationWhenRequestIsValid() throws Exception {
-        mockMvc.perform(post("/api/v1/applications")
+        mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "applicationNo": "APP-1001",
                       "applicationType": "ROUTINE",
-                      "clinicalDiagnosis": "test diagnosis"
+                      "patientId": "P-1001",
+                      "submittingDepartmentId": "DEPT-OR",
+                      "submittingDepartmentName": "OR",
+                      "submittingDoctorUserId": "DOC-1001",
+                      "submittingDoctorName": "Dr Test",
+                      "clinicalDiagnosis": "test diagnosis",
+                      "specimenSite": "Thyroid"
                     }
                     """))
             .andExpect(status().isCreated())
@@ -50,7 +59,7 @@ class ApplicationControllerIntegrationTest extends BaseWebIntegrationTest {
 
     @Test
     void shouldReturnValidationErrorWhenRequestIsInvalid() throws Exception {
-        mockMvc.perform(post("/api/v1/applications")
+        mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -64,7 +73,7 @@ class ApplicationControllerIntegrationTest extends BaseWebIntegrationTest {
 
     @Test
     void shouldReturnValidationErrorWhenRequestBodyIsMissing() throws Exception {
-        mockMvc.perform(post("/api/v1/applications")
+        mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code", is("VALIDATION_ERROR")))
@@ -73,7 +82,7 @@ class ApplicationControllerIntegrationTest extends BaseWebIntegrationTest {
 
     @Test
     void shouldReturnNotFoundWhenApplicationDoesNotExist() throws Exception {
-        mockMvc.perform(get("/api/v1/applications/not-found-id"))
+        mockMvc.perform(authorized(get("/api/v1/applications/not-found-id"), USER_TRACKING))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.code", is("APPLICATION_NOT_FOUND")))
             .andExpect(jsonPath("$.traceId", notNullValue()));
@@ -88,12 +97,18 @@ class ApplicationControllerIntegrationTest extends BaseWebIntegrationTest {
 
     @Test
     void shouldGenerateApplicationNumberWhenMissing() throws Exception {
-        mockMvc.perform(post("/api/v1/applications")
+        mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "applicationType": "ROUTINE",
-                      "clinicalDiagnosis": "auto no"
+                      "patientId": "P-AUTO-001",
+                      "submittingDepartmentId": "DEPT-OR",
+                      "submittingDepartmentName": "OR",
+                      "submittingDoctorUserId": "DOC-AUTO-001",
+                      "submittingDoctorName": "Dr Auto",
+                      "clinicalDiagnosis": "auto no",
+                      "specimenSite": "Lung"
                     }
                     """))
             .andExpect(status().isCreated())
@@ -103,17 +118,24 @@ class ApplicationControllerIntegrationTest extends BaseWebIntegrationTest {
 
     @Test
     void shouldExposePrometheusMetricsAfterCreateApplication() throws Exception {
-        mockMvc.perform(post("/api/v1/applications")
+        mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "applicationNo": "APP-1002",
-                      "applicationType": "ROUTINE"
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-1002",
+                      "submittingDepartmentId": "DEPT-OR",
+                      "submittingDepartmentName": "OR",
+                      "submittingDoctorUserId": "DOC-1002",
+                      "submittingDoctorName": "Dr Metrics",
+                      "clinicalDiagnosis": "metric diagnosis",
+                      "specimenSite": "Liver"
                     }
                     """))
             .andExpect(status().isCreated());
 
-        mockMvc.perform(get("/actuator/prometheus"))
+        mockMvc.perform(authorized(get("/actuator/prometheus"), USER_REGISTER))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("jvm_")))
             .andExpect(content().string(containsString("http_server_requests")))
@@ -123,12 +145,64 @@ class ApplicationControllerIntegrationTest extends BaseWebIntegrationTest {
 
     @Test
     void shouldExposeNotFoundMetricAfterQueryingMissingApplication() throws Exception {
-        mockMvc.perform(get("/api/v1/applications/missing-application"))
+        mockMvc.perform(authorized(get("/api/v1/applications/missing-application"), USER_TRACKING))
             .andExpect(status().isNotFound());
 
-        mockMvc.perform(get("/actuator/prometheus"))
+        mockMvc.perform(authorized(get("/actuator/prometheus"), USER_TRACKING))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("application_query_not_found_total")));
+    }
+
+    @Test
+    void shouldRequireAuthenticationForProtectedApplicationAndPrometheusEndpoints() throws Exception {
+        mockMvc.perform(post("/api/v1/applications")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-ANON-001",
+                      "submittingDepartmentId": "DEPT-OR",
+                      "submittingDepartmentName": "OR",
+                      "submittingDoctorUserId": "DOC-ANON-001",
+                      "submittingDoctorName": "Dr Anon",
+                      "clinicalDiagnosis": "anon diagnosis",
+                      "specimenSite": "Kidney"
+                    }
+                    """))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code", is("AUTHENTICATION_REQUIRED")));
+
+        mockMvc.perform(get("/api/v1/applications/not-found-id"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code", is("AUTHENTICATION_REQUIRED")));
+
+        mockMvc.perform(get("/actuator/prometheus"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code", is("AUTHENTICATION_REQUIRED")));
+    }
+
+    @Test
+    void shouldRejectUsersWithoutPermission() throws Exception {
+        mockMvc.perform(authorized(post("/api/v1/applications"), USER_NO_PERMISSION)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-FORBID-001",
+                      "submittingDepartmentId": "DEPT-OR",
+                      "submittingDepartmentName": "OR",
+                      "submittingDoctorUserId": "DOC-FORBID-001",
+                      "submittingDoctorName": "Dr Forbidden",
+                      "clinicalDiagnosis": "forbidden diagnosis",
+                      "specimenSite": "Lung"
+                    }
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code", is("PERMISSION_DENIED")));
+
+        mockMvc.perform(authorized(get("/api/v1/applications/not-found-id"), USER_REGISTER))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code", is("PERMISSION_DENIED")));
     }
 
     @Test

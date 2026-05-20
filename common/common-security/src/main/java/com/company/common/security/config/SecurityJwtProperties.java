@@ -9,6 +9,7 @@ public class SecurityJwtProperties {
 
     private Duration accessTokenTtl = Duration.ofHours(8);
     private String issuer = "sy-base-project";
+    private boolean allowGeneratedKeys;
     private final Sm2Properties sm2 = new Sm2Properties();
 
     public Duration getAccessTokenTtl() {
@@ -25,6 +26,14 @@ public class SecurityJwtProperties {
 
     public void setIssuer(String issuer) {
         this.issuer = issuer;
+    }
+
+    public boolean isAllowGeneratedKeys() {
+        return allowGeneratedKeys;
+    }
+
+    public void setAllowGeneratedKeys(boolean allowGeneratedKeys) {
+        this.allowGeneratedKeys = allowGeneratedKeys;
     }
 
     public Sm2Properties getSm2() {

@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -48,6 +49,16 @@ public class BodyPartController {
             request.partLevel(), request.sortOrder(), request.enabled()));
     }
 
+    @Operation(summary = "更新部位", description = "更新部位节点基础信息。")
+    @RequirePermission(M1PermissionCodes.BODY_PART_CREATE)
+    @PatchMapping("/{id}")
+    public BodyPartService.BodyPartNode updateBodyPart(@Parameter(description = "部位 ID") @PathVariable("id") String id,
+                                                       @Valid @RequestBody UpdateBodyPartRequest request) {
+        return bodyPartService.updateBodyPart(id, new BodyPartService.UpdateBodyPartCommand(
+            request.parentId(), request.partCode(), request.partName(), request.partAlias(),
+            request.partLevel(), request.sortOrder(), request.enabled()));
+    }
+
     @Operation(summary = "更新部位启用状态", description = "更新指定部位节点的启停状态。")
     @RequirePermission(M1PermissionCodes.BODY_PART_CREATE)
     @PatchMapping("/{id}/enabled")
@@ -56,8 +67,40 @@ public class BodyPartController {
         return bodyPartService.updateBodyPartEnabled(id, request.enabled());
     }
 
+    @Operation(summary = "删除部位", description = "删除无子节点且未被模板引用的部位。")
+    @RequirePermission(M1PermissionCodes.BODY_PART_CREATE)
+    @DeleteMapping("/{id}")
+    public void deleteBodyPart(@Parameter(description = "部位 ID") @PathVariable("id") String id) {
+        bodyPartService.deleteBodyPart(id);
+    }
+
     @Schema(name = "CreateBodyPartRequest", description = "新增部位请求")
     public record CreateBodyPartRequest(
+        @Schema(description = "父级部位 ID，根节点可为空")
+        String parentId,
+        @Schema(description = "部位编码", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotBlank(message = "Part code must not be blank")
+        @Size(max = 64, message = "Part code must not exceed 64 characters")
+        String partCode,
+        @Schema(description = "部位名称", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotBlank(message = "Part name must not be blank")
+        @Size(max = 100, message = "Part name must not exceed 100 characters")
+        String partName,
+        @Schema(description = "部位别名")
+        @Size(max = 100, message = "Part alias must not exceed 100 characters")
+        String partAlias,
+        @Schema(description = "部位层级，最小为 0")
+        @Min(value = 0, message = "Part level must not be negative")
+        int partLevel,
+        @Schema(description = "排序号")
+        int sortOrder,
+        @Schema(description = "是否启用")
+        boolean enabled
+    ) {
+    }
+
+    @Schema(name = "UpdateBodyPartRequest", description = "更新部位请求")
+    public record UpdateBodyPartRequest(
         @Schema(description = "父级部位 ID，根节点可为空")
         String parentId,
         @Schema(description = "部位编码", requiredMode = Schema.RequiredMode.REQUIRED)

@@ -6,14 +6,17 @@ import com.company.common.security.crypto.Sm3PasswordEncoder;
 import com.company.common.security.jwt.Sm2JwtTokenService;
 import com.company.common.security.session.TokenSessionValidator;
 import com.company.common.security.web.BearerTokenAuthenticationFilter;
+import com.company.common.security.web.ProtectedPathAuthenticationFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Clock;
+
 @Configuration
-@EnableConfigurationProperties(SecurityJwtProperties.class)
+@EnableConfigurationProperties({SecurityJwtProperties.class, AuthLoginProtectionProperties.class})
 public class AuthSecurityConfiguration {
 
     @Bean
@@ -32,6 +35,11 @@ public class AuthSecurityConfiguration {
     }
 
     @Bean
+    public Clock systemClock() {
+        return Clock.systemUTC();
+    }
+
+    @Bean
     public FilterRegistrationBean<BearerTokenAuthenticationFilter> bearerTokenAuthenticationFilter(
         ObjectMapper objectMapper,
         Sm2JwtTokenService tokenService,
@@ -41,6 +49,17 @@ public class AuthSecurityConfiguration {
         bean.setFilter(new BearerTokenAuthenticationFilter(tokenService, tokenSessionValidator, objectMapper));
         bean.addUrlPatterns("/*");
         bean.setOrder(20);
+        return bean;
+    }
+
+    @Bean
+    public FilterRegistrationBean<ProtectedPathAuthenticationFilter> protectedPrometheusAuthenticationFilter(
+        ObjectMapper objectMapper
+    ) {
+        FilterRegistrationBean<ProtectedPathAuthenticationFilter> bean = new FilterRegistrationBean<>();
+        bean.setFilter(new ProtectedPathAuthenticationFilter(objectMapper));
+        bean.addUrlPatterns("/actuator/prometheus");
+        bean.setOrder(21);
         return bean;
     }
 }

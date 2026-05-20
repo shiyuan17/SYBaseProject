@@ -6,3 +6,8 @@ spring:
     password: ${BL_CENTER_DATASOURCE_PASSWORD:Dm.2027.Pwd.}
   flyway:
     enabled: ${BL_CENTER_FLYWAY_ENABLED:false}
+
+security:
+  auth:
+    jwt:
+      allow-generated-keys: ${SECURITY_AUTH_JWT_ALLOW_GENERATED_KEYS:true}

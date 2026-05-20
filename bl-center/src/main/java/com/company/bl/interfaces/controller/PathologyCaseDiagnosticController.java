@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.DiagnosticReportAppService;
+import com.company.bl.application.service.DiagnosticReportModels;
 import com.company.bl.interfaces.auth.M4PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.vo.DiagnosticWorkbenchResponse;
@@ -29,7 +30,7 @@ public class PathologyCaseDiagnosticController {
     @RequirePermission(M4PermissionCodes.WORKBENCH_QUERY)
     @GetMapping("/{id}/diagnostic-workbench")
     public DiagnosticWorkbenchResponse getDiagnosticWorkbench(@Parameter(description = "病例 ID") @PathVariable("id") String caseId) {
-        DiagnosticReportAppService.DiagnosticWorkbenchView result = diagnosticReportAppService.getDiagnosticWorkbench(caseId);
+        DiagnosticReportModels.DiagnosticWorkbenchView result = diagnosticReportAppService.getDiagnosticWorkbench(caseId);
         return new DiagnosticWorkbenchResponse(
             result.caseId(),
             result.applicationNo(),
@@ -70,7 +71,7 @@ public class PathologyCaseDiagnosticController {
     @RequirePermission(M4PermissionCodes.REPORT_TRACKING_QUERY)
     @GetMapping("/{id}/report-tracking")
     public ReportTrackingResponse getReportTracking(@Parameter(description = "病例 ID") @PathVariable("id") String caseId) {
-        DiagnosticReportAppService.ReportTrackingView result = diagnosticReportAppService.getReportTracking(caseId);
+        DiagnosticReportModels.ReportTrackingView result = diagnosticReportAppService.getReportTracking(caseId);
         return new ReportTrackingResponse(
             result.caseId(),
             result.applicationNo(),
@@ -100,7 +101,7 @@ public class PathologyCaseDiagnosticController {
                 item.nodeCode(), item.eventType(), item.eventStatus(), item.eventTime(), item.operatorName(), item.eventContent())).toList());
     }
 
-    private PendingDiagnosticTaskResponse toTaskResponse(DiagnosticReportAppService.TaskView item) {
+    private PendingDiagnosticTaskResponse toTaskResponse(DiagnosticReportModels.TaskView item) {
         return new PendingDiagnosticTaskResponse(
             item.id(),
             item.applicationId(),

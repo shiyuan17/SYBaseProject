@@ -9,3 +9,11 @@ spring:
   sql:
     init:
       mode: always
+
+security:
+  auth:
+    login-protection:
+      max-failed-attempts: 3
+      cooldown-duration: PT5M
+    jwt:
+      allow-generated-keys: true

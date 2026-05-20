@@ -1,6 +1,8 @@
 package com.company.bl.interfaces.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -33,6 +35,7 @@ public class CreateApplicationRequest {
     private String patientAge;
 
     @Schema(description = "申请类型，例如 ROUTINE")
+    @NotBlank(message = "Application type must not be blank")
     @Size(max = 50, message = "Application type must not exceed 50 characters")
     private String applicationType;
 
@@ -57,22 +60,27 @@ public class CreateApplicationRequest {
     private String sourceHospitalName;
 
     @Schema(description = "送检科室 ID")
+    @NotBlank(message = "Submitting department id must not be blank")
     @Size(max = 64, message = "Submitting department id must not exceed 64 characters")
     private String submittingDepartmentId;
 
     @Schema(description = "送检科室名称")
+    @NotBlank(message = "Submitting department name must not be blank")
     @Size(max = 100, message = "Submitting department name must not exceed 100 characters")
     private String submittingDepartmentName;
 
     @Schema(description = "送检医生用户 ID")
+    @NotBlank(message = "Submitting doctor user id must not be blank")
     @Size(max = 64, message = "Submitting doctor user id must not exceed 64 characters")
     private String submittingDoctorUserId;
 
     @Schema(description = "送检医生姓名")
+    @NotBlank(message = "Submitting doctor name must not be blank")
     @Size(max = 100, message = "Submitting doctor name must not exceed 100 characters")
     private String submittingDoctorName;
 
     @Schema(description = "临床诊断")
+    @NotBlank(message = "Clinical diagnosis must not be blank")
     @Size(max = 500, message = "Clinical diagnosis must not exceed 500 characters")
     private String clinicalDiagnosis;
 
@@ -81,6 +89,7 @@ public class CreateApplicationRequest {
     private String clinicalSymptom;
 
     @Schema(description = "送检部位")
+    @NotBlank(message = "Specimen site must not be blank")
     @Size(max = 200, message = "Specimen site must not exceed 200 characters")
     private String specimenSite;
 
@@ -92,4 +101,13 @@ public class CreateApplicationRequest {
     @Schema(description = "备注")
     @Size(max = 500, message = "Remarks must not exceed 500 characters")
     private String remarks;
+
+    @AssertTrue(message = "Patient id or patient name must be provided")
+    public boolean isPatientIdentityProvided() {
+        return hasText(patientId) || hasText(patientName);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
 }

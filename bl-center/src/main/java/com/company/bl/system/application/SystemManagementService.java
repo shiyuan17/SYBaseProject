@@ -10,7 +10,9 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -32,7 +34,12 @@ public class SystemManagementService {
 
     @Transactional(readOnly = true)
     public PagedResult<UserView> listUsers(int page, int size) {
-        SystemJdbcRepository.PagedUsers pagedUsers = systemJdbcRepository.findUsers(page, size);
+        return listUsers(page, size, null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResult<UserView> listUsers(int page, int size, Boolean enabled, String keyword) {
+        SystemJdbcRepository.PagedUsers pagedUsers = systemJdbcRepository.findUsers(page, size, enabled, keyword);
         return new PagedResult<>(
             pagedUsers.users().stream()
                 .map(user -> toUserView(user, pagedUsers.assignments().getOrDefault(user.id(), List.of())))
@@ -72,6 +79,33 @@ public class SystemManagementService {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "User login name or code already exists");
             }
         }, UserView::id, () -> command.loginName());
+    }
+
+    @Transactional
+    public UserView updateUser(String userId, UpdateUserCommand command) {
+        return operationAuditService.audit("SYSTEM", "USER", "update_user", () -> {
+            ensureUserExists(userId);
+            try {
+                systemJdbcRepository.updateUser(userId, new SystemJdbcRepository.UpdateUserRow(
+                    command.userCode(),
+                    command.name(),
+                    command.jobNo(),
+                    command.titleName(),
+                    command.departmentId(),
+                    command.departmentName(),
+                    command.phone(),
+                    command.email(),
+                    command.avatar(),
+                    command.loginTagCode(),
+                    command.enabled()));
+            } catch (DataAccessException exception) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "User code, job number or login tag code already exists");
+            }
+            SystemJdbcRepository.UserRow user = ensureUserExists(userId);
+            List<SystemJdbcRepository.RoleAssignmentRow> assignments =
+                systemJdbcRepository.findUserRoleAssignments(List.of(userId)).getOrDefault(userId, List.of());
+            return toUserView(user, assignments);
+        }, UserView::id, () -> userId);
     }
 
     @Transactional
@@ -126,6 +160,37 @@ public class SystemManagementService {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Role code already exists");
             }
         }, RoleView::id, command::roleCode);
+    }
+
+    @Transactional
+    public RoleView updateRole(String roleId, UpdateRoleCommand command) {
+        return operationAuditService.audit("SYSTEM", "ROLE", "update_role", () -> {
+            ensureRoleExists(roleId);
+            try {
+                systemJdbcRepository.updateRole(roleId, new SystemJdbcRepository.UpdateRoleRow(
+                    command.roleCode(),
+                    command.roleName(),
+                    command.roleType(),
+                    command.dataScope(),
+                    command.remarks(),
+                    command.enabled()));
+            } catch (DataAccessException exception) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Role code already exists");
+            }
+            return toRoleView(systemJdbcRepository.findRoleById(roleId));
+        }, RoleView::id, () -> roleId);
+    }
+
+    @Transactional
+    public void deleteRole(String roleId) {
+        operationAuditService.audit("SYSTEM", "ROLE", "delete_role", () -> {
+            ensureRoleExists(roleId);
+            if (systemJdbcRepository.countRoleAssignments(roleId) > 0) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Role is still assigned to users");
+            }
+            systemJdbcRepository.deleteRole(roleId);
+            return roleId;
+        }, value -> roleId, () -> roleId);
     }
 
     @Transactional(readOnly = true)
@@ -218,6 +283,97 @@ public class SystemManagementService {
             .toList();
     }
 
+    @Transactional(readOnly = true)
+    public byte[] exportUsers(Boolean enabled, String keyword) {
+        List<SystemJdbcRepository.UserRow> users = systemJdbcRepository.findUsers(enabled, keyword);
+        Map<String, List<SystemJdbcRepository.RoleAssignmentRow>> assignments =
+            systemJdbcRepository.findUserRoleAssignments(users.stream().map(SystemJdbcRepository.UserRow::id).toList());
+        StringBuilder builder = new StringBuilder();
+        builder.append('\uFEFF');
+        builder.append("userCode,loginName,name,jobNo,titleName,departmentName,phone,email,loginTagCode,enabled,roles,lastLoginAt\r\n");
+        for (SystemJdbcRepository.UserRow user : users) {
+            String roles = assignments.getOrDefault(user.id(), List.of()).stream()
+                .map(SystemJdbcRepository.RoleAssignmentRow::roleName)
+                .reduce((left, right) -> left + "|" + right)
+                .orElse("");
+            appendCsvRow(builder, List.of(
+                safe(user.userCode()),
+                safe(user.loginName()),
+                safe(user.name()),
+                safe(user.jobNo()),
+                safe(user.titleName()),
+                safe(user.departmentName()),
+                safe(user.phone()),
+                safe(user.email()),
+                safe(user.loginTagCode()),
+                user.enabled() ? "true" : "false",
+                roles,
+                safe(stringify(user.lastLoginAt()))));
+        }
+        return builder.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    @Transactional
+    public ImportResult importUsers(byte[] content) {
+        List<Map<String, String>> rows = parseCsv(content);
+        int successCount = 0;
+        int failureCount = 0;
+        for (Map<String, String> row : rows) {
+            String loginName = trimToNull(row.get("loginName"));
+            String name = trimToNull(row.get("name"));
+            if (loginName == null || name == null) {
+                failureCount++;
+                continue;
+            }
+            try {
+                SystemJdbcRepository.UserRow existing = systemJdbcRepository.findUserByLoginName(loginName);
+                if (existing == null) {
+                    createUser(new CreateUserCommand(
+                        trimToNull(row.get("userCode")),
+                        loginName,
+                        name,
+                        trimToNull(row.get("password")),
+                        trimToNull(row.get("jobNo")),
+                        trimToNull(row.get("titleName")),
+                        trimToNull(row.get("departmentId")),
+                        trimToNull(row.get("departmentName")),
+                        trimToNull(row.get("phone")),
+                        trimToNull(row.get("email")),
+                        trimToNull(row.get("avatar")),
+                        trimToNull(row.get("loginTagCode")),
+                        parseBoolean(row.get("enabled"), true)));
+                } else {
+                    updateUser(existing.id(), new UpdateUserCommand(
+                        trimToNull(row.get("userCode")),
+                        name,
+                        trimToNull(row.get("jobNo")),
+                        trimToNull(row.get("titleName")),
+                        trimToNull(row.get("departmentId")),
+                        trimToNull(row.get("departmentName")),
+                        trimToNull(row.get("phone")),
+                        trimToNull(row.get("email")),
+                        trimToNull(row.get("avatar")),
+                        trimToNull(row.get("loginTagCode")),
+                        parseBoolean(row.get("enabled"), existing.enabled())));
+                }
+                successCount++;
+            } catch (RuntimeException exception) {
+                failureCount++;
+            }
+        }
+        return new ImportResult(successCount, failureCount);
+    }
+
+    @Transactional(readOnly = true)
+    public PrintLoginTagView printLoginTag(String userId) {
+        SystemJdbcRepository.UserRow user = ensureUserExists(userId);
+        String loginTagCode = blankToNull(user.loginTagCode());
+        return new PrintLoginTagView(
+            loginTagCode,
+            user.name() + " 登录标签",
+            "姓名：" + user.name() + "\n登录名：" + user.loginName() + "\n标签编码：" + (loginTagCode == null ? "-" : loginTagCode));
+    }
+
     private SystemJdbcRepository.UserRow ensureUserExists(String userId) {
         SystemJdbcRepository.UserRow user = systemJdbcRepository.findUserById(userId);
         if (user == null) {
@@ -272,6 +428,91 @@ public class SystemManagementService {
 
     private List<String> safeList(List<String> values) {
         return values == null ? List.of() : values;
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
+    }
+
+    private void appendCsvRow(StringBuilder builder, List<String> values) {
+        for (int index = 0; index < values.size(); index++) {
+            if (index > 0) {
+                builder.append(',');
+            }
+            builder.append(escapeCsv(values.get(index)));
+        }
+        builder.append("\r\n");
+    }
+
+    private String escapeCsv(String value) {
+        if (value == null) {
+            return "";
+        }
+        boolean quoted = value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r");
+        String escaped = value.replace("\"", "\"\"");
+        return quoted ? "\"" + escaped + "\"" : escaped;
+    }
+
+    private List<Map<String, String>> parseCsv(byte[] content) {
+        String text = new String(content, StandardCharsets.UTF_8);
+        if (!text.isEmpty() && text.charAt(0) == '\uFEFF') {
+            text = text.substring(1);
+        }
+        List<String> lines = text.lines().filter(line -> !line.isBlank()).toList();
+        if (lines.isEmpty()) {
+            return List.of();
+        }
+        List<String> headers = parseCsvLine(lines.get(0));
+        List<Map<String, String>> rows = new java.util.ArrayList<>();
+        for (int index = 1; index < lines.size(); index++) {
+            List<String> values = parseCsvLine(lines.get(index));
+            Map<String, String> row = new LinkedHashMap<>();
+            for (int column = 0; column < headers.size(); column++) {
+                row.put(headers.get(column), column < values.size() ? values.get(column) : null);
+            }
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    private List<String> parseCsvLine(String line) {
+        List<String> values = new java.util.ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean quoted = false;
+        for (int index = 0; index < line.length(); index++) {
+            char ch = line.charAt(index);
+            if (ch == '"') {
+                if (quoted && index + 1 < line.length() && line.charAt(index + 1) == '"') {
+                    current.append('"');
+                    index++;
+                } else {
+                    quoted = !quoted;
+                }
+            } else if (ch == ',' && !quoted) {
+                values.add(current.toString());
+                current.setLength(0);
+            } else {
+                current.append(ch);
+            }
+        }
+        values.add(current.toString());
+        return values;
+    }
+
+    private boolean parseBoolean(String value, boolean defaultValue) {
+        String normalized = trimToNull(value);
+        if (normalized == null) {
+            return defaultValue;
+        }
+        return "1".equals(normalized) || "true".equalsIgnoreCase(normalized) || "yes".equalsIgnoreCase(normalized);
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private String normalizeLoginResult(String loginResult) {
@@ -391,6 +632,21 @@ public class SystemManagementService {
     ) {
     }
 
+    public record UpdateUserCommand(
+        String userCode,
+        String name,
+        String jobNo,
+        String titleName,
+        String departmentId,
+        String departmentName,
+        String phone,
+        String email,
+        String avatar,
+        String loginTagCode,
+        boolean enabled
+    ) {
+    }
+
     public record AssignUserRolesCommand(List<RoleAssignmentInput> assignments) {
     }
 
@@ -412,6 +668,16 @@ public class SystemManagementService {
     }
 
     public record CreateRoleCommand(
+        String roleCode,
+        String roleName,
+        String roleType,
+        String dataScope,
+        String remarks,
+        boolean enabled
+    ) {
+    }
+
+    public record UpdateRoleCommand(
         String roleCode,
         String roleName,
         String roleType,
@@ -502,6 +768,21 @@ public class SystemManagementService {
         @Schema(description = "统计范围类型") String statScope,
         @Schema(description = "说明") String description,
         @Schema(description = "是否启用") boolean enabled
+    ) {
+    }
+
+    @Schema(name = "SystemImportResult", description = "导入结果")
+    public record ImportResult(
+        @Schema(description = "成功数量") int successCount,
+        @Schema(description = "失败数量") int failureCount
+    ) {
+    }
+
+    @Schema(name = "PrintLoginTagView", description = "登录标签打印内容")
+    public record PrintLoginTagView(
+        @Schema(description = "登录标签编码") String loginTagCode,
+        @Schema(description = "标题") String title,
+        @Schema(description = "打印内容") String content
     ) {
     }
 

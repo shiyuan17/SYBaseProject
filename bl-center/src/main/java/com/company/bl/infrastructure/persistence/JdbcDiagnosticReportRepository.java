@@ -64,7 +64,7 @@ public class JdbcDiagnosticReportRepository implements DiagnosticReportRepositor
         List<DiagnosticTask> items = jdbcTemplate.query(diagnosticTaskSelectSql() + where + """
             
             order by dt.created_at asc, dt.id asc
-            limit :limit offset :offset
+            offset :offset rows fetch next :limit rows only
             """, diagnosticTaskPageParams(query), this::mapDiagnosticTask);
         return new PagedDiagnosticTasks(items, total == null ? 0 : total);
     }
@@ -229,7 +229,7 @@ public class JdbcDiagnosticReportRepository implements DiagnosticReportRepositor
             where case_id = :caseId
               and report_scope = :reportScope
             order by report_seq desc, created_at desc
-            limit 1
+            fetch first 1 row only
             """, new MapSqlParameterSource()
             .addValue("caseId", caseId)
             .addValue("reportScope", reportScope), this::mapPathologyReport);

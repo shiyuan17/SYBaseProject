@@ -179,6 +179,10 @@ public class Sm2JwtTokenService {
     }
 
     private KeyPair keyPair() throws GeneralSecurityException {
+        if (!properties.isAllowGeneratedKeys()) {
+            throw new IllegalStateException(
+                "SM2 JWT private/public keys must be configured when generated keys are disabled");
+        }
         KeyPair current = generatedKeyPair;
         if (current != null) {
             return current;

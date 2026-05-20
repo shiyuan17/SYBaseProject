@@ -160,9 +160,6 @@ public class SpecimenController {
     }
 
     private String resolveUserId(String bodyUserId, HttpServletRequest request) {
-        if (bodyUserId != null && !bodyUserId.isBlank()) {
-            return bodyUserId.trim();
-        }
         Object currentUserId = request.getAttribute(ApiPermissionContext.CURRENT_USER_ID);
         return currentUserId == null ? null : currentUserId.toString();
     }

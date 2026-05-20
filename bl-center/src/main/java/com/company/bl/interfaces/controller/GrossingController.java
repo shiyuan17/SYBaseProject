@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.TechnicalWorkflowAppService;
+import com.company.bl.application.service.TechnicalWorkflowModels;
 import com.company.bl.interfaces.auth.M3PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.GrossingCompleteRequest;
@@ -32,8 +33,8 @@ public class GrossingController extends TechnicalControllerSupport {
     @PostMapping("/start")
     public TaskOperationResponse start(@Valid @RequestBody TechnicalTaskStartRequest request,
                                        HttpServletRequest httpServletRequest) {
-        TechnicalWorkflowAppService.TaskStartResult result = technicalWorkflowAppService.startGrossing(
-            new TechnicalWorkflowAppService.TaskStartCommand(
+        TechnicalWorkflowModels.TaskStartResult result = technicalWorkflowAppService.startGrossing(
+            new TechnicalWorkflowModels.TaskStartCommand(
                 request.getTaskId(),
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 request.getOperatorName(),
@@ -47,27 +48,27 @@ public class GrossingController extends TechnicalControllerSupport {
     @PostMapping("/complete")
     public GrossingResponse complete(@Valid @RequestBody GrossingCompleteRequest request,
                                      HttpServletRequest httpServletRequest) {
-        TechnicalWorkflowAppService.GrossingResult result = technicalWorkflowAppService.completeGrossing(
-            new TechnicalWorkflowAppService.GrossingCompleteCommand(
+        TechnicalWorkflowModels.GrossingResult result = technicalWorkflowAppService.completeGrossing(
+            new TechnicalWorkflowModels.GrossingCompleteCommand(
                 request.getTaskId(),
                 request.getCaseId(),
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 request.getOperatorName(),
                 request.getTerminalCode(),
                 request.getRemarks(),
-                request.getSpecimens().stream().map(item -> new TechnicalWorkflowAppService.GrossingSpecimenItem(
+                request.getSpecimens().stream().map(item -> new TechnicalWorkflowModels.GrossingSpecimenItem(
                     item.getSpecimenId(),
                     item.getSpecimenType(),
                     item.getBodyPartId(),
                     item.getSamplingTemplateId(),
                     item.getGrossDescription(),
-                    item.getBlocks().stream().map(block -> new TechnicalWorkflowAppService.GrossingBlockItem(
+                    item.getBlocks().stream().map(block -> new TechnicalWorkflowModels.GrossingBlockItem(
                         block.getBlockSite(),
                         block.getBlockDescription(),
                         block.getSpecialRequirement()))
                         .toList(),
                     item.getMediaAssets() == null ? java.util.List.of() : item.getMediaAssets().stream()
-                        .map(asset -> new TechnicalWorkflowAppService.MediaAssetInput(asset.getFileUrl(), asset.getFileName()))
+                        .map(asset -> new TechnicalWorkflowModels.MediaAssetInput(asset.getFileUrl(), asset.getFileName()))
                         .toList()))
                     .toList()));
         return new GrossingResponse(result.taskId(), result.caseId(), result.caseStatus(), result.createdDehydrationTaskCount());

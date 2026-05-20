@@ -13,6 +13,8 @@ stages:
 variables:
   MAVEN_CLI_OPTS: "-B -ntp"
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  AUTH_CENTER_IMAGE_REPO: "$CI_REGISTRY_IMAGE/auth-center"
+  BL_CENTER_IMAGE_REPO: "$CI_REGISTRY_IMAGE/bl-center"
   USER_CENTER_IMAGE_REPO: "$CI_REGISTRY_IMAGE/user-center"
 
 cache:
@@ -41,6 +43,34 @@ package_user_center:
       - user-center/target/*.jar
     expire_in: 7 days
 
+package_auth_center:
+  stage: package
+  image: maven:3.9.9-eclipse-temurin-17
+  needs:
+    - verify
+  script:
+    - chmod +x mvnw
+    - ./mvnw -pl auth-center -am package -DskipTests
+  artifacts:
+    name: "auth-center-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - auth-center/target/*.jar
+    expire_in: 7 days
+
+package_bl_center:
+  stage: package
+  image: maven:3.9.9-eclipse-temurin-17
+  needs:
+    - verify
+  script:
+    - chmod +x mvnw
+    - ./mvnw -pl bl-center -am package -DskipTests
+  artifacts:
+    name: "bl-center-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - bl-center/target/*.jar
+    expire_in: 7 days
+
 image_user_center:
   stage: image
   image: docker:27.0.3-cli
@@ -64,6 +94,92 @@ image_user_center:
     - if: '$CI_COMMIT_BRANCH == "develop"'
     - if: '$CI_COMMIT_BRANCH =~ /^release\/.+$/'
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/'
+
+image_auth_center:
+  stage: image
+  image: docker:27.0.3-cli
+  needs:
+    - package_auth_center
+  services:
+    - name: docker:27.0.3-dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    IMAGE_REPO: "$AUTH_CENTER_IMAGE_REPO"
+    IMAGE_TAG: "$CI_COMMIT_SHA"
+    EXTRA_IMAGE_TAGS: "$CI_COMMIT_REF_SLUG $CI_COMMIT_TAG"
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" --username "$CI_REGISTRY_USER" --password-stdin
+    - chmod +x scripts/ci/build-auth-center-image.sh
+  script:
+    - sh scripts/ci/build-auth-center-image.sh
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH =~ /^release\/.+$/'
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/'
+
+image_bl_center:
+  stage: image
+  image: docker:27.0.3-cli
+  needs:
+    - package_bl_center
+  services:
+    - name: docker:27.0.3-dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    IMAGE_REPO: "$BL_CENTER_IMAGE_REPO"
+    IMAGE_TAG: "$CI_COMMIT_SHA"
+    EXTRA_IMAGE_TAGS: "$CI_COMMIT_REF_SLUG $CI_COMMIT_TAG"
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" --username "$CI_REGISTRY_USER" --password-stdin
+    - chmod +x scripts/ci/build-bl-center-image.sh
+  script:
+    - sh scripts/ci/build-bl-center-image.sh
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH =~ /^release\/.+$/'
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/'
+
+.deploy_auth_center:
+  stage: deploy
+  image: alpine:3.20
+  needs:
+    - image_auth_center
+  variables:
+    IMAGE_REPO: "$AUTH_CENTER_IMAGE_REPO"
+  before_script:
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - chmod +x scripts/ci/deploy-auth-center.sh
+  script:
+    - sh scripts/ci/deploy-auth-center.sh
+
+.deploy_bl_center:
+  stage: deploy
+  image: alpine:3.20
+  needs:
+    - image_bl_center
+  variables:
+    IMAGE_REPO: "$BL_CENTER_IMAGE_REPO"
+  before_script:
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - chmod +x scripts/ci/deploy-bl-center.sh
+  script:
+    - sh scripts/ci/deploy-bl-center.sh
 
 .deploy_user_center:
   stage: deploy
@@ -147,6 +263,144 @@ deploy_prod:
     DEPLOY_APP_DIR: "$DEPLOY_PROD_APP_DIR"
     DEPLOY_PORT: "$DEPLOY_PROD_PORT"
     DEPLOY_SPRING_PROFILE: "$DEPLOY_PROD_SPRING_PROFILE"
+    IMAGE_TAG: "$CI_COMMIT_TAG"
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/'
+      when: manual
+      allow_failure: false
+
+deploy_local_auth_center:
+  extends: .deploy_auth_center
+  environment:
+    name: auth-local
+  variables:
+    DEPLOY_HOST: "$DEPLOY_LOCAL_HOST"
+    DEPLOY_USER: "$DEPLOY_LOCAL_USER"
+    DEPLOY_SSH_KEY: "$DEPLOY_LOCAL_SSH_KEY"
+    DEPLOY_APP_DIR: "$DEPLOY_LOCAL_AUTH_CENTER_APP_DIR"
+    DEPLOY_PORT: "$DEPLOY_LOCAL_AUTH_CENTER_PORT"
+    DEPLOY_SPRING_PROFILE: "$DEPLOY_LOCAL_AUTH_CENTER_SPRING_PROFILE"
+    IMAGE_TAG: "$CI_COMMIT_REF_SLUG"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+
+deploy_test_auth_center:
+  extends: .deploy_auth_center
+  needs:
+    - image_auth_center
+    - deploy_local_auth_center
+  environment:
+    name: auth-test
+  variables:
+    DEPLOY_HOST: "$DEPLOY_TEST_HOST"
+    DEPLOY_USER: "$DEPLOY_TEST_USER"
+    DEPLOY_SSH_KEY: "$DEPLOY_TEST_SSH_KEY"
+    DEPLOY_APP_DIR: "$DEPLOY_TEST_AUTH_CENTER_APP_DIR"
+    DEPLOY_PORT: "$DEPLOY_TEST_AUTH_CENTER_PORT"
+    DEPLOY_SPRING_PROFILE: "$DEPLOY_TEST_AUTH_CENTER_SPRING_PROFILE"
+    IMAGE_TAG: "$CI_COMMIT_REF_SLUG"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+      when: manual
+      allow_failure: false
+
+deploy_staging_auth_center:
+  extends: .deploy_auth_center
+  environment:
+    name: auth-staging
+  variables:
+    DEPLOY_HOST: "$DEPLOY_STAGING_HOST"
+    DEPLOY_USER: "$DEPLOY_STAGING_USER"
+    DEPLOY_SSH_KEY: "$DEPLOY_STAGING_SSH_KEY"
+    DEPLOY_APP_DIR: "$DEPLOY_STAGING_AUTH_CENTER_APP_DIR"
+    DEPLOY_PORT: "$DEPLOY_STAGING_AUTH_CENTER_PORT"
+    DEPLOY_SPRING_PROFILE: "$DEPLOY_STAGING_AUTH_CENTER_SPRING_PROFILE"
+    IMAGE_TAG: "$CI_COMMIT_REF_SLUG"
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^release\/.+$/'
+      when: manual
+      allow_failure: false
+
+deploy_prod_auth_center:
+  extends: .deploy_auth_center
+  environment:
+    name: auth-production
+  variables:
+    DEPLOY_HOST: "$DEPLOY_PROD_HOST"
+    DEPLOY_USER: "$DEPLOY_PROD_USER"
+    DEPLOY_SSH_KEY: "$DEPLOY_PROD_SSH_KEY"
+    DEPLOY_APP_DIR: "$DEPLOY_PROD_AUTH_CENTER_APP_DIR"
+    DEPLOY_PORT: "$DEPLOY_PROD_AUTH_CENTER_PORT"
+    DEPLOY_SPRING_PROFILE: "$DEPLOY_PROD_AUTH_CENTER_SPRING_PROFILE"
+    IMAGE_TAG: "$CI_COMMIT_TAG"
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/'
+      when: manual
+      allow_failure: false
+
+deploy_local_bl_center:
+  extends: .deploy_bl_center
+  environment:
+    name: bl-local
+  variables:
+    DEPLOY_HOST: "$DEPLOY_LOCAL_HOST"
+    DEPLOY_USER: "$DEPLOY_LOCAL_USER"
+    DEPLOY_SSH_KEY: "$DEPLOY_LOCAL_SSH_KEY"
+    DEPLOY_APP_DIR: "$DEPLOY_LOCAL_BL_CENTER_APP_DIR"
+    DEPLOY_PORT: "$DEPLOY_LOCAL_BL_CENTER_PORT"
+    DEPLOY_SPRING_PROFILE: "$DEPLOY_LOCAL_BL_CENTER_SPRING_PROFILE"
+    IMAGE_TAG: "$CI_COMMIT_REF_SLUG"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+
+deploy_test_bl_center:
+  extends: .deploy_bl_center
+  needs:
+    - image_bl_center
+    - deploy_local_bl_center
+  environment:
+    name: bl-test
+  variables:
+    DEPLOY_HOST: "$DEPLOY_TEST_HOST"
+    DEPLOY_USER: "$DEPLOY_TEST_USER"
+    DEPLOY_SSH_KEY: "$DEPLOY_TEST_SSH_KEY"
+    DEPLOY_APP_DIR: "$DEPLOY_TEST_BL_CENTER_APP_DIR"
+    DEPLOY_PORT: "$DEPLOY_TEST_BL_CENTER_PORT"
+    DEPLOY_SPRING_PROFILE: "$DEPLOY_TEST_BL_CENTER_SPRING_PROFILE"
+    IMAGE_TAG: "$CI_COMMIT_REF_SLUG"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+      when: manual
+      allow_failure: false
+
+deploy_staging_bl_center:
+  extends: .deploy_bl_center
+  environment:
+    name: bl-staging
+  variables:
+    DEPLOY_HOST: "$DEPLOY_STAGING_HOST"
+    DEPLOY_USER: "$DEPLOY_STAGING_USER"
+    DEPLOY_SSH_KEY: "$DEPLOY_STAGING_SSH_KEY"
+    DEPLOY_APP_DIR: "$DEPLOY_STAGING_BL_CENTER_APP_DIR"
+    DEPLOY_PORT: "$DEPLOY_STAGING_BL_CENTER_PORT"
+    DEPLOY_SPRING_PROFILE: "$DEPLOY_STAGING_BL_CENTER_SPRING_PROFILE"
+    IMAGE_TAG: "$CI_COMMIT_REF_SLUG"
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^release\/.+$/'
+      when: manual
+      allow_failure: false
+
+deploy_prod_bl_center:
+  extends: .deploy_bl_center
+  environment:
+    name: bl-production
+  variables:
+    DEPLOY_HOST: "$DEPLOY_PROD_HOST"
+    DEPLOY_USER: "$DEPLOY_PROD_USER"
+    DEPLOY_SSH_KEY: "$DEPLOY_PROD_SSH_KEY"
+    DEPLOY_APP_DIR: "$DEPLOY_PROD_BL_CENTER_APP_DIR"
+    DEPLOY_PORT: "$DEPLOY_PROD_BL_CENTER_PORT"
+    DEPLOY_SPRING_PROFILE: "$DEPLOY_PROD_BL_CENTER_SPRING_PROFILE"
     IMAGE_TAG: "$CI_COMMIT_TAG"
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/'

@@ -3,6 +3,31 @@ package com.company.bl.domain.repository;
 import com.company.bl.domain.model.PathologyCase;
 import com.company.bl.domain.model.Specimen;
 import com.company.bl.domain.model.TrackingEvent;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateDehydrationBatchCommand;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateDehydrationBatchItemCommand;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateEmbeddingBoxCommand;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateEmbeddingCommand;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateSamplingBlockCommand;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateSamplingCommand;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateTechnicalTaskCommand;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.DehydrationBatch;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.DehydrationBatchItem;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.Embedding;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingBox;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedTechnicalTasks;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.PendingTechnicalTaskQuery;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.SamplingBlock;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.TechnicalTask;
+import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.CreateCaseMediaAssetCommand;
+import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.CreateReworkOrderCommand;
+import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.CreateSlicingCommand;
+import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.CreateSlideCommand;
+import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.CreateSlideQcEvaluationCommand;
+import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.CreateSlideStainingCommand;
+import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.ReworkOrder;
+import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.Slide;
+import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.SlideStaining;
+import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.Slicing;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -119,358 +144,7 @@ public interface TechnicalWorkflowRepository {
 
     List<TrackingEvent> findTrackingEventsByCaseId(String caseId);
 
+    List<TrackingEvent> findRecentTrackingEventsByCaseId(String caseId, int limit);
+
     void insertWorkflowEvent(TrackingEvent event);
-
-    record PendingTechnicalTaskQuery(
-        int page,
-        int size,
-        String taskType,
-        String taskStatus,
-        String applicationNo,
-        String pathologyNo,
-        String objectType
-    ) {
-    }
-
-    record PagedTechnicalTasks(List<TechnicalTask> items, long total) {
-    }
-
-    record TechnicalTask(
-        String id,
-        String applicationId,
-        String applicationNo,
-        String caseId,
-        String pathologyNo,
-        String specimenId,
-        String taskType,
-        String taskStatus,
-        String objectType,
-        String objectId,
-        String parentTaskId,
-        String payload,
-        String remarks,
-        LocalDateTime createdAt,
-        LocalDateTime startedAt,
-        LocalDateTime completedAt
-    ) {
-    }
-
-    record CreateTechnicalTaskCommand(
-        String id,
-        String applicationId,
-        String caseId,
-        String specimenId,
-        String taskType,
-        String taskStatus,
-        String objectType,
-        String objectId,
-        String parentTaskId,
-        String payload,
-        String remarks,
-        LocalDateTime createdAt
-    ) {
-    }
-
-    record CreateSamplingCommand(
-        String id,
-        String caseId,
-        String specimenId,
-        String samplingStatus,
-        int blockCount,
-        int grossImageCount,
-        String samplingTemplateId,
-        String grossDescription,
-        String sampledByUserId,
-        String sampledByName,
-        LocalDateTime sampledAt,
-        String remarks
-    ) {
-    }
-
-    record CreateSamplingBlockCommand(
-        String id,
-        String caseId,
-        String specimenId,
-        String samplingId,
-        int sequenceNo,
-        String blockCode,
-        String blockSite,
-        String blockDescription,
-        String embeddingBoxNo,
-        String specialRequirement
-    ) {
-    }
-
-    record SamplingBlock(
-        String id,
-        String caseId,
-        String specimenId,
-        String samplingId,
-        int sequenceNo,
-        String blockCode,
-        String blockSite,
-        String blockDescription,
-        String embeddingBoxNo,
-        String specialRequirement
-    ) {
-    }
-
-    record CreateDehydrationBatchCommand(
-        String id,
-        String caseId,
-        String batchNo,
-        String batchStatus,
-        String basketNo,
-        String deviceNo,
-        String operatorUserId,
-        String operatorName,
-        String remarks,
-        LocalDateTime createdAt
-    ) {
-    }
-
-    record CreateDehydrationBatchItemCommand(
-        String id,
-        String batchId,
-        String caseId,
-        String specimenId,
-        String samplingBlockId,
-        String itemStatus,
-        LocalDateTime loadedAt,
-        String remarks
-    ) {
-    }
-
-    record DehydrationBatch(
-        String id,
-        String caseId,
-        String batchNo,
-        String batchStatus,
-        String basketNo,
-        String deviceNo,
-        String operatorUserId,
-        String operatorName,
-        LocalDateTime startedAt,
-        LocalDateTime completedAt,
-        String remarks
-    ) {
-    }
-
-    record DehydrationBatchItem(
-        String id,
-        String batchId,
-        String caseId,
-        String specimenId,
-        String samplingBlockId,
-        String itemStatus,
-        LocalDateTime loadedAt,
-        String remarks
-    ) {
-    }
-
-    record CreateEmbeddingCommand(
-        String id,
-        String caseId,
-        String specimenId,
-        String samplingId,
-        String samplingBlockId,
-        String embeddingStatus,
-        String evaluationLevel,
-        String samplingEvaluation,
-        LocalDateTime startedAt,
-        LocalDateTime endedAt,
-        String embeddedByUserId,
-        String embeddedByName,
-        String remarks
-    ) {
-    }
-
-    record Embedding(
-        String id,
-        String caseId,
-        String specimenId,
-        String samplingId,
-        String samplingBlockId,
-        String embeddingStatus
-    ) {
-    }
-
-    record CreateEmbeddingBoxCommand(
-        String id,
-        String caseId,
-        String specimenId,
-        String samplingBlockId,
-        String embeddingId,
-        String embeddingBoxNo,
-        int blockCount,
-        boolean reEmbeddingFlag,
-        String sliceNotice,
-        String storageStatus
-    ) {
-    }
-
-    record EmbeddingBox(
-        String id,
-        String caseId,
-        String specimenId,
-        String samplingBlockId,
-        String embeddingId,
-        String embeddingBoxNo,
-        int blockCount,
-        boolean reEmbeddingFlag,
-        String sliceNotice,
-        String storageStatus
-    ) {
-    }
-
-    record CreateSlicingCommand(
-        String id,
-        String caseId,
-        String specimenId,
-        String embeddingId,
-        String embeddingBoxId,
-        String slicingBatchNo,
-        String slicingStatus,
-        int slideCount,
-        Integer sliceCountPerSlide,
-        String sliceThickness,
-        String slicedByUserId,
-        String slicedByName,
-        LocalDateTime slicedAt,
-        String qualityIssue,
-        String remarks
-    ) {
-    }
-
-    record Slicing(
-        String id,
-        String caseId,
-        String specimenId,
-        String embeddingId,
-        String embeddingBoxId,
-        String slicingBatchNo,
-        String slicingStatus,
-        int slideCount
-    ) {
-    }
-
-    record CreateSlideCommand(
-        String id,
-        String caseId,
-        String specimenId,
-        String slicingId,
-        String embeddingBoxId,
-        String samplingBlockId,
-        String slideNo,
-        String slideLabel,
-        boolean combinedSlideFlag,
-        String qualityStatus,
-        String slideStatus,
-        Integer sliceCount
-    ) {
-    }
-
-    record Slide(
-        String id,
-        String caseId,
-        String specimenId,
-        String slicingId,
-        String embeddingBoxId,
-        String samplingBlockId,
-        String slideNo,
-        String qualityStatus,
-        String slideStatus,
-        Integer sliceCount
-    ) {
-    }
-
-    record CreateSlideStainingCommand(
-        String id,
-        String caseId,
-        String specimenId,
-        String slideId,
-        String stainingType,
-        String stainingStatus,
-        String stainedByUserId,
-        String stainedByName,
-        LocalDateTime stainedAt,
-        String qualityIssue,
-        String remarks
-    ) {
-    }
-
-    record SlideStaining(
-        String id,
-        String caseId,
-        String specimenId,
-        String slideId,
-        String stainingType,
-        String stainingStatus,
-        LocalDateTime stainedAt,
-        String qualityIssue,
-        String remarks
-    ) {
-    }
-
-    record CreateReworkOrderCommand(
-        String id,
-        String caseId,
-        String specimenId,
-        String samplingBlockId,
-        String embeddingBoxId,
-        String slideId,
-        String reworkType,
-        String status,
-        String reason,
-        String requestedByUserId,
-        String requestedByName,
-        LocalDateTime requestedAt,
-        String remarks
-    ) {
-    }
-
-    record ReworkOrder(
-        String id,
-        String caseId,
-        String specimenId,
-        String samplingBlockId,
-        String embeddingBoxId,
-        String slideId,
-        String reworkType,
-        String status,
-        String reason
-    ) {
-    }
-
-    record CreateSlideQcEvaluationCommand(
-        String id,
-        String caseId,
-        String specimenId,
-        String slideId,
-        String qcType,
-        String evaluationResult,
-        String issueDescription,
-        String improvementSuggestion,
-        String evaluatorUserId,
-        String evaluatorName,
-        LocalDateTime evaluatedAt,
-        String remarks
-    ) {
-    }
-
-    record CreateCaseMediaAssetCommand(
-        String id,
-        String caseId,
-        String specimenId,
-        String objectType,
-        String objectId,
-        String mediaType,
-        String fileUrl,
-        String fileName,
-        LocalDateTime capturedAt,
-        String capturedByUserId,
-        String capturedByName,
-        String remarks
-    ) {
-    }
 }

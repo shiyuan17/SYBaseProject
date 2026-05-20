@@ -1,8 +1,6 @@
 package com.company.bl.interfaces.controller;
 
-import com.company.bl.application.query.GetApplicationByIdQuery;
 import com.company.bl.application.service.CreateApplicationAppService;
-import com.company.bl.application.service.GetApplicationAppService;
 import com.company.bl.application.service.SpecimenWorkflowAppService;
 import com.company.bl.domain.model.ApplicationTracking;
 import com.company.bl.domain.model.Specimen;
@@ -36,12 +34,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class ApplicationController {
 
     private final CreateApplicationAppService createApplicationAppService;
-    private final GetApplicationAppService getApplicationAppService;
     private final SpecimenWorkflowAppService specimenWorkflowAppService;
     private final ApplicationRepresentationAssembler applicationRepresentationAssembler;
 
     @Operation(summary = "创建病理申请单", description = "创建新的病理申请单。")
     @ApiResponses(@ApiResponse(responseCode = "201", description = "创建成功", useReturnTypeSchema = true))
+    @RequirePermission(M2PermissionCodes.APPLICATION_CREATE)
     @PostMapping
     public ResponseEntity<ApplicationIdResponse> create(@Valid @RequestBody CreateApplicationRequest request) {
         ApplicationIdResponse response = applicationRepresentationAssembler.toIdResponse(
@@ -50,6 +48,7 @@ public class ApplicationController {
     }
 
     @Operation(summary = "查询申请单详情", description = "按申请单 ID 查询申请单、标本与最近追踪事件。")
+    @RequirePermission(M2PermissionCodes.APPLICATION_DETAIL_QUERY)
     @GetMapping("/{id}")
     public ApplicationDetailResponse getById(@Parameter(description = "申请单 ID") @PathVariable("id") String id) {
         ApplicationTracking tracking = specimenWorkflowAppService.getApplicationTracking(id);

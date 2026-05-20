@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,6 +48,23 @@ public class SystemConfigController {
             request.sortOrder(), request.enabled()));
     }
 
+    @Operation(summary = "更新系统配置分类", description = "更新系统配置分类节点。")
+    @RequirePermission(M1PermissionCodes.CONFIG_UPDATE)
+    @PatchMapping("/categories/{id}")
+    public SystemConfigService.ConfigCategoryNode updateConfigCategory(@Parameter(description = "分类 ID") @PathVariable("id") String id,
+                                                                      @Valid @RequestBody UpdateCategoryRequest request) {
+        return systemConfigService.updateConfigCategory(id, new SystemConfigService.UpdateConfigCategoryCommand(
+            request.parentId(), request.categoryCode(), request.categoryName(), request.categoryType(),
+            request.sortOrder(), request.enabled()));
+    }
+
+    @Operation(summary = "删除系统配置分类", description = "删除空配置分类。")
+    @RequirePermission(M1PermissionCodes.CONFIG_UPDATE)
+    @DeleteMapping("/categories/{id}")
+    public void deleteConfigCategory(@Parameter(description = "分类 ID") @PathVariable("id") String id) {
+        systemConfigService.deleteConfigCategory(id);
+    }
+
     @Operation(summary = "新增系统配置项", description = "新增系统配置项。")
     @RequirePermission(M1PermissionCodes.CONFIG_UPDATE)
     @PostMapping("/items")
@@ -63,6 +81,13 @@ public class SystemConfigController {
                                                                @Valid @RequestBody UpdateItemRequest request) {
         return systemConfigService.updateConfigItem(id, new SystemConfigService.UpdateConfigItemCommand(
             request.configValue(), request.enabled(), request.remarks()));
+    }
+
+    @Operation(summary = "删除系统配置项", description = "删除系统配置项。")
+    @RequirePermission(M1PermissionCodes.CONFIG_UPDATE)
+    @DeleteMapping("/items/{id}")
+    public void deleteConfigItem(@Parameter(description = "配置项 ID") @PathVariable("id") String id) {
+        systemConfigService.deleteConfigItem(id);
     }
 
     @Schema(name = "CreateConfigCategoryRequest", description = "新增系统配置分类请求")
@@ -83,6 +108,22 @@ public class SystemConfigController {
         @Schema(description = "排序号")
         int sortOrder,
         @Schema(description = "是否启用")
+        boolean enabled
+    ) {
+    }
+
+    @Schema(name = "UpdateConfigCategoryRequest", description = "更新系统配置分类请求")
+    public record UpdateCategoryRequest(
+        String parentId,
+        @NotBlank(message = "Category code must not be blank")
+        @Size(max = 64, message = "Category code must not exceed 64 characters")
+        String categoryCode,
+        @NotBlank(message = "Category name must not be blank")
+        @Size(max = 100, message = "Category name must not exceed 100 characters")
+        String categoryName,
+        @Size(max = 50, message = "Category type must not exceed 50 characters")
+        String categoryType,
+        int sortOrder,
         boolean enabled
     ) {
     }

@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class LegacyDmFlywayOnboardingTest {
 
     @Test
-    void shouldBaselineLegacySchemaAtV10AndApplyV11() throws Exception {
+    void shouldBaselineLegacySchemaAtV10AndApplyLaterSecurityMigrations() throws Exception {
         String url = "jdbc:h2:mem:legacy_dm_" + System.nanoTime() + ";MODE=LEGACY;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false";
 
         Flyway.configure()
@@ -68,9 +68,9 @@ class LegacyDmFlywayOnboardingTest {
                 """));
             assertEquals(13, queryInt(statement, "SELECT COUNT(*) FROM roles WHERE role_code LIKE 'M2_%' OR role_code LIKE 'M3_%'"));
             assertEquals(15, queryInt(statement, "SELECT COUNT(*) FROM menus WHERE menu_code LIKE 'M2_%' OR menu_code LIKE 'M3_%'"));
-            assertEquals(14, queryInt(statement, "SELECT COUNT(*) FROM permissions WHERE permission_group IN ('M2', 'M3')"));
-            assertEquals(22, queryInt(statement, "SELECT COUNT(*) FROM users WHERE id LIKE 'USER_M%'"));
-            assertEquals(20, queryInt(statement, "SELECT COUNT(*) FROM user_roles WHERE id LIKE 'UR_M%'"));
+            assertEquals(16, queryInt(statement, "SELECT COUNT(*) FROM permissions WHERE permission_group IN ('M2', 'M3')"));
+            assertEquals(28, queryInt(statement, "SELECT COUNT(*) FROM users WHERE id LIKE 'USER_M%'"));
+            assertEquals(25, queryInt(statement, "SELECT COUNT(*) FROM user_roles WHERE id LIKE 'UR_M%'"));
             assertEquals(1, queryInt(statement, "SELECT COUNT(*) FROM users WHERE id = 'USER_M1_ADMIN' AND password_algo = 'SM3'"));
             assertTrue(queryInt(statement, "SELECT COUNT(*) FROM role_menus WHERE role_id = 'ROLE_PATHOLOGY_ADMIN' AND menu_id = 'MENU_M3_TASKS'") > 0);
             assertEquals(1, queryInt(statement, "SELECT COUNT(*) FROM roles WHERE role_code = 'SUPER_ADMIN'"));

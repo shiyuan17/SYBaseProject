@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.TechnicalWorkflowAppService;
+import com.company.bl.application.service.TechnicalWorkflowModels;
 import com.company.bl.interfaces.auth.M3PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.vo.PendingTechnicalTaskResponse;
@@ -28,7 +29,7 @@ public class PathologyCaseTechnicalTrackingController {
     @RequirePermission(M3PermissionCodes.TECHNICAL_TRACKING_QUERY)
     @GetMapping("/{id}/technical-tracking")
     public TechnicalTrackingResponse getTracking(@Parameter(description = "病例 ID") @PathVariable("id") String caseId) {
-        TechnicalWorkflowAppService.TechnicalTrackingView result = technicalWorkflowAppService.getTechnicalTracking(caseId);
+        TechnicalWorkflowModels.TechnicalTrackingView result = technicalWorkflowAppService.getTechnicalTracking(caseId);
         return new TechnicalTrackingResponse(
             result.caseId(),
             result.pathologyNo(),

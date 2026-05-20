@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.DiagnosticReportAppService;
+import com.company.bl.application.service.DiagnosticReportModels;
 import com.company.bl.interfaces.auth.M4PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.CreatePathologyReportRequest;
@@ -34,8 +35,8 @@ public class PathologyReportController extends TechnicalControllerSupport {
     @PostMapping
     public PathologyReportOperationResponse create(@Valid @RequestBody CreatePathologyReportRequest request,
                                                    HttpServletRequest httpServletRequest) {
-        DiagnosticReportAppService.PathologyReportResult result = diagnosticReportAppService.createReport(
-            new DiagnosticReportAppService.CreatePathologyReportCommand(
+        DiagnosticReportModels.PathologyReportResult result = diagnosticReportAppService.createReport(
+            new DiagnosticReportModels.CreatePathologyReportCommand(
                 request.getCaseId(),
                 request.getTaskId(),
                 request.getClinicalDiagnosis(),
@@ -57,8 +58,8 @@ public class PathologyReportController extends TechnicalControllerSupport {
     public PathologyReportOperationResponse saveDraft(@PathVariable("id") String reportId,
                                                       @Valid @RequestBody UpdatePathologyReportDraftRequest request,
                                                       HttpServletRequest httpServletRequest) {
-        DiagnosticReportAppService.PathologyReportResult result = diagnosticReportAppService.saveDraft(
-            new DiagnosticReportAppService.UpdateReportDraftCommand(
+        DiagnosticReportModels.PathologyReportResult result = diagnosticReportAppService.saveDraft(
+            new DiagnosticReportModels.UpdateReportDraftCommand(
                 reportId,
                 request.getClinicalDiagnosis(),
                 request.getGrossExam(),
@@ -79,8 +80,8 @@ public class PathologyReportController extends TechnicalControllerSupport {
     public PathologyReportOperationResponse submit(@PathVariable("id") String reportId,
                                                    @Valid @RequestBody DiagnosticTaskActionRequest request,
                                                    HttpServletRequest httpServletRequest) {
-        DiagnosticReportAppService.PathologyReportResult result = diagnosticReportAppService.submitReport(
-            new DiagnosticReportAppService.ReportActionCommand(
+        DiagnosticReportModels.PathologyReportResult result = diagnosticReportAppService.submitReport(
+            new DiagnosticReportModels.ReportActionCommand(
                 reportId,
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 request.getOperatorName(),
@@ -96,8 +97,8 @@ public class PathologyReportController extends TechnicalControllerSupport {
     public PathologyReportOperationResponse review(@PathVariable("id") String reportId,
                                                    @Valid @RequestBody DiagnosticTaskActionRequest request,
                                                    HttpServletRequest httpServletRequest) {
-        DiagnosticReportAppService.PathologyReportResult result = diagnosticReportAppService.reviewReport(
-            new DiagnosticReportAppService.ReportActionCommand(
+        DiagnosticReportModels.PathologyReportResult result = diagnosticReportAppService.reviewReport(
+            new DiagnosticReportModels.ReportActionCommand(
                 reportId,
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 request.getOperatorName(),
@@ -113,8 +114,8 @@ public class PathologyReportController extends TechnicalControllerSupport {
     public PathologyReportOperationResponse reject(@PathVariable("id") String reportId,
                                                    @Valid @RequestBody RejectPathologyReportRequest request,
                                                    HttpServletRequest httpServletRequest) {
-        DiagnosticReportAppService.PathologyReportResult result = diagnosticReportAppService.rejectReport(
-            new DiagnosticReportAppService.RejectReportCommand(
+        DiagnosticReportModels.PathologyReportResult result = diagnosticReportAppService.rejectReport(
+            new DiagnosticReportModels.RejectReportCommand(
                 reportId,
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 request.getOperatorName(),
@@ -130,8 +131,8 @@ public class PathologyReportController extends TechnicalControllerSupport {
     public PathologyReportOperationResponse sign(@PathVariable("id") String reportId,
                                                  @Valid @RequestBody DiagnosticTaskActionRequest request,
                                                  HttpServletRequest httpServletRequest) {
-        DiagnosticReportAppService.PathologyReportResult result = diagnosticReportAppService.signReport(
-            new DiagnosticReportAppService.ReportActionCommand(
+        DiagnosticReportModels.PathologyReportResult result = diagnosticReportAppService.signReport(
+            new DiagnosticReportModels.ReportActionCommand(
                 reportId,
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 request.getOperatorName(),
@@ -147,8 +148,8 @@ public class PathologyReportController extends TechnicalControllerSupport {
     public PathologyReportOperationResponse publish(@PathVariable("id") String reportId,
                                                     @Valid @RequestBody DiagnosticTaskActionRequest request,
                                                     HttpServletRequest httpServletRequest) {
-        DiagnosticReportAppService.PathologyReportResult result = diagnosticReportAppService.publishReport(
-            new DiagnosticReportAppService.ReportActionCommand(
+        DiagnosticReportModels.PathologyReportResult result = diagnosticReportAppService.publishReport(
+            new DiagnosticReportModels.ReportActionCommand(
                 reportId,
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 request.getOperatorName(),

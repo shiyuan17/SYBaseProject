@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.DiagnosticReportAppService;
+import com.company.bl.application.service.DiagnosticReportModels;
 import com.company.bl.interfaces.auth.M4PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.AssignDiagnosticTaskRequest;
@@ -40,8 +41,8 @@ public class DiagnosticTaskController extends TechnicalControllerSupport {
                                                          @Parameter(description = "任务类型") @RequestParam(required = false) String taskType,
                                                          @Parameter(description = "任务状态") @RequestParam(required = false) String taskStatus,
                                                          @Parameter(description = "病理号") @RequestParam(required = false) String pathologyNo) {
-        DiagnosticReportAppService.PendingDiagnosticTaskPage result = diagnosticReportAppService.listPendingTasks(
-            new DiagnosticReportAppService.PendingDiagnosticTaskQuery(page, size, taskType, taskStatus, pathologyNo));
+        DiagnosticReportModels.PendingDiagnosticTaskPage result = diagnosticReportAppService.listPendingTasks(
+            new DiagnosticReportModels.PendingDiagnosticTaskQuery(page, size, taskType, taskStatus, pathologyNo));
         return new PendingDiagnosticTaskPageResponse(
             result.items().stream().map(this::toResponse).toList(),
             result.page(),
@@ -55,8 +56,8 @@ public class DiagnosticTaskController extends TechnicalControllerSupport {
     public DiagnosticTaskOperationResponse assign(@PathVariable("id") String taskId,
                                                   @Valid @RequestBody AssignDiagnosticTaskRequest request,
                                                   HttpServletRequest httpServletRequest) {
-        DiagnosticReportAppService.DiagnosticTaskResult result = diagnosticReportAppService.assignTask(
-            new DiagnosticReportAppService.AssignDiagnosticTaskCommand(
+        DiagnosticReportModels.DiagnosticTaskResult result = diagnosticReportAppService.assignTask(
+            new DiagnosticReportModels.AssignDiagnosticTaskCommand(
                 taskId,
                 request.getDiagnosisDoctorUserId(),
                 request.getDiagnosisDoctorName(),
@@ -77,8 +78,8 @@ public class DiagnosticTaskController extends TechnicalControllerSupport {
     public DiagnosticTaskOperationResponse accept(@PathVariable("id") String taskId,
                                                   @Valid @RequestBody DiagnosticTaskActionRequest request,
                                                   HttpServletRequest httpServletRequest) {
-        DiagnosticReportAppService.DiagnosticTaskResult result = diagnosticReportAppService.acceptTask(
-            new DiagnosticReportAppService.TaskActionCommand(
+        DiagnosticReportModels.DiagnosticTaskResult result = diagnosticReportAppService.acceptTask(
+            new DiagnosticReportModels.TaskActionCommand(
                 taskId,
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 request.getOperatorName(),
@@ -93,8 +94,8 @@ public class DiagnosticTaskController extends TechnicalControllerSupport {
     public DiagnosticTaskOperationResponse start(@PathVariable("id") String taskId,
                                                  @Valid @RequestBody DiagnosticTaskActionRequest request,
                                                  HttpServletRequest httpServletRequest) {
-        DiagnosticReportAppService.DiagnosticTaskResult result = diagnosticReportAppService.startTask(
-            new DiagnosticReportAppService.TaskActionCommand(
+        DiagnosticReportModels.DiagnosticTaskResult result = diagnosticReportAppService.startTask(
+            new DiagnosticReportModels.TaskActionCommand(
                 taskId,
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 request.getOperatorName(),
@@ -103,7 +104,7 @@ public class DiagnosticTaskController extends TechnicalControllerSupport {
         return new DiagnosticTaskOperationResponse(result.taskId(), result.caseId(), result.caseStatus(), result.taskStatus());
     }
 
-    private PendingDiagnosticTaskResponse toResponse(DiagnosticReportAppService.TaskView item) {
+    private PendingDiagnosticTaskResponse toResponse(DiagnosticReportModels.TaskView item) {
         return new PendingDiagnosticTaskResponse(
             item.id(),
             item.applicationId(),

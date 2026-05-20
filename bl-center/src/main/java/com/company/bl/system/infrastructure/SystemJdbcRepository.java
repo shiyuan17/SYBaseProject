@@ -22,19 +22,44 @@ public class SystemJdbcRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public PagedUsers findUsers(int page, int size) {
+    public PagedUsers findUsers(int page, int size, Boolean enabled, String keyword) {
         int offset = Math.max(0, (page - 1) * size);
+        String baseSql = """
+            from users
+            where 1 = 1
+            """;
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("offset", offset)
+            .addValue("size", size);
+        StringBuilder conditions = new StringBuilder();
+        appendUserFilters(conditions, params, enabled, keyword);
         List<UserRow> users = jdbcTemplate.query("""
             select id, user_code, login_name, name, role, job_no, title_name, department_id, department_name,
                    phone, email, avatar, last_login_at, last_login_ip, last_login_device, login_tag_code,
                    enabled, created_at, updated_at
-            from users
+            """ + baseSql + conditions + """
             order by created_at desc
             offset :offset rows fetch next :size rows only
-            """, Map.of("offset", offset, "size", size), this::mapUser);
-        Long total = jdbcTemplate.queryForObject("select count(*) from users", Map.of(), Long.class);
+            """, params, this::mapUser);
+        Long total = jdbcTemplate.queryForObject("select count(*) " + baseSql + conditions, params, Long.class);
         Map<String, List<RoleAssignmentRow>> assignments = findUserRoleAssignments(users.stream().map(UserRow::id).toList());
         return new PagedUsers(users, assignments, total == null ? 0L : total);
+    }
+
+    public List<UserRow> findUsers(Boolean enabled, String keyword) {
+        String baseSql = """
+            select id, user_code, login_name, name, role, job_no, title_name, department_id, department_name,
+                   phone, email, avatar, last_login_at, last_login_ip, last_login_device, login_tag_code,
+                   enabled, created_at, updated_at
+            from users
+            where 1 = 1
+            """;
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        StringBuilder conditions = new StringBuilder();
+        appendUserFilters(conditions, params, enabled, keyword);
+        return jdbcTemplate.query(baseSql + conditions + """
+            order by created_at desc
+            """, params, this::mapUser);
     }
 
     public UserRow insertUser(CreateUserRow row) {
@@ -77,6 +102,49 @@ public class SystemJdbcRepository {
             where id = :id
             """, Map.of("id", id), this::mapUser);
         return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    public UserRow findUserByLoginName(String loginName) {
+        List<UserRow> rows = jdbcTemplate.query("""
+            select id, user_code, login_name, name, role, job_no, title_name, department_id, department_name,
+                   phone, email, avatar, last_login_at, last_login_ip, last_login_device, login_tag_code,
+                   enabled, created_at, updated_at
+            from users
+            where login_name = :loginName
+            """, Map.of("loginName", loginName), this::mapUser);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    public void updateUser(String id, UpdateUserRow row) {
+        jdbcTemplate.update("""
+            update users
+            set user_code = :userCode,
+                name = :name,
+                job_no = :jobNo,
+                title_name = :titleName,
+                department_id = :departmentId,
+                department_name = :departmentName,
+                phone = :phone,
+                email = :email,
+                avatar = :avatar,
+                login_tag_code = :loginTagCode,
+                enabled = :enabled,
+                updated_at = :updatedAt
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", id)
+            .addValue("userCode", row.userCode())
+            .addValue("name", row.name())
+            .addValue("jobNo", row.jobNo())
+            .addValue("titleName", row.titleName())
+            .addValue("departmentId", row.departmentId())
+            .addValue("departmentName", row.departmentName())
+            .addValue("phone", row.phone())
+            .addValue("email", row.email())
+            .addValue("avatar", row.avatar())
+            .addValue("loginTagCode", row.loginTagCode())
+            .addValue("enabled", row.enabled() ? 1 : 0)
+            .addValue("updatedAt", LocalDateTime.now()));
     }
 
     public void updateUserEnabled(String id, boolean enabled) {
@@ -179,6 +247,45 @@ public class SystemJdbcRepository {
             where id = :id
             """, Map.of("id", id), this::mapRole);
         return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    public void updateRole(String id, UpdateRoleRow row) {
+        jdbcTemplate.update("""
+            update roles
+            set role_code = :roleCode,
+                role_name = :roleName,
+                role_type = :roleType,
+                data_scope = :dataScope,
+                remarks = :remarks,
+                enabled = :enabled,
+                updated_at = :updatedAt
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", id)
+            .addValue("roleCode", row.roleCode())
+            .addValue("roleName", row.roleName())
+            .addValue("roleType", row.roleType())
+            .addValue("dataScope", row.dataScope())
+            .addValue("remarks", row.remarks())
+            .addValue("enabled", row.enabled() ? 1 : 0)
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    public long countRoleAssignments(String roleId) {
+        Long total = jdbcTemplate.queryForObject("""
+            select count(*)
+            from user_roles
+            where role_id = :roleId
+            """, Map.of("roleId", roleId), Long.class);
+        return total == null ? 0L : total;
+    }
+
+    public void deleteRole(String id) {
+        jdbcTemplate.update("delete from role_menus where role_id = :roleId", Map.of("roleId", id));
+        jdbcTemplate.update("delete from role_permissions where role_id = :roleId", Map.of("roleId", id));
+        jdbcTemplate.update("delete from role_message_subscriptions where role_id = :roleId", Map.of("roleId", id));
+        jdbcTemplate.update("delete from role_stat_authorizations where role_id = :roleId", Map.of("roleId", id));
+        jdbcTemplate.update("delete from roles where id = :id", Map.of("id", id));
     }
 
     public List<RoleAssignmentRow> findRoleAssignments(String roleId) {
@@ -330,6 +437,28 @@ public class SystemJdbcRepository {
                 .addValue("statCategoryId", entry.getKey())
                 .addValue("authScope", entry.getValue())
                 .addValue("assignedAt", LocalDateTime.now()));
+        }
+    }
+
+    private void appendUserFilters(StringBuilder conditions,
+                                   MapSqlParameterSource params,
+                                   Boolean enabled,
+                                   String keyword) {
+        if (enabled != null) {
+            conditions.append(" and enabled = :enabled");
+            params.addValue("enabled", enabled ? 1 : 0);
+        }
+        if (keyword != null && !keyword.isBlank()) {
+            conditions.append("""
+                 and (
+                    login_name like :keyword
+                    or name like :keyword
+                    or user_code like :keyword
+                    or job_no like :keyword
+                    or phone like :keyword
+                 )
+                """);
+            params.addValue("keyword", "%" + keyword.trim() + "%");
         }
     }
 
@@ -508,6 +637,21 @@ public class SystemJdbcRepository {
     ) {
     }
 
+    public record UpdateUserRow(
+        String userCode,
+        String name,
+        String jobNo,
+        String titleName,
+        String departmentId,
+        String departmentName,
+        String phone,
+        String email,
+        String avatar,
+        String loginTagCode,
+        boolean enabled
+    ) {
+    }
+
     public record CreateUserLoginLogRow(
         String id,
         String userId,
@@ -545,6 +689,16 @@ public class SystemJdbcRepository {
         boolean enabled,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
+    ) {
+    }
+
+    public record UpdateRoleRow(
+        String roleCode,
+        String roleName,
+        String roleType,
+        String dataScope,
+        String remarks,
+        boolean enabled
     ) {
     }
 

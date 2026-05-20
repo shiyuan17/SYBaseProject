@@ -25,6 +25,7 @@ This directory contains the standard Docker host deployment template for `bl-cen
 - `SERVER_PORT`: Spring Boot server port in the container
 - `SPRING_PROFILES_ACTIVE`: runtime profile
 - `BL_CENTER_DATASOURCE_URL` / `BL_CENTER_DATASOURCE_USERNAME` / `BL_CENTER_DATASOURCE_PASSWORD`: DM datasource
+- `SECURITY_AUTH_JWT_SM2_PRIVATE_KEY` / `SECURITY_AUTH_JWT_SM2_PUBLIC_KEY`: required JWT SM2 key pair for `dev` and `prod`
 - `JAVA_OPTS`: JVM options
 - `TZ`: timezone
 

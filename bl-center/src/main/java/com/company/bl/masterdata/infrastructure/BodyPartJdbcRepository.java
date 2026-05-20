@@ -65,6 +65,52 @@ public class BodyPartJdbcRepository {
             .addValue("updatedAt", LocalDateTime.now()));
     }
 
+    public void updateBodyPart(String id, UpdateBodyPartRow row) {
+        jdbcTemplate.update("""
+            update body_part_dict
+            set parent_id = :parentId,
+                part_code = :partCode,
+                part_name = :partName,
+                part_alias = :partAlias,
+                part_level = :partLevel,
+                sort_order = :sortOrder,
+                enabled = :enabled,
+                updated_at = :updatedAt
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", id)
+            .addValue("parentId", row.parentId())
+            .addValue("partCode", row.partCode())
+            .addValue("partName", row.partName())
+            .addValue("partAlias", row.partAlias())
+            .addValue("partLevel", row.partLevel())
+            .addValue("sortOrder", row.sortOrder())
+            .addValue("enabled", row.enabled() ? 1 : 0)
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    public long countChildren(String id) {
+        Long total = jdbcTemplate.queryForObject("""
+            select count(*)
+            from body_part_dict
+            where parent_id = :id
+            """, new MapSqlParameterSource().addValue("id", id), Long.class);
+        return total == null ? 0L : total;
+    }
+
+    public long countTemplateReferences(String id) {
+        Long total = jdbcTemplate.queryForObject("""
+            select count(*)
+            from sampling_template_site_rel
+            where body_part_id = :id
+            """, new MapSqlParameterSource().addValue("id", id), Long.class);
+        return total == null ? 0L : total;
+    }
+
+    public void deleteBodyPart(String id) {
+        jdbcTemplate.update("delete from body_part_dict where id = :id", new MapSqlParameterSource().addValue("id", id));
+    }
+
     private BodyPartRow mapBodyPart(ResultSet rs, int rowNum) throws SQLException {
         return new BodyPartRow(
             rs.getString("id"),
@@ -84,5 +130,9 @@ public class BodyPartJdbcRepository {
     public record CreateBodyPartRow(String id, String parentId, String partCode, String partName, String partAlias,
                                     int partLevel, int sortOrder, boolean enabled, LocalDateTime createdAt,
                                     LocalDateTime updatedAt) {
+    }
+
+    public record UpdateBodyPartRow(String parentId, String partCode, String partName, String partAlias,
+                                    int partLevel, int sortOrder, boolean enabled) {
     }
 }

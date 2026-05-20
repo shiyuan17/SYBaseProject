@@ -11,43 +11,31 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.hasItems;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ActiveProfiles("test")
 @SpringBootTest(classes = BlCenterApplication.class)
 class SystemManagementControllerIntegrationTest extends AuthenticatedWebIntegrationTest {
-
     private static final String USER_M1_ADMIN = "USER_M1_ADMIN";
-
     @Autowired
     private MockMvc mockMvc;
-
     @Autowired
     private ObjectMapper objectMapper;
-
     @Autowired
     private SystemManagementService systemManagementService;
-
     @Autowired
     private NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -106,9 +94,25 @@ class SystemManagementControllerIntegrationTest extends AuthenticatedWebIntegrat
             .andExpect(jsonPath("$.data.roleId", is("ROLE_PATHOLOGY_ADMIN")))
             .andExpect(jsonPath("$.data.permissionIds.length()", greaterThanOrEqualTo(1)));
 
-        mockMvc.perform(asAdmin(get("/api/v1/menus")))
+        MvcResult menusResult = mockMvc.perform(asAdmin(get("/api/v1/menus")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.length()", greaterThanOrEqualTo(1)));
+            .andExpect(jsonPath("$.data.length()", greaterThanOrEqualTo(1)))
+            .andReturn();
+
+        JsonNode menusNode = objectMapper.readTree(menusResult.getResponse().getContentAsString()).path("data");
+        Map<String, JsonNode> menusById = new HashMap<>();
+        Iterator<JsonNode> iterator = menusNode.elements();
+        while (iterator.hasNext()) {
+            JsonNode menuNode = iterator.next();
+            menusById.put(menuNode.path("id").asText(), menuNode);
+        }
+
+        assertEquals("/system", menusById.get("MENU_SYSTEM").path("path").asText());
+        assertEquals("/system/users", menusById.get("MENU_SYS_USERS").path("path").asText());
+        assertEquals("/system/medical-order-dicts", menusById.get("MENU_ORDER_DICTS").path("path").asText());
+        assertEquals("/system/medical-order-charges", menusById.get("MENU_ORDER_CHARGES").path("path").asText());
+        assertEquals("SystemUsers", menusById.get("MENU_SYS_USERS").path("componentName").asText());
+        assertEquals("MedicalOrderCharges", menusById.get("MENU_ORDER_CHARGES").path("componentName").asText());
     }
 
     @Test
@@ -117,7 +121,6 @@ class SystemManagementControllerIntegrationTest extends AuthenticatedWebIntegrat
         assertSeededPassword("USER_M2_REGISTER");
         assertSeededPassword("USER_M3_GROSSING");
     }
-
     @Test
     void shouldSeedRoleMenusForBuiltInAdminAndWorkflowRoles() throws Exception {
         mockMvc.perform(asAdmin(get("/api/v1/roles/ROLE_PATHOLOGY_ADMIN/authorizations")))
@@ -181,7 +184,93 @@ class SystemManagementControllerIntegrationTest extends AuthenticatedWebIntegrat
         assertEquals("10.0.0.1", userView.lastLoginIp());
         assertEquals("Chrome", userView.lastLoginDevice());
     }
+    @Test
+    void shouldFilterUpdateExportImportPrintAndDeleteRole() throws Exception {
+        String loginName = "manage-" + System.nanoTime();
+        String userId = createUser(loginName);
 
+        mockMvc.perform(asAdmin(patch("/api/v1/system-users/{id}", userId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "userCode": "UPDATED-%s",
+                      "name": "Updated User",
+                      "jobNo": "JOB-%s",
+                      "titleName": "Chief",
+                      "departmentId": "DEP-01",
+                      "departmentName": "Pathology",
+                      "phone": "13800138000",
+                      "email": "updated@example.com",
+                      "loginTagCode": "TAG-%s",
+                      "enabled": true
+                    }
+                    """.formatted(System.nanoTime(), System.nanoTime(), System.nanoTime())))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.name", is("Updated User")))
+            .andExpect(jsonPath("$.data.loginTagCode", containsString("TAG-")));
+
+        mockMvc.perform(asAdmin(get("/api/v1/system-users"))
+                .param("page", "1")
+                .param("size", "20")
+                .param("keyword", loginName)
+                .param("enabled", "true"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total", greaterThanOrEqualTo(1)))
+            .andExpect(jsonPath("$.data.items[0].loginName", is(loginName)));
+
+        mockMvc.perform(asAdmin(get("/api/v1/system-users/export"))
+                .param("keyword", loginName))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString(loginName)));
+
+        mockMvc.perform(asAdmin(post("/api/v1/system-users/{id}/print-login-tag", userId)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.title", containsString("登录标签")))
+            .andExpect(jsonPath("$.data.content", containsString(loginName)));
+
+        MockMultipartFile userFile = new MockMultipartFile(
+            "file",
+            "system-users.csv",
+            "text/csv",
+            ("""
+                userCode,loginName,name,enabled
+                IMP-%s,import-%s,Imported User,true
+                """.formatted(System.nanoTime(), System.nanoTime())).getBytes());
+        mockMvc.perform(asAdmin(multipart("/api/v1/system-users/import").file(userFile)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount", is(1)));
+
+        String roleCode = "ROLE-" + System.nanoTime();
+        MvcResult roleResult = mockMvc.perform(asAdmin(post("/api/v1/roles"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "roleCode": "%s",
+                      "roleName": "Role For Delete",
+                      "enabled": true
+                    }
+                    """.formatted(roleCode)))
+            .andExpect(status().isOk())
+            .andReturn();
+        String roleId = objectMapper.readTree(roleResult.getResponse().getContentAsString()).path("data").path("id").asText();
+
+        mockMvc.perform(asAdmin(patch("/api/v1/roles/{id}", roleId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "roleCode": "%s",
+                      "roleName": "Role Updated",
+                      "roleType": "BIZ",
+                      "dataScope": "ALL",
+                      "remarks": "updated",
+                      "enabled": true
+                    }
+                    """.formatted(roleCode)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.roleName", is("Role Updated")));
+        mockMvc.perform(asAdmin(delete("/api/v1/roles/{id}", roleId)))
+            .andExpect(status().isOk());
+    }
     private String createUser(String loginName) throws Exception {
         MvcResult createResult = mockMvc.perform(asAdmin(post("/api/v1/system-users"))
                 .contentType(MediaType.APPLICATION_JSON)
@@ -200,7 +289,6 @@ class SystemManagementControllerIntegrationTest extends AuthenticatedWebIntegrat
         JsonNode createNode = objectMapper.readTree(createResult.getResponse().getContentAsString());
         return createNode.path("data").path("id").asText();
     }
-
     private void assertSeededPassword(String userId) {
         Map<String, Object> passwordRow = jdbcTemplate.queryForMap("""
             select password, password_algo, password_salt

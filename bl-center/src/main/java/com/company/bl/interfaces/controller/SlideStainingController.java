@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.TechnicalWorkflowAppService;
+import com.company.bl.application.service.TechnicalWorkflowModels;
 import com.company.bl.interfaces.auth.M3PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.SlideStainingCompleteRequest;
@@ -32,8 +33,8 @@ public class SlideStainingController extends TechnicalControllerSupport {
     @PostMapping("/start")
     public TaskOperationResponse start(@Valid @RequestBody TechnicalTaskStartRequest request,
                                        HttpServletRequest httpServletRequest) {
-        TechnicalWorkflowAppService.TaskStartResult result = technicalWorkflowAppService.startSlideStaining(
-            new TechnicalWorkflowAppService.TaskStartCommand(
+        TechnicalWorkflowModels.TaskStartResult result = technicalWorkflowAppService.startSlideStaining(
+            new TechnicalWorkflowModels.TaskStartCommand(
                 request.getTaskId(),
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 request.getOperatorName(),
@@ -47,8 +48,8 @@ public class SlideStainingController extends TechnicalControllerSupport {
     @PostMapping("/complete")
     public SlideStainingResponse complete(@Valid @RequestBody SlideStainingCompleteRequest request,
                                           HttpServletRequest httpServletRequest) {
-        TechnicalWorkflowAppService.SlideStainingResult result = technicalWorkflowAppService.completeSlideStaining(
-            new TechnicalWorkflowAppService.SlideStainingCompleteCommand(
+        TechnicalWorkflowModels.SlideStainingResult result = technicalWorkflowAppService.completeSlideStaining(
+            new TechnicalWorkflowModels.SlideStainingCompleteCommand(
                 request.getTaskId(),
                 request.getSlideId(),
                 request.getStainingType(),

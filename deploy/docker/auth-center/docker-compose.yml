@@ -1,0 +1,25 @@
+services:
+  auth-center:
+    image: ${IMAGE_REPO}:${IMAGE_TAG}
+    container_name: ${CONTAINER_NAME:-sybase-auth-center}
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-8081}:${SERVER_PORT:-8081}"
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      SERVER_PORT: ${SERVER_PORT:-8081}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      AUTH_CENTER_DATASOURCE_DRIVER_CLASS_NAME: ${AUTH_CENTER_DATASOURCE_DRIVER_CLASS_NAME:-dm.jdbc.driver.DmDriver}
+      AUTH_CENTER_DATASOURCE_URL: ${AUTH_CENTER_DATASOURCE_URL:-}
+      AUTH_CENTER_DATASOURCE_USERNAME: ${AUTH_CENTER_DATASOURCE_USERNAME:-}
+      AUTH_CENTER_DATASOURCE_PASSWORD: ${AUTH_CENTER_DATASOURCE_PASSWORD:-}
+      SECURITY_AUTH_JWT_SM2_PRIVATE_KEY: ${SECURITY_AUTH_JWT_SM2_PRIVATE_KEY:-}
+      SECURITY_AUTH_JWT_SM2_PUBLIC_KEY: ${SECURITY_AUTH_JWT_SM2_PUBLIC_KEY:-}
+      JAVA_OPTS: ${JAVA_OPTS:--Xms256m -Xmx512m -XX:+UseContainerSupport}
+    volumes:
+      - ${APP_DATA_DIR:-./data}:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: "${LOG_MAX_FILE:-5}"

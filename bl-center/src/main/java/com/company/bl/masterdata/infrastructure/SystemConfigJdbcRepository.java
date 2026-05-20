@@ -92,6 +92,28 @@ public class SystemConfigJdbcRepository {
         return rows.isEmpty() ? null : rows.get(0);
     }
 
+    public void updateConfigCategory(String id, UpdateConfigCategoryRow row) {
+        jdbcTemplate.update("""
+            update system_config_categories
+            set parent_id = :parentId,
+                category_code = :categoryCode,
+                category_name = :categoryName,
+                category_type = :categoryType,
+                sort_order = :sortOrder,
+                enabled = :enabled,
+                updated_at = :updatedAt
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", id)
+            .addValue("parentId", row.parentId())
+            .addValue("categoryCode", row.categoryCode())
+            .addValue("categoryName", row.categoryName())
+            .addValue("categoryType", row.categoryType())
+            .addValue("sortOrder", row.sortOrder())
+            .addValue("enabled", row.enabled() ? 1 : 0)
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
     public void updateConfigItem(String id, UpdateConfigItemRow row) {
         jdbcTemplate.update("""
             update system_config_items
@@ -103,6 +125,32 @@ public class SystemConfigJdbcRepository {
             .addValue("enabled", row.enabled() ? 1 : 0)
             .addValue("remarks", row.remarks())
             .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    public long countCategoryChildren(String id) {
+        Long total = jdbcTemplate.queryForObject("""
+            select count(*)
+            from system_config_categories
+            where parent_id = :id
+            """, new MapSqlParameterSource().addValue("id", id), Long.class);
+        return total == null ? 0L : total;
+    }
+
+    public long countItemsByCategory(String id) {
+        Long total = jdbcTemplate.queryForObject("""
+            select count(*)
+            from system_config_items
+            where category_id = :id
+            """, new MapSqlParameterSource().addValue("id", id), Long.class);
+        return total == null ? 0L : total;
+    }
+
+    public void deleteConfigCategory(String id) {
+        jdbcTemplate.update("delete from system_config_categories where id = :id", new MapSqlParameterSource().addValue("id", id));
+    }
+
+    public void deleteConfigItem(String id) {
+        jdbcTemplate.update("delete from system_config_items where id = :id", new MapSqlParameterSource().addValue("id", id));
     }
 
     private ConfigCategoryRow mapCategory(ResultSet rs, int rowNum) throws SQLException {
@@ -133,6 +181,10 @@ public class SystemConfigJdbcRepository {
     public record CreateConfigItemRow(String id, String categoryId, String configKey, String configName,
                                       String configValue, String valueType, int sortOrder, boolean enabled,
                                       String remarks, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    }
+
+    public record UpdateConfigCategoryRow(String parentId, String categoryCode, String categoryName,
+                                          String categoryType, int sortOrder, boolean enabled) {
     }
 
     public record UpdateConfigItemRow(String configValue, boolean enabled, String remarks) {

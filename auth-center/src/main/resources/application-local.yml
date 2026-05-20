@@ -10,3 +10,7 @@ spring:
     init:
       mode: always
 
+security:
+  auth:
+    jwt:
+      allow-generated-keys: true

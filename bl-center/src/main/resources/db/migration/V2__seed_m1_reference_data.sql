@@ -8,16 +8,16 @@ INSERT INTO roles (id, role_code, role_name, role_type, data_scope, remarks) VAL
 
 INSERT INTO menus (id, parent_id, menu_code, menu_name, menu_type, path, component_name, permission_prefix, sort_order) VALUES
 ('MENU_SYSTEM', NULL, 'SYSTEM', '系统管理', 'DIRECTORY', '/system', 'SystemRoot', 'sys', 1),
-('MENU_SYS_USERS', 'MENU_SYSTEM', 'SYS_USERS', '系统用户', 'MENU', '/api/v1/system-users', 'SystemUsers', 'sys:user', 10),
-('MENU_SYS_ROLES', 'MENU_SYSTEM', 'SYS_ROLES', '角色授权', 'MENU', '/api/v1/roles', 'Roles', 'sys:role', 20),
-('MENU_BODY_PARTS', 'MENU_SYSTEM', 'BODY_PARTS', '部位字典', 'MENU', '/api/v1/body-parts', 'BodyParts', 'md:body-part', 30),
-('MENU_ORDER_DICTS', 'MENU_SYSTEM', 'ORDER_DICTS', '医嘱字典', 'MENU', '/api/v1/medical-order-dicts', 'MedicalOrderDicts', 'md:order-dict', 40),
-('MENU_ORDER_CHARGES', 'MENU_SYSTEM', 'ORDER_CHARGES', '医嘱收费', 'MENU', '/api/v1/medical-order-charge-items', 'MedicalOrderCharges', 'md:order-charge', 50),
-('MENU_ORDER_PACKAGES', 'MENU_SYSTEM', 'ORDER_PACKAGES', '医嘱套餐', 'MENU', '/api/v1/medical-order-packages', 'MedicalOrderPackages', 'md:order-package', 60),
-('MENU_TEMPLATES', 'MENU_SYSTEM', 'SAMPLING_TEMPLATES', '描写模板', 'MENU', '/api/v1/sampling-templates', 'SamplingTemplates', 'md:template', 70),
-('MENU_GUIDELINES', 'MENU_SYSTEM', 'SAMPLING_GUIDELINES', '取材规范', 'MENU', '/api/v1/sampling-guidelines', 'SamplingGuidelines', 'md:guideline', 80),
-('MENU_CONFIGS', 'MENU_SYSTEM', 'SYSTEM_CONFIGS', '系统配置', 'MENU', '/api/v1/system-configs', 'SystemConfigs', 'md:config', 90),
-('MENU_NUMBERING', 'MENU_SYSTEM', 'NUMBERING_RULES', '编号规则', 'MENU', '/api/v1/numbering-rules', 'NumberingRules', 'support:numbering', 100);
+('MENU_SYS_USERS', 'MENU_SYSTEM', 'SYS_USERS', '系统用户', 'MENU', '/system/users', 'SystemUsers', 'sys:user', 10),
+('MENU_SYS_ROLES', 'MENU_SYSTEM', 'SYS_ROLES', '角色授权', 'MENU', '/system/roles', 'Roles', 'sys:role', 20),
+('MENU_BODY_PARTS', 'MENU_SYSTEM', 'BODY_PARTS', '部位字典', 'MENU', '/system/body-parts', 'BodyParts', 'md:body-part', 30),
+('MENU_ORDER_DICTS', 'MENU_SYSTEM', 'ORDER_DICTS', '医嘱字典', 'MENU', '/system/medical-order-dicts', 'MedicalOrderDicts', 'md:order-dict', 40),
+('MENU_ORDER_CHARGES', 'MENU_SYSTEM', 'ORDER_CHARGES', '医嘱收费', 'MENU', '/system/medical-order-charges', 'MedicalOrderCharges', 'md:order-charge', 50),
+('MENU_ORDER_PACKAGES', 'MENU_SYSTEM', 'ORDER_PACKAGES', '医嘱套餐', 'MENU', '/system/medical-order-packages', 'MedicalOrderPackages', 'md:order-package', 60),
+('MENU_TEMPLATES', 'MENU_SYSTEM', 'SAMPLING_TEMPLATES', '描写模板', 'MENU', '/system/sampling-templates', 'SamplingTemplates', 'md:template', 70),
+('MENU_GUIDELINES', 'MENU_SYSTEM', 'SAMPLING_GUIDELINES', '取材规范', 'MENU', '/system/sampling-guidelines', 'SamplingGuidelines', 'md:guideline', 80),
+('MENU_CONFIGS', 'MENU_SYSTEM', 'SYSTEM_CONFIGS', '系统配置', 'MENU', '/system/configs', 'SystemConfigs', 'md:config', 90),
+('MENU_NUMBERING', 'MENU_SYSTEM', 'NUMBERING_RULES', '编号规则', 'MENU', '/system/numbering-rules', 'NumberingRules', 'support:numbering', 100);
 
 INSERT INTO permissions (id, permission_code, permission_name, menu_id, action_key, http_method, resource_path, permission_group, sort_order) VALUES
 ('PERM_SYS_USER_QUERY', 'PERM_SYS_USER_QUERY', '查询用户', 'MENU_SYS_USERS', 'QUERY', 'GET', '/api/v1/system-users', 'SYSTEM', 1),

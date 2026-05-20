@@ -76,6 +76,24 @@ public class SystemConfigService {
 
     @CacheEvict(value = "systemConfigTree", allEntries = true)
     @Transactional
+    public ConfigCategoryNode updateConfigCategory(String id, UpdateConfigCategoryCommand command) {
+        return operationAuditService.audit("MASTERDATA", "CONFIG_CATEGORY", "update_config_category", () -> {
+            if (repository.findConfigCategoryById(id) == null) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Config category not found");
+            }
+            try {
+                repository.updateConfigCategory(id, new SystemConfigJdbcRepository.UpdateConfigCategoryRow(
+                    command.parentId(), command.categoryCode(), command.categoryName(), command.categoryType(),
+                    command.sortOrder(), command.enabled()));
+            } catch (DataAccessException exception) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Config category code already exists");
+            }
+            return toNode(repository.findConfigCategoryById(id));
+        }, ConfigCategoryNode::id, () -> id);
+    }
+
+    @CacheEvict(value = "systemConfigTree", allEntries = true)
+    @Transactional
     public ConfigItemView createConfigItem(CreateConfigItemCommand command) {
         return operationAuditService.audit("MASTERDATA", "CONFIG_ITEM", "create_config_item", () -> {
             try {
@@ -100,6 +118,33 @@ public class SystemConfigService {
                 command.configValue(), command.enabled(), command.remarks()));
             return toItemView(repository.findConfigItemById(id));
         }, ConfigItemView::id, () -> id);
+    }
+
+    @CacheEvict(value = "systemConfigTree", allEntries = true)
+    @Transactional
+    public void deleteConfigCategory(String id) {
+        operationAuditService.audit("MASTERDATA", "CONFIG_CATEGORY", "delete_config_category", () -> {
+            if (repository.findConfigCategoryById(id) == null) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Config category not found");
+            }
+            if (repository.countCategoryChildren(id) > 0 || repository.countItemsByCategory(id) > 0) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Config category still has children or items");
+            }
+            repository.deleteConfigCategory(id);
+            return id;
+        }, value -> id, () -> id);
+    }
+
+    @CacheEvict(value = "systemConfigTree", allEntries = true)
+    @Transactional
+    public void deleteConfigItem(String id) {
+        operationAuditService.audit("MASTERDATA", "CONFIG_ITEM", "delete_config_item", () -> {
+            if (repository.findConfigItemById(id) == null) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Config item not found");
+            }
+            repository.deleteConfigItem(id);
+            return id;
+        }, value -> id, () -> id);
     }
 
     private ConfigCategoryNode toNode(SystemConfigJdbcRepository.ConfigCategoryRow row) {
@@ -139,6 +184,10 @@ public class SystemConfigService {
     }
 
     public record CreateConfigCategoryCommand(String parentId, String categoryCode, String categoryName,
+                                              String categoryType, int sortOrder, boolean enabled) {
+    }
+
+    public record UpdateConfigCategoryCommand(String parentId, String categoryCode, String categoryName,
                                               String categoryType, int sortOrder, boolean enabled) {
     }
 

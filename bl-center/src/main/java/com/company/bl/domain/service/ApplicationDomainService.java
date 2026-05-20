@@ -38,6 +38,16 @@ public class ApplicationDomainService {
                                 LocalDate submissionDate,
                                 String remarks) {
         String normalizedApplicationNo = normalizeApplicationNo(applicationNo);
+        validateRequiredFields(
+            patientId,
+            patientName,
+            applicationType,
+            submittingDepartmentId,
+            submittingDepartmentName,
+            submittingDoctorUserId,
+            submittingDoctorName,
+            clinicalDiagnosis,
+            specimenSite);
         if (applicationRepository.existsByApplicationNo(normalizedApplicationNo)) {
             throw new ApplicationDomainException(ApplicationErrorCode.APPLICATION_NO_CONFLICT, 409);
         }
@@ -63,6 +73,37 @@ public class ApplicationDomainService {
             applicationDate,
             submissionDate,
             trimToNull(remarks));
+    }
+
+    private void validateRequiredFields(String patientId,
+                                        String patientName,
+                                        String applicationType,
+                                        String submittingDepartmentId,
+                                        String submittingDepartmentName,
+                                        String submittingDoctorUserId,
+                                        String submittingDoctorName,
+                                        String clinicalDiagnosis,
+                                        String specimenSite) {
+        if (trimToNull(patientId) == null && trimToNull(patientName) == null) {
+            throw invalidField("Patient id or patient name must be provided");
+        }
+        requireText(applicationType, "Application type must not be blank");
+        requireText(submittingDepartmentId, "Submitting department id must not be blank");
+        requireText(submittingDepartmentName, "Submitting department name must not be blank");
+        requireText(submittingDoctorUserId, "Submitting doctor user id must not be blank");
+        requireText(submittingDoctorName, "Submitting doctor name must not be blank");
+        requireText(clinicalDiagnosis, "Clinical diagnosis must not be blank");
+        requireText(specimenSite, "Specimen site must not be blank");
+    }
+
+    private void requireText(String value, String message) {
+        if (trimToNull(value) == null) {
+            throw invalidField(message);
+        }
+    }
+
+    private ApplicationDomainException invalidField(String message) {
+        return new ApplicationDomainException(ApplicationErrorCode.INVALID_APPLICATION_FIELD, 400, message);
     }
 
     private String normalizeApplicationNo(String applicationNo) {

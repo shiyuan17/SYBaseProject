@@ -103,6 +103,51 @@ public class SamplingJdbcRepository {
         return rows.isEmpty() ? null : rows.get(0);
     }
 
+    public void updateTemplateCategory(String id, UpdateTemplateCategoryRow row) {
+        jdbcTemplate.update("""
+            update sampling_template_categories
+            set parent_id = :parentId,
+                category_code = :categoryCode,
+                category_name = :categoryName,
+                sort_order = :sortOrder,
+                enabled = :enabled,
+                updated_at = :updatedAt
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", id)
+            .addValue("parentId", row.parentId())
+            .addValue("categoryCode", row.categoryCode())
+            .addValue("categoryName", row.categoryName())
+            .addValue("sortOrder", row.sortOrder())
+            .addValue("enabled", row.enabled() ? 1 : 0)
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    public void updateTemplate(String id, UpdateTemplateRow row) {
+        jdbcTemplate.update("""
+            update sampling_templates
+            set category_id = :categoryId,
+                template_code = :templateCode,
+                template_name = :templateName,
+                template_content = :templateContent,
+                split_part_count = :splitPartCount,
+                applicable_specimen_type = :applicableSpecimenType,
+                enabled = :enabled,
+                updated_at = :updatedAt
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", id)
+            .addValue("categoryId", row.categoryId())
+            .addValue("templateCode", row.templateCode())
+            .addValue("templateName", row.templateName())
+            .addValue("templateContent", row.templateContent())
+            .addValue("splitPartCount", row.splitPartCount())
+            .addValue("applicableSpecimenType", row.applicableSpecimenType())
+            .addValue("enabled", row.enabled() ? 1 : 0)
+            .addValue("updatedAt", LocalDateTime.now()));
+        replaceTemplateSites(id, row.bodyPartIds());
+    }
+
     public void replaceTemplateSites(String templateId, List<String> bodyPartIds) {
         jdbcTemplate.update("delete from sampling_template_site_rel where template_id = :templateId",
             new MapSqlParameterSource().addValue("templateId", templateId));
@@ -129,6 +174,34 @@ public class SamplingJdbcRepository {
             .addValue("id", id)
             .addValue("enabled", enabled ? 1 : 0)
             .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    public long countTemplateCategoryChildren(String id) {
+        Long total = jdbcTemplate.queryForObject("""
+            select count(*)
+            from sampling_template_categories
+            where parent_id = :id
+            """, new MapSqlParameterSource().addValue("id", id), Long.class);
+        return total == null ? 0L : total;
+    }
+
+    public long countTemplatesByCategory(String id) {
+        Long total = jdbcTemplate.queryForObject("""
+            select count(*)
+            from sampling_templates
+            where category_id = :id
+            """, new MapSqlParameterSource().addValue("id", id), Long.class);
+        return total == null ? 0L : total;
+    }
+
+    public void deleteTemplateCategory(String id) {
+        jdbcTemplate.update("delete from sampling_template_categories where id = :id", new MapSqlParameterSource().addValue("id", id));
+    }
+
+    public void deleteTemplate(String id) {
+        jdbcTemplate.update("delete from sampling_template_site_rel where template_id = :templateId",
+            new MapSqlParameterSource().addValue("templateId", id));
+        jdbcTemplate.update("delete from sampling_templates where id = :id", new MapSqlParameterSource().addValue("id", id));
     }
 
     public List<GuidelineCategoryRow> findGuidelineCategories() {
@@ -202,6 +275,48 @@ public class SamplingJdbcRepository {
         return rows.isEmpty() ? null : rows.get(0);
     }
 
+    public void updateGuidelineCategory(String id, UpdateGuidelineCategoryRow row) {
+        jdbcTemplate.update("""
+            update sampling_guideline_categories
+            set parent_id = :parentId,
+                category_code = :categoryCode,
+                category_name = :categoryName,
+                sort_order = :sortOrder,
+                enabled = :enabled,
+                updated_at = :updatedAt
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", id)
+            .addValue("parentId", row.parentId())
+            .addValue("categoryCode", row.categoryCode())
+            .addValue("categoryName", row.categoryName())
+            .addValue("sortOrder", row.sortOrder())
+            .addValue("enabled", row.enabled() ? 1 : 0)
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    public void updateGuideline(String id, UpdateGuidelineRow row) {
+        jdbcTemplate.update("""
+            update sampling_guidelines
+            set category_id = :categoryId,
+                guideline_code = :guidelineCode,
+                guideline_name = :guidelineName,
+                guideline_content = :guidelineContent,
+                version_no = :versionNo,
+                enabled = :enabled,
+                updated_at = :updatedAt
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", id)
+            .addValue("categoryId", row.categoryId())
+            .addValue("guidelineCode", row.guidelineCode())
+            .addValue("guidelineName", row.guidelineName())
+            .addValue("guidelineContent", row.guidelineContent())
+            .addValue("versionNo", row.versionNo())
+            .addValue("enabled", row.enabled() ? 1 : 0)
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
     public void updateGuidelineEnabled(String id, boolean enabled) {
         jdbcTemplate.update("""
             update sampling_guidelines set enabled = :enabled, updated_at = :updatedAt where id = :id
@@ -209,6 +324,32 @@ public class SamplingJdbcRepository {
             .addValue("id", id)
             .addValue("enabled", enabled ? 1 : 0)
             .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    public long countGuidelineCategoryChildren(String id) {
+        Long total = jdbcTemplate.queryForObject("""
+            select count(*)
+            from sampling_guideline_categories
+            where parent_id = :id
+            """, new MapSqlParameterSource().addValue("id", id), Long.class);
+        return total == null ? 0L : total;
+    }
+
+    public long countGuidelinesByCategory(String id) {
+        Long total = jdbcTemplate.queryForObject("""
+            select count(*)
+            from sampling_guidelines
+            where category_id = :id
+            """, new MapSqlParameterSource().addValue("id", id), Long.class);
+        return total == null ? 0L : total;
+    }
+
+    public void deleteGuidelineCategory(String id) {
+        jdbcTemplate.update("delete from sampling_guideline_categories where id = :id", new MapSqlParameterSource().addValue("id", id));
+    }
+
+    public void deleteGuideline(String id) {
+        jdbcTemplate.update("delete from sampling_guidelines where id = :id", new MapSqlParameterSource().addValue("id", id));
     }
 
     private TemplateCategoryRow mapTemplateCategory(ResultSet rs, int rowNum) throws SQLException {
@@ -254,10 +395,19 @@ public class SamplingJdbcRepository {
                                             LocalDateTime updatedAt) {
     }
 
+    public record UpdateTemplateCategoryRow(String parentId, String categoryCode, String categoryName,
+                                            int sortOrder, boolean enabled) {
+    }
+
     public record CreateTemplateRow(String id, String categoryId, String templateCode, String templateName,
                                     String templateContent, int splitPartCount, String applicableSpecimenType,
                                     boolean enabled, List<String> bodyPartIds, LocalDateTime createdAt,
                                     LocalDateTime updatedAt) {
+    }
+
+    public record UpdateTemplateRow(String categoryId, String templateCode, String templateName,
+                                    String templateContent, int splitPartCount, String applicableSpecimenType,
+                                    boolean enabled, List<String> bodyPartIds) {
     }
 
     public record GuidelineCategoryRow(String id, String parentId, String categoryCode, String categoryName,
@@ -273,8 +423,16 @@ public class SamplingJdbcRepository {
                                              LocalDateTime updatedAt) {
     }
 
+    public record UpdateGuidelineCategoryRow(String parentId, String categoryCode, String categoryName,
+                                             int sortOrder, boolean enabled) {
+    }
+
     public record CreateGuidelineRow(String id, String categoryId, String guidelineCode, String guidelineName,
                                      String guidelineContent, String versionNo, boolean enabled,
                                      LocalDateTime createdAt, LocalDateTime updatedAt) {
+    }
+
+    public record UpdateGuidelineRow(String categoryId, String guidelineCode, String guidelineName,
+                                     String guidelineContent, String versionNo, boolean enabled) {
     }
 }

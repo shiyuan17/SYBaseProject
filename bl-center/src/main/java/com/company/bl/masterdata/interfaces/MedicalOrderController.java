@@ -12,6 +12,10 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -50,11 +55,37 @@ public class MedicalOrderController {
             request.parentId(), request.categoryCode(), request.categoryName(), request.sortOrder(), request.enabled()));
     }
 
+    @Operation(summary = "更新医嘱字典分类", description = "更新医嘱字典分类节点。")
+    @RequirePermission(M1PermissionCodes.ORDER_DICT_CREATE)
+    @PatchMapping("/medical-order-dicts/categories/{id}")
+    public MedicalOrderService.MedicalOrderCategoryNode updateCategory(@Parameter(description = "分类 ID") @PathVariable("id") String id,
+                                                                       @Valid @RequestBody UpdateCategoryRequest request) {
+        return medicalOrderService.updateMedicalOrderCategory(id, new MedicalOrderService.UpdateMedicalOrderCategoryCommand(
+            request.parentId(), request.categoryCode(), request.categoryName(), request.sortOrder(), request.enabled()));
+    }
+
+    @Operation(summary = "删除医嘱字典分类", description = "删除空分类节点。")
+    @RequirePermission(M1PermissionCodes.ORDER_DICT_CREATE)
+    @DeleteMapping("/medical-order-dicts/categories/{id}")
+    public void deleteCategory(@Parameter(description = "分类 ID") @PathVariable("id") String id) {
+        medicalOrderService.deleteMedicalOrderCategory(id);
+    }
+
     @Operation(summary = "新增医嘱字典条目", description = "新增医嘱字典叶子条目。")
     @RequirePermission(M1PermissionCodes.ORDER_DICT_CREATE)
     @PostMapping("/medical-order-dicts/items")
     public MedicalOrderService.MedicalOrderItemView createItem(@Valid @RequestBody CreateItemRequest request) {
         return medicalOrderService.createMedicalOrderItem(new MedicalOrderService.CreateMedicalOrderItemCommand(
+            request.categoryId(), request.orderItemCode(), request.orderItemName(), request.orderType(),
+            request.defaultContent(), request.executionScope(), request.sortOrder(), request.enabled()));
+    }
+
+    @Operation(summary = "更新医嘱字典条目", description = "更新医嘱字典条目。")
+    @RequirePermission(M1PermissionCodes.ORDER_DICT_CREATE)
+    @PatchMapping("/medical-order-dicts/items/{id}")
+    public MedicalOrderService.MedicalOrderItemView updateItem(@Parameter(description = "医嘱条目 ID") @PathVariable("id") String id,
+                                                               @Valid @RequestBody UpdateItemRequest request) {
+        return medicalOrderService.updateMedicalOrderItem(id, new MedicalOrderService.UpdateMedicalOrderItemCommand(
             request.categoryId(), request.orderItemCode(), request.orderItemName(), request.orderType(),
             request.defaultContent(), request.executionScope(), request.sortOrder(), request.enabled()));
     }
@@ -65,6 +96,13 @@ public class MedicalOrderController {
     public MedicalOrderService.MedicalOrderItemView updateItemEnabled(@Parameter(description = "医嘱条目 ID") @PathVariable("id") String id,
                                                                       @Valid @RequestBody UpdateEnabledRequest request) {
         return medicalOrderService.updateMedicalOrderItemEnabled(id, request.enabled());
+    }
+
+    @Operation(summary = "删除医嘱字典条目", description = "删除未被收费项目或套餐引用的医嘱条目。")
+    @RequirePermission(M1PermissionCodes.ORDER_DICT_CREATE)
+    @DeleteMapping("/medical-order-dicts/items/{id}")
+    public void deleteItem(@Parameter(description = "医嘱条目 ID") @PathVariable("id") String id) {
+        medicalOrderService.deleteMedicalOrderItem(id);
     }
 
     @Operation(summary = "查询收费项目列表", description = "查询全部收费项目列表。")
@@ -95,12 +133,49 @@ public class MedicalOrderController {
             request.unit(), request.price(), request.sortOrder(), request.enabled()));
     }
 
+    @Operation(summary = "更新收费项目", description = "更新收费项目基础信息。")
+    @RequirePermission(M1PermissionCodes.ORDER_CHARGE_CREATE)
+    @PatchMapping("/medical-order-charge-items/{id}")
+    public MedicalOrderService.ChargeItemView updateChargeItem(@Parameter(description = "收费项目 ID") @PathVariable("id") String id,
+                                                               @Valid @RequestBody UpdateChargeItemRequest request) {
+        return medicalOrderService.updateChargeItem(id, new MedicalOrderService.UpdateChargeItemCommand(
+            request.orderDictItemId(), request.chargeItemCode(), request.chargeItemName(), request.specification(),
+            request.unit(), request.price(), request.sortOrder(), request.enabled()));
+    }
+
     @Operation(summary = "更新收费项目启用状态", description = "更新指定收费项目的启停状态。")
     @RequirePermission(M1PermissionCodes.ORDER_CHARGE_CREATE)
     @PatchMapping("/medical-order-charge-items/{id}/enabled")
     public MedicalOrderService.ChargeItemView updateChargeEnabled(@Parameter(description = "收费项目 ID") @PathVariable("id") String id,
                                                                   @Valid @RequestBody UpdateEnabledRequest request) {
         return medicalOrderService.updateChargeItemEnabled(id, request.enabled());
+    }
+
+    @Operation(summary = "删除收费项目", description = "删除收费项目。")
+    @RequirePermission(M1PermissionCodes.ORDER_CHARGE_CREATE)
+    @DeleteMapping("/medical-order-charge-items/{id}")
+    public void deleteChargeItem(@Parameter(description = "收费项目 ID") @PathVariable("id") String id) {
+        medicalOrderService.deleteChargeItem(id);
+    }
+
+    @Operation(summary = "导出收费项目", description = "按筛选条件导出收费项目。")
+    @RequirePermission(M1PermissionCodes.ORDER_CHARGE_QUERY)
+    @GetMapping("/medical-order-charge-items/export")
+    public ResponseEntity<byte[]> exportChargeItems(@RequestParam(name = "enabled", required = false) Boolean enabled,
+                                                    @RequestParam(name = "keyword", required = false) String keyword,
+                                                    @RequestParam(name = "orderDictItemId", required = false) String orderDictItemId) {
+        byte[] content = medicalOrderService.exportChargeItems(enabled, keyword, orderDictItemId);
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=medical-order-charge-items.csv")
+            .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
+            .body(content);
+    }
+
+    @Operation(summary = "导入收费项目", description = "按 CSV 文件导入收费项目。")
+    @RequirePermission(M1PermissionCodes.ORDER_CHARGE_CREATE)
+    @PostMapping(value = "/medical-order-charge-items/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public MedicalOrderService.ImportResult importChargeItems(@RequestParam("file") MultipartFile file) throws Exception {
+        return medicalOrderService.importChargeItems(file.getBytes());
     }
 
     @Operation(summary = "查询套餐列表", description = "查询全部套餐及其配置条目。")
@@ -131,12 +206,29 @@ public class MedicalOrderController {
             request.enabled(), request.remarks(), request.itemIds()));
     }
 
+    @Operation(summary = "更新套餐", description = "更新医嘱套餐。")
+    @RequirePermission(M1PermissionCodes.PACKAGE_CREATE)
+    @PatchMapping("/medical-order-packages/{id}")
+    public MedicalOrderService.PackageView updatePackage(@Parameter(description = "套餐 ID") @PathVariable("id") String id,
+                                                         @Valid @RequestBody UpdatePackageRequest request) {
+        return medicalOrderService.updatePackage(id, new MedicalOrderService.UpdatePackageCommand(
+            request.packageCode(), request.packageName(), request.packageType(), request.ownerUserId(),
+            request.enabled(), request.remarks(), request.itemIds()));
+    }
+
     @Operation(summary = "更新套餐启用状态", description = "更新指定套餐的启停状态。")
     @RequirePermission(M1PermissionCodes.PACKAGE_CREATE)
     @PatchMapping("/medical-order-packages/{id}/enabled")
     public MedicalOrderService.PackageView updatePackageEnabled(@Parameter(description = "套餐 ID") @PathVariable("id") String id,
                                                                 @Valid @RequestBody UpdateEnabledRequest request) {
         return medicalOrderService.updatePackageEnabled(id, request.enabled());
+    }
+
+    @Operation(summary = "删除套餐", description = "删除医嘱套餐。")
+    @RequirePermission(M1PermissionCodes.PACKAGE_CREATE)
+    @DeleteMapping("/medical-order-packages/{id}")
+    public void deletePackage(@Parameter(description = "套餐 ID") @PathVariable("id") String id) {
+        medicalOrderService.deletePackage(id);
     }
 
     @Schema(name = "MedicalOrderUpdateEnabledRequest", description = "更新启用状态请求")
@@ -158,6 +250,20 @@ public class MedicalOrderController {
         @Schema(description = "排序号")
         int sortOrder,
         @Schema(description = "是否启用")
+        boolean enabled
+    ) {
+    }
+
+    @Schema(name = "MedicalOrderUpdateCategoryRequest", description = "更新医嘱字典分类请求")
+    public record UpdateCategoryRequest(
+        String parentId,
+        @NotBlank(message = "Category code must not be blank")
+        @Size(max = 64, message = "Category code must not exceed 64 characters")
+        String categoryCode,
+        @NotBlank(message = "Category name must not be blank")
+        @Size(max = 100, message = "Category name must not exceed 100 characters")
+        String categoryName,
+        int sortOrder,
         boolean enabled
     ) {
     }
@@ -191,6 +297,27 @@ public class MedicalOrderController {
     ) {
     }
 
+    @Schema(name = "MedicalOrderUpdateItemRequest", description = "更新医嘱字典条目请求")
+    public record UpdateItemRequest(
+        @NotBlank(message = "Category id must not be blank")
+        String categoryId,
+        @NotBlank(message = "Order item code must not be blank")
+        @Size(max = 64, message = "Order item code must not exceed 64 characters")
+        String orderItemCode,
+        @NotBlank(message = "Order item name must not be blank")
+        @Size(max = 100, message = "Order item name must not exceed 100 characters")
+        String orderItemName,
+        @Size(max = 50, message = "Order type must not exceed 50 characters")
+        String orderType,
+        @Size(max = 1000, message = "Default content must not exceed 1000 characters")
+        String defaultContent,
+        @Size(max = 50, message = "Execution scope must not exceed 50 characters")
+        String executionScope,
+        int sortOrder,
+        boolean enabled
+    ) {
+    }
+
     @Schema(name = "CreateChargeItemRequest", description = "新增收费项目请求")
     public record CreateChargeItemRequest(
         @Schema(description = "关联医嘱条目 ID", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -220,6 +347,27 @@ public class MedicalOrderController {
     ) {
     }
 
+    @Schema(name = "UpdateChargeItemRequest", description = "更新收费项目请求")
+    public record UpdateChargeItemRequest(
+        @NotBlank(message = "Order dict item id must not be blank")
+        String orderDictItemId,
+        @NotBlank(message = "Charge item code must not be blank")
+        @Size(max = 64, message = "Charge item code must not exceed 64 characters")
+        String chargeItemCode,
+        @NotBlank(message = "Charge item name must not be blank")
+        @Size(max = 100, message = "Charge item name must not exceed 100 characters")
+        String chargeItemName,
+        @Size(max = 100, message = "Specification must not exceed 100 characters")
+        String specification,
+        @Size(max = 32, message = "Unit must not exceed 32 characters")
+        String unit,
+        @DecimalMin(value = "0.0", inclusive = true, message = "Price must not be negative")
+        BigDecimal price,
+        int sortOrder,
+        boolean enabled
+    ) {
+    }
+
     @Schema(name = "CreatePackageRequest", description = "新增医嘱套餐请求")
     public record CreatePackageRequest(
         @Schema(description = "套餐编码", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -241,6 +389,25 @@ public class MedicalOrderController {
         @Size(max = 500, message = "Remarks must not exceed 500 characters")
         String remarks,
         @Schema(description = "套餐条目 ID 列表", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotEmpty(message = "Package items must not be empty")
+        List<String> itemIds
+    ) {
+    }
+
+    @Schema(name = "UpdatePackageRequest", description = "更新医嘱套餐请求")
+    public record UpdatePackageRequest(
+        @NotBlank(message = "Package code must not be blank")
+        @Size(max = 64, message = "Package code must not exceed 64 characters")
+        String packageCode,
+        @NotBlank(message = "Package name must not be blank")
+        @Size(max = 100, message = "Package name must not exceed 100 characters")
+        String packageName,
+        @Size(max = 50, message = "Package type must not exceed 50 characters")
+        String packageType,
+        String ownerUserId,
+        boolean enabled,
+        @Size(max = 500, message = "Remarks must not exceed 500 characters")
+        String remarks,
         @NotEmpty(message = "Package items must not be empty")
         List<String> itemIds
     ) {

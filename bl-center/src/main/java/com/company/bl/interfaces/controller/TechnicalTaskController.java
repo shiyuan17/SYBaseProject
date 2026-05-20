@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.TechnicalWorkflowAppService;
+import com.company.bl.application.service.TechnicalWorkflowModels;
 import com.company.bl.interfaces.auth.M3PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.vo.PendingTechnicalTaskPageResponse;
@@ -34,8 +35,8 @@ public class TechnicalTaskController {
                                                         @Parameter(description = "申请单号") @RequestParam(required = false) String applicationNo,
                                                         @Parameter(description = "病理号") @RequestParam(required = false) String pathologyNo,
                                                         @Parameter(description = "对象类型") @RequestParam(required = false) String objectType) {
-        TechnicalWorkflowAppService.PendingTechnicalTaskPage result = technicalWorkflowAppService.listPendingTasks(
-            new TechnicalWorkflowAppService.PendingTechnicalTaskQuery(page, size, taskType, taskStatus, applicationNo, pathologyNo, objectType));
+        TechnicalWorkflowModels.PendingTechnicalTaskPage result = technicalWorkflowAppService.listPendingTasks(
+            new TechnicalWorkflowModels.PendingTechnicalTaskQuery(page, size, taskType, taskStatus, applicationNo, pathologyNo, objectType));
         return new PendingTechnicalTaskPageResponse(
             result.items().stream().map(this::toResponse).toList(),
             result.page(),
@@ -43,7 +44,7 @@ public class TechnicalTaskController {
             result.total());
     }
 
-    private PendingTechnicalTaskResponse toResponse(TechnicalWorkflowAppService.TaskView item) {
+    private PendingTechnicalTaskResponse toResponse(TechnicalWorkflowModels.TaskView item) {
         return new PendingTechnicalTaskResponse(
             item.id(),
             item.applicationId(),

@@ -84,6 +84,23 @@ public class SamplingService {
 
     @CacheEvict(value = {"samplingTemplateTree", "samplingTemplateDetail"}, allEntries = true)
     @Transactional
+    public TemplateCategoryNode updateSamplingTemplateCategory(String id, UpdateTemplateCategoryCommand command) {
+        return operationAuditService.audit("MASTERDATA", "TEMPLATE_CATEGORY", "update_template_category", () -> {
+            if (repository.findTemplateCategoryById(id) == null) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Template category not found");
+            }
+            try {
+                repository.updateTemplateCategory(id, new SamplingJdbcRepository.UpdateTemplateCategoryRow(
+                    command.parentId(), command.categoryCode(), command.categoryName(), command.sortOrder(), command.enabled()));
+            } catch (DataAccessException exception) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Template category code already exists");
+            }
+            return toTemplateCategoryNode(repository.findTemplateCategoryById(id));
+        }, TemplateCategoryNode::id, () -> id);
+    }
+
+    @CacheEvict(value = {"samplingTemplateTree", "samplingTemplateDetail"}, allEntries = true)
+    @Transactional
     public TemplateDetailView createSamplingTemplate(CreateTemplateCommand command) {
         return operationAuditService.audit("MASTERDATA", "TEMPLATE", "create_template", () -> {
             try {
@@ -101,6 +118,25 @@ public class SamplingService {
 
     @CacheEvict(value = {"samplingTemplateTree", "samplingTemplateDetail"}, allEntries = true)
     @Transactional
+    public TemplateDetailView updateSamplingTemplate(String id, UpdateTemplateCommand command) {
+        return operationAuditService.audit("MASTERDATA", "TEMPLATE", "update_template", () -> {
+            if (repository.findTemplateById(id) == null) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Template not found");
+            }
+            try {
+                repository.updateTemplate(id, new SamplingJdbcRepository.UpdateTemplateRow(
+                    command.categoryId(), command.templateCode(), command.templateName(), command.templateContent(),
+                    command.splitPartCount(), command.applicableSpecimenType(), command.enabled(),
+                    command.bodyPartIds() == null ? List.of() : command.bodyPartIds()));
+            } catch (DataAccessException exception) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Template code already exists");
+            }
+            return getSamplingTemplateDetail(id);
+        }, TemplateDetailView::id, () -> id);
+    }
+
+    @CacheEvict(value = {"samplingTemplateTree", "samplingTemplateDetail"}, allEntries = true)
+    @Transactional
     public TemplateDetailView updateSamplingTemplateEnabled(String id, boolean enabled) {
         return operationAuditService.audit("MASTERDATA", "TEMPLATE", "update_template_enabled", () -> {
             if (repository.findTemplateById(id) == null) {
@@ -109,6 +145,33 @@ public class SamplingService {
             repository.updateTemplateEnabled(id, enabled);
             return getSamplingTemplateDetail(id);
         }, TemplateDetailView::id, () -> id);
+    }
+
+    @CacheEvict(value = {"samplingTemplateTree", "samplingTemplateDetail"}, allEntries = true)
+    @Transactional
+    public void deleteSamplingTemplateCategory(String id) {
+        operationAuditService.audit("MASTERDATA", "TEMPLATE_CATEGORY", "delete_template_category", () -> {
+            if (repository.findTemplateCategoryById(id) == null) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Template category not found");
+            }
+            if (repository.countTemplateCategoryChildren(id) > 0 || repository.countTemplatesByCategory(id) > 0) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Template category still has children or templates");
+            }
+            repository.deleteTemplateCategory(id);
+            return id;
+        }, value -> id, () -> id);
+    }
+
+    @CacheEvict(value = {"samplingTemplateTree", "samplingTemplateDetail"}, allEntries = true)
+    @Transactional
+    public void deleteSamplingTemplate(String id) {
+        operationAuditService.audit("MASTERDATA", "TEMPLATE", "delete_template", () -> {
+            if (repository.findTemplateById(id) == null) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Template not found");
+            }
+            repository.deleteTemplate(id);
+            return id;
+        }, value -> id, () -> id);
     }
 
     @Cacheable("samplingGuidelineTree")
@@ -155,6 +218,23 @@ public class SamplingService {
 
     @CacheEvict(value = {"samplingGuidelineTree", "samplingGuidelineDetail"}, allEntries = true)
     @Transactional
+    public GuidelineCategoryNode updateGuidelineCategory(String id, UpdateGuidelineCategoryCommand command) {
+        return operationAuditService.audit("MASTERDATA", "GUIDELINE_CATEGORY", "update_guideline_category", () -> {
+            if (repository.findGuidelineCategoryById(id) == null) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Guideline category not found");
+            }
+            try {
+                repository.updateGuidelineCategory(id, new SamplingJdbcRepository.UpdateGuidelineCategoryRow(
+                    command.parentId(), command.categoryCode(), command.categoryName(), command.sortOrder(), command.enabled()));
+            } catch (DataAccessException exception) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Guideline category code already exists");
+            }
+            return toGuidelineCategoryNode(repository.findGuidelineCategoryById(id));
+        }, GuidelineCategoryNode::id, () -> id);
+    }
+
+    @CacheEvict(value = {"samplingGuidelineTree", "samplingGuidelineDetail"}, allEntries = true)
+    @Transactional
     public GuidelineDetailView createGuideline(CreateGuidelineCommand command) {
         return operationAuditService.audit("MASTERDATA", "GUIDELINE", "create_guideline", () -> {
             try {
@@ -170,6 +250,24 @@ public class SamplingService {
 
     @CacheEvict(value = {"samplingGuidelineTree", "samplingGuidelineDetail"}, allEntries = true)
     @Transactional
+    public GuidelineDetailView updateGuideline(String id, UpdateGuidelineCommand command) {
+        return operationAuditService.audit("MASTERDATA", "GUIDELINE", "update_guideline", () -> {
+            if (repository.findGuidelineById(id) == null) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Guideline not found");
+            }
+            try {
+                repository.updateGuideline(id, new SamplingJdbcRepository.UpdateGuidelineRow(
+                    command.categoryId(), command.guidelineCode(), command.guidelineName(), command.guidelineContent(),
+                    command.versionNo(), command.enabled()));
+            } catch (DataAccessException exception) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Guideline code already exists");
+            }
+            return getSamplingGuidelineDetail(id);
+        }, GuidelineDetailView::id, () -> id);
+    }
+
+    @CacheEvict(value = {"samplingGuidelineTree", "samplingGuidelineDetail"}, allEntries = true)
+    @Transactional
     public GuidelineDetailView updateGuidelineEnabled(String id, boolean enabled) {
         return operationAuditService.audit("MASTERDATA", "GUIDELINE", "update_guideline_enabled", () -> {
             if (repository.findGuidelineById(id) == null) {
@@ -178,6 +276,33 @@ public class SamplingService {
             repository.updateGuidelineEnabled(id, enabled);
             return getSamplingGuidelineDetail(id);
         }, GuidelineDetailView::id, () -> id);
+    }
+
+    @CacheEvict(value = {"samplingGuidelineTree", "samplingGuidelineDetail"}, allEntries = true)
+    @Transactional
+    public void deleteGuidelineCategory(String id) {
+        operationAuditService.audit("MASTERDATA", "GUIDELINE_CATEGORY", "delete_guideline_category", () -> {
+            if (repository.findGuidelineCategoryById(id) == null) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Guideline category not found");
+            }
+            if (repository.countGuidelineCategoryChildren(id) > 0 || repository.countGuidelinesByCategory(id) > 0) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Guideline category still has children or guidelines");
+            }
+            repository.deleteGuidelineCategory(id);
+            return id;
+        }, value -> id, () -> id);
+    }
+
+    @CacheEvict(value = {"samplingGuidelineTree", "samplingGuidelineDetail"}, allEntries = true)
+    @Transactional
+    public void deleteGuideline(String id) {
+        operationAuditService.audit("MASTERDATA", "GUIDELINE", "delete_guideline", () -> {
+            if (repository.findGuidelineById(id) == null) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Guideline not found");
+            }
+            repository.deleteGuideline(id);
+            return id;
+        }, value -> id, () -> id);
     }
 
     private TemplateCategoryNode toTemplateCategoryNode(SamplingJdbcRepository.TemplateCategoryRow row) {
@@ -271,7 +396,16 @@ public class SamplingService {
                                                 int sortOrder, boolean enabled) {
     }
 
+    public record UpdateTemplateCategoryCommand(String parentId, String categoryCode, String categoryName,
+                                                int sortOrder, boolean enabled) {
+    }
+
     public record CreateTemplateCommand(String categoryId, String templateCode, String templateName,
+                                        String templateContent, int splitPartCount, String applicableSpecimenType,
+                                        boolean enabled, List<String> bodyPartIds) {
+    }
+
+    public record UpdateTemplateCommand(String categoryId, String templateCode, String templateName,
                                         String templateContent, int splitPartCount, String applicableSpecimenType,
                                         boolean enabled, List<String> bodyPartIds) {
     }
@@ -313,7 +447,15 @@ public class SamplingService {
                                                  int sortOrder, boolean enabled) {
     }
 
+    public record UpdateGuidelineCategoryCommand(String parentId, String categoryCode, String categoryName,
+                                                 int sortOrder, boolean enabled) {
+    }
+
     public record CreateGuidelineCommand(String categoryId, String guidelineCode, String guidelineName,
+                                         String guidelineContent, String versionNo, boolean enabled) {
+    }
+
+    public record UpdateGuidelineCommand(String categoryId, String guidelineCode, String guidelineName,
                                          String guidelineContent, String versionNo, boolean enabled) {
     }
 }
