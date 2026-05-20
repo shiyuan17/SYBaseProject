@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: auth-center
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+observability:
+  logging:
+    access:
+      enabled: true
+  metrics:
+    enabled: true
+    common-tags:
+      module: auth-center
+
+security:
+  auth:
+    jwt:
+      issuer: sy-base-project
+      access-token-ttl: PT8H
+      sm2:
+        private-key: ${SECURITY_AUTH_JWT_SM2_PRIVATE_KEY:}
+        public-key: ${SECURITY_AUTH_JWT_SM2_PUBLIC_KEY:}

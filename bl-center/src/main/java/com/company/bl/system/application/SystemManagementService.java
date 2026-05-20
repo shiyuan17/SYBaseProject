@@ -4,6 +4,7 @@ import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.support.application.OperationAuditService;
 import com.company.bl.system.infrastructure.SystemJdbcRepository;
+import com.company.common.security.crypto.Sm3PasswordEncoder;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,11 +19,14 @@ public class SystemManagementService {
 
     private final SystemJdbcRepository systemJdbcRepository;
     private final OperationAuditService operationAuditService;
+    private final Sm3PasswordEncoder sm3PasswordEncoder;
 
     public SystemManagementService(SystemJdbcRepository systemJdbcRepository,
-                                   OperationAuditService operationAuditService) {
+                                   OperationAuditService operationAuditService,
+                                   Sm3PasswordEncoder sm3PasswordEncoder) {
         this.systemJdbcRepository = systemJdbcRepository;
         this.operationAuditService = operationAuditService;
+        this.sm3PasswordEncoder = sm3PasswordEncoder;
     }
 
     @Transactional(readOnly = true)
@@ -41,12 +45,15 @@ public class SystemManagementService {
     public UserView createUser(CreateUserCommand command) {
         return operationAuditService.audit("SYSTEM", "USER", "create_user", () -> {
             try {
+                EncodedPassword encodedPassword = encodePassword(command.password());
                 SystemJdbcRepository.UserRow user = systemJdbcRepository.insertUser(new SystemJdbcRepository.CreateUserRow(
                     "USER-" + UUID.randomUUID(),
                     command.userCode(),
                     command.loginName(),
                     command.name(),
-                    command.password(),
+                    encodedPassword.password(),
+                    encodedPassword.passwordAlgo(),
+                    encodedPassword.passwordSalt(),
                     null,
                     command.jobNo(),
                     command.titleName(),
@@ -281,6 +288,18 @@ public class SystemManagementService {
         return value == null || value.isBlank() ? null : value;
     }
 
+    private EncodedPassword encodePassword(String rawPassword) {
+        String normalizedPassword = blankToNull(rawPassword);
+        if (normalizedPassword == null) {
+            return new EncodedPassword(null, null, null);
+        }
+        String salt = sm3PasswordEncoder.generateSalt();
+        return new EncodedPassword(
+            sm3PasswordEncoder.encode(normalizedPassword, salt),
+            Sm3PasswordEncoder.PASSWORD_ALGO_SM3,
+            salt);
+    }
+
     private String stringify(LocalDateTime value) {
         return value == null ? null : value.toString();
     }
@@ -465,5 +484,8 @@ public class SystemManagementService {
         String description,
         boolean enabled
     ) {
+    }
+
+    private record EncodedPassword(String password, String passwordAlgo, String passwordSalt) {
     }
 }

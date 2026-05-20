@@ -26,6 +26,10 @@
         </dependency>
         <dependency>
             <groupId>com.company</groupId>
+            <artifactId>common-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.company</groupId>
             <artifactId>common-web</artifactId>
         </dependency>
         <dependency>

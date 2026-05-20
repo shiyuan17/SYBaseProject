@@ -70,7 +70,7 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
             .andExpect(jsonPath("$.data.receiptStatus").value("RECEIVED"))
             .andExpect(jsonPath("$.data.unreceivedCount").value(0));
 
-        mockMvc.perform(get("/api/v1/applications/{id}/tracking", applicationId).header("X-User-Id", USER_TRACKING))
+        mockMvc.perform(authorized(get("/api/v1/applications/{id}/tracking", applicationId), USER_TRACKING))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("RECEIVED"))
             .andExpect(jsonPath("$.data.currentNode").value("RECEPTION"))
@@ -78,7 +78,7 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
             .andExpect(jsonPath("$.data.specimens[0].specimenStatus").value("RECEIVED"))
             .andExpect(jsonPath("$.data.specimens[1].specimenStatus").value("RECEIVED"));
 
-        mockMvc.perform(get("/api/v1/specimens/barcodes/{barcode}/tracking", barcode1).header("X-User-Id", USER_TRACKING))
+        mockMvc.perform(authorized(get("/api/v1/specimens/barcodes/{barcode}/tracking", barcode1), USER_TRACKING))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.applicationNo").value("APP-M2-001"));
     }
@@ -110,7 +110,7 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
             .andExpect(jsonPath("$.data.receiptStatus").value("RECEIVED"))
             .andExpect(jsonPath("$.data.unreceivedCount").value(0));
 
-        mockMvc.perform(get("/api/v1/applications/{id}/tracking", applicationId).header("X-User-Id", USER_TRACKING))
+        mockMvc.perform(authorized(get("/api/v1/applications/{id}/tracking", applicationId), USER_TRACKING))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("RECEIVED"));
     }
@@ -121,8 +121,7 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
         JsonNode registration = registerSpecimens(applicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-PENDING-001");
         String barcode = registration.path("specimens").get(0).path("barcode").asText();
 
-        mockMvc.perform(get("/api/v1/specimen-fixations/pending")
-                .header("X-User-Id", USER_FIXATION)
+        mockMvc.perform(authorized(get("/api/v1/specimen-fixations/pending"), USER_FIXATION)
                 .param("page", "1")
                 .param("size", "20")
                 .param("applicationId", applicationId))
@@ -132,8 +131,7 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
 
         completeFixation(barcode);
 
-        mockMvc.perform(get("/api/v1/specimen-fixations/pending")
-                .header("X-User-Id", USER_FIXATION)
+        mockMvc.perform(authorized(get("/api/v1/specimen-fixations/pending"), USER_FIXATION)
                 .param("page", "1")
                 .param("size", "20")
                 .param("applicationId", applicationId))
@@ -149,8 +147,7 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
             """)
             .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/v1/specimen-receipts/pending")
-                .header("X-User-Id", USER_RECEIVE)
+        mockMvc.perform(authorized(get("/api/v1/specimen-receipts/pending"), USER_RECEIVE)
                 .param("page", "1")
                 .param("size", "20")
                 .param("applicationId", applicationId))
@@ -174,8 +171,7 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
             """.formatted(transportOrderId, barcode))
             .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/v1/specimen-receipts/pending")
-                .header("X-User-Id", USER_RECEIVE)
+        mockMvc.perform(authorized(get("/api/v1/specimen-receipts/pending"), USER_RECEIVE)
                 .param("page", "1")
                 .param("size", "20")
                 .param("applicationId", applicationId))
@@ -224,7 +220,7 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
             .andExpect(jsonPath("$.data.receiptStatus").value("PARTIALLY_RECEIVED"))
             .andExpect(jsonPath("$.data.unreceivedCount").value(1));
 
-        mockMvc.perform(get("/api/v1/applications/{id}/tracking", applicationId).header("X-User-Id", USER_TRACKING))
+        mockMvc.perform(authorized(get("/api/v1/applications/{id}/tracking", applicationId), USER_TRACKING))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("PARTIALLY_RECEIVED"))
             .andExpect(jsonPath("$.data.abnormalFlag").value(true));

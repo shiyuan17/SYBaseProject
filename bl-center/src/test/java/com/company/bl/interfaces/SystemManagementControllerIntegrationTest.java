@@ -1,9 +1,7 @@
 package com.company.bl.interfaces;
 
 import com.company.bl.BlCenterApplication;
-import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.bl.system.application.SystemManagementService;
-import com.company.common.test.BaseWebIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -21,6 +19,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -32,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @ActiveProfiles("test")
 @SpringBootTest(classes = BlCenterApplication.class)
-class SystemManagementControllerIntegrationTest extends BaseWebIntegrationTest {
+class SystemManagementControllerIntegrationTest extends AuthenticatedWebIntegrationTest {
 
     private static final String USER_M1_ADMIN = "USER_M1_ADMIN";
 
@@ -58,6 +57,7 @@ class SystemManagementControllerIntegrationTest extends BaseWebIntegrationTest {
                       "userCode": "UC-%s",
                       "loginName": "%s",
                       "name": "Test User",
+                      "password": "123456",
                       "enabled": true
                     }
                     """.formatted(System.nanoTime(), loginName)))
@@ -68,6 +68,15 @@ class SystemManagementControllerIntegrationTest extends BaseWebIntegrationTest {
 
         JsonNode createNode = objectMapper.readTree(createResult.getResponse().getContentAsString());
         String userId = createNode.path("data").path("id").asText();
+
+        Map<String, Object> passwordRow = jdbcTemplate.queryForMap("""
+            select password, password_algo, password_salt
+            from users
+            where id = :userId
+            """, Map.of("userId", userId));
+        assertEquals("SM3", passwordRow.get("password_algo"));
+        assertNotNull(passwordRow.get("password_salt"));
+        assertNotEquals("123456", passwordRow.get("password"));
 
         mockMvc.perform(asAdmin(put("/api/v1/system-users/{id}/roles", userId))
                 .contentType(MediaType.APPLICATION_JSON)
@@ -155,6 +164,6 @@ class SystemManagementControllerIntegrationTest extends BaseWebIntegrationTest {
     }
 
     private MockHttpServletRequestBuilder asAdmin(MockHttpServletRequestBuilder requestBuilder) {
-        return requestBuilder.header(ApiPermissionContext.USER_ID_HEADER, USER_M1_ADMIN);
+        return authorized(requestBuilder, USER_M1_ADMIN);
     }
 }

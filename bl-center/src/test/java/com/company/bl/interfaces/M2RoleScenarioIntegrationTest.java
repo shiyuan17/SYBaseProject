@@ -47,8 +47,7 @@ class M2RoleScenarioIntegrationTest extends AbstractSpecimenWorkflowIntegrationT
             applicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-ROLE-FIX-001")
             .path("specimens").get(0).path("barcode").asText();
 
-        mockMvc.perform(get("/api/v1/specimen-fixations/pending")
-                .header(USER_ID_HEADER, USER_FIXATION)
+        mockMvc.perform(authorized(get("/api/v1/specimen-fixations/pending"), USER_FIXATION)
                 .param("page", "1")
                 .param("size", "20")
                 .param("applicationId", applicationId))
@@ -102,8 +101,7 @@ class M2RoleScenarioIntegrationTest extends AbstractSpecimenWorkflowIntegrationT
             """)
             .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/v1/specimen-receipts/pending")
-                .header(USER_ID_HEADER, USER_RECEIVE)
+        mockMvc.perform(authorized(get("/api/v1/specimen-receipts/pending"), USER_RECEIVE)
                 .param("page", "1")
                 .param("size", "20")
                 .param("applicationId", applicationId))
@@ -135,13 +133,11 @@ class M2RoleScenarioIntegrationTest extends AbstractSpecimenWorkflowIntegrationT
             applicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-ROLE-TRACK-001")
             .path("specimens").get(0).path("barcode").asText();
 
-        mockMvc.perform(get("/api/v1/applications/{id}/tracking", applicationId)
-                .header(USER_ID_HEADER, USER_TRACKING))
+        mockMvc.perform(authorized(get("/api/v1/applications/{id}/tracking", applicationId), USER_TRACKING))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.id").value(applicationId));
 
-        mockMvc.perform(get("/api/v1/specimens/barcodes/{barcode}/tracking", barcode)
-                .header(USER_ID_HEADER, USER_TRACKING))
+        mockMvc.perform(authorized(get("/api/v1/specimens/barcodes/{barcode}/tracking", barcode), USER_TRACKING))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.applicationNo").value("APP-M2-ROLE-TRACK-001"));
 

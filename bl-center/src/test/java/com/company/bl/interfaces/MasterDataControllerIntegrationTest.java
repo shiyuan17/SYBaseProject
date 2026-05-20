@@ -1,9 +1,7 @@
 package com.company.bl.interfaces;
 
 import com.company.bl.BlCenterApplication;
-import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.bl.support.infrastructure.SupportJdbcRepository;
-import com.company.common.test.BaseWebIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -24,7 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @ActiveProfiles("test")
 @SpringBootTest(classes = BlCenterApplication.class)
-class MasterDataControllerIntegrationTest extends BaseWebIntegrationTest {
+class MasterDataControllerIntegrationTest extends AuthenticatedWebIntegrationTest {
 
     private static final String USER_M1_ADMIN = "USER_M1_ADMIN";
 
@@ -124,6 +122,6 @@ class MasterDataControllerIntegrationTest extends BaseWebIntegrationTest {
     }
 
     private MockHttpServletRequestBuilder asAdmin(MockHttpServletRequestBuilder requestBuilder) {
-        return requestBuilder.header(ApiPermissionContext.USER_ID_HEADER, USER_M1_ADMIN);
+        return authorized(requestBuilder, USER_M1_ADMIN);
     }
 }

@@ -55,8 +55,7 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
     }
 
     protected JsonNode listPendingTasks(String taskType, String pathologyNo, String userId) throws Exception {
-        ResultActions action = mockMvc.perform(get("/api/v1/technical-tasks/pending")
-            .header(USER_ID_HEADER, userId)
+        ResultActions action = mockMvc.perform(authorized(get("/api/v1/technical-tasks/pending"), userId)
             .param("page", "1")
             .param("size", "20")
             .param("taskType", taskType)
@@ -65,8 +64,7 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
     }
 
     protected JsonNode technicalTracking(String caseId, String userId) throws Exception {
-        return responseBody(mockMvc.perform(get("/api/v1/pathology-cases/{id}/technical-tracking", caseId)
-            .header(USER_ID_HEADER, userId)), 200);
+        return responseBody(mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/technical-tracking", caseId), userId)), 200);
     }
 
     protected String querySamplingTemplateId(String caseId, String specimenId) {

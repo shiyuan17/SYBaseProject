@@ -2,6 +2,8 @@ package com.company.bl.interfaces.auth;
 
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
+import com.company.common.security.context.AuthenticatedPrincipal;
+import com.company.common.security.context.AuthenticatedPrincipalContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.annotation.AnnotatedElementUtils;
@@ -30,12 +32,12 @@ public class ApiPermissionInterceptor implements HandlerInterceptor {
         if (permission == null) {
             return true;
         }
-        String userId = request.getHeader(ApiPermissionContext.USER_ID_HEADER);
-        if (userId == null || userId.isBlank()) {
+        AuthenticatedPrincipal principal = AuthenticatedPrincipalContext.currentPrincipal(request);
+        if (principal == null) {
             throw new BlBusinessException(BlErrorCode.AUTHENTICATION_REQUIRED, 401,
-                ApiPermissionContext.USER_ID_HEADER + " header is required");
+                "Authorization bearer token is required");
         }
-        String normalizedUserId = userId.trim();
+        String normalizedUserId = principal.userId().trim();
         if (!permissionRepository.hasPermission(normalizedUserId, permission.value())) {
             throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403,
                 "User does not have permission: " + permission.value());

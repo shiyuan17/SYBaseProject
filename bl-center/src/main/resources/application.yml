@@ -43,3 +43,12 @@ observability:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
+
+security:
+  auth:
+    jwt:
+      issuer: sy-base-project
+      access-token-ttl: PT8H
+      sm2:
+        private-key: ${SECURITY_AUTH_JWT_SM2_PRIVATE_KEY:}
+        public-key: ${SECURITY_AUTH_JWT_SM2_PUBLIC_KEY:}

@@ -209,8 +209,7 @@ class TechnicalWorkflowIntegrationTest extends AbstractTechnicalWorkflowIntegrat
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.createdDehydrationTaskCount").value(2));
 
-        mockMvc.perform(get("/api/v1/technical-tasks/pending")
-                .header(USER_ID_HEADER, USER_M3_DEHYDRATION)
+        mockMvc.perform(authorized(get("/api/v1/technical-tasks/pending"), USER_M3_DEHYDRATION)
                 .param("page", "1")
                 .param("size", "20")
                 .param("taskType", "DEHYDRATION")
@@ -410,8 +409,7 @@ class TechnicalWorkflowIntegrationTest extends AbstractTechnicalWorkflowIntegrat
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("COMPLETED"));
 
-        mockMvc.perform(get("/api/v1/technical-tasks/pending")
-                .header(USER_ID_HEADER, USER_M3_STAINING)
+        mockMvc.perform(authorized(get("/api/v1/technical-tasks/pending"), USER_M3_STAINING)
                 .param("page", "1")
                 .param("size", "20")
                 .param("taskType", "STAINING")
@@ -424,8 +422,7 @@ class TechnicalWorkflowIntegrationTest extends AbstractTechnicalWorkflowIntegrat
     void shouldRequireM3PermissionForPendingTaskQuery() throws Exception {
         TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-005", "BC-M3-005");
 
-        mockMvc.perform(get("/api/v1/technical-tasks/pending")
-                .header(USER_ID_HEADER, USER_NO_PERMISSION)
+        mockMvc.perform(authorized(get("/api/v1/technical-tasks/pending"), USER_NO_PERMISSION)
                 .param("page", "1")
                 .param("size", "20")
                 .param("taskType", "GROSSING")

@@ -64,8 +64,7 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.receiptStatus").value("RECEIVED"));
 
-        mockMvc.perform(get("/api/v1/applications/{id}/tracking", applicationId)
-                .header(USER_ID_HEADER, USER_ADMIN))
+        mockMvc.perform(authorized(get("/api/v1/applications/{id}/tracking", applicationId), USER_ADMIN))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("RECEIVED"));
     }
@@ -141,8 +140,7 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
 
-        mockMvc.perform(get("/api/v1/applications/{id}/tracking", applicationId)
-                .header(USER_ID_HEADER, USER_IMPORT))
+        mockMvc.perform(authorized(get("/api/v1/applications/{id}/tracking", applicationId), USER_IMPORT))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
     }

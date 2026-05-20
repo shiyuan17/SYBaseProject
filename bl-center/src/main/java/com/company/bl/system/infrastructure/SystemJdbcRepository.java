@@ -40,17 +40,19 @@ public class SystemJdbcRepository {
     public UserRow insertUser(CreateUserRow row) {
         jdbcTemplate.update("""
             insert into users
-                (id, user_code, login_name, name, password, role, job_no, title_name, department_id, department_name,
-                 phone, email, avatar, login_tag_code, enabled, created_at, updated_at)
+                (id, user_code, login_name, name, password, password_algo, password_salt, role, job_no, title_name,
+                 department_id, department_name, phone, email, avatar, login_tag_code, enabled, created_at, updated_at)
             values
-                (:id, :userCode, :loginName, :name, :password, :role, :jobNo, :titleName, :departmentId, :departmentName,
-                 :phone, :email, :avatar, :loginTagCode, :enabled, :createdAt, :updatedAt)
+                (:id, :userCode, :loginName, :name, :password, :passwordAlgo, :passwordSalt, :role, :jobNo, :titleName,
+                 :departmentId, :departmentName, :phone, :email, :avatar, :loginTagCode, :enabled, :createdAt, :updatedAt)
             """, new MapSqlParameterSource()
             .addValue("id", row.id())
             .addValue("userCode", row.userCode())
             .addValue("loginName", row.loginName())
             .addValue("name", row.name())
             .addValue("password", row.password())
+            .addValue("passwordAlgo", row.passwordAlgo())
+            .addValue("passwordSalt", row.passwordSalt())
             .addValue("role", row.role())
             .addValue("jobNo", row.jobNo())
             .addValue("titleName", row.titleName())
@@ -489,6 +491,8 @@ public class SystemJdbcRepository {
         String loginName,
         String name,
         String password,
+        String passwordAlgo,
+        String passwordSalt,
         String role,
         String jobNo,
         String titleName,

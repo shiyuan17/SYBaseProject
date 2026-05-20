@@ -17,7 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowIntegrationTest {
 
     @Test
-    void shouldRequirePermissionHeaderAndRoleAccess() throws Exception {
+    void shouldRequireAuthorizationAndRoleAccess() throws Exception {
         String applicationId = createApplication("APP-M2-AUTH-001");
 
         mockMvc.perform(post("/api/v1/specimens/register")
@@ -34,7 +34,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.data.specimens[0].barcode").value("BC-AUTH-003"));
 
-        mockMvc.perform(get("/api/v1/applications/{id}/tracking", applicationId).header("X-User-Id", USER_TRACKING))
+        mockMvc.perform(authorized(get("/api/v1/applications/{id}/tracking", applicationId), USER_TRACKING))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.id").value(applicationId));
     }

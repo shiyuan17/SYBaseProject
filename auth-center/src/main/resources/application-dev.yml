@@ -1,0 +1,6 @@
+spring:
+  datasource:
+    driver-class-name: ${AUTH_CENTER_DATASOURCE_DRIVER_CLASS_NAME:dm.jdbc.driver.DmDriver}
+    url: ${AUTH_CENTER_DATASOURCE_URL:}
+    username: ${AUTH_CENTER_DATASOURCE_USERNAME:}
+    password: ${AUTH_CENTER_DATASOURCE_PASSWORD:}
