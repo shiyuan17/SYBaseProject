@@ -77,6 +77,68 @@ class LegacyDmFlywayOnboardingTest {
         }
     }
 
+    @Test
+    void shouldReconcileLegacyM1PermissionCodesToCanonicalCodes() throws Exception {
+        String url = "jdbc:h2:mem:legacy_m1_permissions_" + System.nanoTime() + ";MODE=LEGACY;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false";
+
+        Flyway.configure()
+            .dataSource(url, "sa", "")
+            .locations("classpath:db/migration")
+            .target(MigrationVersion.fromVersion("16"))
+            .load()
+            .migrate();
+
+        try (Connection connection = DriverManager.getConnection(url, "sa", "");
+             Statement statement = connection.createStatement()) {
+            statement.execute("""
+                UPDATE permissions
+                SET permission_code = 'sys:medical-order-dict:query'
+                WHERE id = 'PERM_SYS_ORDER_DICT_QUERY'
+                """);
+            statement.execute("""
+                UPDATE permissions
+                SET permission_code = 'sys:medical-order-charge:query'
+                WHERE id = 'PERM_SYS_ORDER_CHARGE_QUERY'
+                """);
+        }
+
+        Flyway.configure()
+            .dataSource(url, "sa", "")
+            .locations("classpath:db/migration")
+            .load()
+            .migrate();
+
+        try (Connection connection = DriverManager.getConnection(url, "sa", "");
+             Statement statement = connection.createStatement()) {
+            assertEquals(1, queryInt(statement, """
+                SELECT COUNT(*)
+                FROM permissions
+                WHERE permission_code = 'PERM_SYS_ORDER_DICT_QUERY'
+                  AND enabled = 1
+                """));
+            assertEquals(1, queryInt(statement, """
+                SELECT COUNT(*)
+                FROM permissions
+                WHERE permission_code = 'PERM_SYS_ORDER_CHARGE_QUERY'
+                  AND enabled = 1
+                """));
+            assertEquals(0, queryInt(statement, """
+                SELECT COUNT(*)
+                FROM permissions
+                WHERE permission_code IN ('sys:medical-order-dict:query', 'sys:medical-order-charge:query')
+                  AND enabled = 1
+                """));
+            assertEquals(2, queryInt(statement, """
+                SELECT COUNT(*)
+                FROM role_permissions
+                JOIN permissions ON permissions.id = role_permissions.permission_id
+                WHERE role_permissions.role_id = 'ROLE_PATHOLOGY_ADMIN'
+                  AND permissions.permission_code IN ('PERM_SYS_ORDER_DICT_QUERY', 'PERM_SYS_ORDER_CHARGE_QUERY')
+                  AND permissions.enabled = 1
+                """));
+        }
+    }
+
     private int queryInt(Statement statement, String sql) throws Exception {
         try (ResultSet resultSet = statement.executeQuery(sql)) {
             resultSet.next();

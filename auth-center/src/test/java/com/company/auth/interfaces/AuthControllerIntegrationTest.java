@@ -197,7 +197,10 @@ class AuthControllerIntegrationTest extends BaseWebIntegrationTest {
         mockMvc.perform(get("/api/v1/auth/access-codes")
                 .header("Authorization", bearerToken(accessToken)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data[0]").value("PERM_SYSTEM_USER_QUERY"));
+            .andExpect(jsonPath("$.data").isArray())
+            .andExpect(jsonPath("$.data[?(@ == 'PERM_SYSTEM_USER_QUERY')]").exists())
+            .andExpect(jsonPath("$.data[?(@ == 'PERM_SYS_ORDER_DICT_QUERY')]").exists())
+            .andExpect(jsonPath("$.data[?(@ == 'sys:medical-order-dict:query')]").doesNotExist());
 
         mockMvc.perform(post("/api/v1/auth/logout")
                 .header("Authorization", bearerToken(accessToken)))

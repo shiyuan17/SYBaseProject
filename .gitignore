@@ -7,3 +7,4 @@ target/
 out/
 .mvn/wrapper/maven-wrapper.jar
 .m2/
+.codex-backups/

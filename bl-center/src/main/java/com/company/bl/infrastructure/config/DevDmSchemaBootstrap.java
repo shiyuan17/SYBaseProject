@@ -51,6 +51,36 @@ public class DevDmSchemaBootstrap implements ApplicationRunner {
                     CONSTRAINT fk_auth_access_tokens_user FOREIGN KEY (user_id) REFERENCES users (id)
                 )
                 """);
+            ensureTable(connection, "MEDICAL_ORDER_PACKAGES", """
+                CREATE TABLE medical_order_packages (
+                    id VARCHAR(64) NOT NULL,
+                    package_code VARCHAR(64) NOT NULL,
+                    package_name VARCHAR(100) NOT NULL,
+                    package_type VARCHAR(50),
+                    owner_user_id VARCHAR(64),
+                    enabled INTEGER DEFAULT 1,
+                    remarks VARCHAR(500),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT pk_medical_order_packages PRIMARY KEY (id),
+                    CONSTRAINT uk_medical_order_packages_code UNIQUE (package_code),
+                    CONSTRAINT fk_medical_order_packages_owner FOREIGN KEY (owner_user_id) REFERENCES users (id)
+                )
+                """);
+            ensureTable(connection, "MEDICAL_ORDER_PACKAGE_ITEMS", """
+                CREATE TABLE medical_order_package_items (
+                    id VARCHAR(64) NOT NULL,
+                    package_id VARCHAR(64) NOT NULL,
+                    order_item_id VARCHAR(64) NOT NULL,
+                    sort_order INTEGER DEFAULT 0,
+                    remarks VARCHAR(500),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT pk_medical_order_package_items PRIMARY KEY (id),
+                    CONSTRAINT uk_medical_order_package_items UNIQUE (package_id, order_item_id),
+                    CONSTRAINT fk_medical_order_package_items_package FOREIGN KEY (package_id) REFERENCES medical_order_packages (id),
+                    CONSTRAINT fk_medical_order_package_items_item FOREIGN KEY (order_item_id) REFERENCES medical_order_dict_items (id)
+                )
+                """);
             ensureIndex(connection, "IDX_AUTH_ACCESS_TOKENS_USER_ID", "AUTH_ACCESS_TOKENS",
                 "CREATE INDEX idx_auth_access_tokens_user_id ON auth_access_tokens (user_id)");
         }

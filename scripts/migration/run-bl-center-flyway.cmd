@@ -15,7 +15,7 @@ if not defined BL_CENTER_DATASOURCE_URL set "BL_CENTER_DATASOURCE_URL=jdbc:dm://
 if not defined BL_CENTER_DATASOURCE_USERNAME set "BL_CENTER_DATASOURCE_USERNAME=SYSDBA"
 if not defined BL_CENTER_DATASOURCE_PASSWORD set "BL_CENTER_DATASOURCE_PASSWORD=Dm.2027.Pwd."
 
-call mvnw.cmd -Dmaven.repo.local=.m2/repository -f bl-center/pom.xml -DskipTests spring-boot:run -Dspring-boot.run.mainClass=com.company.bl.tools.BlCenterFlywayCli
+call mvnw.cmd -Dmaven.repo.local=.m2/repository -f bl-center/pom.xml -DskipTests -Dspring-boot.run.main-class=com.company.bl.tools.BlCenterFlywayCli spring-boot:run
 set "EXIT_CODE=%ERRORLEVEL%"
 
 popd >nul
