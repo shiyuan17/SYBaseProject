@@ -28,6 +28,8 @@ public interface SpecimenWorkflowRepository {
 
     List<TransportOrderItem> findTransportOrderItems(String transportOrderId);
 
+    List<String> findTransportOrderSpecimenBarcodes(String transportOrderId);
+
     List<TrackingEvent> findTrackingEventsByApplicationId(String applicationId);
 
     Optional<String> findApplicationIdByBarcode(String barcode);
@@ -118,6 +120,8 @@ public interface SpecimenWorkflowRepository {
 
     PagedPendingSpecimens findPendingReceipts(PendingSpecimenQuery query);
 
+    PagedPendingTransportOrders findPendingTransportOrders(PendingTransportOrderQuery query);
+
     ApplicationTracking getApplicationTracking(String applicationId, com.company.bl.domain.model.Application application);
 
     record PendingSpecimenQuery(
@@ -136,6 +140,7 @@ public interface SpecimenWorkflowRepository {
         String patientName,
         String submittingDepartmentId,
         String submittingDepartmentName,
+        String transportOrderId,
         String specimenId,
         String specimenNo,
         String barcode,
@@ -148,5 +153,33 @@ public interface SpecimenWorkflowRepository {
     }
 
     record PagedPendingSpecimens(List<PendingSpecimenRow> items, long total) {
+    }
+
+    record PendingTransportOrderQuery(
+        int page,
+        int size,
+        String applicationId,
+        String departmentId,
+        LocalDateTime dateFrom,
+        LocalDateTime dateTo,
+        String status
+    ) {
+    }
+
+    record PendingTransportOrderRow(
+        String id,
+        String transportOrderNo,
+        String applicationId,
+        String applicationNo,
+        String patientName,
+        String handoverDepartmentName,
+        String receiverDepartmentName,
+        String status,
+        LocalDateTime toBeTransportedAt,
+        LocalDateTime handedOverAt
+    ) {
+    }
+
+    record PagedPendingTransportOrders(List<PendingTransportOrderRow> items, long total) {
     }
 }

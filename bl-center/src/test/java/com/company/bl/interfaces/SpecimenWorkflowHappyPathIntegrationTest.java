@@ -139,6 +139,15 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
             .andExpect(jsonPath("$.data.total").value(0));
 
         String transportOrderId = createTransportOrder(applicationId, barcode).path("id").asText();
+        mockMvc.perform(authorized(get("/api/v1/transport-orders/pending"), USER_TRANSPORT)
+                .param("page", "1")
+                .param("size", "20")
+                .param("applicationId", applicationId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].transportOrderNo").isNotEmpty())
+            .andExpect(jsonPath("$.data.items[0].specimenBarcodes[0]").value(barcode));
+
         postJson("/api/v1/transport-orders/%s/handover".formatted(transportOrderId), USER_TRANSPORT, """
             {
               "receiverUserName": "receiver-pending",

@@ -11,6 +11,7 @@ import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.Creat
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.CreateSlideStainingCommand;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.ReworkOrder;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.Slide;
+import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.SlideQcEvaluation;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.SlideStaining;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.Slicing;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateDehydrationBatchCommand;
@@ -271,6 +272,11 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     @Override
     public void insertSlideQcEvaluation(CreateSlideQcEvaluationCommand command) {
         processingMutations.insertSlideQcEvaluation(command);
+    }
+
+    @Override
+    public List<SlideQcEvaluation> findSlideQcEvaluationsByCaseId(String caseId) {
+        return processingQueries.findSlideQcEvaluationsByCaseId(caseId);
     }
 
     @Override

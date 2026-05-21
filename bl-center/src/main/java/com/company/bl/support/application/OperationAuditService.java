@@ -33,6 +33,19 @@ public class OperationAuditService {
                        Function<T, String> businessIdResolver,
                        Supplier<String> failureBusinessIdSupplier,
                        Supplier<String> contentResolver) {
+        return audit(moduleCode, businessType, operationName, action, businessIdResolver, failureBusinessIdSupplier,
+            null, "system", contentResolver);
+    }
+
+    public <T> T audit(String moduleCode,
+                       String businessType,
+                       String operationName,
+                       Supplier<T> action,
+                       Function<T, String> businessIdResolver,
+                       Supplier<String> failureBusinessIdSupplier,
+                       String operatorUserId,
+                       String operatorName,
+                       Supplier<String> contentResolver) {
         try {
             T result = action.get();
             supportJdbcRepository.insertOperationLog(new SupportJdbcRepository.OperationLogRow(
@@ -42,8 +55,8 @@ public class OperationAuditService {
                 businessIdResolver == null ? null : businessIdResolver.apply(result),
                 operationName,
                 "SUCCESS",
-                null,
-                "system",
+                operatorUserId,
+                operatorName,
                 null,
                 LocalDateTime.now(),
                 contentResolver == null ? null : contentResolver.get(),
@@ -57,8 +70,8 @@ public class OperationAuditService {
                 failureBusinessIdSupplier == null ? null : failureBusinessIdSupplier.get(),
                 operationName,
                 "FAILED",
-                null,
-                "system",
+                operatorUserId,
+                operatorName,
                 null,
                 LocalDateTime.now(),
                 contentResolver == null ? null : contentResolver.get(),

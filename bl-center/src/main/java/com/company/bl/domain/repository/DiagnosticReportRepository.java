@@ -52,6 +52,11 @@ public interface DiagnosticReportRepository {
 
     void rejectPathologyReport(String reportId, String rejectReason);
 
+    void resetPathologyReportForRevision(String reportId,
+                                         int versionNo,
+                                         String remarks,
+                                         LocalDateTime updatedAt);
+
     void signPathologyReport(String reportId,
                              String signedByUserId,
                              String signedByName,

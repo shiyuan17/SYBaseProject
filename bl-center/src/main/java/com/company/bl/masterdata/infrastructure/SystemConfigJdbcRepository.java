@@ -92,6 +92,15 @@ public class SystemConfigJdbcRepository {
         return rows.isEmpty() ? null : rows.get(0);
     }
 
+    public ConfigItemRow findConfigItemByKey(String configKey) {
+        List<ConfigItemRow> rows = jdbcTemplate.query("""
+            select id, category_id, config_key, config_name, config_value, value_type, sort_order, enabled, remarks
+            from system_config_items
+            where config_key = :configKey
+            """, new MapSqlParameterSource().addValue("configKey", configKey), this::mapItem);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
     public void updateConfigCategory(String id, UpdateConfigCategoryRow row) {
         jdbcTemplate.update("""
             update system_config_categories

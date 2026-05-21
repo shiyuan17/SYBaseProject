@@ -85,6 +85,7 @@ public class SpecimenFixationController {
             item.patientName(),
             item.submittingDepartmentId(),
             item.submittingDepartmentName(),
+            item.transportOrderId(),
             item.specimenId(),
             item.specimenNo(),
             item.barcode(),

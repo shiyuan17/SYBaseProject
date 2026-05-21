@@ -1,36 +1,26 @@
 # SY Base Project
 
-`SYBaseProject` 是一个基于 `Java 17 + Spring Boot 3 + Maven Wrapper` 的多模块 DDD 脚手架，按照 `docs/` 下的工程规范预置目录结构、公共基础模块和一个 `user-center` 示例业务模块。
+`SYBaseProject` 是一个基于 `Java 17 + Spring Boot 3 + Maven Wrapper` 的多模块病理业务工程。当前仓库已经不再只是 DDD 脚手架示例，`bl-center`、`auth-center`、公共基础模块、Flyway 迁移和多条 M1-M4 业务链路都已落地。
 
-## 当前已落地模块
+## 当前模块
 
-- `common/common-core`：通用错误码、异常基类和值对象约定
-- `common/common-web`：统一响应、自动返回体包装、全局异常处理、`traceId` 过滤器
-- `common/common-test`：测试依赖和测试支撑基类
-- `user-center`：示例业务模块，演示 `interfaces -> application -> domain -> infrastructure` 四层分离
-- `tools/app-cli`：基于 `Picocli + Spring Boot` 的标准 CLI 模块，演示命令式应用入口
+- `bl-center`：病理业务主模块，已覆盖 M1-M4 多阶段能力
+- `auth-center`：认证鉴权与登录支持模块
+- `common/common-core`：通用错误码、异常和值对象约定
+- `common/common-security`：鉴权、安全与密码能力
+- `common/common-web`：统一响应、异常处理、Web 支撑
+- `common/common-test`：测试基类、仓库治理校验与集成测试支撑
+- `user-center`：保留的分层结构示例模块
+- `tools/app-cli`：命令行工具示例模块
 
-## 预留目录与扩展点
+## 当前状态
 
-以下目录目前是平台扩展位或占位目录，用于后续迭代，不应视为已交付能力：
+- M1：系统管理、菜单权限、系统配置、编号规则已可运行
+- M2：申请单、标本登记、固定、接收、运送主流程已落地
+- M3：技术流程主链路已落地，支持待办查询、技术追踪、返工与 QC 历史可视化
+- M4：诊断报告、修订、医嘱、会诊等诊断闭环能力已接入
 
-- `scripts/`
-- `deploy/`
-- `sql/`
-- `tools/`
-- `test/`
-- `gateway/`
-- `auth-center/`
-- `order-center/`
-- `ai-center/`
-- `admin-web/`
-- 顶层 `infrastructure/`
-
-完整文档导航见 [docs/README.md](./docs/README.md)。
-当前目录契约与占位说明见 [docs/guides/PROJECT_DIRECTORY.md](./docs/guides/PROJECT_DIRECTORY.md)。
-模板初始化、包名替换、数据库/Flyway、profile 与接口文档约定见 [docs/guides/TEMPLATE_CUSTOMIZATION.md](./docs/guides/TEMPLATE_CUSTOMIZATION.md)。
-本地 GitLab 启动模板见 [deploy/docker/gitlab/README.md](./deploy/docker/gitlab/README.md)。
-如需按“本地 GitLab 开发环境 + 开发服务器测试环境”运行 CI/CD，请参考 [docs/guides/GITLAB_LOCAL_TEST_FLOW.md](./docs/guides/GITLAB_LOCAL_TEST_FLOW.md)。
+详细目录说明见 [docs/guides/PROJECT_DIRECTORY.md](./docs/guides/PROJECT_DIRECTORY.md)，文档导航见 [docs/README.md](./docs/README.md)。
 
 ## 启动方式
 
@@ -39,58 +29,71 @@
 - `JDK 17`
 - `JAVA_HOME` 指向 JDK 17，或本机 `java` 默认就是 JDK 17
 
-建议优先使用 Maven Wrapper，避免本机安装的 `mvn` 绑定到其他 JDK 版本。
+建议优先使用 Maven Wrapper，避免本机 Maven/JDK 版本漂移。
 
-校验当前构建基线：
+校验构建环境：
 
 ```bash
 ./mvnw -version
 ```
 
-输出中的 `Java version` 应为 `17.x`。
-
-首次克隆后，先让多模块依赖安装到仓库内本地缓存：
+首次克隆后安装依赖到仓库内本地缓存：
 
 ```bash
 ./mvnw -B -ntp -Dmaven.repo.local=.m2/repository install -DskipTests
 ```
 
-启动示例模块：
-
-```bash
-./mvnw -Dmaven.repo.local=.m2/repository -f user-center/pom.xml spring-boot:run
-```
-
-运行 CLI 样例：
-
-```bash
-./mvnw -Dmaven.repo.local=.m2/repository -f tools/app-cli/pom.xml spring-boot:run -Dspring-boot.run.arguments="version"
-```
-
-执行测试：
+运行全部测试：
 
 ```bash
 ./mvnw test
 ```
 
+## Local Dev Startup
+
+- Prefer Maven Wrapper for local service startup instead of relying on IDE incremental compilation outputs.
+- Shared IntelliJ Spring Boot run configurations for `bl-center` and `auth-center` now run a Maven before-launch compile step so `target/classes` is refreshed before `Run` or `Debug`.
+- Command line launchers are available in `scripts/dev/`.
+
+```bash
+./scripts/dev/run-bl-center-dev.sh
+./scripts/dev/run-auth-center-dev.sh
+```
+
+On Windows, use:
+
+```powershell
+.\scripts\dev\run-bl-center-dev.cmd
+.\scripts\dev\run-auth-center-dev.cmd
+```
+
+If you hit `ClassNotFoundException: com.company.bl.BlCenterApplication`, rebuild the module output with:
+
+```powershell
+.\mvnw.cmd -pl bl-center -am compile -DskipTests
+```
+
+If you hit `ClassNotFoundException: com.company.auth.AuthCenterApplication`, rebuild with:
+
+```powershell
+.\mvnw.cmd -pl auth-center -am compile -DskipTests
+```
+
+## 目录与治理说明
+
+- `scripts/dev/`：本地启动脚本
+- `scripts/migration/`：Flyway 与迁移辅助脚本
+- `docs/`：协作规范、工程说明、计划与治理文档
+- `deploy/`：本地 GitLab 与部署相关样例
+- `gateway/`、`order-center/`、`ai-center/`、`admin-web/`：当前仍为预留扩展位
+- 顶层 `infrastructure/`：平台级沉淀预留目录，尚未作为独立可运行模块交付
+
 ## 示例接口
 
-- `POST /api/v1/users`
-- `GET /api/v1/users/{id}`
+- `POST /api/v1/applications`
+- `POST /api/v1/specimens/register`
+- `GET /api/v1/technical-tasks/pending`
+- `GET /api/v1/pathology-cases/{id}/technical-tracking`
+- `GET /api/v1/pathology-cases/{id}/diagnostic-workbench`
 
 业务接口默认会自动包装为统一返回体；如需返回原始内容，可使用 `@IgnoreApiResponseWrap` 跳过包装。
-
-## 当前实现取舍
-
-- 使用占位 `groupId` / `base package`：`com.company`
-- `UserRepository` 当前为内存实现，后续可替换为数据库仓储实现
-- 暂未接入鉴权、数据库、缓存、消息队列和 Flyway
-- `gateway`、`auth-center`、`order-center`、`ai-center`、`admin-web` 当前仅为占位目录
-- `infrastructure/*` 与多数 `common/*` 扩展模块当前只有边界说明，尚未落实现代码
-
-## 后续替换建议
-
-1. 将 `com.company` 替换为真实组织域名倒序包名
-2. 为 `user-center` 引入真实 `infrastructure.persistence` 实现，并保留 `domain.repository` 作为稳定抽象
-3. 按 `docs/rules/DB_RULES.md` 增加数据库迁移与达梦兼容验证记录
-4. 按 `docs/rules/API_RULES.md` 补充 OpenAPI / Apifox 文档

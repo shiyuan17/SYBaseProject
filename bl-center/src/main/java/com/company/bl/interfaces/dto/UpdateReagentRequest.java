@@ -1,0 +1,42 @@
+package com.company.bl.interfaces.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+
+@Getter
+@Setter
+public class UpdateReagentRequest {
+
+    @NotBlank
+    @Size(max = 100)
+    private String reagentName;
+
+    @Size(max = 100)
+    private String specification;
+
+    @Size(max = 32)
+    private String unit;
+
+    @Size(max = 200)
+    private String manufacturer;
+
+    private BigDecimal defaultLowStockThreshold;
+
+    private Integer defaultNearExpiryDays;
+
+    private boolean enabled = true;
+
+    @Size(max = 64)
+    private String operatorUserId;
+
+    @NotBlank
+    @Size(max = 100)
+    private String operatorName;
+
+    @Size(max = 500)
+    private String remarks;
+}

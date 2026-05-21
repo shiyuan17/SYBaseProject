@@ -97,6 +97,7 @@ public class SpecimenReceiptController {
             item.patientName(),
             item.submittingDepartmentId(),
             item.submittingDepartmentName(),
+            item.transportOrderId(),
             item.specimenId(),
             item.specimenNo(),
             item.barcode(),

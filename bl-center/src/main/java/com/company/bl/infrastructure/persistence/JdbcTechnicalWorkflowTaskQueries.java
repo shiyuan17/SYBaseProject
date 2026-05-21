@@ -191,6 +191,21 @@ final class JdbcTechnicalWorkflowTaskQueries {
         if (hasText(query.objectType())) {
             builder.append(" and t.object_type = :objectType");
         }
+        if (query.createdFrom() != null) {
+            builder.append(" and t.created_at >= :createdFrom");
+        }
+        if (query.createdTo() != null) {
+            builder.append(" and t.created_at <= :createdTo");
+        }
+        if (query.timedOutOnly()) {
+            builder.append("""
+                 and (
+                    (t.task_type = 'GROSSING' and t.task_status in (:activeStatuses) and t.created_at <= :grossingTimedOutBefore)
+                    or (t.task_type = 'DEHYDRATION' and t.task_status in (:activeStatuses) and t.created_at <= :dehydrationTimedOutBefore)
+                    or (t.task_type = 'STAINING' and t.task_status in (:activeStatuses) and t.created_at <= :stainingTimedOutBefore)
+                 )
+                """);
+        }
         return builder.toString();
     }
 
@@ -210,6 +225,18 @@ final class JdbcTechnicalWorkflowTaskQueries {
         }
         if (hasText(query.objectType())) {
             params.addValue("objectType", query.objectType());
+        }
+        if (query.createdFrom() != null) {
+            params.addValue("createdFrom", query.createdFrom());
+        }
+        if (query.createdTo() != null) {
+            params.addValue("createdTo", query.createdTo());
+        }
+        if (query.timedOutOnly()) {
+            params.addValue("activeStatuses", ACTIVE_TASK_STATUSES);
+            params.addValue("grossingTimedOutBefore", query.grossingTimedOutBefore());
+            params.addValue("dehydrationTimedOutBefore", query.dehydrationTimedOutBefore());
+            params.addValue("stainingTimedOutBefore", query.stainingTimedOutBefore());
         }
         return params;
     }

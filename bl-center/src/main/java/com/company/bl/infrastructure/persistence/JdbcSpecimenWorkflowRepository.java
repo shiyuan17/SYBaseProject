@@ -85,6 +85,17 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
     }
 
     @Override
+    public List<String> findTransportOrderSpecimenBarcodes(String transportOrderId) {
+        return jdbcTemplate.query("""
+            select s.barcode
+            from transport_order_items toi
+            join specimens s on s.id = toi.specimen_id
+            where toi.transport_order_id = :transportOrderId
+            order by s.registered_at asc, s.id asc
+            """, Map.of("transportOrderId", transportOrderId), (rs, rowNum) -> rs.getString("barcode"));
+    }
+
+    @Override
     public List<TrackingEvent> findTrackingEventsByApplicationId(String applicationId) {
         return jdbcTemplate.query("""
             select *
@@ -606,6 +617,7 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                 a.patient_name,
                 a.submitting_department_id,
                 a.submitting_department_name,
+                cast(null as varchar(64)) as transport_order_id,
                 s.id as specimen_id,
                 s.specimen_no,
                 s.barcode,
@@ -658,6 +670,13 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                 a.patient_name,
                 a.submitting_department_id,
                 a.submitting_department_name,
+                (
+                    select toi.transport_order_id
+                    from transport_order_items toi
+                    where toi.specimen_id = s.id
+                    order by toi.verified_at desc, toi.id desc
+                    fetch next 1 rows only
+                ) as transport_order_id,
                 s.id as specimen_id,
                 s.specimen_no,
                 s.barcode,
@@ -674,6 +693,30 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                 end as abnormal_flag
             """ + whereClause + " order by coalesce(evt.latest_event_time, s.registered_at) asc, s.id asc", query);
         return new PagedPendingSpecimens(items, total);
+    }
+
+    @Override
+    public PagedPendingTransportOrders findPendingTransportOrders(PendingTransportOrderQuery query) {
+        String whereClause = """
+            from transport_orders t
+            join applications a on a.id = t.application_id
+            where t.order_status <> 'COMPLETED'
+            """ + buildTransportPendingFilters(query);
+        long total = countPendingTransportOrders(whereClause, query);
+        List<PendingTransportOrderRow> items = queryPendingTransportOrders("""
+            select
+                t.id,
+                t.transport_order_no,
+                t.application_id,
+                a.application_no,
+                a.patient_name,
+                t.handover_department_name,
+                t.receiver_department_name,
+                t.order_status,
+                t.to_be_transported_at,
+                t.handed_over_at
+            """ + whereClause + " order by t.to_be_transported_at asc, t.id asc", query);
+        return new PagedPendingTransportOrders(items, total);
     }
 
     @Override
@@ -796,11 +839,26 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         return total == null ? 0L : total;
     }
 
+    private long countPendingTransportOrders(String whereClause, PendingTransportOrderQuery query) {
+        Long total = jdbcTemplate.queryForObject(
+            "select count(1) " + whereClause,
+            pendingTransportOrderParams(query),
+            Long.class);
+        return total == null ? 0L : total;
+    }
+
     private List<PendingSpecimenRow> queryPending(String sql, PendingSpecimenQuery query) {
         MapSqlParameterSource parameters = pendingParams(query, true)
             .addValue("offset", Math.max(0, (query.page() - 1) * query.size()))
             .addValue("size", query.size());
         return jdbcTemplate.query(sql + " offset :offset rows fetch next :size rows only", parameters, this::mapPendingSpecimenRow);
+    }
+
+    private List<PendingTransportOrderRow> queryPendingTransportOrders(String sql, PendingTransportOrderQuery query) {
+        MapSqlParameterSource parameters = pendingTransportOrderParams(query)
+            .addValue("offset", Math.max(0, (query.page() - 1) * query.size()))
+            .addValue("size", query.size());
+        return jdbcTemplate.query(sql + " offset :offset rows fetch next :size rows only", parameters, this::mapPendingTransportOrderRow);
     }
 
     private String buildPendingFilters(PendingSpecimenQuery query, String applicationAlias, String specimenAlias) {
@@ -816,6 +874,26 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         }
         if (query.dateTo() != null) {
             builder.append(" and ").append(specimenAlias).append(".registered_at < :dateTo");
+        }
+        return builder.toString();
+    }
+
+    private String buildTransportPendingFilters(PendingTransportOrderQuery query) {
+        StringBuilder builder = new StringBuilder();
+        if (query.applicationId() != null && !query.applicationId().isBlank()) {
+            builder.append(" and a.id = :applicationId");
+        }
+        if (query.departmentId() != null && !query.departmentId().isBlank()) {
+            builder.append(" and a.submitting_department_id = :departmentId");
+        }
+        if (query.dateFrom() != null) {
+            builder.append(" and t.to_be_transported_at >= :dateFrom");
+        }
+        if (query.dateTo() != null) {
+            builder.append(" and t.to_be_transported_at < :dateTo");
+        }
+        if (query.status() != null && !query.status().isBlank()) {
+            builder.append(" and t.order_status = :status");
         }
         return builder.toString();
     }
@@ -837,6 +915,26 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         return parameters;
     }
 
+    private MapSqlParameterSource pendingTransportOrderParams(PendingTransportOrderQuery query) {
+        MapSqlParameterSource parameters = new MapSqlParameterSource();
+        if (query.applicationId() != null && !query.applicationId().isBlank()) {
+            parameters.addValue("applicationId", query.applicationId());
+        }
+        if (query.departmentId() != null && !query.departmentId().isBlank()) {
+            parameters.addValue("departmentId", query.departmentId());
+        }
+        if (query.dateFrom() != null) {
+            parameters.addValue("dateFrom", query.dateFrom());
+        }
+        if (query.dateTo() != null) {
+            parameters.addValue("dateTo", query.dateTo());
+        }
+        if (query.status() != null && !query.status().isBlank()) {
+            parameters.addValue("status", query.status());
+        }
+        return parameters;
+    }
+
     private String nextId(String prefix) {
         return prefix + "-" + UUID.randomUUID();
     }
@@ -848,6 +946,7 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             rs.getString("patient_name"),
             rs.getString("submitting_department_id"),
             rs.getString("submitting_department_name"),
+            rs.getString("transport_order_id"),
             rs.getString("specimen_id"),
             rs.getString("specimen_no"),
             rs.getString("barcode"),
@@ -856,5 +955,19 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             rs.getTimestamp("registered_at") == null ? null : rs.getTimestamp("registered_at").toLocalDateTime(),
             rs.getTimestamp("latest_event_time") == null ? null : rs.getTimestamp("latest_event_time").toLocalDateTime(),
             rs.getInt("abnormal_flag") == 1);
+    }
+
+    private PendingTransportOrderRow mapPendingTransportOrderRow(ResultSet rs, int rowNum) throws SQLException {
+        return new PendingTransportOrderRow(
+            rs.getString("id"),
+            rs.getString("transport_order_no"),
+            rs.getString("application_id"),
+            rs.getString("application_no"),
+            rs.getString("patient_name"),
+            rs.getString("handover_department_name"),
+            rs.getString("receiver_department_name"),
+            rs.getString("order_status"),
+            rs.getTimestamp("to_be_transported_at") == null ? null : rs.getTimestamp("to_be_transported_at").toLocalDateTime(),
+            rs.getTimestamp("handed_over_at") == null ? null : rs.getTimestamp("handed_over_at").toLocalDateTime());
     }
 }

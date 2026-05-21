@@ -12,6 +12,7 @@ spring:
       - samplingGuidelineTree
       - samplingGuidelineDetail
       - systemConfigTree
+      - systemConfigItems
       - numberingRules
     caffeine:
       spec: maximumSize=200,expireAfterWrite=10m

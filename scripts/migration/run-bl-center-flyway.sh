@@ -4,6 +4,8 @@ set -eu
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 cd "$ROOT_DIR"
 
+MODE=${1:-sync}
+
 if [ -z "${JAVA_HOME:-}" ]; then
   echo "JAVA_HOME is not set. Please point it to JDK 17." >&2
   exit 1
@@ -14,5 +16,7 @@ export BL_CENTER_DATASOURCE_URL="${BL_CENTER_DATASOURCE_URL:-jdbc:dm://127.0.0.1
 export BL_CENTER_DATASOURCE_USERNAME="${BL_CENTER_DATASOURCE_USERNAME:-SYSDBA}"
 export BL_CENTER_DATASOURCE_PASSWORD="${BL_CENTER_DATASOURCE_PASSWORD:-Dm.2027.Pwd.}"
 
+echo "Running bl-center Flyway ${MODE}..."
 ./mvnw -Dmaven.repo.local=.m2/repository -f bl-center/pom.xml -DskipTests spring-boot:run \
-  -Dspring-boot.run.mainClass=com.company.bl.tools.BlCenterFlywayCli
+  -Dspring-boot.run.mainClass=com.company.bl.tools.BlCenterFlywayCli \
+  -Dspring-boot.run.arguments="${MODE}"

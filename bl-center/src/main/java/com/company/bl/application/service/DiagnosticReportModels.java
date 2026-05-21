@@ -125,101 +125,117 @@ public final class DiagnosticReportModels {
     ) {
     }
 
-    public record DiagnosticWorkbenchView(
-        String caseId,
-        String applicationNo,
-        String pathologyNo,
-        String caseStatus,
-        String patientName,
-        String submittingDepartmentName,
-        String submittingDoctorName,
-        String clinicalDiagnosis,
-        List<WorkbenchSpecimenSummary> specimens,
-        List<WorkbenchBlockSummary> blocks,
-        List<WorkbenchSlideSummary> slides,
-        List<TaskView> diagnosticTasks,
-        PathologyReportView currentReport,
-        List<TrackingEventView> recentEvents
-    ) {
-    }
-
-    public record WorkbenchSpecimenSummary(
-        String specimenId,
-        String specimenNo,
-        String barcode,
-        String specimenName,
-        String specimenStatus
-    ) {
-    }
-
-    public record WorkbenchBlockSummary(
-        String blockId,
-        String specimenId,
-        String blockCode,
-        String embeddingBoxNo,
-        String description
-    ) {
-    }
-
-    public record WorkbenchSlideSummary(
-        String slideId,
-        String specimenId,
-        String embeddingBoxId,
-        String slideNo,
-        String slideStatus,
-        String qualityStatus
-    ) {
-    }
-
-    public record PathologyReportView(
+    public record CreateReportRevisionRequestCommand(
         String reportId,
-        String reportNo,
-        String reportStatus,
-        String clinicalDiagnosis,
-        String grossExam,
-        String microscopicExam,
-        String finalDiagnosis,
-        String richTextContent,
-        String submittedAt,
-        String reviewedAt,
-        String signedAt,
-        String publishedAt,
-        String reviewerName,
-        String signedByName,
-        int versionNo
-    ) {
-    }
-
-    public record TrackingEventView(
-        String nodeCode,
-        String eventType,
-        String eventStatus,
-        String eventTime,
+        String requestReason,
+        String operatorUserId,
         String operatorName,
-        String eventContent
+        String terminalCode,
+        String remarks
     ) {
     }
 
-    public record ReportTrackingView(
+    public record ReviewReportRevisionCommand(
+        String requestId,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks,
+        String rejectReason
+    ) {
+    }
+
+    public record ReportRevisionResult(
+        String requestId,
         String caseId,
-        String applicationNo,
-        String pathologyNo,
-        String caseStatus,
-        String patientName,
-        List<TaskView> diagnosticTasks,
-        PathologyReportView currentReport,
-        List<ReportVersionView> versions,
-        List<TrackingEventView> events
+        String reportId,
+        String requestStatus,
+        Integer approvedVersionNo
     ) {
     }
 
-    public record ReportVersionView(
-        String versionId,
-        int versionNo,
-        String versionStatus,
-        String finalDiagnosisSnapshot,
-        String signedAt,
-        String createdAt
+    public record PendingMedicalOrderQuery(
+        int page,
+        int size,
+        String pathologyNo,
+        String status
     ) {
     }
+
+    public record PendingMedicalOrderPage(List<DiagnosticReportViews.MedicalOrderView> items, int page, int size, long total) {
+    }
+
+    public record CreateMedicalOrderCommand(
+        String caseId,
+        String orderType,
+        String orderContent,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
+    public record MedicalOrderActionCommand(
+        String orderId,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
+    public record MedicalOrderResult(
+        String orderId,
+        String caseId,
+        String orderNumber,
+        String status
+    ) {
+    }
+
+    public record ConsultationParticipantInput(
+        String participantUserId,
+        String participantName,
+        String participantRole
+    ) {
+    }
+
+    public record CreateConsultationCommand(
+        String caseId,
+        List<ConsultationParticipantInput> participants,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
+    public record CommentConsultationParticipantCommand(
+        String consultationId,
+        String participantId,
+        String opinion,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
+    public record CompleteConsultationCommand(
+        String consultationId,
+        String opinion,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
+    public record ConsultationResult(
+        String consultationId,
+        String caseId,
+        String status
+    ) {
+    }
+
 }

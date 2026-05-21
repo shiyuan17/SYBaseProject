@@ -37,7 +37,8 @@ class TechnicalWorkflowSupport {
         this.technicalMarkingGateway = technicalMarkingGateway;
     }
 
-    TechnicalWorkflowModels.TaskView toTaskView(TechnicalWorkflowRecords.TechnicalTask task) {
+    TechnicalWorkflowModels.TaskView toTaskView(TechnicalWorkflowRecords.TechnicalTask task,
+                                                TechnicalTaskTimeoutPolicy.TimeoutEvaluation timeoutEvaluation) {
         return new TechnicalWorkflowModels.TaskView(
             task.id(),
             task.applicationId(),
@@ -53,7 +54,10 @@ class TechnicalWorkflowSupport {
             task.remarks(),
             stringify(task.createdAt()),
             stringify(task.startedAt()),
-            stringify(task.completedAt()));
+            stringify(task.completedAt()),
+            stringify(timeoutEvaluation.deadlineAt()),
+            timeoutEvaluation.timeoutRuleCode(),
+            timeoutEvaluation.timedOut());
     }
 
     TechnicalWorkflowRecords.TechnicalTask startTask(TechnicalWorkflowModels.TaskStartCommand command,

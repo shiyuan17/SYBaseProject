@@ -4,133 +4,250 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 
-@Schema(name = "DiagnosticWorkbenchResponse", description = "病例诊断工作台聚合视图")
+@Schema(name = "DiagnosticWorkbenchResponse", description = "Diagnostic workbench aggregate view")
 public record DiagnosticWorkbenchResponse(
-    @Schema(description = "病例 ID")
+    @Schema(description = "Case ID")
     String caseId,
-    @Schema(description = "申请单号")
+    @Schema(description = "Application number")
     String applicationNo,
-    @Schema(description = "病理号")
+    @Schema(description = "Pathology number")
     String pathologyNo,
-    @Schema(description = "病例状态")
+    @Schema(description = "Case status")
     String caseStatus,
-    @Schema(description = "患者姓名")
+    @Schema(description = "Patient name")
     String patientName,
-    @Schema(description = "送检科室")
+    @Schema(description = "Submitting department")
     String submittingDepartmentName,
-    @Schema(description = "送检医生")
+    @Schema(description = "Submitting doctor")
     String submittingDoctorName,
-    @Schema(description = "临床诊断")
+    @Schema(description = "Clinical diagnosis")
     String clinicalDiagnosis,
-    @Schema(description = "标本摘要")
+    @Schema(description = "Application form archive status")
+    String applicationFormArchiveStatus,
+    @Schema(description = "Application form archive location")
+    String applicationFormArchiveLocation,
+    @Schema(description = "Application form archive image URL")
+    String applicationFormImageUrl,
+    @Schema(description = "Specimen summaries")
     List<SpecimenSummary> specimens,
-    @Schema(description = "蜡块摘要")
+    @Schema(description = "Block summaries")
     List<BlockSummary> blocks,
-    @Schema(description = "玻片摘要")
+    @Schema(description = "Slide summaries")
     List<SlideSummary> slides,
-    @Schema(description = "诊断任务列表")
+    @Schema(description = "Diagnostic tasks")
     List<PendingDiagnosticTaskResponse> diagnosticTasks,
-    @Schema(description = "当前报告")
+    @Schema(description = "Current report")
     CurrentReportSummary currentReport,
-    @Schema(description = "最近事件")
-    List<EventSummary> recentEvents
+    @Schema(description = "Recent workflow events")
+    List<EventSummary> recentEvents,
+    @Schema(description = "Revision request summaries")
+    List<RevisionRequestSummary> revisions,
+    @Schema(description = "Medical order summaries")
+    List<MedicalOrderSummary> medicalOrders,
+    @Schema(description = "Consultation summaries")
+    List<ConsultationSummary> consultations,
+    @Schema(description = "Whether there is a pending revision request")
+    boolean hasPendingRevision
 ) {
-    @Schema(name = "DiagnosticWorkbenchSpecimenSummary", description = "诊断工作台中的标本摘要")
+    @Schema(name = "DiagnosticWorkbenchSpecimenSummary", description = "Specimen summary in diagnostic workbench")
     public record SpecimenSummary(
-        @Schema(description = "标本 ID")
+        @Schema(description = "Specimen ID")
         String specimenId,
-        @Schema(description = "标本号")
+        @Schema(description = "Specimen number")
         String specimenNo,
-        @Schema(description = "标本条码")
+        @Schema(description = "Specimen barcode")
         String barcode,
-        @Schema(description = "标本名称")
+        @Schema(description = "Specimen name")
         String specimenName,
-        @Schema(description = "标本状态")
+        @Schema(description = "Specimen status")
         String specimenStatus
     ) {
     }
 
-    @Schema(name = "DiagnosticWorkbenchBlockSummary", description = "诊断工作台中的蜡块摘要")
+    @Schema(name = "DiagnosticWorkbenchBlockSummary", description = "Block summary in diagnostic workbench")
     public record BlockSummary(
-        @Schema(description = "蜡块 ID")
+        @Schema(description = "Block ID")
         String blockId,
-        @Schema(description = "所属标本 ID")
+        @Schema(description = "Specimen ID")
         String specimenId,
-        @Schema(description = "蜡块编码")
+        @Schema(description = "Block code")
         String blockCode,
-        @Schema(description = "包埋盒号")
+        @Schema(description = "Embedding box number")
         String embeddingBoxNo,
-        @Schema(description = "描述")
-        String description
+        @Schema(description = "Description")
+        String description,
+        @Schema(description = "Archive status")
+        String archiveStatus,
+        @Schema(description = "Archive location")
+        String archiveLocation,
+        @Schema(description = "Loan status")
+        String loanStatus
     ) {
     }
 
-    @Schema(name = "DiagnosticWorkbenchSlideSummary", description = "诊断工作台中的玻片摘要")
+    @Schema(name = "DiagnosticWorkbenchSlideSummary", description = "Slide summary in diagnostic workbench")
     public record SlideSummary(
-        @Schema(description = "玻片 ID")
+        @Schema(description = "Slide ID")
         String slideId,
-        @Schema(description = "所属标本 ID")
+        @Schema(description = "Specimen ID")
         String specimenId,
-        @Schema(description = "所属包埋盒 ID")
+        @Schema(description = "Embedding box ID")
         String embeddingBoxId,
-        @Schema(description = "玻片号")
+        @Schema(description = "Slide number")
         String slideNo,
-        @Schema(description = "玻片状态")
+        @Schema(description = "Slide status")
         String slideStatus,
-        @Schema(description = "质控状态")
-        String qualityStatus
+        @Schema(description = "Quality status")
+        String qualityStatus,
+        @Schema(description = "Archive status")
+        String archiveStatus,
+        @Schema(description = "Archive location")
+        String archiveLocation,
+        @Schema(description = "Loan status")
+        String loanStatus
     ) {
     }
 
-    @Schema(name = "DiagnosticWorkbenchCurrentReportSummary", description = "诊断工作台中的当前报告摘要")
+    @Schema(name = "DiagnosticWorkbenchCurrentReportSummary", description = "Current report summary in diagnostic workbench")
     public record CurrentReportSummary(
-        @Schema(description = "报告 ID")
+        @Schema(description = "Report ID")
         String reportId,
-        @Schema(description = "报告编号")
+        @Schema(description = "Report number")
         String reportNo,
-        @Schema(description = "报告状态")
+        @Schema(description = "Report status")
         String reportStatus,
-        @Schema(description = "临床诊断")
+        @Schema(description = "Clinical diagnosis")
         String clinicalDiagnosis,
-        @Schema(description = "大体检查")
+        @Schema(description = "Gross exam")
         String grossExam,
-        @Schema(description = "镜下检查")
+        @Schema(description = "Microscopic exam")
         String microscopicExam,
-        @Schema(description = "最终诊断")
+        @Schema(description = "Final diagnosis")
         String finalDiagnosis,
-        @Schema(description = "富文本正文")
+        @Schema(description = "Rich text content")
         String richTextContent,
-        @Schema(description = "提交时间")
+        @Schema(description = "Submitted at")
         String submittedAt,
-        @Schema(description = "审核时间")
+        @Schema(description = "Reviewed at")
         String reviewedAt,
-        @Schema(description = "签发时间")
+        @Schema(description = "Signed at")
         String signedAt,
-        @Schema(description = "发布时间")
+        @Schema(description = "Published at")
         String publishedAt,
-        @Schema(description = "审核医生")
+        @Schema(description = "Reviewer name")
         String reviewerName,
-        @Schema(description = "签发医生")
+        @Schema(description = "Signed by name")
         String signedByName,
-        @Schema(description = "当前版本号")
+        @Schema(description = "Current version number")
         int versionNo
     ) {
     }
 
-    @Schema(name = "DiagnosticWorkbenchEventSummary", description = "诊断工作台中的事件摘要")
+    @Schema(name = "DiagnosticWorkbenchEventSummary", description = "Workflow event summary in diagnostic workbench")
     public record EventSummary(
-        @Schema(description = "节点编码")
+        @Schema(description = "Node code")
         String nodeCode,
-        @Schema(description = "事件类型")
+        @Schema(description = "Event type")
         String eventType,
-        @Schema(description = "事件状态")
+        @Schema(description = "Event status")
         String eventStatus,
-        @Schema(description = "事件时间")
+        @Schema(description = "Event time")
         String eventTime,
-        @Schema(description = "操作人姓名")
+        @Schema(description = "Operator name")
         String operatorName,
-        @Schema(description = "事件内容")
+        @Schema(description = "Event content")
         String eventContent
+    ) {
+    }
+
+    @Schema(name = "DiagnosticWorkbenchRevisionRequestSummary", description = "Revision request summary in diagnostic workbench")
+    public record RevisionRequestSummary(
+        @Schema(description = "Revision request ID")
+        String requestId,
+        @Schema(description = "Report ID")
+        String reportId,
+        @Schema(description = "Current version number")
+        int currentVersionNo,
+        @Schema(description = "Request status")
+        String requestStatus,
+        @Schema(description = "Request reason")
+        String requestReason,
+        @Schema(description = "Requested by")
+        String requestedByName,
+        @Schema(description = "Requested at")
+        String requestedAt,
+        @Schema(description = "Reviewed by")
+        String reviewedByName,
+        @Schema(description = "Reviewed at")
+        String reviewedAt,
+        @Schema(description = "Reject reason")
+        String rejectReason,
+        @Schema(description = "Approved version number")
+        Integer approvedVersionNo
+    ) {
+    }
+
+    @Schema(name = "DiagnosticWorkbenchMedicalOrderSummary", description = "Medical order summary in diagnostic workbench")
+    public record MedicalOrderSummary(
+        @Schema(description = "Order ID")
+        String orderId,
+        @Schema(description = "Case ID")
+        String caseId,
+        @Schema(description = "Pathology number")
+        String pathologyNo,
+        @Schema(description = "Application number")
+        String applicationNo,
+        @Schema(description = "Patient name")
+        String patientName,
+        @Schema(description = "Order number")
+        String orderNumber,
+        @Schema(description = "Order type")
+        String orderType,
+        @Schema(description = "Order content")
+        String orderContent,
+        @Schema(description = "Execution scope")
+        String executionScope,
+        @Schema(description = "Billing status")
+        String billingStatus,
+        @Schema(description = "Order status")
+        String status,
+        @Schema(description = "Doctor name")
+        String doctorName,
+        @Schema(description = "Executor name")
+        String executorName,
+        @Schema(description = "Order date")
+        String orderDate,
+        @Schema(description = "Accepted at")
+        String acceptedAt,
+        @Schema(description = "Completed at")
+        String completedAt,
+        @Schema(description = "Cancelled at")
+        String cancelledAt,
+        @Schema(description = "Remarks")
+        String remarks
+    ) {
+    }
+
+    @Schema(name = "DiagnosticWorkbenchConsultationSummary", description = "Consultation summary in diagnostic workbench")
+    public record ConsultationSummary(
+        @Schema(description = "Consultation ID")
+        String consultationId,
+        @Schema(description = "Consultation type")
+        String consultationType,
+        @Schema(description = "Consultation status")
+        String status,
+        @Schema(description = "Requested by")
+        String requestedByName,
+        @Schema(description = "Requested at")
+        String requestedAt,
+        @Schema(description = "Host name")
+        String hostName,
+        @Schema(description = "Completed at")
+        String completedAt,
+        @Schema(description = "Opinion")
+        String opinion,
+        @Schema(description = "Participant count")
+        int participantCount
     ) {
     }
 }

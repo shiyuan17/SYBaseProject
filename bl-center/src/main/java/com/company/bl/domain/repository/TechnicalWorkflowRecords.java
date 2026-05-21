@@ -15,7 +15,13 @@ public final class TechnicalWorkflowRecords {
         String taskStatus,
         String applicationNo,
         String pathologyNo,
-        String objectType
+        String objectType,
+        LocalDateTime createdFrom,
+        LocalDateTime createdTo,
+        boolean timedOutOnly,
+        LocalDateTime grossingTimedOutBefore,
+        LocalDateTime dehydrationTimedOutBefore,
+        LocalDateTime stainingTimedOutBefore
     ) {
     }
 

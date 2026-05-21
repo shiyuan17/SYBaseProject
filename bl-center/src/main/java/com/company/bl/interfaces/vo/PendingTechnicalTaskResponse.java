@@ -33,6 +33,12 @@ public record PendingTechnicalTaskResponse(
     @Schema(description = "开始时间")
     String startedAt,
     @Schema(description = "完成时间")
-    String completedAt
+    String completedAt,
+    @Schema(description = "超时截止时间")
+    String deadlineAt,
+    @Schema(description = "超时规则编码")
+    String timeoutRuleCode,
+    @Schema(description = "是否已超时")
+    boolean timedOut
 ) {
 }

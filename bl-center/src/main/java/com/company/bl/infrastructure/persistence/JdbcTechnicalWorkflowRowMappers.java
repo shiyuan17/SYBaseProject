@@ -7,6 +7,7 @@ import com.company.bl.domain.model.Specimen;
 import com.company.bl.domain.model.TrackingEvent;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.ReworkOrder;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.Slide;
+import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.SlideQcEvaluation;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.SlideStaining;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.Slicing;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.DehydrationBatch;
@@ -206,6 +207,23 @@ final class JdbcTechnicalWorkflowRowMappers {
             rs.getString("rework_type"),
             rs.getString("status"),
             rs.getString("reason"));
+    }
+
+    SlideQcEvaluation mapSlideQcEvaluation(ResultSet rs, int rowNum) throws SQLException {
+        return new SlideQcEvaluation(
+            rs.getString("id"),
+            rs.getString("case_id"),
+            rs.getString("specimen_id"),
+            rs.getString("slide_id"),
+            rs.getString("slide_no"),
+            rs.getString("qc_type"),
+            rs.getString("evaluation_result"),
+            rs.getString("issue_description"),
+            rs.getString("improvement_suggestion"),
+            rs.getString("evaluator_user_id"),
+            rs.getString("evaluator_name"),
+            toLocalDateTime(rs.getTimestamp("evaluated_at")),
+            rs.getString("remarks"));
     }
 
     TrackingEvent mapTrackingEvent(ResultSet rs, int rowNum) throws SQLException {

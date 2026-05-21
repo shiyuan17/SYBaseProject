@@ -1,32 +1,30 @@
 package com.company.bl.application.service;
 
-import com.company.bl.domain.model.Application;
-import com.company.bl.domain.model.PathologyCase;
-import com.company.bl.domain.model.Specimen;
 import com.company.bl.domain.model.TrackingEvent;
+import com.company.bl.domain.repository.ArchiveRepository;
 import com.company.bl.domain.repository.DiagnosticReportRepository;
-import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords;
-import com.company.bl.domain.repository.TechnicalWorkflowRecords;
-import com.company.bl.domain.repository.TechnicalWorkflowRepository;
+import com.company.bl.domain.repository.DiagnosticTrackingQueryRepository;
+import com.company.bl.domain.repository.MedicalOrderRepository;
+import com.company.bl.domain.repository.ReportRevisionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 class DiagnosticReportQueryService {
 
     private final DiagnosticReportRepository diagnosticReportRepository;
-    private final TechnicalWorkflowRepository technicalWorkflowRepository;
-    private final DiagnosticReportSupport diagnosticReportSupport;
+    private final DiagnosticTrackingQueryRepository diagnosticTrackingQueryRepository;
 
     DiagnosticReportQueryService(DiagnosticReportRepository diagnosticReportRepository,
-                                 TechnicalWorkflowRepository technicalWorkflowRepository,
-                                 DiagnosticReportSupport diagnosticReportSupport) {
+                                 DiagnosticTrackingQueryRepository diagnosticTrackingQueryRepository) {
         this.diagnosticReportRepository = diagnosticReportRepository;
-        this.technicalWorkflowRepository = technicalWorkflowRepository;
-        this.diagnosticReportSupport = diagnosticReportSupport;
+        this.diagnosticTrackingQueryRepository = diagnosticTrackingQueryRepository;
     }
 
     @Transactional(readOnly = true)
@@ -46,59 +44,67 @@ class DiagnosticReportQueryService {
     }
 
     @Transactional(readOnly = true)
-    DiagnosticReportModels.DiagnosticWorkbenchView getDiagnosticWorkbench(String caseId) {
-        PathologyCase pathologyCase = diagnosticReportSupport.getCase(caseId);
-        Application application = diagnosticReportSupport.getApplication(pathologyCase.applicationId());
-        List<Specimen> specimens = technicalWorkflowRepository.findSpecimensByCaseId(caseId);
-        List<TechnicalWorkflowRecords.SamplingBlock> blocks = technicalWorkflowRepository.findSamplingBlocksByCaseId(caseId);
-        List<TechnicalWorkflowProcessingRecords.Slide> slides = technicalWorkflowRepository.findSlidesByCaseId(caseId);
-        List<TrackingEvent> events = technicalWorkflowRepository.findRecentTrackingEventsByCaseId(caseId, 10);
-        List<DiagnosticReportRepository.DiagnosticTask> tasks = diagnosticReportRepository.findDiagnosticTasksByCaseId(caseId);
-        DiagnosticReportRepository.PathologyReport report = diagnosticReportRepository
-            .findCurrentReportByCaseIdAndScope(caseId, DiagnosticReportConstants.REPORT_SCOPE_ROUTINE)
-            .orElse(null);
-        return new DiagnosticReportModels.DiagnosticWorkbenchView(
-            pathologyCase.id(),
-            application.getApplicationNo(),
-            pathologyCase.pathologyNo(),
-            pathologyCase.caseStatus(),
-            application.getPatientName(),
-            application.getSubmittingDepartmentName(),
-            application.getSubmittingDoctorName(),
-            application.getClinicalDiagnosis(),
-            specimens.stream().map(item -> new DiagnosticReportModels.WorkbenchSpecimenSummary(
+    DiagnosticReportViews.DiagnosticWorkbenchView getDiagnosticWorkbench(String caseId) {
+        DiagnosticTrackingQueryRepository.DiagnosticWorkbenchAggregate aggregate =
+            diagnosticTrackingQueryRepository.getDiagnosticWorkbench(caseId);
+        Map<String, com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingBox> embeddingBoxesByNo =
+            aggregate.embeddingBoxes().stream()
+                .collect(Collectors.toMap(
+                    com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingBox::embeddingBoxNo,
+                    Function.identity(),
+                    (left, right) -> left));
+        Map<String, ArchiveRepository.ObjectArchiveSummary> embeddingBoxArchiveByObjectId = indexObjectArchives(aggregate.embeddingBoxArchives());
+        Map<String, ArchiveRepository.ObjectArchiveSummary> slideArchiveByObjectId = indexObjectArchives(aggregate.slideArchives());
+        return new DiagnosticReportViews.DiagnosticWorkbenchView(
+            aggregate.caseId(),
+            aggregate.applicationNo(),
+            aggregate.pathologyNo(),
+            aggregate.caseStatus(),
+            aggregate.patientName(),
+            aggregate.submittingDepartmentName(),
+            aggregate.submittingDoctorName(),
+            aggregate.clinicalDiagnosis(),
+            archiveStatus(aggregate.applicationFormArchive()),
+            archiveLocation(aggregate.applicationFormArchive()),
+            archiveImageUrl(aggregate.applicationFormArchive()),
+            aggregate.specimens().stream().map(item -> new DiagnosticReportViews.WorkbenchSpecimenSummary(
                 item.id(), item.specimenNo(), item.barcode(), item.specimenNameStandardized(), item.specimenStatus().name())).toList(),
-            blocks.stream().map(item -> new DiagnosticReportModels.WorkbenchBlockSummary(
-                item.id(), item.specimenId(), item.blockCode(), item.embeddingBoxNo(), item.blockDescription())).toList(),
-            slides.stream().map(item -> new DiagnosticReportModels.WorkbenchSlideSummary(
-                item.id(), item.specimenId(), item.embeddingBoxId(), item.slideNo(), item.slideStatus(), item.qualityStatus())).toList(),
-            tasks.stream().map(this::toTaskView).toList(),
-            report == null ? null : toReportView(report),
-            events.stream().map(this::toTrackingEvent).toList());
+            aggregate.blocks().stream().map(item -> toBlockSummary(item, embeddingBoxesByNo, embeddingBoxArchiveByObjectId)).toList(),
+            aggregate.slides().stream().map(item -> toSlideSummary(item, slideArchiveByObjectId)).toList(),
+            aggregate.diagnosticTasks().stream().map(this::toTaskView).toList(),
+            aggregate.currentReport() == null ? null : toReportView(aggregate.currentReport()),
+            aggregate.recentEvents().stream().map(this::toTrackingEvent).toList(),
+            aggregate.revisions().stream().map(this::toRevisionView).toList(),
+            aggregate.medicalOrders().stream().map(this::toMedicalOrderView).toList(),
+            aggregate.consultations().stream().map(this::toConsultationView).toList(),
+            aggregate.hasPendingRevision());
     }
 
     @Transactional(readOnly = true)
-    DiagnosticReportModels.ReportTrackingView getReportTracking(String caseId) {
-        PathologyCase pathologyCase = diagnosticReportSupport.getCase(caseId);
-        Application application = diagnosticReportSupport.getApplication(pathologyCase.applicationId());
-        List<DiagnosticReportRepository.DiagnosticTask> tasks = diagnosticReportRepository.findDiagnosticTasksByCaseId(caseId);
-        DiagnosticReportRepository.PathologyReport report = diagnosticReportRepository
-            .findCurrentReportByCaseIdAndScope(caseId, DiagnosticReportConstants.REPORT_SCOPE_ROUTINE)
-            .orElse(null);
-        List<DiagnosticReportRepository.ReportVersion> versions = diagnosticReportRepository.findReportVersionsByCaseId(caseId);
-        List<TrackingEvent> events = technicalWorkflowRepository.findTrackingEventsByCaseId(caseId);
-        return new DiagnosticReportModels.ReportTrackingView(
-            pathologyCase.id(),
-            application.getApplicationNo(),
-            pathologyCase.pathologyNo(),
-            pathologyCase.caseStatus(),
-            application.getPatientName(),
-            tasks.stream().map(this::toTaskView).toList(),
-            report == null ? null : toReportView(report),
-            versions.stream().map(item -> new DiagnosticReportModels.ReportVersionView(
+    DiagnosticReportViews.ReportTrackingView getReportTracking(String caseId) {
+        DiagnosticTrackingQueryRepository.ReportTrackingAggregate aggregate =
+            diagnosticTrackingQueryRepository.getReportTracking(caseId);
+        return new DiagnosticReportViews.ReportTrackingView(
+            aggregate.caseId(),
+            aggregate.applicationNo(),
+            aggregate.pathologyNo(),
+            aggregate.caseStatus(),
+            aggregate.patientName(),
+            archiveStatus(aggregate.applicationFormArchive()),
+            archiveLocation(aggregate.applicationFormArchive()),
+            archiveImageUrl(aggregate.applicationFormArchive()),
+            aggregate.diagnosticTasks().stream().map(this::toTaskView).toList(),
+            aggregate.currentReport() == null ? null : toReportView(aggregate.currentReport()),
+            aggregate.versions().stream().map(item -> new DiagnosticReportViews.ReportVersionView(
                 item.id(), item.versionNo(), item.versionStatus(), item.finalDiagnosisSnapshot(),
                 stringify(item.signedAt()), stringify(item.createdAt()))).toList(),
-            events.stream().map(this::toTrackingEvent).toList());
+            aggregate.events().stream().map(this::toTrackingEvent).toList(),
+            aggregate.revisions().stream().map(this::toRevisionView).toList(),
+            aggregate.medicalOrders().stream().map(this::toMedicalOrderView).toList(),
+            aggregate.consultations().stream().map(this::toConsultationView).toList(),
+            aggregate.latestEffectiveVersionNo(),
+            aggregate.currentDraftVersionNo(),
+            aggregate.hasPendingRevision());
     }
 
     private DiagnosticReportModels.TaskView toTaskView(DiagnosticReportRepository.DiagnosticTask task) {
@@ -123,8 +129,8 @@ class DiagnosticReportQueryService {
             task.remarks());
     }
 
-    private DiagnosticReportModels.PathologyReportView toReportView(DiagnosticReportRepository.PathologyReport report) {
-        return new DiagnosticReportModels.PathologyReportView(
+    private DiagnosticReportViews.PathologyReportView toReportView(DiagnosticReportRepository.PathologyReport report) {
+        return new DiagnosticReportViews.PathologyReportView(
             report.id(),
             report.reportNo(),
             report.reportStatus(),
@@ -142,14 +148,130 @@ class DiagnosticReportQueryService {
             report.versionNo());
     }
 
-    private DiagnosticReportModels.TrackingEventView toTrackingEvent(TrackingEvent event) {
-        return new DiagnosticReportModels.TrackingEventView(
+    private DiagnosticReportViews.TrackingEventView toTrackingEvent(TrackingEvent event) {
+        return new DiagnosticReportViews.TrackingEventView(
             event.nodeCode(),
             event.eventType(),
             event.eventStatus(),
             stringify(event.eventTime()),
             event.operatorName(),
             event.eventContent());
+    }
+
+    private DiagnosticReportViews.RevisionRequestView toRevisionView(ReportRevisionRepository.ReportRevisionRequest request) {
+        return new DiagnosticReportViews.RevisionRequestView(
+            request.id(),
+            request.reportId(),
+            request.currentVersionNo(),
+            request.requestStatus(),
+            request.requestReason(),
+            request.requestedByName(),
+            stringify(request.requestedAt()),
+            request.reviewedByName(),
+            stringify(request.reviewedAt()),
+            request.rejectReason(),
+            request.approvedVersionNo());
+    }
+
+    private DiagnosticReportViews.MedicalOrderView toMedicalOrderView(MedicalOrderRepository.MedicalOrder order) {
+        return new DiagnosticReportViews.MedicalOrderView(
+            order.id(),
+            order.caseId(),
+            order.pathologyNo(),
+            order.applicationNo(),
+            order.patientName(),
+            order.orderNumber(),
+            order.orderType(),
+            order.orderContent(),
+            order.executionScope(),
+            order.billingStatus(),
+            order.status(),
+            order.doctorName(),
+            order.executorName(),
+            stringify(order.orderDate()),
+            stringify(order.acceptedAt()),
+            stringify(order.completedAt()),
+            stringify(order.cancelledAt()),
+            order.remarks());
+    }
+
+    private DiagnosticReportViews.ConsultationView toConsultationView(DiagnosticTrackingQueryRepository.ConsultationView consultation) {
+        return new DiagnosticReportViews.ConsultationView(
+            consultation.consultationCase().id(),
+            consultation.consultationCase().consultationType(),
+            consultation.consultationCase().status(),
+            consultation.consultationCase().requestedByName(),
+            stringify(consultation.consultationCase().requestedAt()),
+            consultation.consultationCase().hostName(),
+            stringify(consultation.consultationCase().completedAt()),
+            consultation.consultationCase().opinion(),
+            consultation.participants().size());
+    }
+
+    private DiagnosticReportViews.WorkbenchBlockSummary toBlockSummary(
+        com.company.bl.domain.repository.TechnicalWorkflowRecords.SamplingBlock block,
+        Map<String, com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingBox> embeddingBoxesByNo,
+        Map<String, ArchiveRepository.ObjectArchiveSummary> embeddingBoxArchiveByObjectId
+    ) {
+        com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingBox embeddingBox = embeddingBoxesByNo.get(block.embeddingBoxNo());
+        ArchiveRepository.ObjectArchiveSummary archiveSummary = embeddingBox == null ? null : embeddingBoxArchiveByObjectId.get(embeddingBox.id());
+        return new DiagnosticReportViews.WorkbenchBlockSummary(
+            block.id(),
+            block.specimenId(),
+            block.blockCode(),
+            block.embeddingBoxNo(),
+            block.blockDescription(),
+            archiveStatus(archiveSummary),
+            archiveLocation(archiveSummary),
+            loanStatus(archiveSummary));
+    }
+
+    private DiagnosticReportViews.WorkbenchSlideSummary toSlideSummary(
+        com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.Slide slide,
+        Map<String, ArchiveRepository.ObjectArchiveSummary> slideArchiveByObjectId
+    ) {
+        ArchiveRepository.ObjectArchiveSummary archiveSummary = slideArchiveByObjectId.get(slide.id());
+        return new DiagnosticReportViews.WorkbenchSlideSummary(
+            slide.id(),
+            slide.specimenId(),
+            slide.embeddingBoxId(),
+            slide.slideNo(),
+            slide.slideStatus(),
+            slide.qualityStatus(),
+            archiveStatus(archiveSummary),
+            archiveLocation(archiveSummary),
+            loanStatus(archiveSummary));
+    }
+
+    private Map<String, ArchiveRepository.ObjectArchiveSummary> indexObjectArchives(List<ArchiveRepository.ObjectArchiveSummary> archives) {
+        return archives.stream().collect(Collectors.toMap(
+            ArchiveRepository.ObjectArchiveSummary::objectId,
+            Function.identity(),
+            (left, right) -> left));
+    }
+
+    private String archiveStatus(ArchiveRepository.ApplicationArchiveSummary summary) {
+        return summary == null ? null : summary.archiveStatus();
+    }
+
+    private String archiveLocation(ArchiveRepository.ApplicationArchiveSummary summary) {
+        return summary == null ? null : summary.archiveLocation();
+    }
+
+    private String archiveImageUrl(ArchiveRepository.ApplicationArchiveSummary summary) {
+        return summary == null ? null : summary.imageUrl();
+    }
+
+    private String archiveStatus(ArchiveRepository.ObjectArchiveSummary summary) {
+        return summary == null ? null : summary.archiveStatus();
+    }
+
+    private String archiveLocation(ArchiveRepository.ObjectArchiveSummary summary) {
+        return summary == null ? null : summary.archiveLocation();
+    }
+
+    private String loanStatus(ArchiveRepository.ObjectArchiveSummary summary) {
+        return summary == null ? null : summary.loanStatus();
     }
 
     private String stringify(LocalDateTime time) {

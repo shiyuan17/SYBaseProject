@@ -6,6 +6,7 @@ import com.company.bl.domain.model.Application;
 import com.company.bl.domain.model.PathologyCase;
 import com.company.bl.domain.model.TrackingEvent;
 import com.company.bl.domain.repository.ApplicationRepository;
+import com.company.bl.domain.repository.ConsultationRepository;
 import com.company.bl.domain.repository.DiagnosticReportRepository;
 import com.company.bl.domain.repository.TechnicalWorkflowRepository;
 import com.company.bl.domain.valueobject.ApplicationId;
@@ -20,13 +21,16 @@ class DiagnosticReportSupport {
     private final DiagnosticReportRepository diagnosticReportRepository;
     private final TechnicalWorkflowRepository technicalWorkflowRepository;
     private final ApplicationRepository applicationRepository;
+    private final ConsultationRepository consultationRepository;
 
     DiagnosticReportSupport(DiagnosticReportRepository diagnosticReportRepository,
                             TechnicalWorkflowRepository technicalWorkflowRepository,
-                            ApplicationRepository applicationRepository) {
+                            ApplicationRepository applicationRepository,
+                            ConsultationRepository consultationRepository) {
         this.diagnosticReportRepository = diagnosticReportRepository;
         this.technicalWorkflowRepository = technicalWorkflowRepository;
         this.applicationRepository = applicationRepository;
+        this.consultationRepository = consultationRepository;
     }
 
     DiagnosticReportRepository.DiagnosticTask getDiagnosticTask(String taskId) {
@@ -73,6 +77,26 @@ class DiagnosticReportSupport {
     void ensureDraftReport(DiagnosticReportRepository.PathologyReport report) {
         if (!DiagnosticReportConstants.REPORT_DRAFT.equals(report.reportStatus())) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Report is not editable draft");
+        }
+    }
+
+    DiagnosticReportRepository.DiagnosticTask getLatestDiagnosticTask(String caseId) {
+        return diagnosticReportRepository.findDiagnosticTasksByCaseId(caseId).stream()
+            .max(java.util.Comparator.comparing(DiagnosticReportRepository.DiagnosticTask::createdAt))
+            .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Diagnostic task not found"));
+    }
+
+    void ensureConsultationHost(ConsultationRepository.ConsultationCase consultationCase, String userId) {
+        boolean allowed = userId != null && userId.equals(consultationCase.hostUserId());
+        if (!allowed) {
+            throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403, "User is not consultation host");
+        }
+    }
+
+    void ensureConsultationParticipant(ConsultationRepository.ConsultationParticipant participant, String userId) {
+        boolean allowed = userId != null && userId.equals(participant.participantUserId());
+        if (!allowed) {
+            throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403, "User is not invited to consultation");
         }
     }
 

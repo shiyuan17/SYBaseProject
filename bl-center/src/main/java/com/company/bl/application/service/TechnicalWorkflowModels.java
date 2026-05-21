@@ -1,5 +1,6 @@
 package com.company.bl.application.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public final class TechnicalWorkflowModels {
@@ -20,7 +21,10 @@ public final class TechnicalWorkflowModels {
         String taskStatus,
         String applicationNo,
         String pathologyNo,
-        String objectType
+        String objectType,
+        LocalDateTime createdFrom,
+        LocalDateTime createdTo,
+        boolean timedOutOnly
     ) {
     }
 
@@ -42,7 +46,10 @@ public final class TechnicalWorkflowModels {
         String remarks,
         String createdAt,
         String startedAt,
-        String completedAt
+        String completedAt,
+        String deadlineAt,
+        String timeoutRuleCode,
+        boolean timedOut
     ) {
     }
 
@@ -219,6 +226,7 @@ public final class TechnicalWorkflowModels {
         List<TechnicalBlockSummary> blocks,
         List<TechnicalEmbeddingBoxSummary> embeddingBoxes,
         List<TechnicalSlideSummary> slides,
+        List<SlideQcEvaluationSummary> qcEvaluations,
         List<ReworkSummary> reworks,
         List<TechnicalTrackingEvent> events
     ) {
@@ -258,6 +266,21 @@ public final class TechnicalWorkflowModels {
         String slideNo,
         String slideStatus,
         String qualityStatus
+    ) {
+    }
+
+    public record SlideQcEvaluationSummary(
+        String qcEvaluationId,
+        String specimenId,
+        String slideId,
+        String slideNo,
+        String qcType,
+        String evaluationResult,
+        String issueDescription,
+        String improvementSuggestion,
+        String evaluatorName,
+        String evaluatedAt,
+        String remarks
     ) {
     }
 

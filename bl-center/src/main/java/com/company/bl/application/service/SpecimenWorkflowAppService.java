@@ -460,6 +460,37 @@ public class SpecimenWorkflowAppService {
     }
 
     @Transactional(readOnly = true)
+    public PendingTransportOrderPage listPendingTransportOrders(PendingTransportOrderQuery query) {
+        SpecimenWorkflowRepository.PagedPendingTransportOrders page =
+            specimenWorkflowRepository.findPendingTransportOrders(
+                new SpecimenWorkflowRepository.PendingTransportOrderQuery(
+                    normalizePage(query.page()),
+                    normalizeSize(query.size()),
+                    trim(query.applicationId()),
+                    trim(query.departmentId()),
+                    parseDateFrom(query.dateFrom()),
+                    parseDateTo(query.dateTo()),
+                    normalizeStatus(query.status())));
+        return new PendingTransportOrderPage(
+            page.items().stream().map(item -> new PendingTransportOrderItem(
+                item.id(),
+                item.transportOrderNo(),
+                item.applicationId(),
+                item.applicationNo(),
+                item.patientName(),
+                item.handoverDepartmentName(),
+                item.receiverDepartmentName(),
+                item.status(),
+                item.toBeTransportedAt(),
+                item.handedOverAt(),
+                specimenWorkflowRepository.findTransportOrderSpecimenBarcodes(item.id())))
+                .toList(),
+            normalizePage(query.page()),
+            normalizeSize(query.size()),
+            page.total());
+    }
+
+    @Transactional(readOnly = true)
     @ObservedOperation(
         operation = "get_application",
         successCounter = "application_query_total",
@@ -648,6 +679,7 @@ public class SpecimenWorkflowAppService {
             row.patientName(),
             row.submittingDepartmentId(),
             row.submittingDepartmentName(),
+            row.transportOrderId(),
             row.specimenId(),
             row.specimenNo(),
             row.barcode(),
@@ -721,6 +753,10 @@ public class SpecimenWorkflowAppService {
             return null;
         }
         return LocalDate.parse(value.trim()).plusDays(1).atStartOfDay();
+    }
+
+    private String normalizeStatus(String value) {
+        return blank(value) ? null : value.trim().toUpperCase();
     }
 
     public record RegisterSpecimensCommand(
@@ -870,6 +906,7 @@ public class SpecimenWorkflowAppService {
         String patientName,
         String submittingDepartmentId,
         String submittingDepartmentName,
+        String transportOrderId,
         String specimenId,
         String specimenNo,
         String barcode,
@@ -878,6 +915,40 @@ public class SpecimenWorkflowAppService {
         LocalDateTime registeredAt,
         LocalDateTime latestTrackingAt,
         boolean abnormalFlag
+    ) {
+    }
+
+    public record PendingTransportOrderQuery(
+        int page,
+        int size,
+        String applicationId,
+        String departmentId,
+        String dateFrom,
+        String dateTo,
+        String status
+    ) {
+    }
+
+    public record PendingTransportOrderPage(
+        List<PendingTransportOrderItem> items,
+        int page,
+        int size,
+        long total
+    ) {
+    }
+
+    public record PendingTransportOrderItem(
+        String id,
+        String transportOrderNo,
+        String applicationId,
+        String applicationNo,
+        String patientName,
+        String handoverDepartmentName,
+        String receiverDepartmentName,
+        String status,
+        LocalDateTime toBeTransportedAt,
+        LocalDateTime handedOverAt,
+        List<String> specimenBarcodes
     ) {
     }
 }

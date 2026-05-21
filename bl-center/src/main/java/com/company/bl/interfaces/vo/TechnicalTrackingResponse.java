@@ -22,6 +22,8 @@ public record TechnicalTrackingResponse(
     List<EmbeddingBoxSummary> embeddingBoxes,
     @Schema(description = "玻片摘要列表")
     List<SlideSummary> slides,
+    @Schema(description = "玻片质控历史")
+    List<SlideQcEvaluationSummary> qcEvaluations,
     @Schema(description = "返工摘要列表")
     List<ReworkSummary> reworks,
     @Schema(description = "追踪事件列表")
@@ -86,6 +88,33 @@ public record TechnicalTrackingResponse(
         String slideStatus,
         @Schema(description = "质控状态")
         String qualityStatus
+    ) {
+    }
+
+    @Schema(name = "TechnicalTrackingSlideQcEvaluationSummary", description = "技术追踪中的玻片质控摘要")
+    public record SlideQcEvaluationSummary(
+        @Schema(description = "质控记录 ID")
+        String qcEvaluationId,
+        @Schema(description = "所属标本 ID")
+        String specimenId,
+        @Schema(description = "玻片 ID")
+        String slideId,
+        @Schema(description = "玻片号")
+        String slideNo,
+        @Schema(description = "质控类型")
+        String qcType,
+        @Schema(description = "质控结果")
+        String evaluationResult,
+        @Schema(description = "问题描述")
+        String issueDescription,
+        @Schema(description = "改进建议")
+        String improvementSuggestion,
+        @Schema(description = "评估人")
+        String evaluatorName,
+        @Schema(description = "评估时间")
+        String evaluatedAt,
+        @Schema(description = "备注")
+        String remarks
     ) {
     }
 

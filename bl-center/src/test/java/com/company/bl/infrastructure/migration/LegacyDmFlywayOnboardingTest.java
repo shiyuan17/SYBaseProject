@@ -69,9 +69,19 @@ class LegacyDmFlywayOnboardingTest {
             assertEquals(13, queryInt(statement, "SELECT COUNT(*) FROM roles WHERE role_code LIKE 'M2_%' OR role_code LIKE 'M3_%'"));
             assertEquals(15, queryInt(statement, "SELECT COUNT(*) FROM menus WHERE menu_code LIKE 'M2_%' OR menu_code LIKE 'M3_%'"));
             assertEquals(16, queryInt(statement, "SELECT COUNT(*) FROM permissions WHERE permission_group IN ('M2', 'M3')"));
-            assertEquals(28, queryInt(statement, "SELECT COUNT(*) FROM users WHERE id LIKE 'USER_M%'"));
-            assertEquals(25, queryInt(statement, "SELECT COUNT(*) FROM user_roles WHERE id LIKE 'UR_M%'"));
+            assertTrue(queryInt(statement, "SELECT COUNT(*) FROM users WHERE id LIKE 'USER_M%'") >= 28);
+            assertTrue(queryInt(statement, "SELECT COUNT(*) FROM user_roles WHERE id LIKE 'UR_M%'") >= 25);
             assertEquals(1, queryInt(statement, "SELECT COUNT(*) FROM users WHERE id = 'USER_M1_ADMIN' AND password_algo = 'SM3'"));
+            assertEquals(1, queryInt(statement, "SELECT COUNT(*) FROM users WHERE id = 'USER_M4_ORDER_EXECUTE'"));
+            assertEquals(3, queryInt(statement, """
+                SELECT COUNT(*)
+                FROM system_config_items
+                WHERE config_key IN (
+                    'technical.timeout.grossingMinutes',
+                    'technical.timeout.dehydrationMinutes',
+                    'technical.timeout.stainingMinutes'
+                )
+                """));
             assertTrue(queryInt(statement, "SELECT COUNT(*) FROM role_menus WHERE role_id = 'ROLE_PATHOLOGY_ADMIN' AND menu_id = 'MENU_M3_TASKS'") > 0);
             assertEquals(1, queryInt(statement, "SELECT COUNT(*) FROM roles WHERE role_code = 'SUPER_ADMIN'"));
         }

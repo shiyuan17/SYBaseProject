@@ -142,6 +142,23 @@ public final class TechnicalWorkflowProcessingRecords {
     ) {
     }
 
+    public record SlideQcEvaluation(
+        String id,
+        String caseId,
+        String specimenId,
+        String slideId,
+        String slideNo,
+        String qcType,
+        String evaluationResult,
+        String issueDescription,
+        String improvementSuggestion,
+        String evaluatorUserId,
+        String evaluatorName,
+        LocalDateTime evaluatedAt,
+        String remarks
+    ) {
+    }
+
     public record CreateCaseMediaAssetCommand(
         String id,
         String caseId,

@@ -18,6 +18,8 @@ import java.util.UUID;
 @Repository
 public class SupportJdbcRepository {
 
+    private static final int FAILURE_REASON_MAX_LENGTH = 500;
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final Clock clock;
 
@@ -148,7 +150,7 @@ public class SupportJdbcRepository {
             .addValue("operatorIp", row.operatorIp())
             .addValue("operationAt", row.operationAt())
             .addValue("operationContent", row.operationContent())
-            .addValue("failureReason", row.failureReason()));
+            .addValue("failureReason", truncate(row.failureReason(), FAILURE_REASON_MAX_LENGTH)));
     }
 
     public List<Map<String, Object>> findOperationLogs(String moduleCode) {
@@ -179,6 +181,13 @@ public class SupportJdbcRepository {
                 rs.getLong("current_value"),
                 rs.getInt("version")));
         return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 
     private NumberingRuleRow mapNumberingRule(ResultSet rs, int rowNum) throws SQLException {

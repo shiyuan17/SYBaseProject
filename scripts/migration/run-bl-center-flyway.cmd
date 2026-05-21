@@ -4,6 +4,9 @@ setlocal
 set "ROOT_DIR=%~dp0..\.."
 pushd "%ROOT_DIR%" >nul
 
+set "MODE=%~1"
+if not defined MODE set "MODE=sync"
+
 if not defined JAVA_HOME (
   echo JAVA_HOME is not set. Please point it to JDK 17.
   popd >nul
@@ -15,7 +18,8 @@ if not defined BL_CENTER_DATASOURCE_URL set "BL_CENTER_DATASOURCE_URL=jdbc:dm://
 if not defined BL_CENTER_DATASOURCE_USERNAME set "BL_CENTER_DATASOURCE_USERNAME=SYSDBA"
 if not defined BL_CENTER_DATASOURCE_PASSWORD set "BL_CENTER_DATASOURCE_PASSWORD=Dm.2027.Pwd."
 
-call mvnw.cmd -Dmaven.repo.local=.m2/repository -f bl-center/pom.xml -DskipTests -Dspring-boot.run.main-class=com.company.bl.tools.BlCenterFlywayCli spring-boot:run
+echo Running bl-center Flyway %MODE%...
+call mvnw.cmd -Dmaven.repo.local=.m2/repository -f bl-center/pom.xml -DskipTests -Dspring-boot.run.main-class=com.company.bl.tools.BlCenterFlywayCli -Dspring-boot.run.arguments=%MODE% spring-boot:run
 set "EXIT_CODE=%ERRORLEVEL%"
 
 popd >nul

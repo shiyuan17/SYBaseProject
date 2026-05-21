@@ -26,6 +26,7 @@ import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.Creat
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.CreateSlideStainingCommand;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.ReworkOrder;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.Slide;
+import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.SlideQcEvaluation;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.SlideStaining;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.Slicing;
 
@@ -139,6 +140,8 @@ public interface TechnicalWorkflowRepository {
                                  String remarks);
 
     void insertSlideQcEvaluation(CreateSlideQcEvaluationCommand command);
+
+    List<SlideQcEvaluation> findSlideQcEvaluationsByCaseId(String caseId);
 
     void insertCaseMediaAsset(CreateCaseMediaAssetCommand command);
 

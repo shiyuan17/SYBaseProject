@@ -4,40 +4,58 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 
-@Schema(name = "ReportTrackingResponse", description = "病例报告闭环追踪视图")
+@Schema(name = "ReportTrackingResponse", description = "Case report tracking aggregate view")
 public record ReportTrackingResponse(
-    @Schema(description = "病例 ID")
+    @Schema(description = "Case ID")
     String caseId,
-    @Schema(description = "申请单号")
+    @Schema(description = "Application number")
     String applicationNo,
-    @Schema(description = "病理号")
+    @Schema(description = "Pathology number")
     String pathologyNo,
-    @Schema(description = "病例状态")
+    @Schema(description = "Case status")
     String caseStatus,
-    @Schema(description = "患者姓名")
+    @Schema(description = "Patient name")
     String patientName,
-    @Schema(description = "诊断任务列表")
+    @Schema(description = "Application form archive status")
+    String applicationFormArchiveStatus,
+    @Schema(description = "Application form archive location")
+    String applicationFormArchiveLocation,
+    @Schema(description = "Application form archive image URL")
+    String applicationFormImageUrl,
+    @Schema(description = "Diagnostic tasks")
     List<PendingDiagnosticTaskResponse> diagnosticTasks,
-    @Schema(description = "当前报告")
+    @Schema(description = "Current report")
     DiagnosticWorkbenchResponse.CurrentReportSummary currentReport,
-    @Schema(description = "版本列表")
+    @Schema(description = "Report versions")
     List<ReportVersionSummary> versions,
-    @Schema(description = "事件列表")
-    List<DiagnosticWorkbenchResponse.EventSummary> events
+    @Schema(description = "Workflow events")
+    List<DiagnosticWorkbenchResponse.EventSummary> events,
+    @Schema(description = "Revision request chain")
+    List<DiagnosticWorkbenchResponse.RevisionRequestSummary> revisions,
+    @Schema(description = "Medical order chain")
+    List<DiagnosticWorkbenchResponse.MedicalOrderSummary> medicalOrders,
+    @Schema(description = "Consultation chain")
+    List<DiagnosticWorkbenchResponse.ConsultationSummary> consultations,
+    @Schema(description = "Latest effective version number")
+    Integer latestEffectiveVersionNo,
+    @Schema(description = "Current draft version number")
+    Integer currentDraftVersionNo,
+    @Schema(description = "Whether there is a pending revision request")
+    boolean hasPendingRevision
 ) {
-    @Schema(name = "ReportTrackingVersionSummary", description = "报告闭环追踪中的版本摘要")
+    @Schema(name = "ReportTrackingVersionSummary", description = "Report version summary in tracking view")
     public record ReportVersionSummary(
-        @Schema(description = "版本 ID")
+        @Schema(description = "Version ID")
         String versionId,
-        @Schema(description = "版本号")
+        @Schema(description = "Version number")
         int versionNo,
-        @Schema(description = "版本状态")
+        @Schema(description = "Version status")
         String versionStatus,
-        @Schema(description = "最终诊断快照")
+        @Schema(description = "Final diagnosis snapshot")
         String finalDiagnosisSnapshot,
-        @Schema(description = "签发时间")
+        @Schema(description = "Signed at")
         String signedAt,
-        @Schema(description = "创建时间")
+        @Schema(description = "Created at")
         String createdAt
     ) {
     }

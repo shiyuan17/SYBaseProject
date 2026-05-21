@@ -8,13 +8,22 @@ public class DiagnosticReportAppService {
     private final DiagnosticReportQueryService diagnosticReportQueryService;
     private final DiagnosticTaskWorkflowService diagnosticTaskWorkflowService;
     private final DiagnosticReportLifecycleService diagnosticReportLifecycleService;
+    private final ReportRevisionWorkflowService reportRevisionWorkflowService;
+    private final MedicalOrderWorkflowService medicalOrderWorkflowService;
+    private final InternalConsultationWorkflowService internalConsultationWorkflowService;
 
     public DiagnosticReportAppService(DiagnosticReportQueryService diagnosticReportQueryService,
                                       DiagnosticTaskWorkflowService diagnosticTaskWorkflowService,
-                                      DiagnosticReportLifecycleService diagnosticReportLifecycleService) {
+                                      DiagnosticReportLifecycleService diagnosticReportLifecycleService,
+                                      ReportRevisionWorkflowService reportRevisionWorkflowService,
+                                      MedicalOrderWorkflowService medicalOrderWorkflowService,
+                                      InternalConsultationWorkflowService internalConsultationWorkflowService) {
         this.diagnosticReportQueryService = diagnosticReportQueryService;
         this.diagnosticTaskWorkflowService = diagnosticTaskWorkflowService;
         this.diagnosticReportLifecycleService = diagnosticReportLifecycleService;
+        this.reportRevisionWorkflowService = reportRevisionWorkflowService;
+        this.medicalOrderWorkflowService = medicalOrderWorkflowService;
+        this.internalConsultationWorkflowService = internalConsultationWorkflowService;
     }
 
     public DiagnosticReportModels.PendingDiagnosticTaskPage listPendingTasks(DiagnosticReportModels.PendingDiagnosticTaskQuery query) {
@@ -37,7 +46,7 @@ public class DiagnosticReportAppService {
         return diagnosticTaskWorkflowService.startTask(command);
     }
 
-    public DiagnosticReportModels.DiagnosticWorkbenchView getDiagnosticWorkbench(String caseId) {
+    public DiagnosticReportViews.DiagnosticWorkbenchView getDiagnosticWorkbench(String caseId) {
         return diagnosticReportQueryService.getDiagnosticWorkbench(caseId);
     }
 
@@ -69,7 +78,51 @@ public class DiagnosticReportAppService {
         return diagnosticReportLifecycleService.publishReport(command);
     }
 
-    public DiagnosticReportModels.ReportTrackingView getReportTracking(String caseId) {
+    public DiagnosticReportViews.ReportTrackingView getReportTracking(String caseId) {
         return diagnosticReportQueryService.getReportTracking(caseId);
+    }
+
+    public DiagnosticReportModels.ReportRevisionResult createRevisionRequest(DiagnosticReportModels.CreateReportRevisionRequestCommand command) {
+        return reportRevisionWorkflowService.createRevisionRequest(command);
+    }
+
+    public DiagnosticReportModels.ReportRevisionResult approveRevisionRequest(DiagnosticReportModels.ReviewReportRevisionCommand command) {
+        return reportRevisionWorkflowService.approveRevisionRequest(command);
+    }
+
+    public DiagnosticReportModels.ReportRevisionResult rejectRevisionRequest(DiagnosticReportModels.ReviewReportRevisionCommand command) {
+        return reportRevisionWorkflowService.rejectRevisionRequest(command);
+    }
+
+    public DiagnosticReportModels.PendingMedicalOrderPage listPendingMedicalOrders(DiagnosticReportModels.PendingMedicalOrderQuery query) {
+        return medicalOrderWorkflowService.listPendingMedicalOrders(query);
+    }
+
+    public DiagnosticReportModels.MedicalOrderResult createMedicalOrder(DiagnosticReportModels.CreateMedicalOrderCommand command) {
+        return medicalOrderWorkflowService.createMedicalOrder(command);
+    }
+
+    public DiagnosticReportModels.MedicalOrderResult acceptMedicalOrder(DiagnosticReportModels.MedicalOrderActionCommand command) {
+        return medicalOrderWorkflowService.acceptMedicalOrder(command);
+    }
+
+    public DiagnosticReportModels.MedicalOrderResult completeMedicalOrder(DiagnosticReportModels.MedicalOrderActionCommand command) {
+        return medicalOrderWorkflowService.completeMedicalOrder(command);
+    }
+
+    public DiagnosticReportModels.MedicalOrderResult cancelMedicalOrder(DiagnosticReportModels.MedicalOrderActionCommand command) {
+        return medicalOrderWorkflowService.cancelMedicalOrder(command);
+    }
+
+    public DiagnosticReportModels.ConsultationResult createConsultation(DiagnosticReportModels.CreateConsultationCommand command) {
+        return internalConsultationWorkflowService.createConsultation(command);
+    }
+
+    public DiagnosticReportModels.ConsultationResult commentConsultationParticipant(DiagnosticReportModels.CommentConsultationParticipantCommand command) {
+        return internalConsultationWorkflowService.commentConsultationParticipant(command);
+    }
+
+    public DiagnosticReportModels.ConsultationResult completeConsultation(DiagnosticReportModels.CompleteConsultationCommand command) {
+        return internalConsultationWorkflowService.completeConsultation(command);
     }
 }

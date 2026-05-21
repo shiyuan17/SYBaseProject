@@ -3,6 +3,7 @@ package com.company.bl.infrastructure.persistence;
 import com.company.bl.domain.model.TrackingEvent;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.ReworkOrder;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.Slide;
+import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.SlideQcEvaluation;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.SlideStaining;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.Slicing;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.Embedding;
@@ -126,6 +127,18 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             where case_id = :caseId
             order by created_at asc, id asc
             """, Map.of("caseId", caseId), rowMappers::mapReworkOrder);
+    }
+
+    List<SlideQcEvaluation> findSlideQcEvaluationsByCaseId(String caseId) {
+        return jdbcTemplate.query("""
+            select sqe.id, sqe.case_id, sqe.specimen_id, sqe.slide_id, s.slide_no, sqe.qc_type, sqe.evaluation_result,
+                   sqe.issue_description, sqe.improvement_suggestion, sqe.evaluator_user_id, sqe.evaluator_name,
+                   sqe.evaluated_at, sqe.remarks
+            from slide_qc_evaluations sqe
+            join slides s on s.id = sqe.slide_id
+            where sqe.case_id = :caseId
+            order by sqe.evaluated_at asc, sqe.created_at asc, sqe.id asc
+            """, Map.of("caseId", caseId), rowMappers::mapSlideQcEvaluation);
     }
 
     List<TrackingEvent> findTrackingEventsByCaseId(String caseId) {

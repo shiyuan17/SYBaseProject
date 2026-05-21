@@ -362,6 +362,33 @@ public class JdbcDiagnosticReportRepository implements DiagnosticReportRepositor
     }
 
     @Override
+    public void resetPathologyReportForRevision(String reportId,
+                                                int versionNo,
+                                                String remarks,
+                                                LocalDateTime updatedAt) {
+        jdbcTemplate.update("""
+            update pathology_reports
+            set report_status = 'DRAFT',
+                version_no = :versionNo,
+                submitted_at = null,
+                reviewer_user_id = null,
+                reviewer_name = null,
+                reviewed_at = null,
+                signed_by_user_id = null,
+                signed_by_name = null,
+                signed_at = null,
+                published_at = null,
+                remarks = :remarks,
+                updated_at = :updatedAt
+            where id = :reportId
+            """, new MapSqlParameterSource()
+            .addValue("reportId", reportId)
+            .addValue("versionNo", versionNo)
+            .addValue("remarks", remarks)
+            .addValue("updatedAt", updatedAt));
+    }
+
+    @Override
     public void signPathologyReport(String reportId,
                                     String signedByUserId,
                                     String signedByName,

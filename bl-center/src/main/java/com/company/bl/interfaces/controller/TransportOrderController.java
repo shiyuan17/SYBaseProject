@@ -8,6 +8,8 @@ import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.CreateTransportOrderRequest;
 import com.company.bl.interfaces.dto.HandoverTransportOrderRequest;
 import com.company.bl.interfaces.dto.TransportOrderOperatorRequest;
+import com.company.bl.interfaces.vo.PendingTransportOrderPageResponse;
+import com.company.bl.interfaces.vo.PendingTransportOrderResponse;
 import com.company.bl.interfaces.vo.TransportOrderResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -18,10 +20,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -31,6 +35,33 @@ import org.springframework.web.bind.annotation.RestController;
 public class TransportOrderController {
 
     private final SpecimenWorkflowAppService specimenWorkflowAppService;
+
+    @Operation(summary = "查询待处理转运单", description = "分页查询当前待处理的转运单工作台列表。")
+    @RequirePermission(M2PermissionCodes.TRANSPORT_HANDOVER)
+    @GetMapping("/pending")
+    public PendingTransportOrderPageResponse listPending(@Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
+                                                         @Parameter(description = "每页条数，默认 20") @RequestParam(defaultValue = "20") int size,
+                                                         @Parameter(description = "申请单 ID") @RequestParam(required = false) String applicationId,
+                                                         @Parameter(description = "送检科室 ID") @RequestParam(required = false) String departmentId,
+                                                         @Parameter(description = "开始日期") @RequestParam(required = false) String dateFrom,
+                                                         @Parameter(description = "结束日期") @RequestParam(required = false) String dateTo,
+                                                         @Parameter(description = "转运状态") @RequestParam(required = false) String status) {
+        SpecimenWorkflowAppService.PendingTransportOrderPage result =
+            specimenWorkflowAppService.listPendingTransportOrders(
+                new SpecimenWorkflowAppService.PendingTransportOrderQuery(
+                    page,
+                    size,
+                    applicationId,
+                    departmentId,
+                    dateFrom,
+                    dateTo,
+                    status));
+        return new PendingTransportOrderPageResponse(
+            result.items().stream().map(this::toPendingResponse).toList(),
+            result.page(),
+            result.size(),
+            result.total());
+    }
 
     @Operation(summary = "创建转运单", description = "为申请单下指定标本创建转运单。")
     @ApiResponses(@ApiResponse(responseCode = "201", description = "创建成功", useReturnTypeSchema = true))
@@ -91,6 +122,22 @@ public class TransportOrderController {
             order.receiverUserName(),
             stringify(order.toBeTransportedAt()),
             stringify(order.handedOverAt()));
+    }
+
+    private PendingTransportOrderResponse toPendingResponse(
+        SpecimenWorkflowAppService.PendingTransportOrderItem item) {
+        return new PendingTransportOrderResponse(
+            item.id(),
+            item.transportOrderNo(),
+            item.applicationId(),
+            item.applicationNo(),
+            item.patientName(),
+            item.handoverDepartmentName(),
+            item.receiverDepartmentName(),
+            item.status(),
+            stringify(item.toBeTransportedAt()),
+            stringify(item.handedOverAt()),
+            item.specimenBarcodes());
     }
 
     private String stringify(Object value) {

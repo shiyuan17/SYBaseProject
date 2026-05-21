@@ -5,6 +5,7 @@ import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.masterdata.infrastructure.SystemConfigJdbcRepository;
 import com.company.bl.support.application.OperationAuditService;
 import io.swagger.v3.oas.annotations.media.Schema;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataAccessException;
@@ -60,7 +61,23 @@ public class SystemConfigService {
         return roots;
     }
 
-    @CacheEvict(value = "systemConfigTree", allEntries = true)
+    @Cacheable(cacheNames = "systemConfigItems", key = "#configKey", unless = "#result == null")
+    @Transactional(readOnly = true)
+    public ConfigItemView findConfigItemByKey(String configKey) {
+        SystemConfigJdbcRepository.ConfigItemRow row = repository.findConfigItemByKey(configKey);
+        return row == null ? null : toItemView(row);
+    }
+
+    @Transactional(readOnly = true)
+    public String getConfigValue(String configKey, String defaultValue) {
+        ConfigItemView item = findConfigItemByKey(configKey);
+        return item == null || item.configValue() == null || item.configValue().isBlank() ? defaultValue : item.configValue();
+    }
+
+    @Caching(evict = {
+        @CacheEvict(value = "systemConfigTree", allEntries = true),
+        @CacheEvict(value = "systemConfigItems", allEntries = true)
+    })
     @Transactional
     public ConfigCategoryNode createConfigCategory(CreateConfigCategoryCommand command) {
         return operationAuditService.audit("MASTERDATA", "CONFIG_CATEGORY", "create_config_category", () -> {
@@ -74,7 +91,10 @@ public class SystemConfigService {
         }, ConfigCategoryNode::id, command::categoryCode);
     }
 
-    @CacheEvict(value = "systemConfigTree", allEntries = true)
+    @Caching(evict = {
+        @CacheEvict(value = "systemConfigTree", allEntries = true),
+        @CacheEvict(value = "systemConfigItems", allEntries = true)
+    })
     @Transactional
     public ConfigCategoryNode updateConfigCategory(String id, UpdateConfigCategoryCommand command) {
         return operationAuditService.audit("MASTERDATA", "CONFIG_CATEGORY", "update_config_category", () -> {
@@ -92,7 +112,10 @@ public class SystemConfigService {
         }, ConfigCategoryNode::id, () -> id);
     }
 
-    @CacheEvict(value = "systemConfigTree", allEntries = true)
+    @Caching(evict = {
+        @CacheEvict(value = "systemConfigTree", allEntries = true),
+        @CacheEvict(value = "systemConfigItems", allEntries = true)
+    })
     @Transactional
     public ConfigItemView createConfigItem(CreateConfigItemCommand command) {
         return operationAuditService.audit("MASTERDATA", "CONFIG_ITEM", "create_config_item", () -> {
@@ -107,7 +130,10 @@ public class SystemConfigService {
         }, ConfigItemView::id, command::configKey);
     }
 
-    @CacheEvict(value = "systemConfigTree", allEntries = true)
+    @Caching(evict = {
+        @CacheEvict(value = "systemConfigTree", allEntries = true),
+        @CacheEvict(value = "systemConfigItems", allEntries = true)
+    })
     @Transactional
     public ConfigItemView updateConfigItem(String id, UpdateConfigItemCommand command) {
         return operationAuditService.audit("MASTERDATA", "CONFIG_ITEM", "update_config_item", () -> {
@@ -120,7 +146,10 @@ public class SystemConfigService {
         }, ConfigItemView::id, () -> id);
     }
 
-    @CacheEvict(value = "systemConfigTree", allEntries = true)
+    @Caching(evict = {
+        @CacheEvict(value = "systemConfigTree", allEntries = true),
+        @CacheEvict(value = "systemConfigItems", allEntries = true)
+    })
     @Transactional
     public void deleteConfigCategory(String id) {
         operationAuditService.audit("MASTERDATA", "CONFIG_CATEGORY", "delete_config_category", () -> {
@@ -135,7 +164,10 @@ public class SystemConfigService {
         }, value -> id, () -> id);
     }
 
-    @CacheEvict(value = "systemConfigTree", allEntries = true)
+    @Caching(evict = {
+        @CacheEvict(value = "systemConfigTree", allEntries = true),
+        @CacheEvict(value = "systemConfigItems", allEntries = true)
+    })
     @Transactional
     public void deleteConfigItem(String id) {
         operationAuditService.audit("MASTERDATA", "CONFIG_ITEM", "delete_config_item", () -> {

@@ -25,7 +25,7 @@ public class PathologyCaseTechnicalTrackingController {
         this.technicalWorkflowAppService = technicalWorkflowAppService;
     }
 
-    @Operation(summary = "查询病例技术追踪", description = "按病例 ID 查询技术任务、蜡块、包埋盒、切片和补做追踪信息。")
+    @Operation(summary = "查询病例技术追踪", description = "按病例 ID 查询技术任务、蜡块、包埋盒、玻片、质控和返工追踪信息。")
     @RequirePermission(M3PermissionCodes.TECHNICAL_TRACKING_QUERY)
     @GetMapping("/{id}/technical-tracking")
     public TechnicalTrackingResponse getTracking(@Parameter(description = "病例 ID") @PathVariable("id") String caseId) {
@@ -37,7 +37,8 @@ public class PathologyCaseTechnicalTrackingController {
             result.technicalTasks().stream().map(task -> new PendingTechnicalTaskResponse(
                 task.id(), task.applicationId(), task.applicationNo(), task.caseId(), task.pathologyNo(),
                 task.specimenId(), task.taskType(), task.taskStatus(), task.objectType(), task.objectId(),
-                task.payload(), task.remarks(), task.createdAt(), task.startedAt(), task.completedAt()))
+                task.payload(), task.remarks(), task.createdAt(), task.startedAt(), task.completedAt(),
+                task.deadlineAt(), task.timeoutRuleCode(), task.timedOut()))
                 .toList(),
             result.specimens().stream().map(item -> new TechnicalTrackingResponse.SpecimenSummary(
                 item.specimenId(), item.specimenNo(), item.barcode(), item.specimenName(), item.specimenStatus()))
@@ -50,6 +51,11 @@ public class PathologyCaseTechnicalTrackingController {
                 .toList(),
             result.slides().stream().map(item -> new TechnicalTrackingResponse.SlideSummary(
                 item.slideId(), item.specimenId(), item.embeddingBoxId(), item.slideNo(), item.slideStatus(), item.qualityStatus()))
+                .toList(),
+            result.qcEvaluations().stream().map(item -> new TechnicalTrackingResponse.SlideQcEvaluationSummary(
+                item.qcEvaluationId(), item.specimenId(), item.slideId(), item.slideNo(), item.qcType(),
+                item.evaluationResult(), item.issueDescription(), item.improvementSuggestion(), item.evaluatorName(),
+                item.evaluatedAt(), item.remarks()))
                 .toList(),
             result.reworks().stream().map(item -> new TechnicalTrackingResponse.ReworkSummary(
                 item.reworkOrderId(), item.reworkType(), item.status(), item.reason()))

@@ -14,6 +14,8 @@ public record PendingSpecimenItemResponse(
     String submittingDepartmentId,
     @Schema(description = "送检科室名称")
     String submittingDepartmentName,
+    @Schema(description = "转运单 ID")
+    String transportOrderId,
     @Schema(description = "标本 ID")
     String specimenId,
     @Schema(description = "标本号")

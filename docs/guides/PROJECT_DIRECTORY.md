@@ -1,93 +1,84 @@
-## 当前仓库状态
+## 当前仓库结构
 
-本文件描述两件事：
+本文档说明两个问题：
 
-1. 当前仓库里已经落地并纳入构建的目录
-2. 作为脚手架保留、但暂未实现的扩展位
+1. 当前哪些目录已经纳入构建并承载实际能力
+2. 哪些目录仍是预留扩展位，不应误判为已交付模块
 
-不要把预留目录误认为当前已交付能力。
-
-## 已落地并纳入构建
+## 已纳入构建的主要模块
 
 ```text
 project-root
-├── pom.xml
-├── README.md
-├── .gitlab-ci.yml
-├── docs/
-│   ├── README.md
-│   ├── AGENTS.md
-│   ├── rules/
-│   ├── guides/
-│   ├── plans/
-│   ├── database/
-│   └── detailed_list/
-├── common/
-│   ├── common-core
-│   ├── common-security
-│   ├── common-web
-│   └── common-test
-├── auth-center/
-│   ├── pom.xml
-│   └── src/
-├── bl-center/
-│   ├── pom.xml
-│   └── src/
-├── user-center/
-│   ├── pom.xml
-│   └── src/
-└── tools/
-    └── app-cli/
+├─ pom.xml
+├─ README.md
+├─ docs/
+├─ common/
+│  ├─ common-core
+│  ├─ common-security
+│  ├─ common-web
+│  └─ common-test
+├─ auth-center/
+├─ bl-center/
+├─ user-center/
+└─ tools/
+   └─ app-cli/
 ```
 
 说明：
 
-- 根 `pom.xml` 当前聚合 `common-core`、`common-security`、`common-web`、`common-test`、`auth-center`、`bl-center`、`user-center`、`tools/app-cli`
-- `bl-center` 是当前病理主业务模块，`user-center` 保留为示例业务样板
-- `tools/app-cli` 是当前 CLI 工具模块
+- 根 `pom.xml` 当前聚合 `common/*`、`auth-center`、`bl-center`、`user-center` 与 `tools/app-cli`
+- `bl-center` 是当前病理业务主模块，承载 M1-M4 业务能力
+- `auth-center` 已不是占位目录，而是实际参与本地启动与鉴权支持的模块
+- `user-center` 保留为结构示例模块，可作为新业务模块分层参考
+- `tools/app-cli` 是可运行的 CLI 模块示例
 
-## 预留目录与启用条件
+## 已落地但不属于独立业务中心的目录
 
-以下目录当前保留为扩展位，通常只有 README 或少量辅助文件：
+- `scripts/dev/`：本地开发启动脚本
+- `scripts/migration/`：Flyway 与迁移辅助脚本
+- `deploy/`：本地 GitLab 与环境样例
+- `.run/`：共享 IDE 运行配置
 
-| 目录 | 当前状态 | 用途 | 何时启用 |
-|---|---|---|---|
-| `gateway/` | 占位 | API 网关或 BFF | 需要统一入口、路由、限流、鉴权前置时 |
-| `auth-center/` | 占位 | 认证授权中心 | 开始建设统一登录、令牌、权限域时 |
-| `order-center/` | 占位 | 第二个业务中心样板候选 | 需要验证多业务中心协作时 |
-| `ai-center/` | 占位 | AI 能力编排与模型接入 | 业务真的需要 AI 服务边界时 |
-| `admin-web/` | 占位 | 管理端前端 | 至少两个后端模块稳定后再启动 |
-| `infrastructure/*` | 占位 | 平台级组件沉淀 | 出现跨模块复用需求后再抽离 |
-| `common/common-security` | 占位 | 安全公共模块 | 需要共享鉴权、安全工具时 |
-| `common/common-redis` | 占位 | Redis 公共模块 | 需要统一缓存封装时 |
-| `common/common-mq` | 占位 | 消息队列公共模块 | 需要统一事件通信时 |
-| `common/common-ai` | 占位 | AI 公共模块 | 需要统一模型调用抽象时 |
-| `common/common-utils` | 占位 | 通用工具集 | 有稳定复用价值再沉淀 |
+这些目录已经服务于日常开发，但不代表新的业务中心边界。
+
+## 仍为预留扩展位的目录
+
+以下目录当前仍属于扩展边界或规划入口，通常只有 README、空目录或少量说明文件：
+
+| 目录 | 当前状态 | 预期用途 |
+|---|---|---|
+| `gateway/` | 占位 | API 网关或 BFF |
+| `order-center/` | 占位 | 其他业务中心样板 |
+| `ai-center/` | 占位 | AI 能力编排与模型接入 |
+| `admin-web/` | 占位 | 管理端前端 |
+| 顶层 `infrastructure/` | 占位 | 平台级共享基础设施沉淀 |
+| `common/common-redis` | 占位 | Redis 公共模块 |
+| `common/common-mq` | 占位 | 消息队列公共模块 |
+| `common/common-ai` | 占位 | AI 公共模块 |
+| `common/common-utils` | 占位 | 稳定复用后的通用工具集 |
 
 ## `user-center` 目录契约
 
-`user-center` 仍是新增业务模块的结构模板：
+`user-center` 仍作为推荐分层模板：
 
 ```text
 user-center/src/main/java/com/company/user
-├── interfaces
-├── application
-├── domain
-└── infrastructure
+├─ interfaces
+├─ application
+├─ domain
+└─ infrastructure
 ```
 
 约束：
 
-- `interfaces` 放控制器、DTO、VO、Assembler、Facade
-- `application` 放用例编排、事务边界、Command、Query、Task、Event
-- `domain` 放聚合、值对象、领域服务、仓储抽象
-- `infrastructure` 放持久化、缓存、MQ、RPC、配置、转换器
-
-新增真实数据库实现时，只在 `infrastructure.persistence` 落代码；`domain.repository` 保持稳定抽象。
+- `interfaces`：控制器、DTO、VO、Assembler、Facade
+- `application`：用例编排、事务边界、Command、Query、Task、Event
+- `domain`：聚合、值对象、领域服务、仓储抽象
+- `infrastructure`：持久化、缓存、MQ、RPC、配置与转换器
 
 ## 目录治理原则
 
-- 当前已纳入根 `pom.xml` 的模块，才算脚手架已交付能力
-- 仅有 README 的目录属于规划边界，不属于现成功能
-- 新增模块前，优先复用 `user-center` 的分层和 `common/*` 的已有基线
-- 只有当能力被至少两个模块复用时，才考虑从业务模块抽到顶层 `infrastructure/*` 或 `common/*`
+- 只有纳入根 `pom.xml` 的模块，才视为当前已交付能力
+- 只有目录存在但未纳入构建，不应被描述为“已完成模块”
+- 公共能力只有在被至少两个模块稳定复用后，才考虑抽到 `common/*` 或顶层 `infrastructure/*`
+- 文档、脚本、运行配置的存在不等于业务边界已经实现
