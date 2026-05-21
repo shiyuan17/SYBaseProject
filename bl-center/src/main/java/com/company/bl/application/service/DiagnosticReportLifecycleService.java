@@ -7,6 +7,7 @@ import com.company.bl.domain.model.PathologyCase;
 import com.company.bl.domain.model.Specimen;
 import com.company.bl.domain.repository.DiagnosticReportRepository;
 import com.company.bl.domain.repository.TechnicalWorkflowRepository;
+import com.company.bl.integration.application.BillingManagementService;
 import com.company.bl.support.application.NumberingService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,15 +21,18 @@ class DiagnosticReportLifecycleService {
     private final TechnicalWorkflowRepository technicalWorkflowRepository;
     private final NumberingService numberingService;
     private final DiagnosticReportSupport diagnosticReportSupport;
+    private final BillingManagementService billingManagementService;
 
     DiagnosticReportLifecycleService(DiagnosticReportRepository diagnosticReportRepository,
                                      TechnicalWorkflowRepository technicalWorkflowRepository,
                                      NumberingService numberingService,
-                                     DiagnosticReportSupport diagnosticReportSupport) {
+                                     DiagnosticReportSupport diagnosticReportSupport,
+                                     BillingManagementService billingManagementService) {
         this.diagnosticReportRepository = diagnosticReportRepository;
         this.technicalWorkflowRepository = technicalWorkflowRepository;
         this.numberingService = numberingService;
         this.diagnosticReportSupport = diagnosticReportSupport;
+        this.billingManagementService = billingManagementService;
     }
 
     @Transactional
@@ -208,6 +212,13 @@ class DiagnosticReportLifecycleService {
         technicalWorkflowRepository.updatePathologyCaseStatus(updated.caseId(), "REPORT_PUBLISHED");
         diagnosticReportSupport.insertWorkflowEvent(updated.caseId(), "REPORT_PUBLISH", "PUBLISH", "SUCCESS",
             command.operatorUserId(), command.operatorName(), command.terminalCode(), "Report published");
+        billingManagementService.triggerReportPublishBilling(
+            updated.caseId(),
+            updated.id(),
+            updated.reportNo(),
+            updated.finalDiagnosis(),
+            command.operatorUserId(),
+            command.operatorName());
         return new DiagnosticReportModels.PathologyReportResult(
             updated.id(), updated.caseId(), updated.reportNo(), updated.reportStatus(), updated.versionNo(), DiagnosticReportConstants.REPORT_PUBLISHED);
     }

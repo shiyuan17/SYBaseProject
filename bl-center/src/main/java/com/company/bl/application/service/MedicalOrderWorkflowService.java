@@ -3,6 +3,7 @@ package com.company.bl.application.service;
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.domain.repository.MedicalOrderRepository;
+import com.company.bl.integration.application.BillingManagementService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,11 +14,14 @@ class MedicalOrderWorkflowService {
 
     private final MedicalOrderRepository medicalOrderRepository;
     private final DiagnosticReportSupport diagnosticReportSupport;
+    private final BillingManagementService billingManagementService;
 
     MedicalOrderWorkflowService(MedicalOrderRepository medicalOrderRepository,
-                                DiagnosticReportSupport diagnosticReportSupport) {
+                                DiagnosticReportSupport diagnosticReportSupport,
+                                BillingManagementService billingManagementService) {
         this.medicalOrderRepository = medicalOrderRepository;
         this.diagnosticReportSupport = diagnosticReportSupport;
+        this.billingManagementService = billingManagementService;
     }
 
     @Transactional(readOnly = true)
@@ -84,6 +88,14 @@ class MedicalOrderWorkflowService {
         diagnosticReportSupport.insertWorkflowEvent(order.caseId(), "MEDICAL_ORDER_COMPLETE", "COMPLETE", "SUCCESS",
             command.operatorUserId(), command.operatorName(), command.terminalCode(), order.orderNumber());
         MedicalOrderRepository.MedicalOrder updated = getOrder(order.id());
+        billingManagementService.triggerSpecialOrderBilling(
+            updated.caseId(),
+            updated.id(),
+            updated.orderNumber(),
+            updated.orderType(),
+            updated.orderContent(),
+            command.operatorUserId(),
+            command.operatorName());
         return new DiagnosticReportModels.MedicalOrderResult(updated.id(), updated.caseId(), updated.orderNumber(), updated.status());
     }
 
