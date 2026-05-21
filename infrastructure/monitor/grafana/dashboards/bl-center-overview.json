@@ -27,7 +27,6 @@
           "color": {
             "mode": "thresholds"
           },
-          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -45,17 +44,16 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 8,
+        "h": 7,
+        "w": 6,
         "x": 0,
         "y": 0
       },
       "id": 1,
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "center",
-        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -82,6 +80,176 @@
       "fieldConfig": {
         "defaults": {
           "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "100 * sum(jvm_memory_used_bytes{service=\"bl-center\",area=\"heap\"}) / clamp_min(sum(jvm_memory_max_bytes{service=\"bl-center\",area=\"heap\"}), 1)",
+          "refId": "A"
+        }
+      ],
+      "title": "Heap Usage %",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "integration_manual_required_count{service=\"bl-center\"}",
+          "refId": "A"
+        }
+      ],
+      "title": "Manual Compensation Backlog",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "billing_reconciliation_discrepancy_count{service=\"bl-center\"}",
+          "refId": "A"
+        }
+      ],
+      "title": "Billing Discrepancy Backlog",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
             "mode": "palette-classic"
           }
         },
@@ -89,11 +257,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 16,
-        "x": 8,
-        "y": 0
+        "w": 12,
+        "x": 0,
+        "y": 7
       },
-      "id": 2,
+      "id": 5,
       "options": {
         "legend": {
           "displayMode": "list",
@@ -107,17 +275,27 @@
       },
       "targets": [
         {
-          "expr": "rate(application_create_total{service=\"bl-center\"}[5m])",
-          "legendFormat": "create success",
+          "expr": "rate(clinical_application_import_total{service=\"bl-center\"}[5m])",
+          "legendFormat": "clinical import success",
           "refId": "A"
         },
         {
-          "expr": "rate(application_create_failed_total{service=\"bl-center\"}[5m])",
-          "legendFormat": "create failed",
+          "expr": "rate(clinical_application_import_failed_total{service=\"bl-center\"}[5m])",
+          "legendFormat": "clinical import failed",
           "refId": "B"
+        },
+        {
+          "expr": "rate(historical_report_import_total{service=\"bl-center\"}[5m])",
+          "legendFormat": "history import success",
+          "refId": "C"
+        },
+        {
+          "expr": "rate(historical_report_import_failed_total{service=\"bl-center\"}[5m])",
+          "legendFormat": "history import failed",
+          "refId": "D"
         }
       ],
-      "title": "Application Create Rate",
+      "title": "Import Activity",
       "type": "timeseries"
     },
     {
@@ -135,11 +313,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 8
+        "w": 12,
+        "x": 12,
+        "y": 7
       },
-      "id": 3,
+      "id": 6,
       "options": {
         "legend": {
           "displayMode": "list",
@@ -153,17 +331,247 @@
       },
       "targets": [
         {
-          "expr": "rate(application_create_duration_seconds_sum{service=\"bl-center\"}[5m]) / clamp_min(rate(application_create_duration_seconds_count{service=\"bl-center\"}[5m]), 0.000001)",
-          "legendFormat": "create duration",
+          "expr": "rate(billing_submit_total{service=\"bl-center\"}[5m])",
+          "legendFormat": "billing submit",
           "refId": "A"
         },
         {
-          "expr": "rate(application_query_duration_seconds_sum{service=\"bl-center\"}[5m]) / clamp_min(rate(application_query_duration_seconds_count{service=\"bl-center\"}[5m]), 0.000001)",
-          "legendFormat": "query duration",
+          "expr": "rate(billing_submit_failed_total{service=\"bl-center\"}[5m])",
+          "legendFormat": "billing submit failed",
           "refId": "B"
+        },
+        {
+          "expr": "rate(billing_retry_total{service=\"bl-center\"}[5m])",
+          "legendFormat": "billing retry",
+          "refId": "C"
+        },
+        {
+          "expr": "rate(billing_receipt_total{service=\"bl-center\"}[5m])",
+          "legendFormat": "billing receipt",
+          "refId": "D"
         }
       ],
-      "title": "Application Latency",
+      "title": "Billing Activity",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 15
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(stat_report_query_total{service=\"bl-center\"}[5m])",
+          "legendFormat": "stat query",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(stat_report_query_failed_total{service=\"bl-center\"}[5m])",
+          "legendFormat": "stat query failed",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(stat_report_export_total{service=\"bl-center\"}[5m])",
+          "legendFormat": "stat export",
+          "refId": "C"
+        },
+        {
+          "expr": "rate(stat_report_export_failed_total{service=\"bl-center\"}[5m])",
+          "legendFormat": "stat export failed",
+          "refId": "D"
+        }
+      ],
+      "title": "Statistics Activity",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 15
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(clinical_application_import_duration_seconds_sum{service=\"bl-center\"}[5m]) / clamp_min(rate(clinical_application_import_duration_seconds_count{service=\"bl-center\"}[5m]), 0.000001)",
+          "legendFormat": "clinical import latency",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(billing_submit_duration_seconds_sum{service=\"bl-center\"}[5m]) / clamp_min(rate(billing_submit_duration_seconds_count{service=\"bl-center\"}[5m]), 0.000001)",
+          "legendFormat": "billing submit latency",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(historical_report_import_duration_seconds_sum{service=\"bl-center\"}[5m]) / clamp_min(rate(historical_report_import_duration_seconds_count{service=\"bl-center\"}[5m]), 0.000001)",
+          "legendFormat": "history import latency",
+          "refId": "C"
+        },
+        {
+          "expr": "rate(stat_report_export_duration_seconds_sum{service=\"bl-center\"}[5m]) / clamp_min(rate(stat_report_export_duration_seconds_count{service=\"bl-center\"}[5m]), 0.000001)",
+          "legendFormat": "stat export latency",
+          "refId": "D"
+        }
+      ],
+      "title": "Business Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "integration_retry_pending_count{service=\"bl-center\"}",
+          "legendFormat": "retry pending",
+          "refId": "A"
+        },
+        {
+          "expr": "historical_import_running_count{service=\"bl-center\"}",
+          "legendFormat": "history import running",
+          "refId": "B"
+        },
+        {
+          "expr": "integration_manual_required_count{service=\"bl-center\"}",
+          "legendFormat": "manual required",
+          "refId": "C"
+        },
+        {
+          "expr": "billing_reconciliation_discrepancy_count{service=\"bl-center\"}",
+          "legendFormat": "billing discrepancy",
+          "refId": "D"
+        }
+      ],
+      "title": "Backlog Gauges",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 23
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "max(hikaricp_connections_active{service=\"bl-center\"})",
+          "legendFormat": "db active",
+          "refId": "A"
+        },
+        {
+          "expr": "max(hikaricp_connections_idle{service=\"bl-center\"})",
+          "legendFormat": "db idle",
+          "refId": "B"
+        },
+        {
+          "expr": "max(hikaricp_connections_max{service=\"bl-center\"})",
+          "legendFormat": "db max",
+          "refId": "C"
+        }
+      ],
+      "title": "Database Connections",
       "type": "timeseries"
     }
   ],
@@ -171,7 +579,9 @@
   "schemaVersion": 39,
   "style": "dark",
   "tags": [
-    "bl-center"
+    "bl-center",
+    "m6",
+    "m7"
   ],
   "templating": {
     "list": []
@@ -182,5 +592,5 @@
   },
   "timezone": "",
   "title": "bl-center-overview",
-  "version": 1
+  "version": 2
 }

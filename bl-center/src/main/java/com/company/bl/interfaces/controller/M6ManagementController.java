@@ -51,8 +51,14 @@ public class M6ManagementController {
     public List<IntegrationManagementService.IntegrationTaskView> listIntegrationTasks(
         @RequestParam(name = "taskType", required = false) String taskType,
         @RequestParam(name = "businessType", required = false) String businessType,
-        @RequestParam(name = "taskStatus", required = false) String taskStatus) {
-        return integrationManagementService.listTasks(taskType, businessType, taskStatus);
+        @RequestParam(name = "businessId", required = false) String businessId,
+        @RequestParam(name = "taskStatus", required = false) String taskStatus,
+        @RequestParam(name = "stageCode", required = false) String stageCode,
+        @RequestParam(name = "externalSystem", required = false) String externalSystem,
+        @RequestParam(name = "compensationStatus", required = false) String compensationStatus,
+        @RequestParam(name = "reconciliationStatus", required = false) String reconciliationStatus) {
+        return integrationManagementService.listTasks(
+            taskType, businessType, businessId, taskStatus, stageCode, externalSystem, compensationStatus, reconciliationStatus);
     }
 
     @Operation(summary = "List billing records", description = "Query billing records by status, stage, and time window.")
@@ -61,9 +67,13 @@ public class M6ManagementController {
     public List<BillingManagementService.BillingRecordView> listBillingRecords(
         @RequestParam(name = "billingStatus", required = false) String billingStatus,
         @RequestParam(name = "billingStage", required = false) String billingStage,
+        @RequestParam(name = "externalSystem", required = false) String externalSystem,
+        @RequestParam(name = "caseId", required = false) String caseId,
+        @RequestParam(name = "orderId", required = false) String orderId,
         @RequestParam(name = "from", required = false) String from,
         @RequestParam(name = "to", required = false) String to) {
-        return billingManagementService.listBillingRecords(billingStatus, billingStage, parseDateTime(from), parseDateTime(to));
+        return billingManagementService.listBillingRecords(
+            billingStatus, billingStage, externalSystem, caseId, orderId, parseDateTime(from), parseDateTime(to));
     }
 
     @Operation(summary = "Receive billing receipt", description = "Receive billing receipt callbacks from external systems.")
@@ -105,8 +115,11 @@ public class M6ManagementController {
     @GetMapping("/historical-report-import-jobs")
     public List<HistoricalReportService.HistoricalImportJobView> listImportJobs(
         @RequestParam(name = "sourceSystem", required = false) String sourceSystem,
-        @RequestParam(name = "importStatus", required = false) String importStatus) {
-        return historicalReportService.listImportJobs(sourceSystem, importStatus);
+        @RequestParam(name = "importStatus", required = false) String importStatus,
+        @RequestParam(name = "patientId", required = false) String patientId,
+        @RequestParam(name = "pathologyNo", required = false) String pathologyNo,
+        @RequestParam(name = "applicationNo", required = false) String applicationNo) {
+        return historicalReportService.listImportJobs(sourceSystem, importStatus, patientId, pathologyNo, applicationNo);
     }
 
     @Operation(summary = "List historical reports", description = "Query imported historical reports.")
@@ -117,10 +130,11 @@ public class M6ManagementController {
         @RequestParam(name = "patientId", required = false) String patientId,
         @RequestParam(name = "pathologyNo", required = false) String pathologyNo,
         @RequestParam(name = "applicationNo", required = false) String applicationNo,
+        @RequestParam(name = "externalReportNo", required = false) String externalReportNo,
         @RequestParam(name = "from", required = false) String from,
         @RequestParam(name = "to", required = false) String to) {
         return historicalReportService.listHistoricalReports(
-            sourceSystem, patientId, pathologyNo, applicationNo, parseDateTime(from), parseDateTime(to));
+            sourceSystem, patientId, pathologyNo, applicationNo, externalReportNo, parseDateTime(from), parseDateTime(to));
     }
 
     @Operation(summary = "List stat indicators", description = "Query M6 statistic indicator definitions.")

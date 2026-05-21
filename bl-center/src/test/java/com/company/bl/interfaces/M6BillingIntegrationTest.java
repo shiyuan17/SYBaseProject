@@ -40,14 +40,33 @@ class M6BillingIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTest
             """).andExpect(status().isOk());
 
         JsonNode failedRecords = responseBody(mockMvc.perform(authorized(get("/api/v1/billing-records"), USER_M1_ADMIN)
-            .param("billingStage", "SPECIAL_ORDER")), 200);
+            .param("billingStage", "SPECIAL_ORDER")
+            .param("orderId", orderId)), 200);
         JsonNode failedRecord = findByField(failedRecords, "orderId", orderId);
         assertThat(failedRecord.path("billingStatus").asText()).isEqualTo("FAILED");
+        assertThat(failedRecord.path("integrationTaskId").asText()).isNotBlank();
+        assertThat(failedRecord.path("retryCount").asInt()).isEqualTo(1);
+        assertThat(failedRecord.path("lastErrorCode").asText()).isEqualTo("BILLING_SUBMIT_FAILED");
+        assertThat(failedRecord.path("compensationStatus").asText()).isEqualTo("RETRY_PENDING");
+
+        JsonNode retryPendingTasks = responseBody(mockMvc.perform(authorized(get("/api/v1/integration-tasks"), USER_M1_ADMIN)
+            .param("taskType", "BILLING_SUBMIT")
+            .param("businessType", "BILLING_RECORD")
+            .param("businessId", failedRecord.path("id").asText())
+            .param("taskStatus", "RETRY_PENDING")
+            .param("externalSystem", "MOCK_BILLING")
+            .param("compensationStatus", "RETRY_PENDING")), 200);
+        JsonNode retryPendingTask = retryPendingTasks.get(0);
+        assertThat(retryPendingTask.path("requestPayload").asText()).contains("SPECIAL_ORDER");
+        assertThat(retryPendingTask.path("lastErrorCode").asText()).isEqualTo("BILLING_SUBMIT_FAILED");
+        assertThat(retryPendingTask.path("responsePayload").asText()).contains("one-time failure");
 
         JsonNode retried = responseBody(postJson("/api/v1/billing-records/%s/retry".formatted(failedRecord.path("id").asText()), USER_M1_ADMIN, """
             {"operatorUserId":"USER_M1_ADMIN","operatorName":"admin-user"}
             """), 200);
         assertThat(retried.path("billingStatus").asText()).isEqualTo("SUCCESS");
+        assertThat(retried.path("compensationStatus").asText()).isEqualTo("RESOLVED");
+        assertThat(retried.path("resolvedAt").asText()).isNotBlank();
 
         JsonNode tasks = responseBody(mockMvc.perform(authorized(get("/api/v1/integration-tasks"), USER_M1_ADMIN)
             .param("businessType", "BILLING_RECORD")), 200);
@@ -73,6 +92,8 @@ class M6BillingIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTest
             }
             """), 200);
         assertThat(receipt.path("externalBillNo").asText()).isEqualTo("EXT-RECEIPT-001");
+        assertThat(receipt.path("integrationTaskId").asText()).isNotBlank();
+        assertThat(receipt.path("reconciliationStatus").asText()).isEqualTo("MATCHED");
     }
 
     private JsonNode findByField(JsonNode items, String fieldName, String expectedValue) {

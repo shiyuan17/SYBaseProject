@@ -19,6 +19,7 @@ services:
     volumes:
       - ../../infrastructure/monitor/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ../../infrastructure/monitor/alerts/user-center-alerts.yml:/etc/prometheus/alerts/user-center-alerts.yml:ro
+      - ../../infrastructure/monitor/alerts/bl-center-alerts.yml:/etc/prometheus/alerts/bl-center-alerts.yml:ro
     depends_on:
       - user-center
 
@@ -63,6 +64,7 @@ services:
       - ../../infrastructure/monitor/grafana/datasources/loki.yml:/etc/grafana/provisioning/datasources/loki.yml:ro
       - ../../infrastructure/monitor/grafana/dashboards/dashboard-provider.yml:/etc/grafana/provisioning/dashboards/dashboard-provider.yml:ro
       - ../../infrastructure/monitor/grafana/dashboards/user-center-overview.json:/var/lib/grafana/dashboards/user-center-overview.json:ro
+      - ../../infrastructure/monitor/grafana/dashboards/bl-center-overview.json:/var/lib/grafana/dashboards/bl-center-overview.json:ro
     depends_on:
       - prometheus
       - loki

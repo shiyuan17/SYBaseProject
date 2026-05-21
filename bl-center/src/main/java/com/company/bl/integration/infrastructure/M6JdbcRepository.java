@@ -87,7 +87,14 @@ public class M6JdbcRepository {
         return rows.isEmpty() ? null : rows.get(0);
     }
 
-    public List<IntegrationTaskRow> findIntegrationTasks(String taskType, String businessType, String taskStatus) {
+    public List<IntegrationTaskRow> findIntegrationTasks(String taskType,
+                                                         String businessType,
+                                                         String businessId,
+                                                         String taskStatus,
+                                                         String stageCode,
+                                                         String externalSystem,
+                                                         String compensationStatus,
+                                                         String reconciliationStatus) {
         return jdbcTemplate.query("""
             select id, task_type, business_type, business_id, stage_code, external_system, request_payload, response_payload,
                    task_status, retry_count, max_retry_count, next_retry_at, last_attempt_at, last_error_code, last_error_message,
@@ -95,12 +102,22 @@ public class M6JdbcRepository {
             from integration_tasks
             where (:taskType is null or task_type = :taskType)
               and (:businessType is null or business_type = :businessType)
+              and (:businessId is null or business_id = :businessId)
               and (:taskStatus is null or task_status = :taskStatus)
+              and (:stageCode is null or stage_code = :stageCode)
+              and (:externalSystem is null or external_system = :externalSystem)
+              and (:compensationStatus is null or compensation_status = :compensationStatus)
+              and (:reconciliationStatus is null or reconciliation_status = :reconciliationStatus)
             order by created_at desc, id desc
             """, new MapSqlParameterSource()
             .addValue("taskType", blankToNull(taskType))
             .addValue("businessType", blankToNull(businessType))
-            .addValue("taskStatus", blankToNull(taskStatus)), this::mapIntegrationTask);
+            .addValue("businessId", blankToNull(businessId))
+            .addValue("taskStatus", blankToNull(taskStatus))
+            .addValue("stageCode", blankToNull(stageCode))
+            .addValue("externalSystem", blankToNull(externalSystem))
+            .addValue("compensationStatus", blankToNull(compensationStatus))
+            .addValue("reconciliationStatus", blankToNull(reconciliationStatus)), this::mapIntegrationTask);
     }
 
     public void insertBillingRecord(CreateBillingRecordRow row) {
@@ -145,8 +162,13 @@ public class M6JdbcRepository {
         return rows.isEmpty() ? null : rows.get(0);
     }
 
-    public List<BillingRecordRow> findBillingRecords(String billingStatus, String billingStage,
-                                                     LocalDateTime from, LocalDateTime to) {
+    public List<BillingRecordRow> findBillingRecords(String billingStatus,
+                                                     String billingStage,
+                                                     String externalSystem,
+                                                     String caseId,
+                                                     String orderId,
+                                                     LocalDateTime from,
+                                                     LocalDateTime to) {
         return jdbcTemplate.query("""
             select id, case_id, order_id, billing_no, billing_stage, item_type, item_name, quantity, amount,
                    billing_status, billed_at, operator_user_id, operator_name, external_bill_no, external_system,
@@ -154,12 +176,18 @@ public class M6JdbcRepository {
             from billing_records
             where (:billingStatus is null or billing_status = :billingStatus)
               and (:billingStage is null or billing_stage = :billingStage)
+              and (:externalSystem is null or external_system = :externalSystem)
+              and (:caseId is null or case_id = :caseId)
+              and (:orderId is null or order_id = :orderId)
               and (:fromTime is null or coalesce(billed_at, created_at) >= :fromTime)
               and (:toTime is null or coalesce(billed_at, created_at) <= :toTime)
             order by created_at desc, id desc
             """, new MapSqlParameterSource()
             .addValue("billingStatus", blankToNull(billingStatus))
             .addValue("billingStage", blankToNull(billingStage))
+            .addValue("externalSystem", blankToNull(externalSystem))
+            .addValue("caseId", blankToNull(caseId))
+            .addValue("orderId", blankToNull(orderId))
             .addValue("fromTime", from)
             .addValue("toTime", to), this::mapBillingRecord);
     }
@@ -218,7 +246,11 @@ public class M6JdbcRepository {
         return rows.isEmpty() ? null : rows.get(0);
     }
 
-    public List<HistoricalImportJobRow> findHistoricalImportJobs(String sourceSystem, String importStatus) {
+    public List<HistoricalImportJobRow> findHistoricalImportJobs(String sourceSystem,
+                                                                 String importStatus,
+                                                                 String patientId,
+                                                                 String pathologyNo,
+                                                                 String applicationNo) {
         return jdbcTemplate.query("""
             select id, source_system, patient_id, pathology_no, application_no, import_status, requested_by_user_id,
                    requested_by_name, total_count, success_count, failure_count, requested_at, completed_at,
@@ -226,10 +258,16 @@ public class M6JdbcRepository {
             from historical_import_jobs
             where (:sourceSystem is null or source_system = :sourceSystem)
               and (:importStatus is null or import_status = :importStatus)
+              and (:patientId is null or patient_id = :patientId)
+              and (:pathologyNo is null or pathology_no = :pathologyNo)
+              and (:applicationNo is null or application_no = :applicationNo)
             order by requested_at desc, id desc
             """, new MapSqlParameterSource()
             .addValue("sourceSystem", blankToNull(sourceSystem))
-            .addValue("importStatus", blankToNull(importStatus)), this::mapHistoricalImportJob);
+            .addValue("importStatus", blankToNull(importStatus))
+            .addValue("patientId", blankToNull(patientId))
+            .addValue("pathologyNo", blankToNull(pathologyNo))
+            .addValue("applicationNo", blankToNull(applicationNo)), this::mapHistoricalImportJob);
     }
 
     public HistoricalReportRow findHistoricalReportBySourceAndExternalNo(String sourceSystem, String externalReportNo) {
@@ -306,8 +344,13 @@ public class M6JdbcRepository {
             .addValue("updatedAt", row.updatedAt()));
     }
 
-    public List<HistoricalReportRow> findHistoricalReports(String sourceSystem, String patientId, String pathologyNo,
-                                                           String applicationNo, LocalDateTime from, LocalDateTime to) {
+    public List<HistoricalReportRow> findHistoricalReports(String sourceSystem,
+                                                           String patientId,
+                                                           String pathologyNo,
+                                                           String applicationNo,
+                                                           String externalReportNo,
+                                                           LocalDateTime from,
+                                                           LocalDateTime to) {
         return jdbcTemplate.query("""
             select id, import_job_id, source_system, external_report_no, patient_id, patient_name, pathology_no,
                    application_no, report_date, final_diagnosis, report_summary, raw_payload, source_department_name,
@@ -317,6 +360,7 @@ public class M6JdbcRepository {
               and (:patientId is null or patient_id = :patientId)
               and (:pathologyNo is null or pathology_no = :pathologyNo)
               and (:applicationNo is null or application_no = :applicationNo)
+              and (:externalReportNo is null or external_report_no = :externalReportNo)
               and (:fromTime is null or report_date >= :fromTime)
               and (:toTime is null or report_date <= :toTime)
             order by report_date desc nulls last, id desc
@@ -325,6 +369,7 @@ public class M6JdbcRepository {
             .addValue("patientId", blankToNull(patientId))
             .addValue("pathologyNo", blankToNull(pathologyNo))
             .addValue("applicationNo", blankToNull(applicationNo))
+            .addValue("externalReportNo", blankToNull(externalReportNo))
             .addValue("fromTime", from)
             .addValue("toTime", to), this::mapHistoricalReport);
     }
@@ -414,6 +459,45 @@ public class M6JdbcRepository {
             .addValue("exportStatus", exportStatus)
             .addValue("errorMessage", errorMessage)
             .addValue("completedAt", completedAt));
+    }
+
+    public long countIntegrationTasksByStatus(String taskStatus) {
+        Long value = jdbcTemplate.queryForObject("""
+            select count(*)
+            from integration_tasks
+            where task_status = :taskStatus
+            """, Map.of("taskStatus", taskStatus), Long.class);
+        return value == null ? 0L : value;
+    }
+
+    public long countIntegrationTasksByCompensationStatus(String compensationStatus) {
+        Long value = jdbcTemplate.queryForObject("""
+            select count(*)
+            from integration_tasks
+            where compensation_status = :compensationStatus
+            """, Map.of("compensationStatus", compensationStatus), Long.class);
+        return value == null ? 0L : value;
+    }
+
+    public long countIntegrationTasksByBusinessAndReconciliationStatus(String businessType, String reconciliationStatus) {
+        Long value = jdbcTemplate.queryForObject("""
+            select count(*)
+            from integration_tasks
+            where business_type = :businessType
+              and reconciliation_status = :reconciliationStatus
+            """, new MapSqlParameterSource()
+            .addValue("businessType", businessType)
+            .addValue("reconciliationStatus", reconciliationStatus), Long.class);
+        return value == null ? 0L : value;
+    }
+
+    public long countHistoricalImportJobsByStatus(String importStatus) {
+        Long value = jdbcTemplate.queryForObject("""
+            select count(*)
+            from historical_import_jobs
+            where import_status = :importStatus
+            """, Map.of("importStatus", importStatus), Long.class);
+        return value == null ? 0L : value;
     }
 
     private MapSqlParameterSource toIntegrationParams(CreateIntegrationTaskRow row) {

@@ -1,6 +1,7 @@
 package com.company.bl.integration.application;
 
 import com.company.bl.integration.infrastructure.M6JdbcRepository;
+import com.company.bl.infrastructure.observability.ObservedOperation;
 import com.company.bl.support.application.OperationAuditService;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -49,6 +50,11 @@ public class StatisticsService {
             .toList();
     }
 
+    @ObservedOperation(
+        operation = "stat_report_query",
+        successCounter = "stat_report_query_total",
+        failureCounter = "stat_report_query_failed_total",
+        durationMetric = "stat_report_query_duration")
     @Transactional(readOnly = true)
     public StatReportResult queryReport(QueryStatReportCommand command) {
         String category = resolveCategory(command);
@@ -65,6 +71,11 @@ public class StatisticsService {
             rows);
     }
 
+    @ObservedOperation(
+        operation = "stat_report_export",
+        successCounter = "stat_report_export_total",
+        failureCounter = "stat_report_export_failed_total",
+        durationMetric = "stat_report_export_duration")
     @Transactional
     public byte[] exportReport(QueryStatReportCommand command) {
         return operationAuditService.audit("M6", "STAT", "export_stat_report", () -> {

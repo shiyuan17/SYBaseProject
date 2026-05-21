@@ -4,6 +4,7 @@ import com.company.bl.application.gateway.HistoricalReportGateway;
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.integration.infrastructure.M6JdbcRepository;
+import com.company.bl.infrastructure.observability.ObservedOperation;
 import com.company.bl.support.application.OperationAuditService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +34,11 @@ public class HistoricalReportService {
         this.operationAuditService = operationAuditService;
     }
 
+    @ObservedOperation(
+        operation = "historical_report_import",
+        successCounter = "historical_report_import_total",
+        failureCounter = "historical_report_import_failed_total",
+        durationMetric = "historical_report_import_duration")
     @Transactional
     public HistoricalImportJobView importReports(ImportHistoricalReportsCommand command) {
         return operationAuditService.audit("M6", "HISTORY", "import_historical_reports", () -> {
@@ -75,16 +81,25 @@ public class HistoricalReportService {
     }
 
     @Transactional(readOnly = true)
-    public List<HistoricalImportJobView> listImportJobs(String sourceSystem, String importStatus) {
-        return repository.findHistoricalImportJobs(sourceSystem, importStatus).stream()
+    public List<HistoricalImportJobView> listImportJobs(String sourceSystem,
+                                                        String importStatus,
+                                                        String patientId,
+                                                        String pathologyNo,
+                                                        String applicationNo) {
+        return repository.findHistoricalImportJobs(sourceSystem, importStatus, patientId, pathologyNo, applicationNo).stream()
             .map(this::toJobView)
             .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<HistoricalReportView> listHistoricalReports(String sourceSystem, String patientId, String pathologyNo,
-                                                            String applicationNo, LocalDateTime from, LocalDateTime to) {
-        return repository.findHistoricalReports(sourceSystem, patientId, pathologyNo, applicationNo, from, to).stream()
+    public List<HistoricalReportView> listHistoricalReports(String sourceSystem,
+                                                            String patientId,
+                                                            String pathologyNo,
+                                                            String applicationNo,
+                                                            String externalReportNo,
+                                                            LocalDateTime from,
+                                                            LocalDateTime to) {
+        return repository.findHistoricalReports(sourceSystem, patientId, pathologyNo, applicationNo, externalReportNo, from, to).stream()
             .map(this::toHistoricalView)
             .toList();
     }
@@ -124,6 +139,8 @@ public class HistoricalReportService {
         if (row == null) {
             throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Historical import job not found");
         }
+        IntegrationManagementService.IntegrationTaskView task =
+            integrationManagementService.findLatestTask(BUSINESS_TYPE_IMPORT_JOB, row.id(), "FETCH_REPORTS");
         return new HistoricalImportJobView(
             row.id(),
             row.sourceSystem(),
@@ -139,7 +156,14 @@ public class HistoricalReportService {
             row.requestedAt() == null ? null : row.requestedAt().toString(),
             row.completedAt() == null ? null : row.completedAt().toString(),
             row.lastErrorMessage(),
-            row.remarks());
+            row.remarks(),
+            task == null ? null : task.id(),
+            task == null ? 0 : task.retryCount(),
+            task == null ? 0 : task.maxRetryCount(),
+            task == null ? null : task.lastErrorCode(),
+            task == null ? null : task.lastErrorMessage(),
+            task == null ? null : task.compensationStatus(),
+            task == null ? null : task.reconciliationStatus());
     }
 
     private HistoricalReportView toHistoricalView(M6JdbcRepository.HistoricalReportRow row) {
@@ -193,7 +217,14 @@ public class HistoricalReportService {
         String requestedAt,
         String completedAt,
         String lastErrorMessage,
-        String remarks
+        String remarks,
+        String integrationTaskId,
+        int retryCount,
+        int maxRetryCount,
+        String taskLastErrorCode,
+        String taskLastErrorMessage,
+        String compensationStatus,
+        String reconciliationStatus
     ) {
     }
 

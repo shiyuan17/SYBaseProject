@@ -51,13 +51,26 @@ infrastructure/monitor/
 - `alloy/config.alloy`
 - `alerts/user-center-alerts-example.yml`
 - `alerts/user-center-alerts.yml`
+- `alerts/bl-center-alerts.yml`
 - `grafana/datasources/prometheus-example.yml`
 - `grafana/datasources/prometheus.yml`
 - `grafana/datasources/loki.yml`
 - `grafana/dashboards/dashboard-provider.yml`
 - `grafana/dashboards/user-center-overview.json`
+- `grafana/dashboards/bl-center-overview.json`
 
 以上文件为示例资产，可按环境复制调整，不直接假设生产可用。
+
+## bl-center 试点说明
+
+- `bl-center` 现已提供独立看板与告警规则，默认关注：
+  - 临床导入
+  - 收费提交、重试、回执、对账
+  - 历史导入
+  - 统计查询与导出
+  - JVM、数据库与 Prometheus 抓取状态
+- 本地 `docker-compose.observability.yml` 当前仍以 `user-center` 联调为主。
+- 若要在本地验证 `bl-center` 看板与告警，需额外准备 `bl-center` 运行实例及其依赖数据库，再把抓取目标和 dashboard 挂载到对应环境。
 
 ## 本地可见化运行
 

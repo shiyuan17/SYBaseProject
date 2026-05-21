@@ -49,5 +49,7 @@ class M6HistoricalReportIntegrationTest extends AbstractSpecimenWorkflowIntegrat
         JsonNode importJobs = responseBody(mockMvc.perform(authorized(get("/api/v1/historical-report-import-jobs"), USER_M1_ARCHIVE)
             .param("sourceSystem", "MOCK_HIS")), 200);
         assertThat(importJobs.size()).isGreaterThanOrEqualTo(2);
+        assertThat(importJobs.get(0).path("integrationTaskId").asText()).isNotBlank();
+        assertThat(importJobs.get(0).path("compensationStatus").asText()).isIn("NONE", "RESOLVED");
     }
 }

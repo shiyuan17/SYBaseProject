@@ -47,6 +47,9 @@ public class IntegrationManagementService {
 
     public void markSuccess(String taskId, String responsePayload) {
         M6JdbcRepository.IntegrationTaskRow current = requireTask(taskId);
+        String compensationStatus = current.retryCount() > 0 || !"NONE".equals(current.compensationStatus())
+            ? "RESOLVED"
+            : current.compensationStatus();
         repository.updateIntegrationTask(new M6JdbcRepository.IntegrationTaskRow(
             current.id(),
             current.taskType(),
@@ -63,7 +66,7 @@ public class IntegrationManagementService {
             LocalDateTime.now(),
             null,
             null,
-            current.compensationStatus(),
+            compensationStatus,
             current.reconciliationStatus(),
             LocalDateTime.now(),
             current.createdAt(),
@@ -147,8 +150,16 @@ public class IntegrationManagementService {
             LocalDateTime.now()));
     }
 
-    public List<IntegrationTaskView> listTasks(String taskType, String businessType, String taskStatus) {
-        return repository.findIntegrationTasks(taskType, businessType, taskStatus).stream()
+    public List<IntegrationTaskView> listTasks(String taskType,
+                                               String businessType,
+                                               String businessId,
+                                               String taskStatus,
+                                               String stageCode,
+                                               String externalSystem,
+                                               String compensationStatus,
+                                               String reconciliationStatus) {
+        return repository.findIntegrationTasks(
+                taskType, businessType, businessId, taskStatus, stageCode, externalSystem, compensationStatus, reconciliationStatus).stream()
             .map(this::toView)
             .toList();
     }
@@ -183,6 +194,9 @@ public class IntegrationManagementService {
             row.lastErrorMessage(),
             row.compensationStatus(),
             row.reconciliationStatus(),
+            row.resolvedAt() == null ? null : row.resolvedAt().toString(),
+            row.requestPayload(),
+            row.responsePayload(),
             row.createdAt() == null ? null : row.createdAt().toString(),
             row.updatedAt() == null ? null : row.updatedAt().toString());
     }
@@ -213,6 +227,9 @@ public class IntegrationManagementService {
         String lastErrorMessage,
         String compensationStatus,
         String reconciliationStatus,
+        String resolvedAt,
+        String requestPayload,
+        String responsePayload,
         String createdAt,
         String updatedAt
     ) {

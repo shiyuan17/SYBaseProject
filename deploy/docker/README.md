@@ -34,6 +34,7 @@ docker compose -f deploy/docker/docker-compose.observability.yml up --build
 - `Prometheus` 会抓取 `http://user-center:8080/actuator/prometheus`
 - `Loki` 默认地址为 `http://localhost:3100`
 - `Grafana` 默认地址为 `http://localhost:3000`
+- Grafana 会同时加载 `user-center` 与 `bl-center` 的 dashboard 资产；`bl-center` 面板在未接入对应服务前会显示空数据
 
 端口覆盖：
 

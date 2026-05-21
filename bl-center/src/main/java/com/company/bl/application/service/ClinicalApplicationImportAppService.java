@@ -7,6 +7,7 @@ import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.domain.repository.SpecimenWorkflowRepository;
 import com.company.bl.domain.valueobject.ApplicationId;
 import com.company.bl.integration.application.IntegrationManagementService;
+import com.company.bl.infrastructure.observability.ObservedOperation;
 import com.company.bl.support.application.NumberingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,11 @@ public class ClinicalApplicationImportAppService {
     private final NumberingService numberingService;
     private final IntegrationManagementService integrationManagementService;
 
+    @ObservedOperation(
+        operation = "clinical_application_import",
+        successCounter = "clinical_application_import_total",
+        failureCounter = "clinical_application_import_failed_total",
+        durationMetric = "clinical_application_import_duration")
     @Transactional
     public ApplicationId importApplication(ImportClinicalApplicationCommand command) {
         if (specimenWorkflowRepository.existsApplicationByExternalSource(command.externalOrderNo(), command.thirdPartySource())) {

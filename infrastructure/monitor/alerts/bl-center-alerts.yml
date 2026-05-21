@@ -27,3 +27,75 @@ groups:
         annotations:
           summary: bl-center scrape target missing
           description: Prometheus cannot find the bl-center scrape target.
+
+      - alert: BlCenterClinicalImportFailures
+        expr: increase(clinical_application_import_failed_total{service="bl-center"}[10m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: bl-center clinical import failures detected
+          description: Clinical application import has failures in the last 10 minutes.
+
+      - alert: BlCenterBillingSubmitFailures
+        expr: increase(billing_submit_failed_total{service="bl-center"}[10m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: bl-center billing submit failures detected
+          description: Billing submit has failures in the last 10 minutes.
+
+      - alert: BlCenterBillingRetryFailures
+        expr: increase(billing_retry_failed_total{service="bl-center"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: bl-center billing retry failures detected
+          description: Billing retries are still failing in the last 15 minutes.
+
+      - alert: BlCenterHistoricalImportFailures
+        expr: increase(historical_report_import_failed_total{service="bl-center"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: bl-center historical import failures detected
+          description: Historical report import has failures in the last 15 minutes.
+
+      - alert: BlCenterStatExportFailures
+        expr: increase(stat_report_export_failed_total{service="bl-center"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: bl-center stat export failures detected
+          description: Statistic report export has failures in the last 15 minutes.
+
+      - alert: BlCenterIntegrationManualRequired
+        expr: integration_manual_required_count{service="bl-center"} > 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: bl-center integration manual compensation backlog exists
+          description: There are integration tasks waiting for manual compensation for more than 10 minutes.
+
+      - alert: BlCenterBillingReconciliationDiscrepancy
+        expr: billing_reconciliation_discrepancy_count{service="bl-center"} > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: bl-center billing reconciliation discrepancies detected
+          description: Billing reconciliation discrepancies still exist for more than 10 minutes.
+
+      - alert: BlCenterDatabaseConnectionsHigh
+        expr: max(hikaricp_connections_active{service="bl-center"}) / clamp_min(max(hikaricp_connections_max{service="bl-center"}), 1) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: bl-center database connections are high
+          description: Active HikariCP connections have exceeded 80 percent of the configured max for 10 minutes.
