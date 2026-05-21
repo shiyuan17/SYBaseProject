@@ -3,15 +3,24 @@ package com.company.bl.interfaces;
 import com.company.bl.BlCenterApplication;
 import com.company.bl.support.infrastructure.SupportJdbcRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import db.migration.V38__normalize_seed_department_names;
+import org.flywaydb.core.api.configuration.Configuration;
+import org.flywaydb.core.api.migration.Context;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.util.Map;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -28,9 +37,18 @@ class MasterDataControllerIntegrationTest extends AuthenticatedWebIntegrationTes
     private SupportJdbcRepository supportJdbcRepository;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private NamedParameterJdbcTemplate jdbcTemplate;
+    @Autowired
+    private DataSource dataSource;
 
     @Test
     void shouldQueryBodyPartsAndTemplateDetails() throws Exception {
+        mockMvc.perform(asAdmin(get("/api/v1/departments")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].id", is("DEPT_ROOT")))
+            .andExpect(jsonPath("$.data[0].departmentName", is("\u5168\u90e8\u79d1\u5ba4")));
+
         mockMvc.perform(asAdmin(get("/api/v1/body-parts")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data[0].id", is("BP_ROOT")));
@@ -39,6 +57,90 @@ class MasterDataControllerIntegrationTest extends AuthenticatedWebIntegrationTes
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.id", is("ST_HE_STOMACH")))
             .andExpect(jsonPath("$.data.bodyParts.length()", greaterThanOrEqualTo(1)));
+    }
+
+    @Test
+    void shouldNormalizeLegacyEnglishSeedDepartmentNamesWithoutOverwritingCustomNames() throws Exception {
+        jdbcTemplate.update("""
+            update department_dict
+            set department_name = :departmentName
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", "DEPT_ROOT")
+            .addValue("departmentName", "All Departments"));
+        jdbcTemplate.update("""
+            update department_dict
+            set department_name = :departmentName
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", "DEPT_CLINICAL")
+            .addValue("departmentName", "Clinical Departments"));
+        jdbcTemplate.update("""
+            update department_dict
+            set department_name = :departmentName
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", "DEPT_OR")
+            .addValue("departmentName", "\u81ea\u5b9a\u4e49\u624b\u672f\u5ba4"));
+        jdbcTemplate.update("""
+            update department_dict
+            set department_name = :departmentName
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", "DEPT_ICU")
+            .addValue("departmentName", "Intensive Care Unit"));
+        jdbcTemplate.update("""
+            update department_dict
+            set department_name = :departmentName
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", "DEPT_PATH")
+            .addValue("departmentName", "Pathology Department"));
+
+        try (Connection connection = dataSource.getConnection()) {
+            new V38__normalize_seed_department_names().migrate(new Context() {
+                @Override
+                public Configuration getConfiguration() {
+                    return null;
+                }
+
+                @Override
+                public Connection getConnection() {
+                    return connection;
+                }
+            });
+        }
+
+        assertEquals(
+            "\u5168\u90e8\u79d1\u5ba4",
+            jdbcTemplate.queryForObject(
+                "select department_name from department_dict where id = :id",
+                Map.of("id", "DEPT_ROOT"),
+                String.class));
+        assertEquals(
+            "\u4e34\u5e8a\u79d1\u5ba4",
+            jdbcTemplate.queryForObject(
+                "select department_name from department_dict where id = :id",
+                Map.of("id", "DEPT_CLINICAL"),
+                String.class));
+        assertEquals(
+            "\u81ea\u5b9a\u4e49\u624b\u672f\u5ba4",
+            jdbcTemplate.queryForObject(
+                "select department_name from department_dict where id = :id",
+                Map.of("id", "DEPT_OR"),
+                String.class));
+        assertEquals(
+            "\u91cd\u75c7\u76d1\u62a4\u5ba4",
+            jdbcTemplate.queryForObject(
+                "select department_name from department_dict where id = :id",
+                Map.of("id", "DEPT_ICU"),
+                String.class));
+        assertEquals(
+            "\u75c5\u7406\u79d1",
+            jdbcTemplate.queryForObject(
+                "select department_name from department_dict where id = :id",
+                Map.of("id", "DEPT_PATH"),
+                String.class));
     }
     @Test
     void shouldCreatePackageUpdateConfigAndQueryPagedResources() throws Exception {
@@ -148,6 +250,43 @@ class MasterDataControllerIntegrationTest extends AuthenticatedWebIntegrationTes
                     """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.partAlias", is("胃窦")));
+
+        String departmentCode = "DEPT-" + System.nanoTime();
+        MvcResult departmentResult = mockMvc.perform(asAdmin(post("/api/v1/departments"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "parentId": "DEPT_ROOT",
+                      "departmentCode": "%s",
+                      "departmentName": "临时科室",
+                      "sortOrder": 99,
+                      "enabled": true
+                    }
+                    """.formatted(departmentCode)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.departmentCode", is(departmentCode)))
+            .andReturn();
+        String departmentId = objectMapper.readTree(departmentResult.getResponse().getContentAsString())
+            .path("data")
+            .path("id")
+            .asText();
+
+        mockMvc.perform(asAdmin(patch("/api/v1/departments/{id}", departmentId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "parentId": "DEPT_ROOT",
+                      "departmentCode": "%s",
+                      "departmentName": "临时科室-更新",
+                      "sortOrder": 100,
+                      "enabled": true
+                    }
+                    """.formatted(departmentCode)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.departmentName", is("临时科室-更新")));
+
+        mockMvc.perform(asAdmin(delete("/api/v1/departments/{id}", departmentId)))
+            .andExpect(status().isOk());
 
         String categoryCode = "CAT-" + System.nanoTime();
         mockMvc.perform(asAdmin(post("/api/v1/medical-order-dicts/categories"))

@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -108,5 +109,21 @@ class SystemManagementUserIntegrationTest extends AbstractSystemManagementIntegr
         assertEquals(successAt.toString(), userView.lastLoginAt());
         assertEquals("10.0.0.1", userView.lastLoginIp());
         assertEquals("Chrome", userView.lastLoginDevice());
+    }
+
+    @Test
+    void shouldQuerySystemUsersWithEnabledAndKeywordFilters() throws Exception {
+        String loginName = "filter-" + System.nanoTime();
+        createUser(loginName);
+
+        mockMvc.perform(asAdmin(get("/api/v1/system-users"))
+                .param("page", "1")
+                .param("size", "20")
+                .param("enabled", "true")
+                .param("keyword", loginName))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code", is("SUCCESS")))
+            .andExpect(jsonPath("$.data.total", greaterThanOrEqualTo(1)))
+            .andExpect(jsonPath("$.data.items[0].loginName", is(loginName)));
     }
 }

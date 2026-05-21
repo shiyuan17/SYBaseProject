@@ -54,9 +54,11 @@ class SystemManagementRoleAndMenuIntegrationTest extends AbstractSystemManagemen
 
         org.junit.jupiter.api.Assertions.assertEquals("/system", menusById.get("MENU_SYSTEM").path("path").asText());
         org.junit.jupiter.api.Assertions.assertEquals("/system/users", menusById.get("MENU_SYS_USERS").path("path").asText());
+        org.junit.jupiter.api.Assertions.assertEquals("/system/departments", menusById.get("MENU_DEPARTMENTS").path("path").asText());
         org.junit.jupiter.api.Assertions.assertEquals("/system/medical-order-dicts", menusById.get("MENU_ORDER_DICTS").path("path").asText());
         org.junit.jupiter.api.Assertions.assertEquals("/system/medical-order-charges", menusById.get("MENU_ORDER_CHARGES").path("path").asText());
         org.junit.jupiter.api.Assertions.assertEquals("SystemUsers", menusById.get("MENU_SYS_USERS").path("componentName").asText());
+        org.junit.jupiter.api.Assertions.assertEquals("Departments", menusById.get("MENU_DEPARTMENTS").path("componentName").asText());
         org.junit.jupiter.api.Assertions.assertEquals("MedicalOrderCharges", menusById.get("MENU_ORDER_CHARGES").path("componentName").asText());
     }
 

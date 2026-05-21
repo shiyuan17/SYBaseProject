@@ -602,9 +602,9 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             from specimens s
             join applications a on a.id = s.application_id
             left join (
-                select application_id, specimen_id, max(event_time) as latest_event_time
+                select specimen_id, max(event_time) as latest_event_time
                 from workflow_events
-                group by application_id, specimen_id
+                group by specimen_id
             ) evt on evt.specimen_id = s.id
             where s.specimen_status in ('REGISTERED', 'FIXING')
               and coalesce(s.fixation_status, 'PENDING') <> 'COMPLETED'
@@ -642,9 +642,9 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             from specimens s
             join applications a on a.id = s.application_id
             left join (
-                select application_id, specimen_id, max(event_time) as latest_event_time
+                select specimen_id, max(event_time) as latest_event_time
                 from workflow_events
-                group by application_id, specimen_id
+                group by specimen_id
             ) evt on evt.specimen_id = s.id
             where (
                     exists (

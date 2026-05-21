@@ -5,6 +5,7 @@ spring:
     type: caffeine
     cache-names:
       - bodyPartTree
+      - departmentTree
       - medicalOrderDictTree
       - medicalOrderChargeItems
       - samplingTemplateTree

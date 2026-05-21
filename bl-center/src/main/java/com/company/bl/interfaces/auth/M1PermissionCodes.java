@@ -8,6 +8,8 @@ public final class M1PermissionCodes {
     public static final String SYSTEM_ROLE_QUERY = "PERM_SYS_ROLE_QUERY";
     public static final String SYSTEM_ROLE_CREATE = "PERM_SYS_ROLE_CREATE";
     public static final String SYSTEM_ROLE_ASSIGN = "PERM_SYS_ROLE_ASSIGN";
+    public static final String DEPARTMENT_QUERY = "PERM_SYS_DEPARTMENT_QUERY";
+    public static final String DEPARTMENT_CREATE = "PERM_SYS_DEPARTMENT_CREATE";
     public static final String BODY_PART_QUERY = "PERM_SYS_BODY_PART_QUERY";
     public static final String BODY_PART_CREATE = "PERM_SYS_BODY_PART_CREATE";
     public static final String ORDER_DICT_QUERY = "PERM_SYS_ORDER_DICT_QUERY";

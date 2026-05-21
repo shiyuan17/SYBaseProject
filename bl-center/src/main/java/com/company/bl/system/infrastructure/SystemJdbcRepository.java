@@ -445,7 +445,7 @@ public class SystemJdbcRepository {
                                    Boolean enabled,
                                    String keyword) {
         if (enabled != null) {
-            conditions.append(" and enabled = :enabled");
+            conditions.append(" and enabled = :enabled\n");
             params.addValue("enabled", enabled ? 1 : 0);
         }
         if (keyword != null && !keyword.isBlank()) {

@@ -742,6 +742,9 @@ CREATE TABLE applications (
     id VARCHAR2(64) NOT NULL,
     application_no VARCHAR2(64) NOT NULL,
     patient_id VARCHAR2(64),
+    patient_name VARCHAR2(100),
+    patient_gender VARCHAR2(16),
+    patient_age VARCHAR2(32),
     application_type VARCHAR2(50),
     status VARCHAR2(32),
     external_order_no VARCHAR2(64),
@@ -777,6 +780,9 @@ COMMENT ON TABLE applications IS '病理申请单表';
 COMMENT ON COLUMN applications.id IS '主键ID';
 COMMENT ON COLUMN applications.application_no IS '申请单号';
 COMMENT ON COLUMN applications.patient_id IS '患者ID';
+COMMENT ON COLUMN applications.patient_name IS '患者姓名快照';
+COMMENT ON COLUMN applications.patient_gender IS '患者性别快照';
+COMMENT ON COLUMN applications.patient_age IS '患者年龄快照';
 COMMENT ON COLUMN applications.application_type IS '申请类型，示例：ROUTINE/FROZEN/MOLECULAR/CONSULTATION';
 COMMENT ON COLUMN applications.status IS '申请状态，示例：DRAFT/SUBMITTED/RECEIVED/CLOSED/CANCELLED';
 COMMENT ON COLUMN applications.external_order_no IS '外部系统医嘱号或申请号';
@@ -811,6 +817,7 @@ CREATE TABLE pathology_cases (
     application_id VARCHAR2(64),
     case_type VARCHAR2(50),
     current_status VARCHAR2(32),
+    case_status VARCHAR2(32),
     priority VARCHAR2(32) DEFAULT 'NORMAL',
     source_hospital_id VARCHAR2(64),
     source_hospital_name VARCHAR2(200),
@@ -843,6 +850,7 @@ COMMENT ON COLUMN pathology_cases.patient_id IS '患者ID';
 COMMENT ON COLUMN pathology_cases.application_id IS '申请单ID';
 COMMENT ON COLUMN pathology_cases.case_type IS '病例类型，示例：ROUTINE/FROZEN/CONSULTATION/MOLECULAR';
 COMMENT ON COLUMN pathology_cases.current_status IS '当前主流程状态，示例：COLLECTION/FIXATION/TRANSPORT/RECEIVED/REGISTERED/SAMPLING/DEHYDRATION/EMBEDDING/SLICING/STAINING/DIAGNOSING/REVIEWING/PUBLISHED/ARCHIVED';
+COMMENT ON COLUMN pathology_cases.case_status IS '当前病例状态';
 COMMENT ON COLUMN pathology_cases.priority IS '优先级，示例：NORMAL/URGENT/STAT';
 COMMENT ON COLUMN pathology_cases.source_hospital_id IS '送检医院ID';
 COMMENT ON COLUMN pathology_cases.source_hospital_name IS '送检医院名称快照';
@@ -866,8 +874,8 @@ COMMENT ON COLUMN pathology_cases.updated_at IS '更新时间';
 -- =========================================================
 CREATE TABLE specimens (
     id VARCHAR2(64) NOT NULL,
-    case_id VARCHAR2(64) NOT NULL,
-    application_id VARCHAR2(64),
+    case_id VARCHAR2(64),
+    application_id VARCHAR2(64) NOT NULL,
     specimen_no VARCHAR2(64) NOT NULL,
     barcode VARCHAR2(128),
     specimen_type VARCHAR2(100),
@@ -875,6 +883,7 @@ CREATE TABLE specimens (
     specimen_site VARCHAR2(200),
     collection_mode VARCHAR2(50),
     specimen_count NUMBER(10),
+    specimen_status VARCHAR2(32) DEFAULT 'REGISTERED',
     fixation_status VARCHAR2(200),
     qualified_flag NUMBER(1) DEFAULT 1,
     unqualified_reason VARCHAR2(500),
@@ -884,13 +893,18 @@ CREATE TABLE specimens (
     applicant_doctor_user_id VARCHAR2(64),
     applicant_doctor_name VARCHAR2(100),
     submission_date DATE,
+    label_print_batch_no VARCHAR2(64),
+    label_print_status VARCHAR2(32),
     registered_by_user_id VARCHAR2(64),
     registered_by_name VARCHAR2(100),
     registered_at TIMESTAMP,
+    terminal_code VARCHAR2(64),
     remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_specimens PRIMARY KEY (id),
     CONSTRAINT ck_specimens_qualified_flag CHECK (qualified_flag IN (0, 1)),
-    CONSTRAINT uk_specimens_case_specimen_no UNIQUE (case_id, specimen_no),
+    CONSTRAINT uk_specimens_application_specimen_no UNIQUE (application_id, specimen_no),
     CONSTRAINT uk_specimens_barcode UNIQUE (barcode),
     CONSTRAINT fk_specimens_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
     CONSTRAINT fk_specimens_application FOREIGN KEY (application_id) REFERENCES applications (id)
@@ -907,6 +921,7 @@ COMMENT ON COLUMN specimens.specimen_name_standardized IS '标准化标本名称
 COMMENT ON COLUMN specimens.specimen_site IS '标本部位';
 COMMENT ON COLUMN specimens.collection_mode IS '采集方式，示例：SURGERY/BIOPSY/PUNCTURE/CYTOLOGY';
 COMMENT ON COLUMN specimens.specimen_count IS '标本数量';
+COMMENT ON COLUMN specimens.specimen_status IS '标本状态';
 COMMENT ON COLUMN specimens.fixation_status IS '固定情况';
 COMMENT ON COLUMN specimens.qualified_flag IS '是否合格，0否1是';
 COMMENT ON COLUMN specimens.unqualified_reason IS '不合格原因';
@@ -916,15 +931,20 @@ COMMENT ON COLUMN specimens.applicant_department_name IS '申请科室名称快�
 COMMENT ON COLUMN specimens.applicant_doctor_user_id IS '申请医生用户ID';
 COMMENT ON COLUMN specimens.applicant_doctor_name IS '申请医生姓名快照';
 COMMENT ON COLUMN specimens.submission_date IS '送检日期';
+COMMENT ON COLUMN specimens.label_print_batch_no IS '标签打印批次号';
+COMMENT ON COLUMN specimens.label_print_status IS '标签打印状态';
 COMMENT ON COLUMN specimens.registered_by_user_id IS '登记人用户ID';
 COMMENT ON COLUMN specimens.registered_by_name IS '登记人姓名快照';
 COMMENT ON COLUMN specimens.registered_at IS '登记时间';
+COMMENT ON COLUMN specimens.terminal_code IS '终端编码';
 COMMENT ON COLUMN specimens.remarks IS '备注';
+COMMENT ON COLUMN specimens.created_at IS '创建时间';
+COMMENT ON COLUMN specimens.updated_at IS '更新时间';
 
 CREATE TABLE specimen_collection_records (
     id VARCHAR2(64) NOT NULL,
     application_id VARCHAR2(64) NOT NULL,
-    case_id VARCHAR2(64) NOT NULL,
+    case_id VARCHAR2(64),
     specimen_id VARCHAR2(64) NOT NULL,
     collection_status VARCHAR2(32) DEFAULT 'COLLECTED',
     collection_scene VARCHAR2(100),
@@ -933,6 +953,7 @@ CREATE TABLE specimen_collection_records (
     collector_user_id VARCHAR2(64),
     collector_name VARCHAR2(100),
     collected_at TIMESTAMP,
+    terminal_code VARCHAR2(64),
     remarks VARCHAR2(500),
     CONSTRAINT pk_specimen_collection_records PRIMARY KEY (id),
     CONSTRAINT fk_specimen_collection_records_application FOREIGN KEY (application_id) REFERENCES applications (id),
@@ -952,11 +973,13 @@ COMMENT ON COLUMN specimen_collection_records.label_print_batch_no IS '标签打
 COMMENT ON COLUMN specimen_collection_records.collector_user_id IS '采集人用户ID';
 COMMENT ON COLUMN specimen_collection_records.collector_name IS '采集人姓名快照';
 COMMENT ON COLUMN specimen_collection_records.collected_at IS '采集时间';
+COMMENT ON COLUMN specimen_collection_records.terminal_code IS '终端编码';
 COMMENT ON COLUMN specimen_collection_records.remarks IS '备注';
 
 CREATE TABLE specimen_fixation_records (
     id VARCHAR2(64) NOT NULL,
-    case_id VARCHAR2(64) NOT NULL,
+    application_id VARCHAR2(64),
+    case_id VARCHAR2(64),
     specimen_id VARCHAR2(64) NOT NULL,
     fixation_status VARCHAR2(32) DEFAULT 'PENDING',
     fixation_liquid_type VARCHAR2(100),
@@ -965,14 +988,18 @@ CREATE TABLE specimen_fixation_records (
     verified_by_user_id VARCHAR2(64),
     verified_by_name VARCHAR2(100),
     verified_at TIMESTAMP,
+    terminal_code VARCHAR2(64),
     remarks VARCHAR2(500),
     CONSTRAINT pk_specimen_fixation_records PRIMARY KEY (id),
+    CONSTRAINT uk_specimen_fixation_records_specimen UNIQUE (specimen_id),
+    CONSTRAINT fk_specimen_fixation_records_application FOREIGN KEY (application_id) REFERENCES applications (id),
     CONSTRAINT fk_specimen_fixation_records_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
     CONSTRAINT fk_specimen_fixation_records_specimen FOREIGN KEY (specimen_id) REFERENCES specimens (id)
 );
 
 COMMENT ON TABLE specimen_fixation_records IS '标本固定核对记录表';
 COMMENT ON COLUMN specimen_fixation_records.id IS '主键ID';
+COMMENT ON COLUMN specimen_fixation_records.application_id IS '申请单ID';
 COMMENT ON COLUMN specimen_fixation_records.case_id IS '病例ID';
 COMMENT ON COLUMN specimen_fixation_records.specimen_id IS '标本ID';
 COMMENT ON COLUMN specimen_fixation_records.fixation_status IS '固定状态，示例：PENDING/FIXING/COMPLETED/ABNORMAL';
@@ -982,13 +1009,14 @@ COMMENT ON COLUMN specimen_fixation_records.fixation_completed_at IS '固定完�
 COMMENT ON COLUMN specimen_fixation_records.verified_by_user_id IS '固定核对人用户ID';
 COMMENT ON COLUMN specimen_fixation_records.verified_by_name IS '固定核对人姓名快照';
 COMMENT ON COLUMN specimen_fixation_records.verified_at IS '固定核对时间';
+COMMENT ON COLUMN specimen_fixation_records.terminal_code IS '终端编码';
 COMMENT ON COLUMN specimen_fixation_records.remarks IS '备注';
 
 CREATE TABLE transport_orders (
     id VARCHAR2(64) NOT NULL,
     transport_order_no VARCHAR2(64) NOT NULL,
     application_id VARCHAR2(64) NOT NULL,
-    case_id VARCHAR2(64) NOT NULL,
+    case_id VARCHAR2(64),
     order_status VARCHAR2(32) DEFAULT 'PENDING',
     handover_user_id VARCHAR2(64),
     handover_user_name VARCHAR2(100),
@@ -1001,7 +1029,10 @@ CREATE TABLE transport_orders (
     printed_at TIMESTAMP,
     to_be_transported_at TIMESTAMP,
     handed_over_at TIMESTAMP,
+    terminal_code VARCHAR2(64),
     remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_transport_orders PRIMARY KEY (id),
     CONSTRAINT uk_transport_orders_order_no UNIQUE (transport_order_no),
     CONSTRAINT fk_transport_orders_application FOREIGN KEY (application_id) REFERENCES applications (id),
@@ -1025,12 +1056,16 @@ COMMENT ON COLUMN transport_orders.receiver_department_name IS '接收科室名�
 COMMENT ON COLUMN transport_orders.printed_at IS '转运单打印时间';
 COMMENT ON COLUMN transport_orders.to_be_transported_at IS '待运时间';
 COMMENT ON COLUMN transport_orders.handed_over_at IS '交接完成时间';
+COMMENT ON COLUMN transport_orders.terminal_code IS '终端编码';
 COMMENT ON COLUMN transport_orders.remarks IS '备注';
+COMMENT ON COLUMN transport_orders.created_at IS '创建时间';
+COMMENT ON COLUMN transport_orders.updated_at IS '更新时间';
 
 CREATE TABLE transport_order_items (
     id VARCHAR2(64) NOT NULL,
     transport_order_id VARCHAR2(64) NOT NULL,
-    case_id VARCHAR2(64) NOT NULL,
+    application_id VARCHAR2(64),
+    case_id VARCHAR2(64),
     specimen_id VARCHAR2(64) NOT NULL,
     item_status VARCHAR2(32) DEFAULT 'PENDING',
     verification_result VARCHAR2(32),
@@ -1041,6 +1076,7 @@ CREATE TABLE transport_order_items (
     CONSTRAINT pk_transport_order_items PRIMARY KEY (id),
     CONSTRAINT uk_transport_order_items_order_specimen UNIQUE (transport_order_id, specimen_id),
     CONSTRAINT fk_transport_order_items_order FOREIGN KEY (transport_order_id) REFERENCES transport_orders (id),
+    CONSTRAINT fk_transport_order_items_application FOREIGN KEY (application_id) REFERENCES applications (id),
     CONSTRAINT fk_transport_order_items_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
     CONSTRAINT fk_transport_order_items_specimen FOREIGN KEY (specimen_id) REFERENCES specimens (id)
 );
@@ -1048,6 +1084,7 @@ CREATE TABLE transport_order_items (
 COMMENT ON TABLE transport_order_items IS '标本转运单明细表';
 COMMENT ON COLUMN transport_order_items.id IS '主键ID';
 COMMENT ON COLUMN transport_order_items.transport_order_id IS '转运单ID';
+COMMENT ON COLUMN transport_order_items.application_id IS '申请单ID';
 COMMENT ON COLUMN transport_order_items.case_id IS '病例ID';
 COMMENT ON COLUMN transport_order_items.specimen_id IS '标本ID';
 COMMENT ON COLUMN transport_order_items.item_status IS '明细状态，示例：PENDING/HANDED_OVER/PARTIALLY_RECEIVED/COMPLETED/RETURNED';
@@ -1059,33 +1096,41 @@ COMMENT ON COLUMN transport_order_items.remarks IS '备注';
 
 CREATE TABLE specimen_receipts (
     id VARCHAR2(64) NOT NULL,
-    case_id VARCHAR2(64) NOT NULL,
+    application_id VARCHAR2(64),
+    case_id VARCHAR2(64),
     specimen_id VARCHAR2(64),
+    transport_order_id VARCHAR2(64),
     receipt_status VARCHAR2(32) NOT NULL,
     container_count NUMBER(10),
     barcode VARCHAR2(128),
     received_by_user_id VARCHAR2(64),
     received_by_name VARCHAR2(100),
     received_at TIMESTAMP,
+    terminal_code VARCHAR2(64),
     reject_reason VARCHAR2(500),
     return_reason VARCHAR2(500),
     remarks VARCHAR2(500),
     CONSTRAINT pk_specimen_receipts PRIMARY KEY (id),
     CONSTRAINT uk_specimen_receipts_barcode UNIQUE (barcode),
+    CONSTRAINT fk_specimen_receipts_application FOREIGN KEY (application_id) REFERENCES applications (id),
     CONSTRAINT fk_specimen_receipts_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
-    CONSTRAINT fk_specimen_receipts_specimen FOREIGN KEY (specimen_id) REFERENCES specimens (id)
+    CONSTRAINT fk_specimen_receipts_specimen FOREIGN KEY (specimen_id) REFERENCES specimens (id),
+    CONSTRAINT fk_specimen_receipts_transport_order FOREIGN KEY (transport_order_id) REFERENCES transport_orders (id)
 );
 
 COMMENT ON TABLE specimen_receipts IS '标本接收与拒收记录表';
 COMMENT ON COLUMN specimen_receipts.id IS '主键ID';
+COMMENT ON COLUMN specimen_receipts.application_id IS '申请单ID';
 COMMENT ON COLUMN specimen_receipts.case_id IS '病例ID';
 COMMENT ON COLUMN specimen_receipts.specimen_id IS '标本ID';
+COMMENT ON COLUMN specimen_receipts.transport_order_id IS '转运单ID';
 COMMENT ON COLUMN specimen_receipts.receipt_status IS '接收状态，示例：RECEIVED/REJECTED/RETURNED';
 COMMENT ON COLUMN specimen_receipts.container_count IS '容器数量';
 COMMENT ON COLUMN specimen_receipts.barcode IS '接收条码';
 COMMENT ON COLUMN specimen_receipts.received_by_user_id IS '接收人用户ID';
 COMMENT ON COLUMN specimen_receipts.received_by_name IS '接收人姓名快照';
 COMMENT ON COLUMN specimen_receipts.received_at IS '接收时间';
+COMMENT ON COLUMN specimen_receipts.terminal_code IS '终端编码';
 COMMENT ON COLUMN specimen_receipts.reject_reason IS '拒收原因';
 COMMENT ON COLUMN specimen_receipts.return_reason IS '退回原因';
 COMMENT ON COLUMN specimen_receipts.remarks IS '备注';
@@ -1104,6 +1149,8 @@ CREATE TABLE samplings (
     sampled_at TIMESTAMP,
     sampling_cancel_reason VARCHAR2(500),
     remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_samplings PRIMARY KEY (id),
     CONSTRAINT fk_samplings_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
     CONSTRAINT fk_samplings_specimen FOREIGN KEY (specimen_id) REFERENCES specimens (id),
@@ -1136,6 +1183,8 @@ CREATE TABLE sampling_blocks (
     block_description VARCHAR2(1000),
     embedding_box_no VARCHAR2(64),
     special_requirement VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_sampling_blocks PRIMARY KEY (id),
     CONSTRAINT uk_sampling_blocks_block_code UNIQUE (block_code),
     CONSTRAINT fk_sampling_blocks_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
@@ -1168,6 +1217,9 @@ CREATE TABLE embeddings (
     embedded_by_user_id VARCHAR2(64),
     embedded_by_name VARCHAR2(100),
     remarks VARCHAR2(500),
+    sampling_block_id VARCHAR2(64),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_embeddings PRIMARY KEY (id),
     CONSTRAINT fk_embeddings_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
     CONSTRAINT fk_embeddings_specimen FOREIGN KEY (specimen_id) REFERENCES specimens (id),
@@ -1199,6 +1251,8 @@ CREATE TABLE embedding_boxes (
     slice_notice VARCHAR2(500),
     storage_status VARCHAR2(32),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    sampling_block_id VARCHAR2(64),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_embedding_boxes PRIMARY KEY (id),
     CONSTRAINT ck_embedding_boxes_re_embedding_flag CHECK (re_embedding_flag IN (0, 1)),
     CONSTRAINT uk_embedding_boxes_box_no UNIQUE (embedding_box_no),
@@ -1230,6 +1284,9 @@ CREATE TABLE dehydration_batches (
     operator_user_id VARCHAR2(64),
     operator_name VARCHAR2(100),
     remarks VARCHAR2(500),
+    case_id VARCHAR2(64),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_dehydration_batches PRIMARY KEY (id),
     CONSTRAINT uk_dehydration_batches_batch_no UNIQUE (batch_no)
 );
@@ -1251,13 +1308,15 @@ CREATE TABLE dehydration_batch_items (
     batch_id VARCHAR2(64) NOT NULL,
     case_id VARCHAR2(64) NOT NULL,
     specimen_id VARCHAR2(64),
-    object_type VARCHAR2(32) NOT NULL,
-    object_id VARCHAR2(64) NOT NULL,
+    object_type VARCHAR2(32),
+    object_id VARCHAR2(64),
     embedding_box_id VARCHAR2(64),
     sampling_block_id VARCHAR2(64),
     item_status VARCHAR2(32) DEFAULT 'LOADED',
     loaded_at TIMESTAMP,
     remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_dehydration_batch_items PRIMARY KEY (id),
     CONSTRAINT uk_dehydration_batch_items_object UNIQUE (batch_id, object_type, object_id),
     CONSTRAINT fk_dehydration_batch_items_batch FOREIGN KEY (batch_id) REFERENCES dehydration_batches (id),
@@ -1294,6 +1353,10 @@ CREATE TABLE slicings (
     sliced_at TIMESTAMP,
     quality_issue VARCHAR2(500),
     remarks VARCHAR2(500),
+    embedding_box_id VARCHAR2(64),
+    slice_count_per_slide NUMBER(10),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_slicings PRIMARY KEY (id),
     CONSTRAINT uk_slicings_batch_no UNIQUE (slicing_batch_no),
     CONSTRAINT fk_slicings_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
@@ -1329,6 +1392,8 @@ CREATE TABLE slides (
     slide_status VARCHAR2(32),
     slice_count NUMBER(10),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    embedding_box_id VARCHAR2(64),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_slides PRIMARY KEY (id),
     CONSTRAINT ck_slides_combined_slide_flag CHECK (combined_slide_flag IN (0, 1)),
     CONSTRAINT uk_slides_slide_no UNIQUE (slide_no),
@@ -1364,6 +1429,8 @@ CREATE TABLE slide_stainings (
     stained_at TIMESTAMP,
     quality_issue VARCHAR2(500),
     remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_slide_stainings PRIMARY KEY (id),
     CONSTRAINT fk_slide_stainings_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
     CONSTRAINT fk_slide_stainings_specimen FOREIGN KEY (specimen_id) REFERENCES specimens (id),
@@ -1390,13 +1457,15 @@ CREATE TABLE case_media_assets (
     object_type VARCHAR2(32),
     object_id VARCHAR2(64),
     media_type VARCHAR2(50) NOT NULL,
-    capture_node VARCHAR2(50) NOT NULL,
+    capture_node VARCHAR2(50),
     file_url VARCHAR2(500) NOT NULL,
     file_name VARCHAR2(255),
     captured_at TIMESTAMP,
     captured_by_user_id VARCHAR2(64),
     captured_by_name VARCHAR2(100),
     remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_case_media_assets PRIMARY KEY (id),
     CONSTRAINT fk_case_media_assets_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
     CONSTRAINT fk_case_media_assets_specimen FOREIGN KEY (specimen_id) REFERENCES specimens (id)
@@ -1614,6 +1683,7 @@ CREATE TABLE diagnostic_tasks (
     frozen_diagnosis_result VARCHAR2(1000),
     remarks VARCHAR2(500),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_diagnostic_tasks PRIMARY KEY (id),
     CONSTRAINT fk_diagnostic_tasks_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
     CONSTRAINT fk_diagnostic_tasks_specimen FOREIGN KEY (specimen_id) REFERENCES specimens (id)
@@ -1688,6 +1758,9 @@ CREATE TABLE pathology_reports (
     amendment_reason VARCHAR2(500),
     timeout_reason VARCHAR2(500),
     rich_text_content CLOB,
+    remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_pathology_reports PRIMARY KEY (id),
     CONSTRAINT ck_pathology_reports_is_amended CHECK (is_amended IN (0, 1)),
     CONSTRAINT uk_pathology_reports_case_scope_seq UNIQUE (case_id, report_scope, report_seq),
@@ -1791,6 +1864,8 @@ CREATE TABLE report_revision_requests (
     reject_reason VARCHAR2(500),
     approved_version_no NUMBER(10),
     remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_report_revision_requests PRIMARY KEY (id),
     CONSTRAINT fk_report_revision_requests_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
     CONSTRAINT fk_report_revision_requests_report FOREIGN KEY (report_id) REFERENCES pathology_reports (id)
@@ -1859,6 +1934,10 @@ CREATE TABLE archive_cabinets (
     cabinet_status VARCHAR2(32) DEFAULT 'ACTIVE',
     location_description VARCHAR2(200),
     remarks VARCHAR2(500),
+    layer_count NUMBER(10) DEFAULT 1 NOT NULL,
+    slot_count_per_layer NUMBER(10) DEFAULT 1 NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_archive_cabinets PRIMARY KEY (id),
     CONSTRAINT uk_archive_cabinets_code UNIQUE (cabinet_code)
 );
@@ -1883,6 +1962,8 @@ CREATE TABLE archive_positions (
     current_object_type VARCHAR2(32),
     current_object_id VARCHAR2(64),
     remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_archive_positions PRIMARY KEY (id),
     CONSTRAINT uk_archive_positions_code UNIQUE (position_code),
     CONSTRAINT uk_archive_positions_cabinet_slot UNIQUE (cabinet_id, layer_no, slot_no),
@@ -1916,6 +1997,8 @@ CREATE TABLE specimen_storage_records (
     stored_by_name VARCHAR2(100),
     stored_at TIMESTAMP,
     remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_specimen_storage_records PRIMARY KEY (id),
     CONSTRAINT fk_specimen_storage_records_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
     CONSTRAINT fk_specimen_storage_records_specimen FOREIGN KEY (specimen_id) REFERENCES specimens (id),
@@ -1957,6 +2040,8 @@ CREATE TABLE material_loans (
     returned_by_name VARCHAR2(100),
     returned_at TIMESTAMP,
     remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_material_loans PRIMARY KEY (id),
     CONSTRAINT fk_material_loans_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
     CONSTRAINT fk_material_loans_specimen FOREIGN KEY (specimen_id) REFERENCES specimens (id),
@@ -1984,33 +2069,51 @@ COMMENT ON COLUMN material_loans.remarks IS '备注';
 
 CREATE TABLE workflow_events (
     id VARCHAR2(64) NOT NULL,
-    case_id VARCHAR2(64) NOT NULL,
+    application_id VARCHAR2(64),
+    case_id VARCHAR2(64),
     specimen_id VARCHAR2(64),
+    transport_order_id VARCHAR2(64),
     node_code VARCHAR2(50) NOT NULL,
-    action_code VARCHAR2(50) NOT NULL,
+    action_code VARCHAR2(50),
+    event_type VARCHAR2(64),
     from_status VARCHAR2(32),
     to_status VARCHAR2(32),
+    event_status VARCHAR2(32),
     operator_user_id VARCHAR2(64),
     operator_name VARCHAR2(100),
-    occurred_at TIMESTAMP NOT NULL,
+    occurred_at TIMESTAMP,
+    event_time TIMESTAMP,
+    source_terminal VARCHAR2(64),
+    event_content VARCHAR2(1000),
     remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_workflow_events PRIMARY KEY (id),
+    CONSTRAINT fk_workflow_events_application FOREIGN KEY (application_id) REFERENCES applications (id),
     CONSTRAINT fk_workflow_events_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
-    CONSTRAINT fk_workflow_events_specimen FOREIGN KEY (specimen_id) REFERENCES specimens (id)
+    CONSTRAINT fk_workflow_events_specimen FOREIGN KEY (specimen_id) REFERENCES specimens (id),
+    CONSTRAINT fk_workflow_events_transport_order FOREIGN KEY (transport_order_id) REFERENCES transport_orders (id)
 );
 
 COMMENT ON TABLE workflow_events IS '病理流程轨迹事件表';
 COMMENT ON COLUMN workflow_events.id IS '主键ID';
+COMMENT ON COLUMN workflow_events.application_id IS '申请单ID';
 COMMENT ON COLUMN workflow_events.case_id IS '病例ID';
 COMMENT ON COLUMN workflow_events.specimen_id IS '标本ID，可为空';
+COMMENT ON COLUMN workflow_events.transport_order_id IS '转运单ID';
 COMMENT ON COLUMN workflow_events.node_code IS '流程节点编码，示例：COLLECTION/FIXATION/TRANSPORT/RECEIPT/REGISTRATION/SAMPLING/DEHYDRATION/EMBEDDING/SLICING/STAINING/DIAGNOSIS/REVIEW/PUBLISH/ARCHIVE/REWORK/QC';
 COMMENT ON COLUMN workflow_events.action_code IS '动作编码，示例：CREATE/ASSIGN/ACCEPT/COMPLETE/REJECT/RETURN/AMEND/BORROW/BACK';
+COMMENT ON COLUMN workflow_events.event_type IS '事件类型';
 COMMENT ON COLUMN workflow_events.from_status IS '变更前状态';
 COMMENT ON COLUMN workflow_events.to_status IS '变更后状态';
+COMMENT ON COLUMN workflow_events.event_status IS '事件结果状态';
 COMMENT ON COLUMN workflow_events.operator_user_id IS '操作人用户ID';
 COMMENT ON COLUMN workflow_events.operator_name IS '操作人姓名快照';
 COMMENT ON COLUMN workflow_events.occurred_at IS '发生时间';
+COMMENT ON COLUMN workflow_events.event_time IS '事件发生时间';
+COMMENT ON COLUMN workflow_events.source_terminal IS '来源终端';
+COMMENT ON COLUMN workflow_events.event_content IS '事件内容';
 COMMENT ON COLUMN workflow_events.remarks IS '备注';
+COMMENT ON COLUMN workflow_events.created_at IS '创建时间';
 
 CREATE TABLE handover_logs (
     id VARCHAR2(64) NOT NULL,
@@ -2093,6 +2196,10 @@ CREATE TABLE consultation_cases (
     opinion CLOB,
     completed_at TIMESTAMP,
     remarks VARCHAR2(500),
+    host_user_id VARCHAR2(64),
+    host_name VARCHAR2(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_consultation_cases PRIMARY KEY (id),
     CONSTRAINT fk_consultation_cases_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id)
 );
@@ -2126,6 +2233,8 @@ CREATE TABLE consultation_participants (
     read_at TIMESTAMP,
     commented_at TIMESTAMP,
     remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_consultation_participants PRIMARY KEY (id),
     CONSTRAINT ck_consultation_participants_read_flag CHECK (read_flag IN (0, 1)),
     CONSTRAINT fk_consultation_participants_consultation FOREIGN KEY (consultation_id) REFERENCES consultation_cases (id),
@@ -2163,6 +2272,10 @@ CREATE TABLE rework_orders (
     executed_by_name VARCHAR2(100),
     executed_at TIMESTAMP,
     remarks VARCHAR2(500),
+    sampling_block_id VARCHAR2(64),
+    embedding_box_id VARCHAR2(64),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_rework_orders PRIMARY KEY (id),
     CONSTRAINT fk_rework_orders_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
     CONSTRAINT fk_rework_orders_specimen FOREIGN KEY (specimen_id) REFERENCES specimens (id),
@@ -2230,6 +2343,8 @@ CREATE TABLE slide_qc_evaluations (
     evaluator_name VARCHAR2(100),
     evaluated_at TIMESTAMP,
     remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_slide_qc_evaluations PRIMARY KEY (id),
     CONSTRAINT fk_slide_qc_evaluations_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
     CONSTRAINT fk_slide_qc_evaluations_specimen FOREIGN KEY (specimen_id) REFERENCES specimens (id),
@@ -2297,6 +2412,12 @@ CREATE TABLE medical_orders (
     order_date DATE NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    executor_user_id VARCHAR2(64),
+    executor_name VARCHAR2(100),
+    accepted_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    cancelled_at TIMESTAMP,
+    remarks VARCHAR2(500),
     CONSTRAINT pk_medical_orders PRIMARY KEY (id),
     CONSTRAINT uk_medical_orders_order_number UNIQUE (order_number),
     CONSTRAINT fk_medical_orders_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id)
@@ -2335,6 +2456,9 @@ CREATE TABLE billing_records (
     operator_name VARCHAR2(100),
     external_bill_no VARCHAR2(64),
     remarks VARCHAR2(500),
+    external_system VARCHAR2(64),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_billing_records PRIMARY KEY (id),
     CONSTRAINT uk_billing_records_billing_no UNIQUE (billing_no),
     CONSTRAINT fk_billing_records_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
@@ -2386,6 +2510,75 @@ COMMENT ON COLUMN medical_order_changes.change_reason IS '变更原因';
 COMMENT ON COLUMN medical_order_changes.changed_by_user_id IS '变更人用户ID';
 COMMENT ON COLUMN medical_order_changes.changed_by_name IS '变更人姓名快照';
 COMMENT ON COLUMN medical_order_changes.changed_at IS '变更时间';
+
+CREATE TABLE reagents (
+    id VARCHAR2(64) NOT NULL,
+    reagent_code VARCHAR2(64) NOT NULL,
+    reagent_name VARCHAR2(100) NOT NULL,
+    specification VARCHAR2(100),
+    unit VARCHAR2(32),
+    manufacturer VARCHAR2(200),
+    default_low_stock_threshold NUMBER(18, 2),
+    default_near_expiry_days NUMBER(10),
+    enabled NUMBER(1) DEFAULT 1,
+    remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_reagents PRIMARY KEY (id),
+    CONSTRAINT uk_reagents_code UNIQUE (reagent_code)
+);
+
+CREATE TABLE reagent_stocks (
+    id VARCHAR2(64) NOT NULL,
+    reagent_id VARCHAR2(64) NOT NULL,
+    batch_no VARCHAR2(64) NOT NULL,
+    stock_quantity NUMBER(18, 2) NOT NULL,
+    stock_status VARCHAR2(32) NOT NULL,
+    expiry_date DATE,
+    storage_location VARCHAR2(200),
+    low_stock_threshold NUMBER(18, 2),
+    near_expiry_days NUMBER(10),
+    remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_reagent_stocks PRIMARY KEY (id),
+    CONSTRAINT uk_reagent_stocks_batch UNIQUE (reagent_id, batch_no),
+    CONSTRAINT fk_reagent_stocks_reagent FOREIGN KEY (reagent_id) REFERENCES reagents (id)
+);
+
+CREATE TABLE equipment_records (
+    id VARCHAR2(64) NOT NULL,
+    equipment_code VARCHAR2(64) NOT NULL,
+    equipment_name VARCHAR2(100) NOT NULL,
+    equipment_category VARCHAR2(64),
+    model_no VARCHAR2(100),
+    equipment_status VARCHAR2(32) NOT NULL,
+    location_description VARCHAR2(200),
+    enabled_at TIMESTAMP,
+    next_maintenance_at TIMESTAMP,
+    remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_equipment_records PRIMARY KEY (id),
+    CONSTRAINT uk_equipment_records_code UNIQUE (equipment_code)
+);
+
+CREATE TABLE equipment_maintenance_logs (
+    id VARCHAR2(64) NOT NULL,
+    equipment_id VARCHAR2(64) NOT NULL,
+    maintenance_type VARCHAR2(32) NOT NULL,
+    maintenance_status VARCHAR2(32) NOT NULL,
+    performed_at TIMESTAMP NOT NULL,
+    performed_by_user_id VARCHAR2(64),
+    performed_by_name VARCHAR2(100),
+    description VARCHAR2(1000),
+    next_maintenance_at TIMESTAMP,
+    remarks VARCHAR2(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_equipment_maintenance_logs PRIMARY KEY (id),
+    CONSTRAINT fk_equipment_maintenance_logs_equipment FOREIGN KEY (equipment_id) REFERENCES equipment_records (id)
+);
 
 CREATE TABLE pdf_signature_configs (
     id BIGINT IDENTITY(1, 1) NOT NULL,
