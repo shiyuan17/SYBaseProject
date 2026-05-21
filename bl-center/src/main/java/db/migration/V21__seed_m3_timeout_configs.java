@@ -11,17 +11,63 @@ import java.time.LocalDateTime;
 
 public class V21__seed_m3_timeout_configs extends BaseJavaMigration {
 
+    private static final String ROOT_CATEGORY_ID = "SCC_ROOT";
     private static final String CATEGORY_ID = "SCC_GENERAL";
 
     @Override
     public void migrate(Context context) throws Exception {
         Connection connection = context.getConnection();
+        ensureConfigCategory(connection, ROOT_CATEGORY_ID, null, "ROOT", "配置根目录", "CONFIG", 0);
+        ensureConfigCategory(connection, CATEGORY_ID, ROOT_CATEGORY_ID, "GENERAL", "通用配置", "CONFIG", 10);
         upsertConfigItem(connection, "SCI_M3_GROSSING_TIMEOUT", "technical.timeout.grossingMinutes",
             "取材任务超时分钟数", "240", "INTEGER", 30, "M3 取材任务超时阈值");
         upsertConfigItem(connection, "SCI_M3_DEHYDRATION_TIMEOUT", "technical.timeout.dehydrationMinutes",
             "脱水任务超时分钟数", "720", "INTEGER", 31, "M3 脱水任务超时阈值");
         upsertConfigItem(connection, "SCI_M3_STAINING_TIMEOUT", "technical.timeout.stainingMinutes",
             "染色任务超时分钟数", "240", "INTEGER", 32, "M3 染色任务超时阈值");
+    }
+
+    private void ensureConfigCategory(Connection connection,
+                                      String id,
+                                      String parentId,
+                                      String categoryCode,
+                                      String categoryName,
+                                      String categoryType,
+                                      int sortOrder) throws SQLException {
+        try (PreparedStatement update = connection.prepareStatement("""
+            update system_config_categories
+            set parent_id = ?, category_name = ?, category_type = ?, sort_order = ?, enabled = 1, updated_at = ?
+            where id = ? or category_code = ?
+            """)) {
+            update.setString(1, parentId);
+            update.setString(2, categoryName);
+            update.setString(3, categoryType);
+            update.setInt(4, sortOrder);
+            update.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now()));
+            update.setString(6, id);
+            update.setString(7, categoryCode);
+            if (update.executeUpdate() > 0) {
+                return;
+            }
+        }
+
+        try (PreparedStatement insert = connection.prepareStatement("""
+            insert into system_config_categories
+                (id, parent_id, category_code, category_name, category_type, sort_order, enabled, created_at, updated_at)
+            values
+                (?, ?, ?, ?, ?, ?, 1, ?, ?)
+            """)) {
+            Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+            insert.setString(1, id);
+            insert.setString(2, parentId);
+            insert.setString(3, categoryCode);
+            insert.setString(4, categoryName);
+            insert.setString(5, categoryType);
+            insert.setInt(6, sortOrder);
+            insert.setTimestamp(7, now);
+            insert.setTimestamp(8, now);
+            insert.executeUpdate();
+        }
     }
 
     private void upsertConfigItem(Connection connection,

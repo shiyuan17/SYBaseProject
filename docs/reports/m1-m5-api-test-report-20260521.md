@@ -3,13 +3,12 @@
 ## 1. 执行信息
 
 - 报告时间：2026-05-21
-- 执行窗口：2026-05-21 11:32:18 至 2026-05-21 11:42:30（Asia/Shanghai）
-- 执行目录：`D:\Github\JW\SYBaseProject`
+- 执行窗口：2026-05-21 03:55:57 至 2026-05-21 03:56:04（Asia/Shanghai）
+- 执行目录：`/d/Github/JW/SYBaseProject`
 - 执行环境：
-  - Windows 11
-  - JDK 17.0.12
-  - Maven 3.9.9（使用本机 Maven Wrapper 缓存目录中的 `mvn.cmd`）
-  - Spring Boot 3.3.5
+  - MINGW64_NT-10.0-22621 3.6.7-fb42d713.x86_64 x86_64
+  - java version "17.0.12" 2024-07-16 LTS
+  - Maven Wrapper
   - SpringBootTest + MockMvc + H2 `test` profile
 - 原始产物：
   - `auth-center/target/surefire-reports`
@@ -19,14 +18,14 @@
 ## 2. 执行命令
 
 ```powershell
-& 'C:\Users\hexi\.m2\wrapper\dists\apache-maven-3.9.9-bin\33b4b2b4\apache-maven-3.9.9\bin\mvn.cmd' -pl auth-center -am "-Dtest=AuthControllerIntegrationTest" test "-Dsurefire.failIfNoSpecifiedTests=false"
-& 'C:\Users\hexi\.m2\wrapper\dists\apache-maven-3.9.9-bin\33b4b2b4\apache-maven-3.9.9\bin\mvn.cmd' -pl user-center -am "-Dtest=UserControllerIntegrationTest" test "-Dsurefire.failIfNoSpecifiedTests=false"
-& 'C:\Users\hexi\.m2\wrapper\dists\apache-maven-3.9.9-bin\33b4b2b4\apache-maven-3.9.9\bin\mvn.cmd' -pl bl-center -am "-Dtest=SystemManagementUserIntegrationTest,SystemManagementRoleAndMenuIntegrationTest,MasterDataControllerIntegrationTest,M1RoleAuthorizationIntegrationTest,M1SingleApiLifecycleIntegrationTest" test "-Dsurefire.failIfNoSpecifiedTests=false"
-& 'C:\Users\hexi\.m2\wrapper\dists\apache-maven-3.9.9-bin\33b4b2b4\apache-maven-3.9.9\bin\mvn.cmd' -pl bl-center -am "-Dtest=ApplicationControllerIntegrationTest,SpecimenWorkflowHappyPathIntegrationTest,SpecimenWorkflowClosureIntegrationTest,M2RoleAuthorizationIntegrationTest,M2RoleScenarioIntegrationTest,M2CollectionAndLabelIntegrationTest" test "-Dsurefire.failIfNoSpecifiedTests=false"
-& 'C:\Users\hexi\.m2\wrapper\dists\apache-maven-3.9.9-bin\33b4b2b4\apache-maven-3.9.9\bin\mvn.cmd' -pl bl-center -am "-Dtest=TechnicalWorkflowIntegrationTest,TechnicalWorkflowQueryEnhancementIntegrationTest,M3RoleAuthorizationMatrixIntegrationTest" test "-Dsurefire.failIfNoSpecifiedTests=false"
-& 'C:\Users\hexi\.m2\wrapper\dists\apache-maven-3.9.9-bin\33b4b2b4\apache-maven-3.9.9\bin\mvn.cmd' -pl bl-center -am "-Dtest=DiagnosticWorkflowIntegrationTest,DiagnosticRevisionIntegrationTest,InternalConsultationIntegrationTest,MedicalOrderIntegrationTest,M4RoleAuthorizationIntegrationTest,M4Batch2AuthorizationIntegrationTest" test "-Dsurefire.failIfNoSpecifiedTests=false"
-& 'C:\Users\hexi\.m2\wrapper\dists\apache-maven-3.9.9-bin\33b4b2b4\apache-maven-3.9.9\bin\mvn.cmd' -pl bl-center -am "-Dtest=ArchiveWorkflowIntegrationTest,ArchiveRoleAuthorizationIntegrationTest,OperationSupportIntegrationTest,M5SingleApiIntegrationTest" test "-Dsurefire.failIfNoSpecifiedTests=false"
-& 'C:\Users\hexi\.m2\wrapper\dists\apache-maven-3.9.9-bin\33b4b2b4\apache-maven-3.9.9\bin\mvn.cmd' -pl bl-center -am "-Dtest=FlywayTableCoverageTest,LegacyDmFlywayOnboardingTest" test "-Dsurefire.failIfNoSpecifiedTests=false"
+& './mvnw' -B -ntp -pl auth-center -am test "-Dtest=AuthControllerIntegrationTest" "-Dsurefire.failIfNoSpecifiedTests=false"
+& './mvnw' -B -ntp -pl user-center -am test "-Dtest=UserControllerIntegrationTest" "-Dsurefire.failIfNoSpecifiedTests=false"
+& './mvnw' -B -ntp -pl bl-center -am test "-Dtest=SystemManagementUserIntegrationTest,SystemManagementRoleAndMenuIntegrationTest,MasterDataControllerIntegrationTest,M1RoleAuthorizationIntegrationTest,M1SingleApiLifecycleIntegrationTest" "-Dsurefire.failIfNoSpecifiedTests=false"
+& './mvnw' -B -ntp -pl bl-center -am test "-Dtest=ApplicationControllerIntegrationTest,SpecimenWorkflowHappyPathIntegrationTest,SpecimenWorkflowClosureIntegrationTest,M2RoleAuthorizationIntegrationTest,M2RoleScenarioIntegrationTest,M2CollectionAndLabelIntegrationTest" "-Dsurefire.failIfNoSpecifiedTests=false"
+& './mvnw' -B -ntp -pl bl-center -am test "-Dtest=TechnicalWorkflowIntegrationTest,TechnicalWorkflowQueryEnhancementIntegrationTest,M3RoleAuthorizationMatrixIntegrationTest" "-Dsurefire.failIfNoSpecifiedTests=false"
+& './mvnw' -B -ntp -pl bl-center -am test "-Dtest=DiagnosticWorkflowIntegrationTest,DiagnosticRevisionIntegrationTest,InternalConsultationIntegrationTest,MedicalOrderIntegrationTest,M4RoleAuthorizationIntegrationTest,M4Batch2AuthorizationIntegrationTest" "-Dsurefire.failIfNoSpecifiedTests=false"
+& './mvnw' -B -ntp -pl bl-center -am test "-Dtest=ArchiveWorkflowIntegrationTest,ArchiveRoleAuthorizationIntegrationTest,OperationSupportIntegrationTest,M5SingleApiIntegrationTest" "-Dsurefire.failIfNoSpecifiedTests=false"
+& './mvnw' -B -ntp -pl bl-center -am test "-Dtest=FlywayTableCoverageTest,LegacyDmFlywayOnboardingTest" "-Dsurefire.failIfNoSpecifiedTests=false"
 ```
 
 ## 3. 结果汇总
@@ -39,7 +38,7 @@
 | user-center | 16 | 0 | 0 | 0 | 基础示例接口与观测性 |
 | bl-center（M1-M5 业务） | 88 | 0 | 0 | 0 | 主业务回归 |
 | bl-center（迁移前置门禁） | 3 | 0 | 0 | 0 | 不计入业务接口条目数 |
-| 合计 | 115 | 0 | 0 | 0 | 全绿 |
+| 合计 | 115 | 0 | 0 | 0 | PASS |
 
 ### 3.2 按里程碑/分组汇总
 
@@ -52,7 +51,7 @@
 | M3 | bl-center | single-api / scenario / cross-cutting | 9 | 0 | 0 | 0 | PASS |
 | M4 | bl-center | single-api / scenario / cross-cutting | 13 | 0 | 0 | 0 | PASS |
 | M5 | bl-center | single-api / scenario / cross-cutting | 9 | 0 | 0 | 0 | PASS |
-| 前置质量门禁 | bl-center | migration gate | 3 | 0 | 0 | 0 | PASS |
+| GATE | bl-center | migration gate | 3 | 0 | 0 | 0 | PASS |
 
 ## 4. 覆盖清单
 
@@ -80,24 +79,23 @@
   - 签收、按条码直收、待办查询、条码追踪、标签补打
   - 已补齐：`specimen-collections` 与标签补打正反路径
 - `M3`
-  - 技术待办查询
-  - 取材、脱水、包埋、切片、染色开始/完成
-  - 返工单创建/执行
-  - 技术追踪查询、超时/增强查询
-  - 已补齐：独立 M3 权限矩阵
+  - 技术待办查询、取材开始/完成
+  - 脱水篮创建/开始/完成、包埋开始/完成
+  - 切片开始/完成、染色开始/完成
+  - 返工单创建/执行、技术追踪、超时/增强查询
+  - 已补齐：M3 独立权限矩阵
 - `M4`
   - 诊断待办查询、分配/接受/开始诊断
-  - 病理报告创建、提交、审核、驳回、签发、发布
-  - 修订申请创建/审批/驳回
-  - 会诊创建/评论/完成
-  - 医嘱创建/待办/接单/完成/取消
-  - 工作台与报告追踪查询
+  - 病理报告创建、保存草稿、提交、审核、驳回、签发、发布
+  - 修订申请创建/审批/驳回、会诊创建/评论/完成
+  - 医嘱创建、待办、接单、完成、取消
+  - 工作台与报告追踪查询，及关键反向权限断言
 - `M5`
   - 档案柜查询/创建/更新、可用柜位查询
   - 申请单、蜡块、玻片归档
-  - 档案检索、借阅创建/待归还查询/归还
+  - 档案检索、借阅创建、待归还查询、归还
   - 试剂台账/库存/预警、设备台账/保养记录/预警
-  - 已补齐：档案柜查询/更新、借阅类正式单接口覆盖、试剂与设备更新接口正式单接口覆盖
+  - 已补齐：档案柜查询/更新、借阅待办查询、试剂与设备更新接口
 
 ### 4.2 场景接口覆盖
 
@@ -140,9 +138,7 @@
 ## 6. 失败用例摘要与根因
 
 - 最终正式回归执行无失败用例。
-- 执行过程中曾发现 `bl-center` 的一次增量编译产物损坏，导致 M4 权限/会诊相关接口短暂出现 `NoClassDefFoundError: com/company/bl/domain/enums/BlErrorCode`，表现为预期 `401/403` 退化为 `500`。
-- 处理方式：执行 `bl-center` 干净重建后重新回归，问题消失；本次最终结果已基于重建后的 Surefire 结果重新统计。
-- 影响结论：未修改生产 API，对外行为仍以最终通过结果为准。
+- 最终结论以本次 Surefire 结果为准。
 
 ## 7. 最终结论
 
@@ -151,4 +147,4 @@
 - 每个里程碑至少 1 条主场景自动化通过。
 - 补充测试类型已全部落地。
 - “未覆盖项”为空。
-- 最终结论：PASS，可作为当前本地 H2 `test` profile 的 M1-M5 统一接口回归基线。
+- 最终结论：PASS。

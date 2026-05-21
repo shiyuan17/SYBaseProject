@@ -29,11 +29,36 @@ verify:
     - chmod +x mvnw
     - ./mvnw -B -ntp clean test
 
+verify_m1_m5_api_regression:
+  stage: verify
+  image: maven:3.9.9-eclipse-temurin-17
+  variables:
+    TZ: Asia/Shanghai
+  script:
+    - chmod +x mvnw
+    - chmod +x scripts/ci/run-m1-m5-api-regression.sh
+    - bash scripts/ci/run-m1-m5-api-regression.sh
+  artifacts:
+    when: always
+    name: "m1-m5-api-regression-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - docs/reports/m1-m5-api-test-report-*.md
+      - auth-center/target/surefire-reports/
+      - user-center/target/surefire-reports/
+      - bl-center/target/surefire-reports/
+    reports:
+      junit:
+        - auth-center/target/surefire-reports/TEST-*.xml
+        - user-center/target/surefire-reports/TEST-*.xml
+        - bl-center/target/surefire-reports/TEST-*.xml
+    expire_in: 14 days
+
 package_user_center:
   stage: package
   image: maven:3.9.9-eclipse-temurin-17
   needs:
     - verify
+    - verify_m1_m5_api_regression
   script:
     - chmod +x mvnw
     - ./mvnw -pl user-center -am package -DskipTests
@@ -48,6 +73,7 @@ package_auth_center:
   image: maven:3.9.9-eclipse-temurin-17
   needs:
     - verify
+    - verify_m1_m5_api_regression
   script:
     - chmod +x mvnw
     - ./mvnw -pl auth-center -am package -DskipTests
@@ -62,6 +88,7 @@ package_bl_center:
   image: maven:3.9.9-eclipse-temurin-17
   needs:
     - verify
+    - verify_m1_m5_api_regression
   script:
     - chmod +x mvnw
     - ./mvnw -pl bl-center -am package -DskipTests

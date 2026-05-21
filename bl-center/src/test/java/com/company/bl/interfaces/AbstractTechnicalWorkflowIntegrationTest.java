@@ -24,7 +24,14 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
     protected NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     protected TechnicalCaseContext receiveCaseAndGetGrossingTask(String applicationNo, String barcode) throws Exception {
-        String applicationId = createApplication(applicationNo);
+        return receiveCaseAndGetGrossingTask(applicationNo, barcode, "DEPT-OR", "OR");
+    }
+
+    protected TechnicalCaseContext receiveCaseAndGetGrossingTask(String applicationNo,
+                                                                 String barcode,
+                                                                 String submittingDepartmentId,
+                                                                 String submittingDepartmentName) throws Exception {
+        String applicationId = createApplication(applicationNo, submittingDepartmentId, submittingDepartmentName);
         JsonNode registration = registerSpecimens(applicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", barcode);
         JsonNode specimen = registration.path("specimens").get(0);
         String specimenId = specimen.path("id").asText();

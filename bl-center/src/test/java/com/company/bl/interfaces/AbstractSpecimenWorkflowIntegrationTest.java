@@ -29,6 +29,10 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
     protected ObjectMapper objectMapper;
 
     protected String createApplication(String applicationNo) throws Exception {
+        return createApplication(applicationNo, "DEPT-OR", "OR");
+    }
+
+    protected String createApplication(String applicationNo, String submittingDepartmentId, String submittingDepartmentName) throws Exception {
         JsonNode data = responseBody(postJson("/api/v1/applications", USER_REGISTER, """
             {
               "applicationNo": "%s",
@@ -36,14 +40,14 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
               "patientName": "Patient A",
               "applicationType": "ROUTINE",
               "status": "DRAFT",
-              "submittingDepartmentId": "DEPT-OR",
-              "submittingDepartmentName": "OR",
+              "submittingDepartmentId": "%s",
+              "submittingDepartmentName": "%s",
               "submittingDoctorUserId": "DOC-001",
               "submittingDoctorName": "Dr A",
               "clinicalDiagnosis": "Papillary thyroid carcinoma",
               "specimenSite": "Thyroid"
             }
-            """.formatted(applicationNo)), 201);
+            """.formatted(applicationNo, submittingDepartmentId, submittingDepartmentName)), 201);
         return data.path("id").asText();
     }
 

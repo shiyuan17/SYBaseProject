@@ -34,7 +34,14 @@ abstract class AbstractDiagnosticWorkflowIntegrationTest extends AbstractTechnic
     }
 
     protected StartedDiagnosticContext prepareStartedDiagnosticCase(String applicationNo, String barcode) throws Exception {
-        TechnicalCaseContext context = receiveCaseAndGetGrossingTask(applicationNo, barcode);
+        return prepareStartedDiagnosticCase(applicationNo, barcode, "DEPT-OR", "OR");
+    }
+
+    protected StartedDiagnosticContext prepareStartedDiagnosticCase(String applicationNo,
+                                                                    String barcode,
+                                                                    String submittingDepartmentId,
+                                                                    String submittingDepartmentName) throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask(applicationNo, barcode, submittingDepartmentId, submittingDepartmentName);
 
         postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
             {"taskId":"%s","operatorName":"grossing-user","terminalCode":"M4-G-01"}
@@ -137,7 +144,15 @@ abstract class AbstractDiagnosticWorkflowIntegrationTest extends AbstractTechnic
     }
 
     protected PublishedReportContext preparePublishedReportContext(String applicationNo, String barcode) throws Exception {
-        StartedDiagnosticContext context = prepareStartedDiagnosticCase(applicationNo, barcode);
+        return preparePublishedReportContext(applicationNo, barcode, "DEPT-OR", "OR");
+    }
+
+    protected PublishedReportContext preparePublishedReportContext(String applicationNo,
+                                                                   String barcode,
+                                                                   String submittingDepartmentId,
+                                                                   String submittingDepartmentName) throws Exception {
+        StartedDiagnosticContext context =
+            prepareStartedDiagnosticCase(applicationNo, barcode, submittingDepartmentId, submittingDepartmentName);
         JsonNode createdReport = responseBody(postJson("/api/v1/pathology-reports", USER_M4_DIAGNOSIS, """
             {
               "caseId":"%s",

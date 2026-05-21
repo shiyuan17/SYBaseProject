@@ -7,7 +7,6 @@ import com.company.bl.integration.application.StatisticsService;
 import com.company.bl.interfaces.auth.M6PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -28,7 +27,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1")
-@Tag(name = "M6支撑能力", description = "集成、收费、历史数据和统计分析接口")
+@Tag(name = "M6 Management", description = "M6 integration, billing, history, and statistics management")
 public class M6ManagementController {
 
     private final IntegrationManagementService integrationManagementService;
@@ -46,7 +45,7 @@ public class M6ManagementController {
         this.statisticsService = statisticsService;
     }
 
-    @Operation(summary = "查询集成任务", description = "按任务类型、业务类型和状态查询 M6 集成任务。")
+    @Operation(summary = "List integration tasks", description = "Query M6 integration task traces.")
     @RequirePermission(M6PermissionCodes.INTEGRATION_TASK_QUERY)
     @GetMapping("/integration-tasks")
     public List<IntegrationManagementService.IntegrationTaskView> listIntegrationTasks(
@@ -56,7 +55,7 @@ public class M6ManagementController {
         return integrationManagementService.listTasks(taskType, businessType, taskStatus);
     }
 
-    @Operation(summary = "查询收费记录", description = "按状态、阶段和时间范围查询收费记录。")
+    @Operation(summary = "List billing records", description = "Query billing records by status, stage, and time window.")
     @RequirePermission(M6PermissionCodes.BILLING_QUERY)
     @GetMapping("/billing-records")
     public List<BillingManagementService.BillingRecordView> listBillingRecords(
@@ -67,7 +66,7 @@ public class M6ManagementController {
         return billingManagementService.listBillingRecords(billingStatus, billingStage, parseDateTime(from), parseDateTime(to));
     }
 
-    @Operation(summary = "回写收费回执", description = "接收 HIS 或第三方回写的收费结果。")
+    @Operation(summary = "Receive billing receipt", description = "Receive billing receipt callbacks from external systems.")
     @RequirePermission(M6PermissionCodes.BILLING_RECEIPT)
     @PostMapping("/billing-records/{id}/receipt")
     public BillingManagementService.BillingRecordView receiveReceipt(@PathVariable("id") String id,
@@ -76,7 +75,7 @@ public class M6ManagementController {
             id, request.externalBillNo(), request.billingStatus(), request.operatorUserId(), request.operatorName(), request.remarks());
     }
 
-    @Operation(summary = "重试收费", description = "对失败收费执行人工重试。")
+    @Operation(summary = "Retry billing", description = "Retry a failed billing submission.")
     @RequirePermission(M6PermissionCodes.BILLING_RETRY)
     @PostMapping("/billing-records/{id}/retry")
     public BillingManagementService.BillingRecordView retryBilling(@PathVariable("id") String id,
@@ -84,7 +83,7 @@ public class M6ManagementController {
         return billingManagementService.retryBilling(id, request.operatorUserId(), request.operatorName());
     }
 
-    @Operation(summary = "执行收费对账", description = "按时间范围执行收费记录对账。")
+    @Operation(summary = "Reconcile billing", description = "Run billing reconciliation in a time window.")
     @RequirePermission(M6PermissionCodes.BILLING_RECONCILE)
     @PostMapping("/billing-records/reconcile")
     public BillingManagementService.ReconciliationResult reconcile(@Valid @RequestBody ReconcileBillingRequest request) {
@@ -92,7 +91,7 @@ public class M6ManagementController {
             request.operatorUserId(), request.operatorName());
     }
 
-    @Operation(summary = "创建历史报告导入任务", description = "从旧系统拉取历史报告并导入 M6 历史库。")
+    @Operation(summary = "Import historical reports", description = "Create a historical report import job.")
     @RequirePermission(M6PermissionCodes.HISTORY_IMPORT)
     @PostMapping("/historical-report-import-jobs")
     public HistoricalReportService.HistoricalImportJobView importHistoricalReports(@Valid @RequestBody ImportHistoricalReportsRequest request) {
@@ -101,7 +100,7 @@ public class M6ManagementController {
             parseDateTime(request.from()), parseDateTime(request.to()), request.operatorUserId(), request.operatorName(), request.remarks()));
     }
 
-    @Operation(summary = "查询历史导入任务", description = "查询历史报告导入任务列表。")
+    @Operation(summary = "List historical import jobs", description = "Query historical report import jobs.")
     @RequirePermission(M6PermissionCodes.HISTORY_QUERY)
     @GetMapping("/historical-report-import-jobs")
     public List<HistoricalReportService.HistoricalImportJobView> listImportJobs(
@@ -110,7 +109,7 @@ public class M6ManagementController {
         return historicalReportService.listImportJobs(sourceSystem, importStatus);
     }
 
-    @Operation(summary = "查询历史报告", description = "按患者、病理号、申请号、来源系统和时间范围查询历史报告。")
+    @Operation(summary = "List historical reports", description = "Query imported historical reports.")
     @RequirePermission(M6PermissionCodes.HISTORY_QUERY)
     @GetMapping("/historical-reports")
     public List<HistoricalReportService.HistoricalReportView> listHistoricalReports(
@@ -124,7 +123,7 @@ public class M6ManagementController {
             sourceSystem, patientId, pathologyNo, applicationNo, parseDateTime(from), parseDateTime(to));
     }
 
-    @Operation(summary = "查询统计指标定义", description = "按类别查询 M6 统计指标定义。")
+    @Operation(summary = "List stat indicators", description = "Query M6 statistic indicator definitions.")
     @RequirePermission(M6PermissionCodes.STAT_INDICATOR_QUERY)
     @GetMapping("/stat-indicators")
     public List<StatisticsService.IndicatorDefinitionView> listIndicators(
@@ -132,7 +131,7 @@ public class M6ManagementController {
         return statisticsService.listIndicators(category);
     }
 
-    @Operation(summary = "查询统计模板", description = "按模板类型查询 M6 统计模板。")
+    @Operation(summary = "List stat templates", description = "Query M6 statistic report templates.")
     @RequirePermission(M6PermissionCodes.STAT_TEMPLATE_QUERY)
     @GetMapping("/stat-report-templates")
     public List<StatisticsService.ReportTemplateView> listTemplates(
@@ -140,22 +139,22 @@ public class M6ManagementController {
         return statisticsService.listTemplates(templateType);
     }
 
-    @Operation(summary = "查询统计报表", description = "按指标、模板和时间范围生成统计表格。")
+    @Operation(summary = "Query stat report", description = "Query statistic reports with time, department, role, and operator filters.")
     @RequirePermission(M6PermissionCodes.STAT_REPORT_QUERY)
     @PostMapping("/stat-reports/query")
     public StatisticsService.StatReportResult queryReport(@Valid @RequestBody QueryStatReportRequest request) {
         return statisticsService.queryReport(new StatisticsService.QueryStatReportCommand(
             request.templateCode(), request.indicatorCode(), request.category(), parseDateTime(request.from()), parseDateTime(request.to()),
-            request.operatorUserId(), request.operatorName()));
+            request.departmentId(), request.roleId(), request.operatorUserId(), request.operatorName()));
     }
 
-    @Operation(summary = "导出统计报表", description = "导出 CSV 统计报表。")
+    @Operation(summary = "Export stat report", description = "Export statistic reports as UTF-8 BOM CSV.")
     @RequirePermission(M6PermissionCodes.STAT_REPORT_EXPORT)
     @PostMapping("/stat-reports/export")
     public ResponseEntity<byte[]> exportReport(@Valid @RequestBody QueryStatReportRequest request) {
         byte[] content = statisticsService.exportReport(new StatisticsService.QueryStatReportCommand(
             request.templateCode(), request.indicatorCode(), request.category(), parseDateTime(request.from()), parseDateTime(request.to()),
-            request.operatorUserId(), request.operatorName()));
+            request.departmentId(), request.roleId(), request.operatorUserId(), request.operatorName()));
         String fileName = (request.templateCode() == null || request.templateCode().isBlank() ? "stat-report" : request.templateCode()) + ".csv";
         return ResponseEntity.ok()
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName)
@@ -170,55 +169,57 @@ public class M6ManagementController {
         return LocalDateTime.parse(value);
     }
 
-    @Schema(name = "M6OperatorRequest", description = "操作人请求")
+    @Schema(name = "M6OperatorRequest", description = "Operator request")
     public record OperatorRequest(
-        @Schema(description = "操作人用户 ID") @Size(max = 64) String operatorUserId,
-        @Schema(description = "操作人姓名") @Size(max = 100) String operatorName
+        @Schema(description = "Operator user id") @Size(max = 64) String operatorUserId,
+        @Schema(description = "Operator name") @Size(max = 100) String operatorName
     ) {
     }
 
-    @Schema(name = "M6BillingReceiptRequest", description = "收费回执请求")
+    @Schema(name = "M6BillingReceiptRequest", description = "Billing receipt request")
     public record BillingReceiptRequest(
-        @Schema(description = "第三方收费单号") @Size(max = 64) String externalBillNo,
-        @Schema(description = "收费状态") @Size(max = 32) String billingStatus,
-        @Schema(description = "操作人用户 ID") @Size(max = 64) String operatorUserId,
-        @Schema(description = "操作人姓名") @Size(max = 100) String operatorName,
-        @Schema(description = "备注") @Size(max = 500) String remarks
+        @Schema(description = "External bill no") @Size(max = 64) String externalBillNo,
+        @Schema(description = "Billing status") @Size(max = 32) String billingStatus,
+        @Schema(description = "Operator user id") @Size(max = 64) String operatorUserId,
+        @Schema(description = "Operator name") @Size(max = 100) String operatorName,
+        @Schema(description = "Remarks") @Size(max = 500) String remarks
     ) {
     }
 
-    @Schema(name = "M6ReconcileBillingRequest", description = "收费对账请求")
+    @Schema(name = "M6ReconcileBillingRequest", description = "Billing reconcile request")
     public record ReconcileBillingRequest(
-        @Schema(description = "开始时间") String from,
-        @Schema(description = "结束时间") String to,
-        @Schema(description = "操作人用户 ID") @Size(max = 64) String operatorUserId,
-        @Schema(description = "操作人姓名") @Size(max = 100) String operatorName
+        @Schema(description = "Start time") String from,
+        @Schema(description = "End time") String to,
+        @Schema(description = "Operator user id") @Size(max = 64) String operatorUserId,
+        @Schema(description = "Operator name") @Size(max = 100) String operatorName
     ) {
     }
 
-    @Schema(name = "M6ImportHistoricalReportsRequest", description = "历史报告导入请求")
+    @Schema(name = "M6ImportHistoricalReportsRequest", description = "Historical report import request")
     public record ImportHistoricalReportsRequest(
-        @Schema(description = "来源系统") @Size(max = 64) String sourceSystem,
-        @Schema(description = "患者 ID") @Size(max = 64) String patientId,
-        @Schema(description = "病理号") @Size(max = 64) String pathologyNo,
-        @Schema(description = "申请号") @Size(max = 64) String applicationNo,
-        @Schema(description = "开始时间") String from,
-        @Schema(description = "结束时间") String to,
-        @Schema(description = "操作人用户 ID") @Size(max = 64) String operatorUserId,
-        @Schema(description = "操作人姓名") @Size(max = 100) String operatorName,
-        @Schema(description = "备注") @Size(max = 500) String remarks
+        @Schema(description = "Source system") @Size(max = 64) String sourceSystem,
+        @Schema(description = "Patient id") @Size(max = 64) String patientId,
+        @Schema(description = "Pathology no") @Size(max = 64) String pathologyNo,
+        @Schema(description = "Application no") @Size(max = 64) String applicationNo,
+        @Schema(description = "Start time") String from,
+        @Schema(description = "End time") String to,
+        @Schema(description = "Operator user id") @Size(max = 64) String operatorUserId,
+        @Schema(description = "Operator name") @Size(max = 100) String operatorName,
+        @Schema(description = "Remarks") @Size(max = 500) String remarks
     ) {
     }
 
-    @Schema(name = "M6QueryStatReportRequest", description = "统计报表查询请求")
+    @Schema(name = "M6QueryStatReportRequest", description = "Stat report query request")
     public record QueryStatReportRequest(
-        @Schema(description = "模板编码") @Size(max = 64) String templateCode,
-        @Schema(description = "指标编码") @Size(max = 64) String indicatorCode,
-        @Schema(description = "指标类别") @Size(max = 32) String category,
-        @Schema(description = "开始时间") String from,
-        @Schema(description = "结束时间") String to,
-        @Schema(description = "操作人用户 ID") @Size(max = 64) String operatorUserId,
-        @Schema(description = "操作人姓名") @Size(max = 100) String operatorName
+        @Schema(description = "Template code") @Size(max = 64) String templateCode,
+        @Schema(description = "Indicator code") @Size(max = 64) String indicatorCode,
+        @Schema(description = "Indicator category") @Size(max = 32) String category,
+        @Schema(description = "Start time") String from,
+        @Schema(description = "End time") String to,
+        @Schema(description = "Submitting department id") @Size(max = 64) String departmentId,
+        @Schema(description = "Role id") @Size(max = 64) String roleId,
+        @Schema(description = "Operator user id") @Size(max = 64) String operatorUserId,
+        @Schema(description = "Operator name") @Size(max = 100) String operatorName
     ) {
     }
 }

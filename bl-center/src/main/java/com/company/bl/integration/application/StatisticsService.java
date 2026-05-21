@@ -52,10 +52,11 @@ public class StatisticsService {
     @Transactional(readOnly = true)
     public StatReportResult queryReport(QueryStatReportCommand command) {
         String category = resolveCategory(command);
+        StatFilter filter = StatFilter.from(command);
         List<M6JdbcRepository.StatIndicatorDefinitionRow> indicators = selectIndicators(command, category);
         List<StatRowView> rows = new ArrayList<>();
         for (M6JdbcRepository.StatIndicatorDefinitionRow indicator : indicators) {
-            MetricValue metric = computeMetric(indicator.indicatorCode(), command.from(), command.to(), command.operatorUserId());
+            MetricValue metric = computeMetric(indicator.indicatorCode(), filter);
             rows.add(new StatRowView(indicator.indicatorCode(), indicator.indicatorName(), metric.value(), metric.unit()));
         }
         return new StatReportResult(
@@ -119,90 +120,183 @@ public class StatisticsService {
         return template == null ? null : template.id();
     }
 
-    private MetricValue computeMetric(String indicatorCode, LocalDateTime from, LocalDateTime to, String operatorUserId) {
-        long pathologyCaseCount = count("select count(*) from pathology_cases where 1 = 1");
-        long publishedReportCount = countWithTime("select count(*) from pathology_reports where report_status = 'PUBLISHED'", "published_at", from, to);
-        long completedMedicalOrderCount = countWithTime("select count(*) from medical_orders where status = 'COMPLETED'", "completed_at", from, to);
-        long completedConsultationCount = countWithTime("select count(*) from consultation_cases where status = 'COMPLETED'", "completed_at", from, to);
-        long revisionCount = countWithTime("select count(*) from report_revision_requests where 1 = 1", "requested_at", from, to);
-        long diagnosticTaskCount = countWithTime("select count(*) from diagnostic_tasks where 1 = 1", "created_at", from, to);
-        BigDecimal billingAmount = sumWithTime("select sum(amount) from billing_records where billing_status = 'SUCCESS'", "coalesce(billed_at, created_at)", from, to);
-        long reagentWarningCount = count("""
-            select count(*)
-            from reagent_stocks
-            where low_stock_threshold is not null and stock_quantity <= low_stock_threshold
-            """);
-        long workloadDiagnosticCount = countWithOperator("""
-            select count(*)
-            from diagnostic_tasks
-            where 1 = 1
-            """, "created_at", "primary_doctor_user_id", from, to, operatorUserId);
-        long workloadMedicalOrderCount = countWithOperator("""
-            select count(*)
-            from medical_orders
-            where 1 = 1
-            """, "coalesce(completed_at, created_at)", "coalesce(executor_user_id, doctor_user_id)", from, to, operatorUserId);
-
+    private MetricValue computeMetric(String indicatorCode, StatFilter filter) {
+        StatFilter caseFilter = filter.forCaseScopedMetrics();
+        StatFilter workloadFilter = filter.forWorkloadMetrics();
         return switch (indicatorCode) {
-            case "QC_SPECIMEN_FIXATION_RATE" -> percent(publishedReportCount, pathologyCaseCount);
-            case "QC_UNQUALIFIED_SPECIMEN_COUNT" -> countMetric(revisionCount);
-            case "QC_CLINICAL_MATCH_RATE" -> percent(publishedReportCount, diagnosticTaskCount);
-            case "QC_FIRST_LINE_MATCH_RATE" -> percent(completedMedicalOrderCount, Math.max(pathologyCaseCount, 1));
-            case "QC_FROZEN_PARAFFIN_MATCH_RATE" -> percent(completedConsultationCount, Math.max(publishedReportCount, 1));
-            case "QC_CYTOLOGY_MATCH_RATE" -> percent(publishedReportCount, Math.max(completedConsultationCount + 1, 1));
-            case "QC_CONSULTATION_MATCH_RATE" -> percent(completedConsultationCount, Math.max(diagnosticTaskCount, 1));
-            case "QC_CANCELLED_REVIEW_COUNT" -> countMetric(revisionCount);
-            case "QC_TECHNICAL_QUALITY_COUNT" -> countMetric(completedMedicalOrderCount);
-            case "QC_GROSSING_QUALITY_COUNT" -> countMetric(pathologyCaseCount);
-            case "QC_REPORT_RELEASE_DAYS" -> decimalMetric(BigDecimal.valueOf(publishedReportCount), "case");
-            case "QC_SPECIMEN_PROCESS_HOURS" -> decimalMetric(BigDecimal.valueOf(completedMedicalOrderCount), "case");
-            case "QC_DIAGNOSIS_TIMELINESS_RATE" -> percent(publishedReportCount, Math.max(pathologyCaseCount, 1));
-            case "OP_CASE_VOLUME" -> countMetric(pathologyCaseCount);
-            case "OP_BILLING_AMOUNT" -> decimalMetric(billingAmount, "CNY");
-            case "OP_REAGENT_STOCK_ALERT" -> countMetric(reagentWarningCount);
-            case "OP_PERFORMANCE_WORKLOAD" -> countMetric(workloadDiagnosticCount + workloadMedicalOrderCount);
-            case "WL_DIAGNOSTIC_TASK_COUNT" -> countMetric(workloadDiagnosticCount);
-            case "WL_MEDICAL_ORDER_COUNT" -> countMetric(workloadMedicalOrderCount);
+            case "QC_SPECIMEN_FIXATION_RATE" -> percent(countPublishedReports(caseFilter), countPathologyCases(caseFilter));
+            case "QC_UNQUALIFIED_SPECIMEN_COUNT" -> countMetric(countRevisionRequests(caseFilter));
+            case "QC_CLINICAL_MATCH_RATE" -> percent(countPublishedReports(caseFilter), countDiagnosticTasks(caseFilter));
+            case "QC_FIRST_LINE_MATCH_RATE" -> percent(countCompletedMedicalOrders(caseFilter), Math.max(countPathologyCases(caseFilter), 1));
+            case "QC_FROZEN_PARAFFIN_MATCH_RATE" -> percent(countCompletedConsultations(caseFilter), Math.max(countPublishedReports(caseFilter), 1));
+            case "QC_CYTOLOGY_MATCH_RATE" -> percent(countPublishedReports(caseFilter), Math.max(countCompletedConsultations(caseFilter) + 1, 1));
+            case "QC_CONSULTATION_MATCH_RATE" -> percent(countCompletedConsultations(caseFilter), Math.max(countDiagnosticTasks(caseFilter), 1));
+            case "QC_CANCELLED_REVIEW_COUNT" -> countMetric(countRevisionRequests(caseFilter));
+            case "QC_TECHNICAL_QUALITY_COUNT" -> countMetric(countCompletedMedicalOrders(caseFilter));
+            case "QC_GROSSING_QUALITY_COUNT" -> countMetric(countPathologyCases(caseFilter));
+            case "QC_REPORT_RELEASE_DAYS" -> decimalMetric(BigDecimal.valueOf(countPublishedReports(caseFilter)), "case");
+            case "QC_SPECIMEN_PROCESS_HOURS" -> decimalMetric(BigDecimal.valueOf(countCompletedMedicalOrders(caseFilter)), "case");
+            case "QC_DIAGNOSIS_TIMELINESS_RATE" -> percent(countPublishedReports(caseFilter), Math.max(countPathologyCases(caseFilter), 1));
+            case "OP_CASE_VOLUME" -> countMetric(countPathologyCases(caseFilter));
+            case "OP_BILLING_AMOUNT" -> decimalMetric(sumBillingAmount(caseFilter), "CNY");
+            case "OP_REAGENT_STOCK_ALERT" -> countMetric(countGlobalReagentWarnings());
+            case "OP_PERFORMANCE_WORKLOAD" -> countMetric(countWorkloadDiagnosticTasks(workloadFilter) + countWorkloadMedicalOrders(workloadFilter));
+            case "WL_DIAGNOSTIC_TASK_COUNT" -> countMetric(countWorkloadDiagnosticTasks(workloadFilter));
+            case "WL_MEDICAL_ORDER_COUNT" -> countMetric(countWorkloadMedicalOrders(workloadFilter));
             default -> countMetric(0);
         };
     }
 
-    private long count(String sql) {
-        Long value = jdbcTemplate.queryForObject(sql, Map.of(), Long.class);
+    private long countPathologyCases(StatFilter filter) {
+        return queryForLong("""
+            select count(*)
+            from pathology_cases pc
+            join applications a on a.id = pc.application_id
+            where (:fromTime is null or coalesce(pc.received_at, pc.created_at) >= :fromTime)
+              and (:toTime is null or coalesce(pc.received_at, pc.created_at) <= :toTime)
+              and (:departmentId is null or a.submitting_department_id = :departmentId)
+            """, toParams(filter));
+    }
+
+    private long countPublishedReports(StatFilter filter) {
+        return queryForLong("""
+            select count(*)
+            from pathology_reports pr
+            join pathology_cases pc on pc.id = pr.case_id
+            join applications a on a.id = pc.application_id
+            where pr.report_status = 'PUBLISHED'
+              and (:fromTime is null or pr.published_at >= :fromTime)
+              and (:toTime is null or pr.published_at <= :toTime)
+              and (:departmentId is null or a.submitting_department_id = :departmentId)
+            """, toParams(filter));
+    }
+
+    private long countCompletedMedicalOrders(StatFilter filter) {
+        return queryForLong("""
+            select count(*)
+            from medical_orders mo
+            join pathology_cases pc on pc.id = mo.case_id
+            join applications a on a.id = pc.application_id
+            where mo.status = 'COMPLETED'
+              and (:fromTime is null or mo.completed_at >= :fromTime)
+              and (:toTime is null or mo.completed_at <= :toTime)
+              and (:departmentId is null or a.submitting_department_id = :departmentId)
+            """, toParams(filter));
+    }
+
+    private long countCompletedConsultations(StatFilter filter) {
+        return queryForLong("""
+            select count(*)
+            from consultation_cases cc
+            join pathology_cases pc on pc.id = cc.case_id
+            join applications a on a.id = pc.application_id
+            where cc.status = 'COMPLETED'
+              and (:fromTime is null or cc.completed_at >= :fromTime)
+              and (:toTime is null or cc.completed_at <= :toTime)
+              and (:departmentId is null or a.submitting_department_id = :departmentId)
+            """, toParams(filter));
+    }
+
+    private long countRevisionRequests(StatFilter filter) {
+        return queryForLong("""
+            select count(*)
+            from report_revision_requests rrr
+            join pathology_cases pc on pc.id = rrr.case_id
+            join applications a on a.id = pc.application_id
+            where (:fromTime is null or rrr.requested_at >= :fromTime)
+              and (:toTime is null or rrr.requested_at <= :toTime)
+              and (:departmentId is null or a.submitting_department_id = :departmentId)
+            """, toParams(filter));
+    }
+
+    private long countDiagnosticTasks(StatFilter filter) {
+        return queryForLong("""
+            select count(*)
+            from diagnostic_tasks dt
+            join pathology_cases pc on pc.id = dt.case_id
+            join applications a on a.id = pc.application_id
+            where (:fromTime is null or dt.created_at >= :fromTime)
+              and (:toTime is null or dt.created_at <= :toTime)
+              and (:departmentId is null or a.submitting_department_id = :departmentId)
+            """, toParams(filter));
+    }
+
+    private BigDecimal sumBillingAmount(StatFilter filter) {
+        return queryForDecimal("""
+            select sum(br.amount)
+            from billing_records br
+            join pathology_cases pc on pc.id = br.case_id
+            join applications a on a.id = pc.application_id
+            where br.billing_status = 'SUCCESS'
+              and (:fromTime is null or coalesce(br.billed_at, br.created_at) >= :fromTime)
+              and (:toTime is null or coalesce(br.billed_at, br.created_at) <= :toTime)
+              and (:departmentId is null or a.submitting_department_id = :departmentId)
+            """, toParams(filter));
+    }
+
+    private long countGlobalReagentWarnings() {
+        return queryForLong("""
+            select count(*)
+            from reagent_stocks
+            where low_stock_threshold is not null and stock_quantity <= low_stock_threshold
+            """, new MapSqlParameterSource());
+    }
+
+    private long countWorkloadDiagnosticTasks(StatFilter filter) {
+        return queryForLong("""
+            select count(*)
+            from diagnostic_tasks dt
+            join pathology_cases pc on pc.id = dt.case_id
+            join applications a on a.id = pc.application_id
+            where (:fromTime is null or dt.created_at >= :fromTime)
+              and (:toTime is null or dt.created_at <= :toTime)
+              and (:departmentId is null or a.submitting_department_id = :departmentId)
+              and (:operatorUserId is null or dt.primary_doctor_user_id = :operatorUserId)
+              and (:roleId is null or exists (
+                    select 1
+                    from user_roles ur
+                    where ur.user_id = dt.primary_doctor_user_id
+                      and ur.role_id = :roleId
+                ))
+            """, toParams(filter));
+    }
+
+    private long countWorkloadMedicalOrders(StatFilter filter) {
+        return queryForLong("""
+            select count(*)
+            from medical_orders mo
+            join pathology_cases pc on pc.id = mo.case_id
+            join applications a on a.id = pc.application_id
+            where (:fromTime is null or coalesce(mo.completed_at, mo.created_at) >= :fromTime)
+              and (:toTime is null or coalesce(mo.completed_at, mo.created_at) <= :toTime)
+              and (:departmentId is null or a.submitting_department_id = :departmentId)
+              and (:operatorUserId is null or coalesce(mo.executor_user_id, mo.doctor_user_id) = :operatorUserId)
+              and (:roleId is null or exists (
+                    select 1
+                    from user_roles ur
+                    where ur.user_id = coalesce(mo.executor_user_id, mo.doctor_user_id)
+                      and ur.role_id = :roleId
+                ))
+            """, toParams(filter));
+    }
+
+    private long queryForLong(String sql, MapSqlParameterSource params) {
+        Long value = jdbcTemplate.queryForObject(sql, params, Long.class);
         return value == null ? 0L : value;
     }
 
-    private long countWithTime(String baseSql, String timeColumn, LocalDateTime from, LocalDateTime to) {
-        String sql = baseSql
-            + "\n and (:fromTime is null or " + timeColumn + " >= :fromTime)"
-            + "\n and (:toTime is null or " + timeColumn + " <= :toTime)";
-        Long value = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource()
-            .addValue("fromTime", from)
-            .addValue("toTime", to), Long.class);
-        return value == null ? 0L : value;
-    }
-
-    private long countWithOperator(String baseSql, String timeColumn, String operatorColumn,
-                                   LocalDateTime from, LocalDateTime to, String operatorUserId) {
-        String sql = baseSql
-            + "\n and (:fromTime is null or " + timeColumn + " >= :fromTime)"
-            + "\n and (:toTime is null or " + timeColumn + " <= :toTime)"
-            + "\n and (:operatorUserId is null or " + operatorColumn + " = :operatorUserId)";
-        Long value = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource()
-            .addValue("fromTime", from)
-            .addValue("toTime", to)
-            .addValue("operatorUserId", operatorUserId == null || operatorUserId.isBlank() ? null : operatorUserId), Long.class);
-        return value == null ? 0L : value;
-    }
-
-    private BigDecimal sumWithTime(String baseSql, String timeColumn, LocalDateTime from, LocalDateTime to) {
-        String sql = baseSql
-            + "\n and (:fromTime is null or " + timeColumn + " >= :fromTime)"
-            + "\n and (:toTime is null or " + timeColumn + " <= :toTime)";
-        BigDecimal value = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource()
-            .addValue("fromTime", from)
-            .addValue("toTime", to), BigDecimal.class);
+    private BigDecimal queryForDecimal(String sql, MapSqlParameterSource params) {
+        BigDecimal value = jdbcTemplate.queryForObject(sql, params, BigDecimal.class);
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private MapSqlParameterSource toParams(StatFilter filter) {
+        return new MapSqlParameterSource()
+            .addValue("fromTime", filter.from())
+            .addValue("toTime", filter.to())
+            .addValue("departmentId", filter.departmentId())
+            .addValue("roleId", filter.roleId())
+            .addValue("operatorUserId", filter.operatorUserId());
     }
 
     private MetricValue countMetric(long count) {
@@ -273,6 +367,8 @@ public class StatisticsService {
         String category,
         LocalDateTime from,
         LocalDateTime to,
+        String departmentId,
+        String roleId,
         String operatorUserId,
         String operatorName
     ) {
@@ -291,5 +387,35 @@ public class StatisticsService {
         String metricValue,
         String metricUnit
     ) {
+    }
+
+    private record StatFilter(
+        LocalDateTime from,
+        LocalDateTime to,
+        String departmentId,
+        String roleId,
+        String operatorUserId
+    ) {
+
+        private static StatFilter from(QueryStatReportCommand command) {
+            return new StatFilter(
+                command.from(),
+                command.to(),
+                normalize(command.departmentId()),
+                normalize(command.roleId()),
+                normalize(command.operatorUserId()));
+        }
+
+        private StatFilter forCaseScopedMetrics() {
+            return new StatFilter(from, to, departmentId, null, null);
+        }
+
+        private StatFilter forWorkloadMetrics() {
+            return this;
+        }
+
+        private static String normalize(String value) {
+            return value == null || value.isBlank() ? null : value;
+        }
     }
 }
