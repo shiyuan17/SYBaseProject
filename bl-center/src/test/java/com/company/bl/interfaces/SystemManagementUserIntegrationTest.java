@@ -12,12 +12,15 @@ import org.springframework.test.web.servlet.MvcResult;
 import java.time.LocalDateTime;
 import java.util.Map;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -34,16 +37,17 @@ class SystemManagementUserIntegrationTest extends AbstractSystemManagementIntegr
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "userCode": "UC-%s",
                       "loginName": "%s",
                       "name": "Test User",
                       "password": "123456",
                       "enabled": true
                     }
-                    """.formatted(System.nanoTime(), loginName)))
+                    """.formatted(loginName)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code", is("SUCCESS")))
             .andExpect(jsonPath("$.data.id", notNullValue()))
+            .andExpect(jsonPath("$.data.userCode", startsWith("USER-")))
+            .andExpect(jsonPath("$.data.loginTagCode", startsWith("LT-")))
             .andReturn();
 
         JsonNode createNode = objectMapper.readTree(createResult.getResponse().getContentAsString());
@@ -65,6 +69,19 @@ class SystemManagementUserIntegrationTest extends AbstractSystemManagementIntegr
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.roles[0].roleId", is("ROLE_PATHOLOGY_ADMIN")))
             .andExpect(jsonPath("$.data.roles[0].primary", is(true)));
+
+        mockMvc.perform(asAdmin(patch("/api/v1/system-users/{id}", userId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "userCode": "USER-MUTATED",
+                      "loginTagCode": "LT-MUTATED",
+                      "name": "Test User",
+                      "enabled": true
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message", containsString("cannot be changed once created")));
     }
 
     @Test

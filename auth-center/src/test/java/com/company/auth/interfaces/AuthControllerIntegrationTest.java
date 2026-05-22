@@ -199,6 +199,7 @@ class AuthControllerIntegrationTest extends BaseWebIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data").isArray())
             .andExpect(jsonPath("$.data[?(@ == 'PERM_SYSTEM_USER_QUERY')]").exists())
+            .andExpect(jsonPath("$.data[?(@ == 'PERM_SYS_ROLE_QUERY')]").exists())
             .andExpect(jsonPath("$.data[?(@ == 'PERM_SYS_ORDER_DICT_QUERY')]").exists())
             .andExpect(jsonPath("$.data[?(@ == 'sys:medical-order-dict:query')]").doesNotExist());
 
@@ -211,6 +212,26 @@ class AuthControllerIntegrationTest extends BaseWebIntegrationTest {
                 .header("Authorization", bearerToken(accessToken)))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.code").value("ACCESS_TOKEN_REVOKED"));
+    }
+
+    @Test
+    void shouldInferEntryPermissionCodesFromGrantedMenus() throws Exception {
+        JsonNode loginResult = responseData(mockMvc.perform(post("/api/v1/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "loginName": "auth.menu",
+                  "password": "123456"
+                }
+                """)));
+        String accessToken = loginResult.path("accessToken").asText();
+
+        mockMvc.perform(get("/api/v1/auth/access-codes")
+                .header("Authorization", bearerToken(accessToken)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[?(@ == 'PERM_SYS_ROLE_QUERY')]").exists())
+            .andExpect(jsonPath("$.data[?(@ == 'PERM_SYS_ROLE_ASSIGN')]").doesNotExist())
+            .andExpect(jsonPath("$.data[?(@ == 'PERM_SYSTEM_USER_QUERY')]").doesNotExist());
     }
 
     @Test

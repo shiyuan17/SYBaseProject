@@ -94,8 +94,7 @@ public class SystemConfigController {
     public record CreateCategoryRequest(
         @Schema(description = "父级分类 ID，根节点可为空")
         String parentId,
-        @Schema(description = "分类编码", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank(message = "Category code must not be blank")
+        @Schema(description = "分类编码，可为空，由系统自动生成")
         @Size(max = 64, message = "Category code must not exceed 64 characters")
         String categoryCode,
         @Schema(description = "分类名称", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -115,7 +114,7 @@ public class SystemConfigController {
     @Schema(name = "UpdateConfigCategoryRequest", description = "更新系统配置分类请求")
     public record UpdateCategoryRequest(
         String parentId,
-        @NotBlank(message = "Category code must not be blank")
+        @Schema(description = "分类编码，创建后不可修改")
         @Size(max = 64, message = "Category code must not exceed 64 characters")
         String categoryCode,
         @NotBlank(message = "Category name must not be blank")

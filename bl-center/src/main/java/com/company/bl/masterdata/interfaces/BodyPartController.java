@@ -78,8 +78,7 @@ public class BodyPartController {
     public record CreateBodyPartRequest(
         @Schema(description = "父级部位 ID，根节点可为空")
         String parentId,
-        @Schema(description = "部位编码", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank(message = "Part code must not be blank")
+        @Schema(description = "部位编码，可为空，由系统自动生成")
         @Size(max = 64, message = "Part code must not exceed 64 characters")
         String partCode,
         @Schema(description = "部位名称", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -103,8 +102,7 @@ public class BodyPartController {
     public record UpdateBodyPartRequest(
         @Schema(description = "父级部位 ID，根节点可为空")
         String parentId,
-        @Schema(description = "部位编码", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank(message = "Part code must not be blank")
+        @Schema(description = "部位编码，创建后不可修改")
         @Size(max = 64, message = "Part code must not exceed 64 characters")
         String partCode,
         @Schema(description = "部位名称", requiredMode = Schema.RequiredMode.REQUIRED)

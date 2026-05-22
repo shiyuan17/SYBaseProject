@@ -18,6 +18,28 @@ import java.util.List;
 @Service
 public class NumberingService {
 
+    public static final String BIZ_APPLICATION_NO = "APPLICATION_NO";
+    public static final String BIZ_PATHOLOGY_NO = "PATHOLOGY_NO";
+    public static final String BIZ_TRANSPORT_ORDER_NO = "TRANSPORT_ORDER_NO";
+    public static final String BIZ_SPECIMEN_NO = "SPECIMEN_NO";
+    public static final String BIZ_BLOCK_NO = "BLOCK_NO";
+    public static final String BIZ_SLIDE_NO = "SLIDE_NO";
+    public static final String BIZ_REPORT_NO = "REPORT_NO";
+    public static final String BIZ_DEPARTMENT_CODE = "DEPARTMENT_CODE";
+    public static final String BIZ_BODY_PART_CODE = "BODY_PART_CODE";
+    public static final String BIZ_ROLE_CODE = "ROLE_CODE";
+    public static final String BIZ_USER_CODE = "USER_CODE";
+    public static final String BIZ_LOGIN_TAG_CODE = "LOGIN_TAG_CODE";
+    public static final String BIZ_ORDER_CATEGORY_CODE = "ORDER_CATEGORY_CODE";
+    public static final String BIZ_ORDER_ITEM_CODE = "ORDER_ITEM_CODE";
+    public static final String BIZ_CHARGE_ITEM_CODE = "CHARGE_ITEM_CODE";
+    public static final String BIZ_PACKAGE_CODE = "PACKAGE_CODE";
+    public static final String BIZ_TEMPLATE_CATEGORY_CODE = "TEMPLATE_CATEGORY_CODE";
+    public static final String BIZ_TEMPLATE_CODE = "TEMPLATE_CODE";
+    public static final String BIZ_GUIDELINE_CATEGORY_CODE = "GUIDELINE_CATEGORY_CODE";
+    public static final String BIZ_GUIDELINE_CODE = "GUIDELINE_CODE";
+    public static final String BIZ_CONFIG_CATEGORY_CODE = "CONFIG_CATEGORY_CODE";
+
     private final SupportJdbcRepository supportJdbcRepository;
     private final OperationAuditService operationAuditService;
     private final Clock clock;
@@ -75,37 +97,112 @@ public class NumberingService {
 
     @Transactional
     public String generateApplicationNo() {
-        return generate("APPLICATION_NO", "GLOBAL");
+        return generate(BIZ_APPLICATION_NO, "GLOBAL");
     }
 
     @Transactional
     public String generatePathologyNo() {
-        return generate("PATHOLOGY_NO", "GLOBAL");
+        return generate(BIZ_PATHOLOGY_NO, "GLOBAL");
     }
 
     @Transactional
     public String generateTransportOrderNo() {
-        return generate("TRANSPORT_ORDER_NO", "GLOBAL");
+        return generate(BIZ_TRANSPORT_ORDER_NO, "GLOBAL");
     }
 
     @Transactional
     public String generateSpecimenNo(String scopeKey) {
-        return generate("SPECIMEN_NO", normalizeScope(scopeKey));
+        return generate(BIZ_SPECIMEN_NO, normalizeScope(scopeKey));
     }
 
     @Transactional
     public String generateBlockNo(String scopeKey) {
-        return generate("BLOCK_NO", normalizeScope(scopeKey));
+        return generate(BIZ_BLOCK_NO, normalizeScope(scopeKey));
     }
 
     @Transactional
     public String generateSlideNo() {
-        return generate("SLIDE_NO", "GLOBAL");
+        return generate(BIZ_SLIDE_NO, "GLOBAL");
     }
 
     @Transactional
     public String generateReportNo() {
-        return generate("REPORT_NO", "GLOBAL");
+        return generate(BIZ_REPORT_NO, "GLOBAL");
+    }
+
+    @Transactional
+    public String generateMasterDataCode(String bizType) {
+        return generate(bizType, "GLOBAL");
+    }
+
+    @Transactional
+    public String generateDepartmentCode() {
+        return generateMasterDataCode(BIZ_DEPARTMENT_CODE);
+    }
+
+    @Transactional
+    public String generateBodyPartCode() {
+        return generateMasterDataCode(BIZ_BODY_PART_CODE);
+    }
+
+    @Transactional
+    public String generateRoleCode() {
+        return generateMasterDataCode(BIZ_ROLE_CODE);
+    }
+
+    @Transactional
+    public String generateUserCode() {
+        return generateMasterDataCode(BIZ_USER_CODE);
+    }
+
+    @Transactional
+    public String generateLoginTagCode() {
+        return generateMasterDataCode(BIZ_LOGIN_TAG_CODE);
+    }
+
+    @Transactional
+    public String generateOrderCategoryCode() {
+        return generateMasterDataCode(BIZ_ORDER_CATEGORY_CODE);
+    }
+
+    @Transactional
+    public String generateOrderItemCode() {
+        return generateMasterDataCode(BIZ_ORDER_ITEM_CODE);
+    }
+
+    @Transactional
+    public String generateChargeItemCode() {
+        return generateMasterDataCode(BIZ_CHARGE_ITEM_CODE);
+    }
+
+    @Transactional
+    public String generatePackageCode() {
+        return generateMasterDataCode(BIZ_PACKAGE_CODE);
+    }
+
+    @Transactional
+    public String generateTemplateCategoryCode() {
+        return generateMasterDataCode(BIZ_TEMPLATE_CATEGORY_CODE);
+    }
+
+    @Transactional
+    public String generateTemplateCode() {
+        return generateMasterDataCode(BIZ_TEMPLATE_CODE);
+    }
+
+    @Transactional
+    public String generateGuidelineCategoryCode() {
+        return generateMasterDataCode(BIZ_GUIDELINE_CATEGORY_CODE);
+    }
+
+    @Transactional
+    public String generateGuidelineCode() {
+        return generateMasterDataCode(BIZ_GUIDELINE_CODE);
+    }
+
+    @Transactional
+    public String generateConfigCategoryCode() {
+        return generateMasterDataCode(BIZ_CONFIG_CATEGORY_CODE);
     }
 
     private String generate(String bizType, String scopeKey) {

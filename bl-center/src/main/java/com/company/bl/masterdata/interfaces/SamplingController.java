@@ -185,8 +185,7 @@ public class SamplingController {
     public record CreateTemplateCategoryRequest(
         @Schema(description = "父级分类 ID，根节点可为空")
         String parentId,
-        @Schema(description = "分类编码", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank(message = "Category code must not be blank")
+        @Schema(description = "分类编码，可为空，由系统自动生成")
         @Size(max = 64, message = "Category code must not exceed 64 characters")
         String categoryCode,
         @Schema(description = "分类名称", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -203,7 +202,7 @@ public class SamplingController {
     @Schema(name = "UpdateTemplateCategoryRequest", description = "更新取材模板分类请求")
     public record UpdateTemplateCategoryRequest(
         String parentId,
-        @NotBlank(message = "Category code must not be blank")
+        @Schema(description = "分类编码，创建后不可修改")
         @Size(max = 64, message = "Category code must not exceed 64 characters")
         String categoryCode,
         @NotBlank(message = "Category name must not be blank")
@@ -219,8 +218,7 @@ public class SamplingController {
         @Schema(description = "模板分类 ID", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "Category id must not be blank")
         String categoryId,
-        @Schema(description = "模板编码", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank(message = "Template code must not be blank")
+        @Schema(description = "模板编码，可为空，由系统自动生成")
         @Size(max = 64, message = "Template code must not exceed 64 characters")
         String templateCode,
         @Schema(description = "模板名称", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -246,7 +244,7 @@ public class SamplingController {
     public record UpdateTemplateRequest(
         @NotBlank(message = "Category id must not be blank")
         String categoryId,
-        @NotBlank(message = "Template code must not be blank")
+        @Schema(description = "模板编码，创建后不可修改")
         @Size(max = 64, message = "Template code must not exceed 64 characters")
         String templateCode,
         @NotBlank(message = "Template name must not be blank")
@@ -266,8 +264,7 @@ public class SamplingController {
     public record CreateGuidelineCategoryRequest(
         @Schema(description = "父级分类 ID，根节点可为空")
         String parentId,
-        @Schema(description = "分类编码", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank(message = "Category code must not be blank")
+        @Schema(description = "分类编码，可为空，由系统自动生成")
         @Size(max = 64, message = "Category code must not exceed 64 characters")
         String categoryCode,
         @Schema(description = "分类名称", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -284,7 +281,7 @@ public class SamplingController {
     @Schema(name = "UpdateGuidelineCategoryRequest", description = "更新取材规范分类请求")
     public record UpdateGuidelineCategoryRequest(
         String parentId,
-        @NotBlank(message = "Category code must not be blank")
+        @Schema(description = "分类编码，创建后不可修改")
         @Size(max = 64, message = "Category code must not exceed 64 characters")
         String categoryCode,
         @NotBlank(message = "Category name must not be blank")
@@ -300,8 +297,7 @@ public class SamplingController {
         @Schema(description = "规范分类 ID", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "Category id must not be blank")
         String categoryId,
-        @Schema(description = "规范编码", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank(message = "Guideline code must not be blank")
+        @Schema(description = "规范编码，可为空，由系统自动生成")
         @Size(max = 64, message = "Guideline code must not exceed 64 characters")
         String guidelineCode,
         @Schema(description = "规范名称", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -322,7 +318,7 @@ public class SamplingController {
     public record UpdateGuidelineRequest(
         @NotBlank(message = "Category id must not be blank")
         String categoryId,
-        @NotBlank(message = "Guideline code must not be blank")
+        @Schema(description = "规范编码，创建后不可修改")
         @Size(max = 64, message = "Guideline code must not exceed 64 characters")
         String guidelineCode,
         @NotBlank(message = "Guideline name must not be blank")

@@ -2,6 +2,7 @@ package com.company.bl.masterdata.application;
 
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
+import com.company.bl.support.application.NumberingService;
 import com.company.bl.masterdata.infrastructure.BodyPartJdbcRepository;
 import com.company.bl.support.application.OperationAuditService;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -17,17 +18,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Service
 public class BodyPartService {
 
     private final BodyPartJdbcRepository bodyPartJdbcRepository;
+    private final NumberingService numberingService;
     private final OperationAuditService operationAuditService;
 
     public BodyPartService(BodyPartJdbcRepository bodyPartJdbcRepository,
+                           NumberingService numberingService,
                            OperationAuditService operationAuditService) {
         this.bodyPartJdbcRepository = bodyPartJdbcRepository;
+        this.numberingService = numberingService;
         this.operationAuditService = operationAuditService;
     }
 
@@ -56,12 +61,13 @@ public class BodyPartService {
     @CacheEvict(value = "bodyPartTree", allEntries = true)
     @Transactional
     public BodyPartNode createBodyPart(CreateBodyPartCommand command) {
+        String partCode = resolveCreateCode(command.partCode(), numberingService::generateBodyPartCode);
         return operationAuditService.audit("MASTERDATA", "BODY_PART", "create_body_part", () -> {
             try {
                 var row = bodyPartJdbcRepository.insertBodyPart(new BodyPartJdbcRepository.CreateBodyPartRow(
                     "BP-" + UUID.randomUUID(),
                     command.parentId(),
-                    command.partCode(),
+                    partCode,
                     command.partName(),
                     command.partAlias(),
                     command.partLevel(),
@@ -73,20 +79,22 @@ public class BodyPartService {
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Body part code already exists");
             }
-        }, BodyPartNode::id, command::partCode);
+        }, BodyPartNode::id, () -> partCode);
     }
 
     @CacheEvict(value = "bodyPartTree", allEntries = true)
     @Transactional
     public BodyPartNode updateBodyPart(String id, UpdateBodyPartCommand command) {
         return operationAuditService.audit("MASTERDATA", "BODY_PART", "update_body_part", () -> {
-            if (bodyPartJdbcRepository.findBodyPartById(id) == null) {
+            BodyPartJdbcRepository.BodyPartRow current = bodyPartJdbcRepository.findBodyPartById(id);
+            if (current == null) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Body part not found");
             }
+            String partCode = resolveExistingCode(command.partCode(), current.partCode(), "Body part code");
             try {
                 bodyPartJdbcRepository.updateBodyPart(id, new BodyPartJdbcRepository.UpdateBodyPartRow(
                     command.parentId(),
-                    command.partCode(),
+                    partCode,
                     command.partName(),
                     command.partAlias(),
                     command.partLevel(),
@@ -153,5 +161,29 @@ public class BodyPartService {
 
     public record UpdateBodyPartCommand(String parentId, String partCode, String partName, String partAlias,
                                         int partLevel, int sortOrder, boolean enabled) {
+    }
+
+    private String resolveCreateCode(String requestedCode, Supplier<String> generator) {
+        String normalizedCode = normalizeCode(requestedCode);
+        return normalizedCode == null ? generator.get() : normalizedCode;
+    }
+
+    private String resolveExistingCode(String requestedCode, String existingCode, String fieldLabel) {
+        String normalizedCode = normalizeCode(requestedCode);
+        if (normalizedCode == null || normalizedCode.equals(existingCode)) {
+            return existingCode;
+        }
+        throw new BlBusinessException(
+            BlErrorCode.INVALID_ARGUMENT,
+            400,
+            fieldLabel + " cannot be changed once created");
+    }
+
+    private String normalizeCode(String code) {
+        if (code == null) {
+            return null;
+        }
+        String trimmed = code.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

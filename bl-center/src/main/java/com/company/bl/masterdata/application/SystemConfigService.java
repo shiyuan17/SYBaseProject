@@ -2,6 +2,7 @@ package com.company.bl.masterdata.application;
 
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
+import com.company.bl.support.application.NumberingService;
 import com.company.bl.masterdata.infrastructure.SystemConfigJdbcRepository;
 import com.company.bl.support.application.OperationAuditService;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -18,17 +19,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Service
 public class SystemConfigService {
 
     private final SystemConfigJdbcRepository repository;
+    private final NumberingService numberingService;
     private final OperationAuditService operationAuditService;
 
     public SystemConfigService(SystemConfigJdbcRepository repository,
+                               NumberingService numberingService,
                                OperationAuditService operationAuditService) {
         this.repository = repository;
+        this.numberingService = numberingService;
         this.operationAuditService = operationAuditService;
     }
 
@@ -80,15 +85,18 @@ public class SystemConfigService {
     })
     @Transactional
     public ConfigCategoryNode createConfigCategory(CreateConfigCategoryCommand command) {
+        String categoryCode = resolveCreateCode(
+            command.categoryCode(),
+            numberingService::generateConfigCategoryCode);
         return operationAuditService.audit("MASTERDATA", "CONFIG_CATEGORY", "create_config_category", () -> {
             try {
                 return toNode(repository.insertConfigCategory(new SystemConfigJdbcRepository.CreateConfigCategoryRow(
-                    "SCC-" + UUID.randomUUID(), command.parentId(), command.categoryCode(), command.categoryName(),
+                    "SCC-" + UUID.randomUUID(), command.parentId(), categoryCode, command.categoryName(),
                     command.categoryType(), command.sortOrder(), command.enabled(), LocalDateTime.now(), LocalDateTime.now())));
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Config category code already exists");
             }
-        }, ConfigCategoryNode::id, command::categoryCode);
+        }, ConfigCategoryNode::id, () -> categoryCode);
     }
 
     @Caching(evict = {
@@ -98,12 +106,14 @@ public class SystemConfigService {
     @Transactional
     public ConfigCategoryNode updateConfigCategory(String id, UpdateConfigCategoryCommand command) {
         return operationAuditService.audit("MASTERDATA", "CONFIG_CATEGORY", "update_config_category", () -> {
-            if (repository.findConfigCategoryById(id) == null) {
+            SystemConfigJdbcRepository.ConfigCategoryRow current = repository.findConfigCategoryById(id);
+            if (current == null) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Config category not found");
             }
+            String categoryCode = resolveExistingCode(command.categoryCode(), current.categoryCode(), "Config category code");
             try {
                 repository.updateConfigCategory(id, new SystemConfigJdbcRepository.UpdateConfigCategoryRow(
-                    command.parentId(), command.categoryCode(), command.categoryName(), command.categoryType(),
+                    command.parentId(), categoryCode, command.categoryName(), command.categoryType(),
                     command.sortOrder(), command.enabled()));
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Config category code already exists");
@@ -229,5 +239,29 @@ public class SystemConfigService {
     }
 
     public record UpdateConfigItemCommand(String configValue, boolean enabled, String remarks) {
+    }
+
+    private String resolveCreateCode(String requestedCode, Supplier<String> generator) {
+        String normalizedCode = normalizeCode(requestedCode);
+        return normalizedCode == null ? generator.get() : normalizedCode;
+    }
+
+    private String resolveExistingCode(String requestedCode, String existingCode, String fieldLabel) {
+        String normalizedCode = normalizeCode(requestedCode);
+        if (normalizedCode == null || normalizedCode.equals(existingCode)) {
+            return existingCode;
+        }
+        throw new BlBusinessException(
+            BlErrorCode.INVALID_ARGUMENT,
+            400,
+            fieldLabel + " cannot be changed once created");
+    }
+
+    private String normalizeCode(String code) {
+        if (code == null) {
+            return null;
+        }
+        String trimmed = code.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

@@ -1,15 +1,34 @@
 INSERT INTO roles (id, role_code, role_name, enabled) VALUES
-('ROLE_AUTH_ADMIN', 'AUTH_ADMIN', 'Auth Admin', 1);
+('ROLE_AUTH_ADMIN', 'AUTH_ADMIN', 'Auth Admin', 1),
+('ROLE_AUTH_MENU_ONLY', 'AUTH_MENU_ONLY', 'Auth Menu Only', 1);
 
-INSERT INTO permissions (id, permission_code, permission_name, enabled) VALUES
-('PERM_AUTH_SYSTEM_USER_QUERY', 'PERM_SYSTEM_USER_QUERY', 'System user query', 1),
-('PERM_SYS_ORDER_DICT_QUERY', 'PERM_SYS_ORDER_DICT_QUERY', 'Medical order dict query', 1),
-('PERM_LEGACY_ORDER_DICT_QUERY', 'sys:medical-order-dict:query', 'Legacy medical order dict query', 0);
+INSERT INTO menus (id, parent_id, menu_code, menu_name, menu_type, enabled) VALUES
+('MENU_SYSTEM', NULL, 'SYSTEM', 'System', 'DIRECTORY', 1),
+('MENU_SYS_USERS', 'MENU_SYSTEM', 'SYS_USERS', 'System Users', 'MENU', 1),
+('MENU_SYS_ROLES', 'MENU_SYSTEM', 'SYS_ROLES', 'Roles', 'MENU', 1),
+('MENU_ORDER_DICTS', 'MENU_SYSTEM', 'ORDER_DICTS', 'Medical Order Dicts', 'MENU', 1);
+
+INSERT INTO permissions (id, permission_code, permission_name, menu_id, action_key, sort_order, enabled) VALUES
+('PERM_AUTH_SYSTEM_USER_QUERY', 'PERM_SYSTEM_USER_QUERY', 'System user query', 'MENU_SYS_USERS', 'QUERY', 1, 1),
+('PERM_SYS_ROLE_QUERY', 'PERM_SYS_ROLE_QUERY', 'Role query', 'MENU_SYS_ROLES', 'QUERY', 2, 1),
+('PERM_SYS_ROLE_ASSIGN', 'PERM_SYS_ROLE_ASSIGN', 'Role assign', 'MENU_SYS_ROLES', 'ASSIGN', 3, 1),
+('PERM_SYS_ORDER_DICT_QUERY', 'PERM_SYS_ORDER_DICT_QUERY', 'Medical order dict query', 'MENU_ORDER_DICTS', 'QUERY', 4, 1),
+('PERM_LEGACY_ORDER_DICT_QUERY', 'sys:medical-order-dict:query', 'Legacy medical order dict query', 'MENU_ORDER_DICTS', 'QUERY', 5, 0);
 
 INSERT INTO role_permissions (id, role_id, permission_id) VALUES
 ('RP_AUTH_ADMIN_QUERY', 'ROLE_AUTH_ADMIN', 'PERM_AUTH_SYSTEM_USER_QUERY'),
+('RP_AUTH_ADMIN_ROLE_QUERY', 'ROLE_AUTH_ADMIN', 'PERM_SYS_ROLE_QUERY'),
+('RP_AUTH_ADMIN_ROLE_ASSIGN', 'ROLE_AUTH_ADMIN', 'PERM_SYS_ROLE_ASSIGN'),
 ('RP_AUTH_ADMIN_ORDER_DICT_QUERY', 'ROLE_AUTH_ADMIN', 'PERM_SYS_ORDER_DICT_QUERY'),
 ('RP_AUTH_ADMIN_LEGACY_ORDER_DICT_QUERY', 'ROLE_AUTH_ADMIN', 'PERM_LEGACY_ORDER_DICT_QUERY');
+
+INSERT INTO role_menus (id, role_id, menu_id) VALUES
+('RM_AUTH_ADMIN_SYSTEM', 'ROLE_AUTH_ADMIN', 'MENU_SYSTEM'),
+('RM_AUTH_ADMIN_USERS', 'ROLE_AUTH_ADMIN', 'MENU_SYS_USERS'),
+('RM_AUTH_ADMIN_ROLES', 'ROLE_AUTH_ADMIN', 'MENU_SYS_ROLES'),
+('RM_AUTH_ADMIN_ORDER_DICTS', 'ROLE_AUTH_ADMIN', 'MENU_ORDER_DICTS'),
+('RM_AUTH_MENU_ONLY_SYSTEM', 'ROLE_AUTH_MENU_ONLY', 'MENU_SYSTEM'),
+('RM_AUTH_MENU_ONLY_ROLES', 'ROLE_AUTH_MENU_ONLY', 'MENU_SYS_ROLES');
 
 INSERT INTO users
     (id, login_name, name, password, password_algo, password_salt, avatar, enabled, created_at, updated_at)
@@ -18,6 +37,7 @@ VALUES
     ('AUTH_USER_FAIL', 'auth.fail', 'Auth Fail User', '123456', 'PLAIN', NULL, NULL, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('AUTH_USER_LOCK', 'auth.lock', 'Auth Lock User', '123456', 'PLAIN', NULL, NULL, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('AUTH_USER_API', 'auth.api', 'Auth Api User', '123456', 'PLAIN', NULL, NULL, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('AUTH_USER_MENU_ONLY', 'auth.menu', 'Auth Menu User', '123456', 'PLAIN', NULL, NULL, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('AUTH_USER_DISABLED', 'auth.disabled', 'Auth Disabled User', '123456', 'PLAIN', NULL, NULL, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 INSERT INTO user_roles (id, user_id, role_id) VALUES
@@ -25,4 +45,5 @@ INSERT INTO user_roles (id, user_id, role_id) VALUES
 ('UR_AUTH_FAIL', 'AUTH_USER_FAIL', 'ROLE_AUTH_ADMIN'),
 ('UR_AUTH_LOCK', 'AUTH_USER_LOCK', 'ROLE_AUTH_ADMIN'),
 ('UR_AUTH_API', 'AUTH_USER_API', 'ROLE_AUTH_ADMIN'),
+('UR_AUTH_MENU_ONLY', 'AUTH_USER_MENU_ONLY', 'ROLE_AUTH_MENU_ONLY'),
 ('UR_AUTH_DISABLED', 'AUTH_USER_DISABLED', 'ROLE_AUTH_ADMIN');

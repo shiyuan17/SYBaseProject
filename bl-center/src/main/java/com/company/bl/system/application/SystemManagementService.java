@@ -2,8 +2,10 @@ package com.company.bl.system.application;
 
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
+import com.company.bl.support.application.NumberingService;
 import com.company.bl.support.application.OperationAuditService;
 import com.company.bl.system.infrastructure.SystemJdbcRepository;
+import com.company.common.security.authorization.MenuEntryPermissionResolver;
 import com.company.common.security.crypto.Sm3PasswordEncoder;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.dao.DataAccessException;
@@ -15,19 +17,25 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 @Service
 public class SystemManagementService {
 
     private final SystemJdbcRepository systemJdbcRepository;
+    private final NumberingService numberingService;
     private final OperationAuditService operationAuditService;
     private final Sm3PasswordEncoder sm3PasswordEncoder;
 
     public SystemManagementService(SystemJdbcRepository systemJdbcRepository,
+                                   NumberingService numberingService,
                                    OperationAuditService operationAuditService,
                                    Sm3PasswordEncoder sm3PasswordEncoder) {
         this.systemJdbcRepository = systemJdbcRepository;
+        this.numberingService = numberingService;
         this.operationAuditService = operationAuditService;
         this.sm3PasswordEncoder = sm3PasswordEncoder;
     }
@@ -51,12 +59,14 @@ public class SystemManagementService {
 
     @Transactional
     public UserView createUser(CreateUserCommand command) {
+        String userCode = resolveCreateCode(command.userCode(), numberingService::generateUserCode);
+        String loginTagCode = resolveCreateCode(command.loginTagCode(), numberingService::generateLoginTagCode);
         return operationAuditService.audit("SYSTEM", "USER", "create_user", () -> {
             try {
                 EncodedPassword encodedPassword = encodePassword(command.password());
                 SystemJdbcRepository.UserRow user = systemJdbcRepository.insertUser(new SystemJdbcRepository.CreateUserRow(
                     "USER-" + UUID.randomUUID(),
-                    command.userCode(),
+                    userCode,
                     command.loginName(),
                     command.name(),
                     encodedPassword.password(),
@@ -70,7 +80,7 @@ public class SystemManagementService {
                     command.phone(),
                     command.email(),
                     command.avatar(),
-                    command.loginTagCode(),
+                    loginTagCode,
                     command.enabled(),
                     LocalDateTime.now(),
                     LocalDateTime.now()));
@@ -84,10 +94,12 @@ public class SystemManagementService {
     @Transactional
     public UserView updateUser(String userId, UpdateUserCommand command) {
         return operationAuditService.audit("SYSTEM", "USER", "update_user", () -> {
-            ensureUserExists(userId);
+            SystemJdbcRepository.UserRow current = ensureUserExists(userId);
+            String userCode = resolveExistingCode(command.userCode(), current.userCode(), "User code");
+            String loginTagCode = resolveExistingCode(command.loginTagCode(), current.loginTagCode(), "Login tag code");
             try {
                 systemJdbcRepository.updateUser(userId, new SystemJdbcRepository.UpdateUserRow(
-                    command.userCode(),
+                    userCode,
                     command.name(),
                     command.jobNo(),
                     command.titleName(),
@@ -96,7 +108,7 @@ public class SystemManagementService {
                     command.phone(),
                     command.email(),
                     command.avatar(),
-                    command.loginTagCode(),
+                    loginTagCode,
                     command.enabled()));
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "User code, job number or login tag code already exists");
@@ -144,11 +156,12 @@ public class SystemManagementService {
 
     @Transactional
     public RoleView createRole(CreateRoleCommand command) {
+        String roleCode = resolveCreateCode(command.roleCode(), numberingService::generateRoleCode);
         return operationAuditService.audit("SYSTEM", "ROLE", "create_role", () -> {
             try {
                 return toRoleView(systemJdbcRepository.insertRole(new SystemJdbcRepository.CreateRoleRow(
                     "ROLE-" + UUID.randomUUID(),
-                    command.roleCode(),
+                    roleCode,
                     command.roleName(),
                     command.roleType(),
                     command.dataScope(),
@@ -159,16 +172,17 @@ public class SystemManagementService {
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Role code already exists");
             }
-        }, RoleView::id, command::roleCode);
+        }, RoleView::id, () -> roleCode);
     }
 
     @Transactional
     public RoleView updateRole(String roleId, UpdateRoleCommand command) {
         return operationAuditService.audit("SYSTEM", "ROLE", "update_role", () -> {
-            ensureRoleExists(roleId);
+            SystemJdbcRepository.RoleRow current = ensureRoleExists(roleId);
+            String roleCode = resolveExistingCode(command.roleCode(), current.roleCode(), "Role code");
             try {
                 systemJdbcRepository.updateRole(roleId, new SystemJdbcRepository.UpdateRoleRow(
-                    command.roleCode(),
+                    roleCode,
                     command.roleName(),
                     command.roleType(),
                     command.dataScope(),
@@ -197,17 +211,24 @@ public class SystemManagementService {
     public RoleAuthorizationView getRoleAuthorization(String roleId) {
         ensureRoleExists(roleId);
         SystemJdbcRepository.RoleAuthorizationRow authorization = systemJdbcRepository.findRoleAuthorization(roleId);
-        return new RoleAuthorizationView(roleId, authorization.menuIds(), authorization.permissionIds(),
-            authorization.topicIds(), authorization.statScopes());
+        List<String> normalizedMenuIds = normalizeIds(authorization.menuIds());
+        return new RoleAuthorizationView(
+            roleId,
+            normalizedMenuIds,
+            normalizeManualPermissionIds(normalizedMenuIds, authorization.permissionIds()),
+            authorization.topicIds(),
+            authorization.statScopes());
     }
 
     @Transactional
     public RoleAuthorizationView updateRoleAuthorization(String roleId, UpdateRoleAuthorizationCommand command) {
         return operationAuditService.audit("SYSTEM", "ROLE_AUTH", "update_role_authorization", () -> {
             ensureRoleExists(roleId);
+            List<String> menuIds = normalizeIds(command.menuIds());
+            List<String> permissionIds = normalizeManualPermissionIds(menuIds, command.permissionIds());
             systemJdbcRepository.replaceRoleAuthorizations(roleId, new SystemJdbcRepository.AuthorizationCommand(
-                safeList(command.menuIds()),
-                safeList(command.permissionIds()),
+                menuIds,
+                permissionIds,
                 safeList(command.topicIds()),
                 command.statScopes() == null ? Map.of() : command.statScopes()));
             return getRoleAuthorization(roleId);
@@ -263,10 +284,13 @@ public class SystemManagementService {
 
     @Transactional(readOnly = true)
     public List<PermissionView> listPermissions() {
-        return systemJdbcRepository.findPermissions().stream().map(permission -> new PermissionView(
+        List<SystemJdbcRepository.MenuRow> menuRows = systemJdbcRepository.findMenus();
+        List<SystemJdbcRepository.PermissionRow> permissionRows = systemJdbcRepository.findPermissions();
+        Set<String> entryPermissionIds = resolveEntryPermissionIds(menuRows, permissionRows);
+        return permissionRows.stream().map(permission -> new PermissionView(
             permission.id(), permission.permissionCode(), permission.permissionName(), permission.menuId(),
             permission.actionKey(), permission.httpMethod(), permission.resourcePath(), permission.permissionGroup(),
-            permission.sortOrder(), permission.enabled())).toList();
+            permission.sortOrder(), permission.enabled(), entryPermissionIds.contains(permission.id()))).toList();
     }
 
     @Transactional(readOnly = true)
@@ -382,10 +406,12 @@ public class SystemManagementService {
         return user;
     }
 
-    private void ensureRoleExists(String roleId) {
-        if (systemJdbcRepository.findRoleById(roleId) == null) {
+    private SystemJdbcRepository.RoleRow ensureRoleExists(String roleId) {
+        SystemJdbcRepository.RoleRow role = systemJdbcRepository.findRoleById(roleId);
+        if (role == null) {
             throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Role not found");
         }
+        return role;
     }
 
     private UserView toUserView(SystemJdbcRepository.UserRow user,
@@ -428,6 +454,60 @@ public class SystemManagementService {
 
     private List<String> safeList(List<String> values) {
         return values == null ? List.of() : values;
+    }
+
+    private List<String> normalizeIds(List<String> values) {
+        return safeList(values).stream()
+            .filter(this::hasText)
+            .distinct()
+            .toList();
+    }
+
+    private List<String> normalizeManualPermissionIds(List<String> selectedMenuIds, List<String> permissionIds) {
+        List<String> normalizedMenuIds = normalizeIds(selectedMenuIds);
+        List<String> normalizedPermissionIds = normalizeIds(permissionIds);
+        if (normalizedMenuIds.isEmpty() || normalizedPermissionIds.isEmpty()) {
+            return List.of();
+        }
+
+        Set<String> selectedMenuIdSet = Set.copyOf(normalizedMenuIds);
+        List<SystemJdbcRepository.MenuRow> menuRows = systemJdbcRepository.findMenus();
+        List<SystemJdbcRepository.PermissionRow> permissionRows = systemJdbcRepository.findPermissions();
+        Set<String> entryPermissionIds = resolveEntryPermissionIds(menuRows, permissionRows);
+
+        return permissionRows.stream()
+            .filter(permission -> normalizedPermissionIds.contains(permission.id()))
+            .filter(permission -> selectedMenuIdSet.contains(permission.menuId()))
+            .filter(permission -> !entryPermissionIds.contains(permission.id()))
+            .map(SystemJdbcRepository.PermissionRow::id)
+            .distinct()
+            .toList();
+    }
+
+    private Set<String> resolveEntryPermissionIds(List<SystemJdbcRepository.MenuRow> menuRows,
+                                                  List<SystemJdbcRepository.PermissionRow> permissionRows) {
+        Map<String, SystemJdbcRepository.MenuRow> menusById = menuRows.stream()
+            .collect(Collectors.toMap(SystemJdbcRepository.MenuRow::id, menu -> menu));
+        List<MenuEntryPermissionResolver.MenuPermissionBinding> bindings = permissionRows.stream()
+            .map(permission -> {
+                SystemJdbcRepository.MenuRow menu = menusById.get(permission.menuId());
+                return menu == null ? null : new MenuEntryPermissionResolver.MenuPermissionBinding(
+                    menu.id(),
+                    menu.menuType(),
+                    permission.id(),
+                    permission.permissionCode(),
+                    permission.actionKey(),
+                    permission.sortOrder(),
+                    menu.enabled(),
+                    permission.enabled());
+            })
+            .filter(binding -> binding != null)
+            .toList();
+        return MenuEntryPermissionResolver.resolveEntryPermissionIds(bindings);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private String safe(String value) {
@@ -528,6 +608,22 @@ public class SystemManagementService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value;
+    }
+
+    private String resolveCreateCode(String requestedCode, Supplier<String> generator) {
+        String normalizedCode = blankToNull(requestedCode);
+        return normalizedCode == null ? generator.get() : normalizedCode;
+    }
+
+    private String resolveExistingCode(String requestedCode, String existingCode, String fieldLabel) {
+        String normalizedCode = blankToNull(requestedCode);
+        if (normalizedCode == null || normalizedCode.equals(existingCode)) {
+            return existingCode;
+        }
+        throw new BlBusinessException(
+            BlErrorCode.INVALID_ARGUMENT,
+            400,
+            fieldLabel + " cannot be changed once created");
     }
 
     private EncodedPassword encodePassword(String rawPassword) {
@@ -745,7 +841,8 @@ public class SystemManagementService {
         @Schema(description = "资源路径") String resourcePath,
         @Schema(description = "权限分组") String permissionGroup,
         @Schema(description = "排序号") int sortOrder,
-        @Schema(description = "是否启用") boolean enabled
+        @Schema(description = "是否启用") boolean enabled,
+        @Schema(description = "是否为所属菜单自动推导的基础页面权限") boolean entryPermission
     ) {
     }
 

@@ -1,5 +1,6 @@
 package com.company.auth.infrastructure.repository;
 
+import com.company.common.security.authorization.MenuEntryPermissionResolver;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -11,6 +12,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Repository
 public class AuthJdbcRepository {
@@ -51,7 +53,7 @@ public class AuthJdbcRepository {
     }
 
     public List<String> findAccessCodes(String userId) {
-        return jdbcTemplate.query("""
+        List<String> explicitPermissionCodes = jdbcTemplate.query("""
             select distinct permissions.permission_code
             from user_roles
             join roles on roles.id = user_roles.role_id
@@ -62,6 +64,10 @@ public class AuthJdbcRepository {
               and permissions.enabled = 1
             order by permissions.permission_code
             """, Map.of("userId", userId), (rs, rowNum) -> rs.getString(1));
+        Set<String> effectivePermissionCodes = MenuEntryPermissionResolver.resolveEffectivePermissionCodes(
+            explicitPermissionCodes,
+            findGrantedMenuPermissions(userId));
+        return effectivePermissionCodes.stream().toList();
     }
 
     public void updatePassword(String userId, String password, String passwordAlgo, String passwordSalt) {
@@ -166,6 +172,35 @@ public class AuthJdbcRepository {
             rs.getString("password_salt"),
             rs.getString("avatar"),
             rs.getInt("enabled") == 1);
+    }
+
+    private List<MenuEntryPermissionResolver.MenuPermissionBinding> findGrantedMenuPermissions(String userId) {
+        return jdbcTemplate.query("""
+            select distinct menus.id as menu_id,
+                   menus.menu_type,
+                   permissions.id as permission_id,
+                   permissions.permission_code,
+                   permissions.action_key,
+                   permissions.sort_order,
+                   menus.enabled as menu_enabled,
+                   permissions.enabled as permission_enabled
+            from user_roles
+            join roles on roles.id = user_roles.role_id
+            join role_menus on role_menus.role_id = roles.id
+            join menus on menus.id = role_menus.menu_id
+            join permissions on permissions.menu_id = menus.id
+            where user_roles.user_id = :userId
+              and roles.enabled = 1
+            """, Map.of("userId", userId), (rs, rowNum) ->
+            new MenuEntryPermissionResolver.MenuPermissionBinding(
+                rs.getString("menu_id"),
+                rs.getString("menu_type"),
+                rs.getString("permission_id"),
+                rs.getString("permission_code"),
+                rs.getString("action_key"),
+                rs.getInt("sort_order"),
+                rs.getInt("menu_enabled") == 1,
+                rs.getInt("permission_enabled") == 1));
     }
 
     public record AuthUserRow(

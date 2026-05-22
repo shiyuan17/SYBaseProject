@@ -335,8 +335,7 @@ public class SystemManagementController {
 
     @Schema(name = "CreateRoleRequest", description = "新增角色请求")
     public record CreateRoleRequest(
-        @Schema(description = "角色编码", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank(message = "Role code must not be blank")
+        @Schema(description = "角色编码，可为空，由系统自动生成")
         @Size(max = 64, message = "Role code must not exceed 64 characters")
         String roleCode,
         @Schema(description = "角色名称", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -359,8 +358,7 @@ public class SystemManagementController {
 
     @Schema(name = "UpdateRoleRequest", description = "更新角色请求")
     public record UpdateRoleRequest(
-        @Schema(description = "角色编码", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank(message = "Role code must not be blank")
+        @Schema(description = "角色编码，创建后不可修改")
         @Size(max = 64, message = "Role code must not exceed 64 characters")
         String roleCode,
         @Schema(description = "角色名称", requiredMode = Schema.RequiredMode.REQUIRED)

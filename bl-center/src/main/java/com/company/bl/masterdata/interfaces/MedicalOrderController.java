@@ -239,8 +239,7 @@ public class MedicalOrderController {
     public record CreateCategoryRequest(
         @Schema(description = "父级分类 ID，根节点可为空")
         String parentId,
-        @Schema(description = "分类编码", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank(message = "Category code must not be blank")
+        @Schema(description = "分类编码，可为空，由系统自动生成")
         @Size(max = 64, message = "Category code must not exceed 64 characters")
         String categoryCode,
         @Schema(description = "分类名称", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -257,7 +256,7 @@ public class MedicalOrderController {
     @Schema(name = "MedicalOrderUpdateCategoryRequest", description = "更新医嘱字典分类请求")
     public record UpdateCategoryRequest(
         String parentId,
-        @NotBlank(message = "Category code must not be blank")
+        @Schema(description = "分类编码，创建后不可修改")
         @Size(max = 64, message = "Category code must not exceed 64 characters")
         String categoryCode,
         @NotBlank(message = "Category name must not be blank")
@@ -273,8 +272,7 @@ public class MedicalOrderController {
         @Schema(description = "所属分类 ID", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "Category id must not be blank")
         String categoryId,
-        @Schema(description = "医嘱条目编码", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank(message = "Order item code must not be blank")
+        @Schema(description = "医嘱条目编码，可为空，由系统自动生成")
         @Size(max = 64, message = "Order item code must not exceed 64 characters")
         String orderItemCode,
         @Schema(description = "医嘱条目名称", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -301,7 +299,7 @@ public class MedicalOrderController {
     public record UpdateItemRequest(
         @NotBlank(message = "Category id must not be blank")
         String categoryId,
-        @NotBlank(message = "Order item code must not be blank")
+        @Schema(description = "医嘱条目编码，创建后不可修改")
         @Size(max = 64, message = "Order item code must not exceed 64 characters")
         String orderItemCode,
         @NotBlank(message = "Order item name must not be blank")
@@ -323,8 +321,7 @@ public class MedicalOrderController {
         @Schema(description = "关联医嘱条目 ID", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "Order dict item id must not be blank")
         String orderDictItemId,
-        @Schema(description = "收费项目编码", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank(message = "Charge item code must not be blank")
+        @Schema(description = "收费项目编码，可为空，由系统自动生成")
         @Size(max = 64, message = "Charge item code must not exceed 64 characters")
         String chargeItemCode,
         @Schema(description = "收费项目名称", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -351,7 +348,7 @@ public class MedicalOrderController {
     public record UpdateChargeItemRequest(
         @NotBlank(message = "Order dict item id must not be blank")
         String orderDictItemId,
-        @NotBlank(message = "Charge item code must not be blank")
+        @Schema(description = "收费项目编码，创建后不可修改")
         @Size(max = 64, message = "Charge item code must not exceed 64 characters")
         String chargeItemCode,
         @NotBlank(message = "Charge item name must not be blank")
@@ -370,8 +367,7 @@ public class MedicalOrderController {
 
     @Schema(name = "CreatePackageRequest", description = "新增医嘱套餐请求")
     public record CreatePackageRequest(
-        @Schema(description = "套餐编码", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank(message = "Package code must not be blank")
+        @Schema(description = "套餐编码，可为空，由系统自动生成")
         @Size(max = 64, message = "Package code must not exceed 64 characters")
         String packageCode,
         @Schema(description = "套餐名称", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -396,7 +392,7 @@ public class MedicalOrderController {
 
     @Schema(name = "UpdatePackageRequest", description = "更新医嘱套餐请求")
     public record UpdatePackageRequest(
-        @NotBlank(message = "Package code must not be blank")
+        @Schema(description = "套餐编码，创建后不可修改")
         @Size(max = 64, message = "Package code must not exceed 64 characters")
         String packageCode,
         @NotBlank(message = "Package name must not be blank")

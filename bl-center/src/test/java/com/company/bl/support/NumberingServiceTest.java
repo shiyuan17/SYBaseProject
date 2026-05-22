@@ -73,4 +73,11 @@ class NumberingServiceTest {
                 && "FAILED".equals(log.get("operation_result"))
                 && "NR_MISSING".equals(log.get("business_id"))));
     }
+
+    @Test
+    void shouldGenerateMasterDataDepartmentCodeFromSeededRule() {
+        String code = numberingService.generateDepartmentCode();
+
+        assertTrue(code.startsWith("DEPT-"));
+    }
 }

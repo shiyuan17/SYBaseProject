@@ -2,6 +2,7 @@ package com.company.bl.masterdata.application;
 
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
+import com.company.bl.support.application.NumberingService;
 import com.company.bl.masterdata.infrastructure.DepartmentJdbcRepository;
 import com.company.bl.support.application.OperationAuditService;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -17,17 +18,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Service
 public class DepartmentService {
 
     private final DepartmentJdbcRepository departmentJdbcRepository;
+    private final NumberingService numberingService;
     private final OperationAuditService operationAuditService;
 
     public DepartmentService(DepartmentJdbcRepository departmentJdbcRepository,
+                             NumberingService numberingService,
                              OperationAuditService operationAuditService) {
         this.departmentJdbcRepository = departmentJdbcRepository;
+        this.numberingService = numberingService;
         this.operationAuditService = operationAuditService;
     }
 
@@ -56,12 +61,15 @@ public class DepartmentService {
     @CacheEvict(value = "departmentTree", allEntries = true)
     @Transactional
     public DepartmentNode createDepartment(CreateDepartmentCommand command) {
+        String departmentCode = resolveCreateCode(
+            command.departmentCode(),
+            numberingService::generateDepartmentCode);
         return operationAuditService.audit("MASTERDATA", "DEPARTMENT", "create_department", () -> {
             try {
                 var row = departmentJdbcRepository.insertDepartment(new DepartmentJdbcRepository.CreateDepartmentRow(
                     "DEPT-" + UUID.randomUUID(),
                     command.parentId(),
-                    command.departmentCode(),
+                    departmentCode,
                     command.departmentName(),
                     command.sortOrder(),
                     command.enabled(),
@@ -71,20 +79,25 @@ public class DepartmentService {
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Department code already exists");
             }
-        }, DepartmentNode::id, command::departmentCode);
+        }, DepartmentNode::id, () -> departmentCode);
     }
 
     @CacheEvict(value = "departmentTree", allEntries = true)
     @Transactional
     public DepartmentNode updateDepartment(String id, UpdateDepartmentCommand command) {
         return operationAuditService.audit("MASTERDATA", "DEPARTMENT", "update_department", () -> {
-            if (departmentJdbcRepository.findDepartmentById(id) == null) {
+            DepartmentJdbcRepository.DepartmentRow current = departmentJdbcRepository.findDepartmentById(id);
+            if (current == null) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Department not found");
             }
+            String departmentCode = resolveExistingCode(
+                command.departmentCode(),
+                current.departmentCode(),
+                "Department code");
             try {
                 departmentJdbcRepository.updateDepartment(id, new DepartmentJdbcRepository.UpdateDepartmentRow(
                     command.parentId(),
-                    command.departmentCode(),
+                    departmentCode,
                     command.departmentName(),
                     command.sortOrder(),
                     command.enabled()));
@@ -164,5 +177,29 @@ public class DepartmentService {
         int sortOrder,
         boolean enabled
     ) {
+    }
+
+    private String resolveCreateCode(String requestedCode, Supplier<String> generator) {
+        String normalizedCode = normalizeCode(requestedCode);
+        return normalizedCode == null ? generator.get() : normalizedCode;
+    }
+
+    private String resolveExistingCode(String requestedCode, String existingCode, String fieldLabel) {
+        String normalizedCode = normalizeCode(requestedCode);
+        if (normalizedCode == null || normalizedCode.equals(existingCode)) {
+            return existingCode;
+        }
+        throw new BlBusinessException(
+            BlErrorCode.INVALID_ARGUMENT,
+            400,
+            fieldLabel + " cannot be changed once created");
+    }
+
+    private String normalizeCode(String code) {
+        if (code == null) {
+            return null;
+        }
+        String trimmed = code.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

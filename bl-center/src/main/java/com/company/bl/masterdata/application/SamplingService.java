@@ -2,6 +2,7 @@ package com.company.bl.masterdata.application;
 
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
+import com.company.bl.support.application.NumberingService;
 import com.company.bl.masterdata.infrastructure.SamplingJdbcRepository;
 import com.company.bl.support.application.OperationAuditService;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -17,17 +18,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Service
 public class SamplingService {
 
     private final SamplingJdbcRepository repository;
+    private final NumberingService numberingService;
     private final OperationAuditService operationAuditService;
 
     public SamplingService(SamplingJdbcRepository repository,
+                           NumberingService numberingService,
                            OperationAuditService operationAuditService) {
         this.repository = repository;
+        this.numberingService = numberingService;
         this.operationAuditService = operationAuditService;
     }
 
@@ -71,27 +76,32 @@ public class SamplingService {
     @CacheEvict(value = {"samplingTemplateTree", "samplingTemplateDetail"}, allEntries = true)
     @Transactional
     public TemplateCategoryNode createSamplingTemplateCategory(CreateTemplateCategoryCommand command) {
+        String categoryCode = resolveCreateCode(
+            command.categoryCode(),
+            numberingService::generateTemplateCategoryCode);
         return operationAuditService.audit("MASTERDATA", "TEMPLATE_CATEGORY", "create_template_category", () -> {
             try {
                 return toTemplateCategoryNode(repository.insertTemplateCategory(new SamplingJdbcRepository.CreateTemplateCategoryRow(
-                    "STC-" + UUID.randomUUID(), command.parentId(), command.categoryCode(), command.categoryName(),
+                    "STC-" + UUID.randomUUID(), command.parentId(), categoryCode, command.categoryName(),
                     command.sortOrder(), command.enabled(), LocalDateTime.now(), LocalDateTime.now())));
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Template category code already exists");
             }
-        }, TemplateCategoryNode::id, command::categoryCode);
+        }, TemplateCategoryNode::id, () -> categoryCode);
     }
 
     @CacheEvict(value = {"samplingTemplateTree", "samplingTemplateDetail"}, allEntries = true)
     @Transactional
     public TemplateCategoryNode updateSamplingTemplateCategory(String id, UpdateTemplateCategoryCommand command) {
         return operationAuditService.audit("MASTERDATA", "TEMPLATE_CATEGORY", "update_template_category", () -> {
-            if (repository.findTemplateCategoryById(id) == null) {
+            SamplingJdbcRepository.TemplateCategoryRow current = repository.findTemplateCategoryById(id);
+            if (current == null) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Template category not found");
             }
+            String categoryCode = resolveExistingCode(command.categoryCode(), current.categoryCode(), "Template category code");
             try {
                 repository.updateTemplateCategory(id, new SamplingJdbcRepository.UpdateTemplateCategoryRow(
-                    command.parentId(), command.categoryCode(), command.categoryName(), command.sortOrder(), command.enabled()));
+                    command.parentId(), categoryCode, command.categoryName(), command.sortOrder(), command.enabled()));
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Template category code already exists");
             }
@@ -102,10 +112,11 @@ public class SamplingService {
     @CacheEvict(value = {"samplingTemplateTree", "samplingTemplateDetail"}, allEntries = true)
     @Transactional
     public TemplateDetailView createSamplingTemplate(CreateTemplateCommand command) {
+        String templateCode = resolveCreateCode(command.templateCode(), numberingService::generateTemplateCode);
         return operationAuditService.audit("MASTERDATA", "TEMPLATE", "create_template", () -> {
             try {
                 var row = repository.insertTemplate(new SamplingJdbcRepository.CreateTemplateRow(
-                    "TPL-" + UUID.randomUUID(), command.categoryId(), command.templateCode(), command.templateName(),
+                    "TPL-" + UUID.randomUUID(), command.categoryId(), templateCode, command.templateName(),
                     command.templateContent(), command.splitPartCount(), command.applicableSpecimenType(),
                     command.enabled(), command.bodyPartIds() == null ? List.of() : command.bodyPartIds(),
                     LocalDateTime.now(), LocalDateTime.now()));
@@ -113,19 +124,21 @@ public class SamplingService {
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Template code already exists");
             }
-        }, TemplateDetailView::id, command::templateCode);
+        }, TemplateDetailView::id, () -> templateCode);
     }
 
     @CacheEvict(value = {"samplingTemplateTree", "samplingTemplateDetail"}, allEntries = true)
     @Transactional
     public TemplateDetailView updateSamplingTemplate(String id, UpdateTemplateCommand command) {
         return operationAuditService.audit("MASTERDATA", "TEMPLATE", "update_template", () -> {
-            if (repository.findTemplateById(id) == null) {
+            SamplingJdbcRepository.TemplateRow current = repository.findTemplateById(id);
+            if (current == null) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Template not found");
             }
+            String templateCode = resolveExistingCode(command.templateCode(), current.templateCode(), "Template code");
             try {
                 repository.updateTemplate(id, new SamplingJdbcRepository.UpdateTemplateRow(
-                    command.categoryId(), command.templateCode(), command.templateName(), command.templateContent(),
+                    command.categoryId(), templateCode, command.templateName(), command.templateContent(),
                     command.splitPartCount(), command.applicableSpecimenType(), command.enabled(),
                     command.bodyPartIds() == null ? List.of() : command.bodyPartIds()));
             } catch (DataAccessException exception) {
@@ -205,27 +218,32 @@ public class SamplingService {
     @CacheEvict(value = {"samplingGuidelineTree", "samplingGuidelineDetail"}, allEntries = true)
     @Transactional
     public GuidelineCategoryNode createGuidelineCategory(CreateGuidelineCategoryCommand command) {
+        String categoryCode = resolveCreateCode(
+            command.categoryCode(),
+            numberingService::generateGuidelineCategoryCode);
         return operationAuditService.audit("MASTERDATA", "GUIDELINE_CATEGORY", "create_guideline_category", () -> {
             try {
                 return toGuidelineCategoryNode(repository.insertGuidelineCategory(new SamplingJdbcRepository.CreateGuidelineCategoryRow(
-                    "SGC-" + UUID.randomUUID(), command.parentId(), command.categoryCode(), command.categoryName(),
+                    "SGC-" + UUID.randomUUID(), command.parentId(), categoryCode, command.categoryName(),
                     command.sortOrder(), command.enabled(), LocalDateTime.now(), LocalDateTime.now())));
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Guideline category code already exists");
             }
-        }, GuidelineCategoryNode::id, command::categoryCode);
+        }, GuidelineCategoryNode::id, () -> categoryCode);
     }
 
     @CacheEvict(value = {"samplingGuidelineTree", "samplingGuidelineDetail"}, allEntries = true)
     @Transactional
     public GuidelineCategoryNode updateGuidelineCategory(String id, UpdateGuidelineCategoryCommand command) {
         return operationAuditService.audit("MASTERDATA", "GUIDELINE_CATEGORY", "update_guideline_category", () -> {
-            if (repository.findGuidelineCategoryById(id) == null) {
+            SamplingJdbcRepository.GuidelineCategoryRow current = repository.findGuidelineCategoryById(id);
+            if (current == null) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Guideline category not found");
             }
+            String categoryCode = resolveExistingCode(command.categoryCode(), current.categoryCode(), "Guideline category code");
             try {
                 repository.updateGuidelineCategory(id, new SamplingJdbcRepository.UpdateGuidelineCategoryRow(
-                    command.parentId(), command.categoryCode(), command.categoryName(), command.sortOrder(), command.enabled()));
+                    command.parentId(), categoryCode, command.categoryName(), command.sortOrder(), command.enabled()));
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Guideline category code already exists");
             }
@@ -236,28 +254,31 @@ public class SamplingService {
     @CacheEvict(value = {"samplingGuidelineTree", "samplingGuidelineDetail"}, allEntries = true)
     @Transactional
     public GuidelineDetailView createGuideline(CreateGuidelineCommand command) {
+        String guidelineCode = resolveCreateCode(command.guidelineCode(), numberingService::generateGuidelineCode);
         return operationAuditService.audit("MASTERDATA", "GUIDELINE", "create_guideline", () -> {
             try {
                 var row = repository.insertGuideline(new SamplingJdbcRepository.CreateGuidelineRow(
-                    "GL-" + UUID.randomUUID(), command.categoryId(), command.guidelineCode(), command.guidelineName(),
+                    "GL-" + UUID.randomUUID(), command.categoryId(), guidelineCode, command.guidelineName(),
                     command.guidelineContent(), command.versionNo(), command.enabled(), LocalDateTime.now(), LocalDateTime.now()));
                 return getSamplingGuidelineDetail(row.id());
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Guideline code already exists");
             }
-        }, GuidelineDetailView::id, command::guidelineCode);
+        }, GuidelineDetailView::id, () -> guidelineCode);
     }
 
     @CacheEvict(value = {"samplingGuidelineTree", "samplingGuidelineDetail"}, allEntries = true)
     @Transactional
     public GuidelineDetailView updateGuideline(String id, UpdateGuidelineCommand command) {
         return operationAuditService.audit("MASTERDATA", "GUIDELINE", "update_guideline", () -> {
-            if (repository.findGuidelineById(id) == null) {
+            SamplingJdbcRepository.GuidelineRow current = repository.findGuidelineById(id);
+            if (current == null) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Guideline not found");
             }
+            String guidelineCode = resolveExistingCode(command.guidelineCode(), current.guidelineCode(), "Guideline code");
             try {
                 repository.updateGuideline(id, new SamplingJdbcRepository.UpdateGuidelineRow(
-                    command.categoryId(), command.guidelineCode(), command.guidelineName(), command.guidelineContent(),
+                    command.categoryId(), guidelineCode, command.guidelineName(), command.guidelineContent(),
                     command.versionNo(), command.enabled()));
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Guideline code already exists");
@@ -457,5 +478,29 @@ public class SamplingService {
 
     public record UpdateGuidelineCommand(String categoryId, String guidelineCode, String guidelineName,
                                          String guidelineContent, String versionNo, boolean enabled) {
+    }
+
+    private String resolveCreateCode(String requestedCode, Supplier<String> generator) {
+        String normalizedCode = normalizeCode(requestedCode);
+        return normalizedCode == null ? generator.get() : normalizedCode;
+    }
+
+    private String resolveExistingCode(String requestedCode, String existingCode, String fieldLabel) {
+        String normalizedCode = normalizeCode(requestedCode);
+        if (normalizedCode == null || normalizedCode.equals(existingCode)) {
+            return existingCode;
+        }
+        throw new BlBusinessException(
+            BlErrorCode.INVALID_ARGUMENT,
+            400,
+            fieldLabel + " cannot be changed once created");
+    }
+
+    private String normalizeCode(String code) {
+        if (code == null) {
+            return null;
+        }
+        String trimmed = code.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

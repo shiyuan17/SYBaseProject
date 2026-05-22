@@ -28,8 +28,21 @@ CREATE TABLE permissions (
     id VARCHAR(64) NOT NULL,
     permission_code VARCHAR(100) NOT NULL,
     permission_name VARCHAR(100) NOT NULL,
+    menu_id VARCHAR(64),
+    action_key VARCHAR(64),
+    sort_order INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 1,
     CONSTRAINT pk_permissions PRIMARY KEY (id)
+);
+
+CREATE TABLE menus (
+    id VARCHAR(64) NOT NULL,
+    parent_id VARCHAR(64),
+    menu_code VARCHAR(64) NOT NULL,
+    menu_name VARCHAR(100) NOT NULL,
+    menu_type VARCHAR(32) NOT NULL,
+    enabled INTEGER DEFAULT 1,
+    CONSTRAINT pk_menus PRIMARY KEY (id)
 );
 
 CREATE TABLE user_roles (
@@ -44,6 +57,13 @@ CREATE TABLE role_permissions (
     role_id VARCHAR(64) NOT NULL,
     permission_id VARCHAR(64) NOT NULL,
     CONSTRAINT pk_role_permissions PRIMARY KEY (id)
+);
+
+CREATE TABLE role_menus (
+    id VARCHAR(64) NOT NULL,
+    role_id VARCHAR(64) NOT NULL,
+    menu_id VARCHAR(64) NOT NULL,
+    CONSTRAINT pk_role_menus PRIMARY KEY (id)
 );
 
 CREATE TABLE user_login_logs (

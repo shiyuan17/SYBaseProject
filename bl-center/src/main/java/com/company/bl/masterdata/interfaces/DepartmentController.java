@@ -87,8 +87,7 @@ public class DepartmentController {
     public record CreateDepartmentRequest(
         @Schema(description = "父级科室 ID，根节点可为空")
         String parentId,
-        @Schema(description = "科室编码", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank(message = "Department code must not be blank")
+        @Schema(description = "科室编码，可为空，由系统自动生成")
         @Size(max = 64, message = "Department code must not exceed 64 characters")
         String departmentCode,
         @Schema(description = "科室名称", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -106,8 +105,7 @@ public class DepartmentController {
     public record UpdateDepartmentRequest(
         @Schema(description = "父级科室 ID，根节点可为空")
         String parentId,
-        @Schema(description = "科室编码", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank(message = "Department code must not be blank")
+        @Schema(description = "科室编码，创建后不可修改")
         @Size(max = 64, message = "Department code must not exceed 64 characters")
         String departmentCode,
         @Schema(description = "科室名称", requiredMode = Schema.RequiredMode.REQUIRED)

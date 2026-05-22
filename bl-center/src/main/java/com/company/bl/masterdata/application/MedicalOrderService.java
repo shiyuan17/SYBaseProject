@@ -2,6 +2,7 @@ package com.company.bl.masterdata.application;
 
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
+import com.company.bl.support.application.NumberingService;
 import com.company.bl.masterdata.infrastructure.MedicalOrderPageJdbcRepository;
 import com.company.bl.masterdata.infrastructure.MedicalOrderJdbcRepository;
 import com.company.bl.support.application.OperationAuditService;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,13 +30,16 @@ public class MedicalOrderService {
 
     private final MedicalOrderJdbcRepository repository;
     private final MedicalOrderPageJdbcRepository pageRepository;
+    private final NumberingService numberingService;
     private final OperationAuditService operationAuditService;
 
     public MedicalOrderService(MedicalOrderJdbcRepository repository,
                                MedicalOrderPageJdbcRepository pageRepository,
+                               NumberingService numberingService,
                                OperationAuditService operationAuditService) {
         this.repository = repository;
         this.pageRepository = pageRepository;
+        this.numberingService = numberingService;
         this.operationAuditService = operationAuditService;
     }
 
@@ -70,12 +75,15 @@ public class MedicalOrderService {
     @CacheEvict(value = "medicalOrderDictTree", allEntries = true)
     @Transactional
     public MedicalOrderCategoryNode createMedicalOrderCategory(CreateMedicalOrderCategoryCommand command) {
+        String categoryCode = resolveCreateCode(
+            command.categoryCode(),
+            numberingService::generateOrderCategoryCode);
         return operationAuditService.audit("MASTERDATA", "ORDER_CATEGORY", "create_order_category", () -> {
             try {
                 return toCategoryNode(repository.insertOrderCategory(new MedicalOrderJdbcRepository.CreateOrderCategoryRow(
                     "ODC-" + UUID.randomUUID(),
                     command.parentId(),
-                    command.categoryCode(),
+                    categoryCode,
                     command.categoryName(),
                     command.sortOrder(),
                     command.enabled(),
@@ -84,20 +92,25 @@ public class MedicalOrderService {
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Medical order category code already exists");
             }
-        }, MedicalOrderCategoryNode::id, command::categoryCode);
+        }, MedicalOrderCategoryNode::id, () -> categoryCode);
     }
 
     @CacheEvict(value = "medicalOrderDictTree", allEntries = true)
     @Transactional
     public MedicalOrderCategoryNode updateMedicalOrderCategory(String id, MedicalOrderService.UpdateMedicalOrderCategoryCommand command) {
         return operationAuditService.audit("MASTERDATA", "ORDER_CATEGORY", "update_order_category", () -> {
-            if (repository.findOrderCategoryById(id) == null) {
+            MedicalOrderJdbcRepository.OrderCategoryRow current = repository.findOrderCategoryById(id);
+            if (current == null) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Medical order category not found");
             }
+            String categoryCode = resolveExistingCode(
+                command.categoryCode(),
+                current.categoryCode(),
+                "Medical order category code");
             try {
                 repository.updateOrderCategory(id, new MedicalOrderJdbcRepository.UpdateOrderCategoryRow(
                     command.parentId(),
-                    command.categoryCode(),
+                    categoryCode,
                     command.categoryName(),
                     command.sortOrder(),
                     command.enabled()));
@@ -111,12 +124,15 @@ public class MedicalOrderService {
     @CacheEvict(value = "medicalOrderDictTree", allEntries = true)
     @Transactional
     public MedicalOrderItemView createMedicalOrderItem(CreateMedicalOrderItemCommand command) {
+        String orderItemCode = resolveCreateCode(
+            command.orderItemCode(),
+            numberingService::generateOrderItemCode);
         return operationAuditService.audit("MASTERDATA", "ORDER_ITEM", "create_order_item", () -> {
             try {
                 return toItemView(repository.insertOrderItem(new MedicalOrderJdbcRepository.CreateOrderItemRow(
                     "ODI-" + UUID.randomUUID(),
                     command.categoryId(),
-                    command.orderItemCode(),
+                    orderItemCode,
                     command.orderItemName(),
                     command.orderType(),
                     command.defaultContent(),
@@ -128,20 +144,25 @@ public class MedicalOrderService {
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Medical order item code already exists");
             }
-        }, MedicalOrderItemView::id, command::orderItemCode);
+        }, MedicalOrderItemView::id, () -> orderItemCode);
     }
 
     @CacheEvict(value = "medicalOrderDictTree", allEntries = true)
     @Transactional
     public MedicalOrderItemView updateMedicalOrderItem(String id, MedicalOrderService.UpdateMedicalOrderItemCommand command) {
         return operationAuditService.audit("MASTERDATA", "ORDER_ITEM", "update_order_item", () -> {
-            if (repository.findOrderItemById(id) == null) {
+            MedicalOrderJdbcRepository.OrderItemRow current = repository.findOrderItemById(id);
+            if (current == null) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Medical order item not found");
             }
+            String orderItemCode = resolveExistingCode(
+                command.orderItemCode(),
+                current.orderItemCode(),
+                "Medical order item code");
             try {
                 repository.updateOrderItem(id, new MedicalOrderJdbcRepository.UpdateOrderItemRow(
                     command.categoryId(),
-                    command.orderItemCode(),
+                    orderItemCode,
                     command.orderItemName(),
                     command.orderType(),
                     command.defaultContent(),
@@ -221,12 +242,15 @@ public class MedicalOrderService {
     @CacheEvict(value = "medicalOrderChargeItems", allEntries = true)
     @Transactional
     public ChargeItemView createChargeItem(CreateChargeItemCommand command) {
+        String chargeItemCode = resolveCreateCode(
+            command.chargeItemCode(),
+            numberingService::generateChargeItemCode);
         return operationAuditService.audit("MASTERDATA", "ORDER_CHARGE", "create_charge_item", () -> {
             try {
                 return toChargeItemView(repository.insertChargeItem(new MedicalOrderJdbcRepository.CreateChargeItemRow(
                     "OCI-" + UUID.randomUUID(),
                     command.orderDictItemId(),
-                    command.chargeItemCode(),
+                    chargeItemCode,
                     command.chargeItemName(),
                     command.specification(),
                     command.unit(),
@@ -238,20 +262,25 @@ public class MedicalOrderService {
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Charge item code already exists");
             }
-        }, ChargeItemView::id, command::chargeItemCode);
+        }, ChargeItemView::id, () -> chargeItemCode);
     }
 
     @CacheEvict(value = "medicalOrderChargeItems", allEntries = true)
     @Transactional
     public ChargeItemView updateChargeItem(String id, MedicalOrderService.UpdateChargeItemCommand command) {
         return operationAuditService.audit("MASTERDATA", "ORDER_CHARGE", "update_charge_item", () -> {
-            if (repository.findChargeItemById(id) == null) {
+            MedicalOrderJdbcRepository.ChargeItemRow current = repository.findChargeItemById(id);
+            if (current == null) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Charge item not found");
             }
+            String chargeItemCode = resolveExistingCode(
+                command.chargeItemCode(),
+                current.chargeItemCode(),
+                "Charge item code");
             try {
                 repository.updateChargeItem(id, new MedicalOrderJdbcRepository.UpdateChargeItemRow(
                     command.orderDictItemId(),
-                    command.chargeItemCode(),
+                    chargeItemCode,
                     command.chargeItemName(),
                     command.specification(),
                     command.unit(),
@@ -318,7 +347,7 @@ public class MedicalOrderService {
             String chargeItemCode = trimToNull(row.get("chargeItemCode"));
             String chargeItemName = trimToNull(row.get("chargeItemName"));
             String orderDictItemId = trimToNull(row.get("orderDictItemId"));
-            if (chargeItemCode == null || chargeItemName == null || orderDictItemId == null) {
+            if (chargeItemName == null || orderDictItemId == null) {
                 failureCount++;
                 continue;
             }
@@ -391,11 +420,12 @@ public class MedicalOrderService {
 
     @Transactional
     public PackageView createPackage(CreatePackageCommand command) {
+        String packageCode = resolveCreateCode(command.packageCode(), numberingService::generatePackageCode);
         return operationAuditService.audit("MASTERDATA", "ORDER_PACKAGE", "create_package", () -> {
             try {
                 repository.insertPackage(new MedicalOrderJdbcRepository.CreatePackageRow(
                     "PKG-" + UUID.randomUUID(),
-                    command.packageCode(),
+                    packageCode,
                     command.packageName(),
                     command.packageType(),
                     command.ownerUserId(),
@@ -404,23 +434,25 @@ public class MedicalOrderService {
                     command.itemIds(),
                     LocalDateTime.now(),
                     LocalDateTime.now()));
-                return listPackages().stream().filter(item -> item.packageCode().equals(command.packageCode())).findFirst()
+                return listPackages().stream().filter(item -> item.packageCode().equals(packageCode)).findFirst()
                     .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Package not found after create"));
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Package code already exists");
             }
-        }, PackageView::id, command::packageCode);
+        }, PackageView::id, () -> packageCode);
     }
 
     @Transactional
     public PackageView updatePackage(String id, MedicalOrderService.UpdatePackageCommand command) {
         return operationAuditService.audit("MASTERDATA", "ORDER_PACKAGE", "update_package", () -> {
-            if (repository.findPackageById(id) == null) {
+            MedicalOrderJdbcRepository.PackageRow current = repository.findPackageById(id);
+            if (current == null) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Package not found");
             }
+            String packageCode = resolveExistingCode(command.packageCode(), current.packageCode(), "Package code");
             try {
                 repository.updatePackage(id, new MedicalOrderJdbcRepository.UpdatePackageRow(
-                    command.packageCode(),
+                    packageCode,
                     command.packageName(),
                     command.packageType(),
                     command.ownerUserId(),
@@ -663,4 +695,20 @@ public class MedicalOrderService {
     public record ImportResult(
         @Schema(description = "成功数量") int successCount,
         @Schema(description = "失败数量") int failureCount) {}
+
+    private String resolveCreateCode(String requestedCode, Supplier<String> generator) {
+        String normalizedCode = trimToNull(requestedCode);
+        return normalizedCode == null ? generator.get() : normalizedCode;
+    }
+
+    private String resolveExistingCode(String requestedCode, String existingCode, String fieldLabel) {
+        String normalizedCode = trimToNull(requestedCode);
+        if (normalizedCode == null || normalizedCode.equals(existingCode)) {
+            return existingCode;
+        }
+        throw new BlBusinessException(
+            BlErrorCode.INVALID_ARGUMENT,
+            400,
+            fieldLabel + " cannot be changed once created");
+    }
 }

@@ -193,7 +193,7 @@ class MasterDataControllerIntegrationTest extends AuthenticatedWebIntegrationTes
     void shouldListUpdateAndAuditNumberingRules() throws Exception {
         mockMvc.perform(asAdmin(get("/api/v1/numbering-rules")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.length()", greaterThanOrEqualTo(5)));
+            .andExpect(jsonPath("$.data.length()", greaterThanOrEqualTo(20)));
 
         mockMvc.perform(asAdmin(patch("/api/v1/numbering-rules/NR_APPLICATION"))
                 .contentType(MediaType.APPLICATION_JSON)
@@ -219,28 +219,26 @@ class MasterDataControllerIntegrationTest extends AuthenticatedWebIntegrationTes
     }
     @Test
     void shouldUpdateDeleteAndImportExportMasterDataResources() throws Exception {
-        String bodyCode = "BP-" + System.nanoTime();
         mockMvc.perform(asAdmin(post("/api/v1/body-parts"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "parentId": "BP_ROOT",
-                      "partCode": "%s",
                       "partName": "临时部位",
                       "partLevel": 1,
                       "sortOrder": 99,
                       "enabled": true
                     }
-                    """.formatted(bodyCode)))
+                    """))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.partCode", is(bodyCode)));
+            .andExpect(jsonPath("$.data.partCode", startsWith("BP-")));
 
         mockMvc.perform(asAdmin(patch("/api/v1/body-parts/BP_STOMACH"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "parentId": "BP_DIGESTIVE",
-                      "partCode": "STOMACH",
+                      "partCode": null,
                       "partName": "胃",
                       "partAlias": "胃窦",
                       "partLevel": 2,
@@ -251,21 +249,23 @@ class MasterDataControllerIntegrationTest extends AuthenticatedWebIntegrationTes
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.partAlias", is("胃窦")));
 
-        String departmentCode = "DEPT-" + System.nanoTime();
         MvcResult departmentResult = mockMvc.perform(asAdmin(post("/api/v1/departments"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "parentId": "DEPT_ROOT",
-                      "departmentCode": "%s",
                       "departmentName": "临时科室",
                       "sortOrder": 99,
                       "enabled": true
                     }
-                    """.formatted(departmentCode)))
+                    """))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.departmentCode", is(departmentCode)))
+            .andExpect(jsonPath("$.data.departmentCode", startsWith("DEPT-")))
             .andReturn();
+        String departmentCode = objectMapper.readTree(departmentResult.getResponse().getContentAsString())
+            .path("data")
+            .path("departmentCode")
+            .asText();
         String departmentId = objectMapper.readTree(departmentResult.getResponse().getContentAsString())
             .path("data")
             .path("id")
@@ -276,37 +276,50 @@ class MasterDataControllerIntegrationTest extends AuthenticatedWebIntegrationTes
                 .content("""
                     {
                       "parentId": "DEPT_ROOT",
-                      "departmentCode": "%s",
+                      "departmentCode": null,
                       "departmentName": "临时科室-更新",
                       "sortOrder": 100,
                       "enabled": true
                     }
-                    """.formatted(departmentCode)))
+                    """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.departmentName", is("临时科室-更新")));
+
+        mockMvc.perform(asAdmin(patch("/api/v1/departments/{id}", departmentId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "parentId": "DEPT_ROOT",
+                      "departmentCode": "DEPT-MUTATED",
+                      "departmentName": "Updated Department",
+                      "sortOrder": 100,
+                      "enabled": true
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message", containsString("cannot be changed once created")));
 
         mockMvc.perform(asAdmin(delete("/api/v1/departments/{id}", departmentId)))
             .andExpect(status().isOk());
 
-        String categoryCode = "CAT-" + System.nanoTime();
         mockMvc.perform(asAdmin(post("/api/v1/medical-order-dicts/categories"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "categoryCode": "%s",
                       "categoryName": "临时分类",
                       "sortOrder": 1,
                       "enabled": true
                     }
-                    """.formatted(categoryCode)))
-            .andExpect(status().isOk());
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.categoryCode", startsWith("ODC-")));
 
         mockMvc.perform(asAdmin(patch("/api/v1/medical-order-dicts/items/ODI_HE"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "categoryId": "ODC_ROUTINE",
-                      "orderItemCode": "HE_ROUTINE",
+                      "orderItemCode": null,
                       "orderItemName": "HE 染色",
                       "orderType": "ROUTINE",
                       "defaultContent": "更新默认内容",
@@ -323,7 +336,7 @@ class MasterDataControllerIntegrationTest extends AuthenticatedWebIntegrationTes
                 .content("""
                     {
                       "orderDictItemId": "ODI_HE",
-                      "chargeItemCode": "CHG_HE",
+                      "chargeItemCode": null,
                       "chargeItemName": "HE 收费",
                       "specification": "张",
                       "unit": "次",
@@ -351,43 +364,44 @@ class MasterDataControllerIntegrationTest extends AuthenticatedWebIntegrationTes
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.successCount", is(1)));
 
-        String packageCode = "PKG-" + System.nanoTime();
         MvcResult packageResult = mockMvc.perform(asAdmin(post("/api/v1/medical-order-packages"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "packageCode": "%s",
                       "packageName": "临时套餐",
                       "packageType": "PUBLIC",
                       "enabled": true,
                       "itemIds": ["ODI_HE"]
                     }
-                    """.formatted(packageCode)))
+                    """))
             .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.packageCode", startsWith("PKG-")))
             .andReturn();
         String packageId = objectMapper.readTree(packageResult.getResponse().getContentAsString()).path("data").path("id").asText();
+        String packageCode = objectMapper.readTree(packageResult.getResponse().getContentAsString()).path("data").path("packageCode").asText();
 
         mockMvc.perform(asAdmin(patch("/api/v1/medical-order-packages/{id}", packageId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "packageCode": "%s",
+                      "packageCode": null,
                       "packageName": "基础取材套餐",
                       "packageType": "PUBLIC",
                       "enabled": true,
                       "remarks": "updated",
                       "itemIds": ["ODI_HE"]
                     }
-                    """.formatted(packageCode)))
+                    """))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.remarks", is("updated")));
+            .andExpect(jsonPath("$.data.remarks", is("updated")))
+            .andExpect(jsonPath("$.data.packageCode", is(packageCode)));
 
         mockMvc.perform(asAdmin(patch("/api/v1/sampling-templates/ST_HE_STOMACH"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "categoryId": "STC_ROUTINE",
-                      "templateCode": "TPL_STOMACH",
+                      "templateCode": null,
                       "templateName": "胃组织模板",
                       "templateContent": "更新模板内容",
                       "splitPartCount": 2,
@@ -404,7 +418,7 @@ class MasterDataControllerIntegrationTest extends AuthenticatedWebIntegrationTes
                 .content("""
                     {
                       "categoryId": "SGC_ROUTINE",
-                      "guidelineCode": "GL_STOMACH",
+                      "guidelineCode": null,
                       "guidelineName": "胃取材规范",
                       "guidelineContent": "更新规范内容",
                       "versionNo": "v2",
@@ -419,7 +433,7 @@ class MasterDataControllerIntegrationTest extends AuthenticatedWebIntegrationTes
                 .content("""
                     {
                       "parentId": "SCC_ROOT",
-                      "categoryCode": "GENERAL",
+                      "categoryCode": null,
                       "categoryName": "通用配置",
                       "categoryType": "BIZ",
                       "sortOrder": 1,

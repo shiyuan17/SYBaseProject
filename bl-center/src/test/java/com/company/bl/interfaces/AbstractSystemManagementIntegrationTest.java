@@ -43,13 +43,12 @@ abstract class AbstractSystemManagementIntegrationTest extends AuthenticatedWebI
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "userCode": "UC-%s",
                       "loginName": "%s",
                       "name": "Login Test User",
                       "password": "123456",
                       "enabled": true
                     }
-                    """.formatted(System.nanoTime(), loginName)))
+                    """.formatted(loginName)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code", is("SUCCESS")))
             .andExpect(jsonPath("$.data.id", notNullValue()))
@@ -96,8 +95,8 @@ abstract class AbstractSystemManagementIntegrationTest extends AuthenticatedWebI
             "text/csv",
             ("""
                 userCode,loginName,name,enabled
-                IMP-%s,%s,Imported User,true
-                """.formatted(System.nanoTime(), loginName)).getBytes());
+                ,%s,Imported User,true
+                """.formatted(loginName)).getBytes());
     }
 
     protected MockHttpServletRequestBuilder asAdmin(MockHttpServletRequestBuilder requestBuilder) {
