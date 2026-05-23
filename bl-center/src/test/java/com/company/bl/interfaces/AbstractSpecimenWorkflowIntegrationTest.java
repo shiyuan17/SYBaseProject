@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -27,6 +30,9 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
 
     @Autowired
     protected ObjectMapper objectMapper;
+
+    @Autowired
+    protected NamedParameterJdbcTemplate jdbcTemplate;
 
     protected String createApplication(String applicationNo) throws Exception {
         return createApplication(applicationNo, "DEPT-OR", "OR");
@@ -127,6 +133,24 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
         return mockMvc.perform(authorized(post(path), userId)
             .contentType(MediaType.APPLICATION_JSON)
             .content(content));
+    }
+
+    protected String querySingleString(String sql, String parameterName, String parameterValue) {
+        return jdbcTemplate.queryForObject(
+            sql,
+            Map.of(parameterName, parameterValue),
+            String.class);
+    }
+
+    protected String userLoginName(String userId) {
+        return querySingleString(
+            """
+                select login_name
+                from users
+                where id = :userId
+                """,
+            "userId",
+            userId);
     }
 
     protected JsonNode responseBody(ResultActions resultActions, int expectedStatus) throws Exception {

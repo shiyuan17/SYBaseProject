@@ -94,6 +94,16 @@ class SystemManagementRoleAndMenuIntegrationTest extends AbstractSystemManagemen
         org.junit.jupiter.api.Assertions.assertEquals(
             "维护科室字典",
             permissionsByCode.get("PERM_SYS_DEPARTMENT_CREATE").path("permissionName").asText());
+
+        mockMvc.perform(asAdmin(get("/api/v1/message-topics")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()", greaterThanOrEqualTo(1)))
+            .andExpect(jsonPath("$.data[0].topicCode", notNullValue()));
+
+        mockMvc.perform(asAdmin(get("/api/v1/stat-categories")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()", greaterThanOrEqualTo(1)))
+            .andExpect(jsonPath("$.data[0].statCode", notNullValue()));
     }
 
     @Test

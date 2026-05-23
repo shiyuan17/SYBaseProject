@@ -41,7 +41,7 @@ public class SpecimenCollectionController {
                 request.getPrinterCode(),
                 request.getCollectionScene(),
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveOperatorName(request.getOperatorName(), httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks(),
                 request.getItems().stream().map(item -> new SpecimenWorkflowAppService.SpecimenRegistrationItem(
@@ -77,5 +77,13 @@ public class SpecimenCollectionController {
     private String resolveUserId(String bodyUserId, HttpServletRequest request) {
         Object currentUserId = request.getAttribute(ApiPermissionContext.CURRENT_USER_ID);
         return currentUserId == null ? null : currentUserId.toString();
+    }
+
+    private String resolveOperatorName(String bodyOperatorName, HttpServletRequest request) {
+        Object currentLoginName = request.getAttribute(ApiPermissionContext.CURRENT_LOGIN_NAME);
+        if (currentLoginName instanceof String loginName && !loginName.isBlank()) {
+            return loginName.trim();
+        }
+        return bodyOperatorName == null ? null : bodyOperatorName.trim();
     }
 }

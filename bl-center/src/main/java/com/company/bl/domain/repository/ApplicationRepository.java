@@ -11,5 +11,7 @@ public interface ApplicationRepository {
 
     Optional<Application> findById(ApplicationId applicationId);
 
+    Optional<Application> findByApplicationNo(String applicationNo);
+
     boolean existsByApplicationNo(String applicationNo);
 }

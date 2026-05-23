@@ -10,6 +10,8 @@ import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.CreateApplicationRequest;
 import com.company.bl.interfaces.vo.ApplicationDetailResponse;
 import com.company.bl.interfaces.vo.ApplicationIdResponse;
+import com.company.bl.interfaces.vo.ApplicationListItemResponse;
+import com.company.bl.interfaces.vo.ApplicationPageResponse;
 import com.company.bl.interfaces.vo.SpecimenSummaryResponse;
 import com.company.bl.interfaces.vo.TrackingEventResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -45,6 +48,39 @@ public class ApplicationController {
         ApplicationIdResponse response = applicationRepresentationAssembler.toIdResponse(
             createApplicationAppService.create(applicationRepresentationAssembler.toCommand(request)));
         return ResponseEntity.status(201).body(response);
+    }
+
+    @Operation(summary = "分页查询申请单", description = "按筛选条件分页查询申请单列表。")
+    @RequirePermission(M2PermissionCodes.APPLICATION_DETAIL_QUERY)
+    @GetMapping
+    public ApplicationPageResponse list(
+        @Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
+        @Parameter(description = "每页条数，默认 20") @RequestParam(defaultValue = "20") int size,
+        @Parameter(description = "申请单号，模糊匹配") @RequestParam(required = false) String applicationNo,
+        @Parameter(description = "患者姓名，模糊匹配") @RequestParam(required = false) String patientName,
+        @Parameter(description = "送检科室 ID") @RequestParam(required = false) String submittingDepartmentId,
+        @Parameter(description = "申请类型") @RequestParam(required = false) String applicationType,
+        @Parameter(description = "申请单表单状态") @RequestParam(required = false) String applicationFormStatus,
+        @Parameter(description = "申请开始日期") @RequestParam(required = false) String dateFrom,
+        @Parameter(description = "申请结束日期") @RequestParam(required = false) String dateTo
+    ) {
+        SpecimenWorkflowAppService.ApplicationPage result =
+            specimenWorkflowAppService.listApplications(
+                new SpecimenWorkflowAppService.ApplicationListQuery(
+                    page,
+                    size,
+                    applicationNo,
+                    patientName,
+                    submittingDepartmentId,
+                    applicationType,
+                    applicationFormStatus,
+                    dateFrom,
+                    dateTo));
+        return new ApplicationPageResponse(
+            result.items().stream().map(this::toListItemResponse).toList(),
+            result.page(),
+            result.size(),
+            result.total());
     }
 
     @Operation(summary = "查询申请单详情", description = "按申请单 ID 查询申请单、标本与最近追踪事件。")
@@ -115,6 +151,28 @@ public class ApplicationController {
             specimen.specimenStatus().name(),
             specimen.fixationStatus().name(),
             specimen.labelPrintStatus());
+    }
+
+    private ApplicationListItemResponse toListItemResponse(SpecimenWorkflowAppService.ApplicationListItem item) {
+        return new ApplicationListItemResponse(
+            item.id(),
+            item.applicationNo(),
+            item.patientName(),
+            item.patientGender(),
+            item.patientAge(),
+            item.status(),
+            item.submittingDepartmentName(),
+            item.submittingDoctorName(),
+            item.applicationType(),
+            item.applicationFormStatus(),
+            item.currentNode(),
+            item.abnormalFlag(),
+            item.registeredSpecimenCount(),
+            item.latestLabelPrintStatus(),
+            stringify(item.applicationDate()),
+            stringify(item.submissionDate()),
+            stringify(item.createdAt()),
+            stringify(item.updatedAt()));
     }
 
     private String stringify(Object value) {

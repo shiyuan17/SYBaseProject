@@ -122,6 +122,8 @@ public interface SpecimenWorkflowRepository {
 
     PagedPendingTransportOrders findPendingTransportOrders(PendingTransportOrderQuery query);
 
+    PagedApplications findApplications(ApplicationListQuery query);
+
     ApplicationTracking getApplicationTracking(String applicationId, com.company.bl.domain.model.Application application);
 
     record PendingSpecimenQuery(
@@ -181,5 +183,43 @@ public interface SpecimenWorkflowRepository {
     }
 
     record PagedPendingTransportOrders(List<PendingTransportOrderRow> items, long total) {
+    }
+
+    record ApplicationListQuery(
+        int page,
+        int size,
+        String applicationNo,
+        String patientName,
+        String submittingDepartmentId,
+        String applicationType,
+        String applicationFormStatus,
+        java.time.LocalDate dateFrom,
+        java.time.LocalDate dateTo
+    ) {
+    }
+
+    record ApplicationListRow(
+        String id,
+        String applicationNo,
+        String patientName,
+        String patientGender,
+        String patientAge,
+        String status,
+        String submittingDepartmentName,
+        String submittingDoctorName,
+        String applicationType,
+        String applicationFormStatus,
+        String currentNode,
+        boolean abnormalFlag,
+        int registeredSpecimenCount,
+        String latestLabelPrintStatus,
+        java.time.LocalDate applicationDate,
+        java.time.LocalDate submissionDate,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
+    ) {
+    }
+
+    record PagedApplications(List<ApplicationListRow> items, long total) {
     }
 }

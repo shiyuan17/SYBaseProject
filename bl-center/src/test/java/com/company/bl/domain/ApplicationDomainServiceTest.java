@@ -35,6 +35,13 @@ class ApplicationDomainServiceTest {
         }
 
         @Override
+        public Optional<Application> findByApplicationNo(String applicationNo) {
+            return applications.values().stream()
+                .filter(application -> application.getApplicationNo().equals(applicationNo))
+                .findFirst();
+        }
+
+        @Override
         public boolean existsByApplicationNo(String applicationNo) {
             return applications.values().stream()
                 .anyMatch(application -> application.getApplicationNo().equals(applicationNo));

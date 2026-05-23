@@ -8,8 +8,10 @@ import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.RegisterSpecimensRequest;
 import com.company.bl.interfaces.dto.RetryLabelPrintRequest;
+import com.company.bl.interfaces.vo.ApplicationListItemResponse;
 import com.company.bl.interfaces.vo.ApplicationDetailResponse;
 import com.company.bl.interfaces.vo.LabelPrintRetryResponse;
+import com.company.bl.interfaces.vo.LatestSpecimenRegistrationResponse;
 import com.company.bl.interfaces.vo.SpecimenRegistrationResponse;
 import com.company.bl.interfaces.vo.SpecimenSummaryResponse;
 import com.company.bl.interfaces.vo.TrackingEventResponse;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -51,7 +54,7 @@ public class SpecimenController {
                 request.getPrinterCode(),
                 request.getCollectionScene(),
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveOperatorName(request.getOperatorName(), httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks(),
                 request.getItems().stream().map(item -> new SpecimenWorkflowAppService.SpecimenRegistrationItem(
@@ -80,7 +83,7 @@ public class SpecimenController {
             new SpecimenWorkflowAppService.RetryLabelPrintCommand(
                 batchNo,
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveOperatorName(request.getOperatorName(), httpServletRequest),
                 request.getPrinterCode(),
                 request.getTerminalCode(),
                 request.getRemarks()));
@@ -91,6 +94,31 @@ public class SpecimenController {
             result.failedCount(),
             result.allSuccessful(),
             result.message());
+    }
+
+    @Operation(summary = "按申请单号查询登记上下文", description = "用于标本登记场景下按申请单号解析登记上下文。")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
+    @GetMapping("/applications/lookup")
+    public ApplicationListItemResponse lookupRegistrationApplication(
+        @Parameter(description = "申请单号") @RequestParam("applicationNo") String applicationNo
+    ) {
+        return toApplicationListItem(specimenWorkflowAppService.getRegistrationApplicationByApplicationNo(applicationNo));
+    }
+
+    @Operation(summary = "查询最近一次标本登记结果", description = "按申请单 ID 查询最近一次标本登记及标签打印结果。")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
+    @GetMapping("/applications/{applicationId}/latest-registration")
+    public LatestSpecimenRegistrationResponse getLatestRegistration(
+        @Parameter(description = "申请单 ID") @PathVariable("applicationId") String applicationId
+    ) {
+        SpecimenWorkflowAppService.SpecimenRegistrationResult result =
+            specimenWorkflowAppService.getLatestRegistrationResult(applicationId);
+        return new LatestSpecimenRegistrationResponse(
+            applicationId,
+            result.labelPrintBatchNo(),
+            result.labelPrintSuccess(),
+            result.labelPrintMessage(),
+            result.specimens().stream().map(this::toSpecimenSummary).toList());
     }
 
     @Operation(summary = "按条码查询标本追踪", description = "根据标本条码查询所属申请单及完整追踪信息。")
@@ -155,6 +183,30 @@ public class SpecimenController {
             specimen.labelPrintStatus());
     }
 
+    private ApplicationListItemResponse toApplicationListItem(
+        SpecimenWorkflowAppService.ApplicationListItem item
+    ) {
+        return new ApplicationListItemResponse(
+            item.id(),
+            item.applicationNo(),
+            item.patientName(),
+            item.patientGender(),
+            item.patientAge(),
+            item.status(),
+            item.submittingDepartmentName(),
+            item.submittingDoctorName(),
+            item.applicationType(),
+            item.applicationFormStatus(),
+            item.currentNode(),
+            item.abnormalFlag(),
+            item.registeredSpecimenCount(),
+            item.latestLabelPrintStatus(),
+            stringify(item.applicationDate()),
+            stringify(item.submissionDate()),
+            stringify(item.createdAt()),
+            stringify(item.updatedAt()));
+    }
+
     private String stringify(Object value) {
         return value == null ? null : value.toString();
     }
@@ -162,5 +214,13 @@ public class SpecimenController {
     private String resolveUserId(String bodyUserId, HttpServletRequest request) {
         Object currentUserId = request.getAttribute(ApiPermissionContext.CURRENT_USER_ID);
         return currentUserId == null ? null : currentUserId.toString();
+    }
+
+    private String resolveOperatorName(String bodyOperatorName, HttpServletRequest request) {
+        Object currentLoginName = request.getAttribute(ApiPermissionContext.CURRENT_LOGIN_NAME);
+        if (currentLoginName instanceof String loginName && !loginName.isBlank()) {
+            return loginName.trim();
+        }
+        return bodyOperatorName == null ? null : bodyOperatorName.trim();
     }
 }

@@ -33,6 +33,14 @@ public class DmApplicationRepository implements ApplicationRepository {
     }
 
     @Override
+    public Optional<Application> findByApplicationNo(String applicationNo) {
+        LambdaQueryWrapper<ApplicationDataObject> queryWrapper = new LambdaQueryWrapper<ApplicationDataObject>()
+            .eq(ApplicationDataObject::getApplicationNo, applicationNo);
+        return Optional.ofNullable(applicationMapper.selectOne(queryWrapper))
+            .map(applicationInfrastructureConverter::toDomain);
+    }
+
+    @Override
     public boolean existsByApplicationNo(String applicationNo) {
         LambdaQueryWrapper<ApplicationDataObject> queryWrapper = new LambdaQueryWrapper<ApplicationDataObject>()
             .eq(ApplicationDataObject::getApplicationNo, applicationNo);

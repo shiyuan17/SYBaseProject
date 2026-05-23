@@ -4,6 +4,7 @@ import com.company.bl.application.gateway.LabelPrintGateway;
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.enums.FixationStatus;
 import com.company.bl.domain.enums.ReceiptStatus;
+import com.company.bl.domain.enums.ApplicationStatus;
 import com.company.bl.domain.enums.SpecimenStatus;
 import com.company.bl.domain.enums.TransportItemStatus;
 import com.company.bl.domain.enums.TransportOrderStatus;
@@ -28,8 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -44,6 +47,7 @@ public class SpecimenWorkflowAppService {
     @Transactional
     public SpecimenRegistrationResult registerSpecimens(RegisterSpecimensCommand command) {
         Application application = getApplication(command.applicationId());
+        validateApplicationCanRegister(application);
         LocalDateTime now = LocalDateTime.now();
         String labelPrintBatchNo = "LP-" + UUID.randomUUID();
         List<Specimen> specimens = new ArrayList<>();
@@ -491,6 +495,48 @@ public class SpecimenWorkflowAppService {
     }
 
     @Transactional(readOnly = true)
+    public ApplicationPage listApplications(ApplicationListQuery query) {
+        int page = normalizePage(query.page());
+        int size = normalizeSize(query.size());
+        SpecimenWorkflowRepository.PagedApplications result =
+            specimenWorkflowRepository.findApplications(
+                new SpecimenWorkflowRepository.ApplicationListQuery(
+                    page,
+                    size,
+                    trim(query.applicationNo()),
+                    trim(query.patientName()),
+                    trim(query.submittingDepartmentId()),
+                    normalizeStatus(query.applicationType()),
+                    normalizeStatus(query.applicationFormStatus()),
+                    parseLocalDateFrom(query.dateFrom()),
+                    parseLocalDateTo(query.dateTo())));
+        return new ApplicationPage(
+            result.items().stream().map(item -> new ApplicationListItem(
+                item.id(),
+                item.applicationNo(),
+                item.patientName(),
+                item.patientGender(),
+                item.patientAge(),
+                item.status(),
+                item.submittingDepartmentName(),
+                item.submittingDoctorName(),
+                item.applicationType(),
+                item.applicationFormStatus(),
+                item.currentNode(),
+                item.abnormalFlag(),
+                item.registeredSpecimenCount(),
+                item.latestLabelPrintStatus(),
+                item.applicationDate(),
+                item.submissionDate(),
+                item.createdAt(),
+                item.updatedAt()))
+                .toList(),
+            page,
+            size,
+            result.total());
+    }
+
+    @Transactional(readOnly = true)
     @ObservedOperation(
         operation = "get_application",
         successCounter = "application_query_total",
@@ -508,6 +554,39 @@ public class SpecimenWorkflowAppService {
         return getApplicationTracking(applicationId);
     }
 
+    @Transactional(readOnly = true)
+    public SpecimenRegistrationResult getLatestRegistrationResult(String applicationId) {
+        getApplication(applicationId);
+        List<Specimen> specimens = specimenWorkflowRepository.findSpecimensByApplicationId(applicationId);
+        if (specimens.isEmpty()) {
+            return new SpecimenRegistrationResult(List.of(), null, false, null);
+        }
+        String latestBatchNo = resolveLatestLabelPrintBatchNo(specimens);
+        if (latestBatchNo == null) {
+            return new SpecimenRegistrationResult(List.of(), null, false, null);
+        }
+        List<Specimen> batchSpecimens = specimens.stream()
+            .filter(specimen -> latestBatchNo.equals(specimen.labelPrintBatchNo()))
+            .toList();
+        List<TrackingEvent> trackingEvents = specimenWorkflowRepository.findTrackingEventsByApplicationId(applicationId);
+        String latestPrintMessage = resolveLatestBatchLabelPrintMessage(trackingEvents, batchSpecimens);
+        boolean labelPrintSuccess = batchSpecimens.stream()
+            .allMatch(specimen -> "SUCCESS".equalsIgnoreCase(specimen.labelPrintStatus()));
+        return new SpecimenRegistrationResult(batchSpecimens, latestBatchNo, labelPrintSuccess, latestPrintMessage);
+    }
+
+    @Transactional(readOnly = true)
+    public ApplicationListItem getRegistrationApplicationByApplicationNo(String applicationNo) {
+        if (blank(applicationNo)) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Application number is required");
+        }
+        return applicationRepository.findByApplicationNo(applicationNo.trim())
+            .map(application -> toApplicationListItem(specimenWorkflowRepository.getApplicationTracking(
+                application.getId().value(),
+                application)))
+            .orElseThrow(() -> new ApplicationDomainException(com.company.bl.domain.enums.ApplicationErrorCode.APPLICATION_NOT_FOUND, 404));
+    }
+
     private Application getApplication(String applicationId) {
         return applicationRepository.findById(new ApplicationId(applicationId))
             .orElseThrow(() -> new ApplicationDomainException(com.company.bl.domain.enums.ApplicationErrorCode.APPLICATION_NOT_FOUND, 404));
@@ -521,6 +600,104 @@ public class SpecimenWorkflowAppService {
     private TransportOrder getTransportOrder(String transportOrderId) {
         return specimenWorkflowRepository.findTransportOrderById(transportOrderId)
             .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Transport order not found"));
+    }
+
+    private void validateApplicationCanRegister(Application application) {
+        ApplicationStatus status = application.getStatus();
+        if (status == ApplicationStatus.DRAFT || status == ApplicationStatus.SUBMITTED) {
+            return;
+        }
+        throw new BlBusinessException(
+            BlErrorCode.OPERATION_NOT_ALLOWED,
+            409,
+            "Application status does not allow specimen registration: " + status.name());
+    }
+
+    private String resolveLatestLabelPrintBatchNo(List<Specimen> specimens) {
+        String latestBatchNo = null;
+        for (Specimen specimen : specimens) {
+            if (!blank(specimen.labelPrintBatchNo())) {
+                latestBatchNo = specimen.labelPrintBatchNo().trim();
+            }
+        }
+        return latestBatchNo;
+    }
+
+    private String resolveLatestBatchLabelPrintStatus(List<Specimen> specimens, String batchNo) {
+        String resolvedStatus = null;
+        int resolvedPriority = 0;
+        for (Specimen specimen : specimens) {
+            if (!batchNo.equals(specimen.labelPrintBatchNo())) {
+                continue;
+            }
+            String status = normalizeStatus(specimen.labelPrintStatus());
+            int priority = labelPrintStatusPriority(status);
+            if (priority > resolvedPriority) {
+                resolvedStatus = status;
+                resolvedPriority = priority;
+            }
+        }
+        return resolvedStatus;
+    }
+
+    private int labelPrintStatusPriority(String status) {
+        if ("FAILED".equals(status)) {
+            return 3;
+        }
+        if ("PENDING".equals(status)) {
+            return 2;
+        }
+        if ("SUCCESS".equals(status)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    private String resolveLatestBatchLabelPrintMessage(List<TrackingEvent> events, List<Specimen> batchSpecimens) {
+        if (batchSpecimens.isEmpty()) {
+            return null;
+        }
+        Set<String> batchSpecimenIds = new HashSet<>();
+        for (Specimen specimen : batchSpecimens) {
+            batchSpecimenIds.add(specimen.id());
+        }
+        String latestMessage = null;
+        for (TrackingEvent event : events) {
+            if (!"LABEL_PRINT".equals(event.nodeCode())) {
+                continue;
+            }
+            if (event.specimenId() == null || !batchSpecimenIds.contains(event.specimenId())) {
+                continue;
+            }
+            latestMessage = event.eventContent();
+        }
+        return latestMessage;
+    }
+
+    private ApplicationListItem toApplicationListItem(ApplicationTracking tracking) {
+        String latestBatchNo = resolveLatestLabelPrintBatchNo(tracking.specimens());
+        String latestLabelPrintStatus = latestBatchNo == null
+            ? null
+            : resolveLatestBatchLabelPrintStatus(tracking.specimens(), latestBatchNo);
+        return new ApplicationListItem(
+            tracking.application().getId().value(),
+            tracking.application().getApplicationNo(),
+            tracking.application().getPatientName(),
+            tracking.application().getPatientGender(),
+            tracking.application().getPatientAge(),
+            tracking.application().getStatus().name(),
+            tracking.application().getSubmittingDepartmentName(),
+            tracking.application().getSubmittingDoctorName(),
+            tracking.application().getApplicationType(),
+            tracking.application().getApplicationFormStatus().name(),
+            tracking.currentNode(),
+            tracking.abnormal(),
+            tracking.specimens().size(),
+            latestLabelPrintStatus,
+            tracking.application().getApplicationDate(),
+            tracking.application().getSubmissionDate(),
+            tracking.application().getCreatedAt(),
+            tracking.application().getUpdatedAt());
     }
 
     private ReceiptResult processReceipt(Application application,
@@ -755,6 +932,20 @@ public class SpecimenWorkflowAppService {
         return LocalDate.parse(value.trim()).plusDays(1).atStartOfDay();
     }
 
+    private LocalDate parseLocalDateFrom(String value) {
+        if (blank(value)) {
+            return null;
+        }
+        return LocalDate.parse(value.trim());
+    }
+
+    private LocalDate parseLocalDateTo(String value) {
+        if (blank(value)) {
+            return null;
+        }
+        return LocalDate.parse(value.trim()).plusDays(1);
+    }
+
     private String normalizeStatus(String value) {
         return blank(value) ? null : value.trim().toUpperCase();
     }
@@ -949,6 +1140,49 @@ public class SpecimenWorkflowAppService {
         LocalDateTime toBeTransportedAt,
         LocalDateTime handedOverAt,
         List<String> specimenBarcodes
+    ) {
+    }
+
+    public record ApplicationListQuery(
+        int page,
+        int size,
+        String applicationNo,
+        String patientName,
+        String submittingDepartmentId,
+        String applicationType,
+        String applicationFormStatus,
+        String dateFrom,
+        String dateTo
+    ) {
+    }
+
+    public record ApplicationPage(
+        List<ApplicationListItem> items,
+        int page,
+        int size,
+        long total
+    ) {
+    }
+
+    public record ApplicationListItem(
+        String id,
+        String applicationNo,
+        String patientName,
+        String patientGender,
+        String patientAge,
+        String status,
+        String submittingDepartmentName,
+        String submittingDoctorName,
+        String applicationType,
+        String applicationFormStatus,
+        String currentNode,
+        boolean abnormalFlag,
+        int registeredSpecimenCount,
+        String latestLabelPrintStatus,
+        LocalDate applicationDate,
+        LocalDate submissionDate,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
     ) {
     }
 }

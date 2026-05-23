@@ -30,6 +30,15 @@ public class TestApplicationRepository implements ApplicationRepository {
     }
 
     @Override
+    public Optional<Application> findByApplicationNo(String applicationNo) {
+        String applicationId = applicationNoIndex.get(applicationNo);
+        if (applicationId == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(applications.get(applicationId));
+    }
+
+    @Override
     public boolean existsByApplicationNo(String applicationNo) {
         return applicationNoIndex.containsKey(applicationNo);
     }

@@ -13,6 +13,8 @@
     <artifactId>bl-center</artifactId>
     <name>bl-center</name>
     <properties>
+        <jacoco.version>0.8.12</jacoco.version>
+        <maven.surefire.report.version>3.2.5</maven.surefire.report.version>
         <mybatis-plus.version>3.5.16</mybatis-plus.version>
         <dameng.jdbc.version>8.1.4.181</dameng.jdbc.version>
         <springdoc-openapi.version>2.6.0</springdoc-openapi.version>
@@ -107,6 +109,36 @@
     </dependencies>
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-report-plugin</artifactId>
+                <version>${maven.surefire.report.version}</version>
+                <configuration>
+                    <outputDirectory>${project.build.directory}/site</outputDirectory>
+                    <outputName>surefire-report</outputName>
+                    <showSuccess>true</showSuccess>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

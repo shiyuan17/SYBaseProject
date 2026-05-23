@@ -43,6 +43,7 @@ public class ApiPermissionInterceptor implements HandlerInterceptor {
                 "User does not have permission: " + permission.value());
         }
         request.setAttribute(ApiPermissionContext.CURRENT_USER_ID, normalizedUserId);
+        request.setAttribute(ApiPermissionContext.CURRENT_LOGIN_NAME, principal.loginName() == null ? null : principal.loginName().trim());
         return true;
     }
 }

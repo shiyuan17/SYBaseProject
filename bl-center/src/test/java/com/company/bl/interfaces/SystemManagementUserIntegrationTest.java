@@ -9,6 +9,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -142,5 +144,29 @@ class SystemManagementUserIntegrationTest extends AbstractSystemManagementIntegr
             .andExpect(jsonPath("$.code", is("SUCCESS")))
             .andExpect(jsonPath("$.data.total", greaterThanOrEqualTo(1)))
             .andExpect(jsonPath("$.data.items[0].loginName", is(loginName)));
+    }
+
+    @Test
+    void shouldExposeBuiltInUsersWithChineseDisplayNames() throws Exception {
+        MvcResult result = mockMvc.perform(asAdmin(get("/api/v1/system-users"))
+                .param("page", "1")
+                .param("size", "100"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code", is("SUCCESS")))
+            .andReturn();
+
+        JsonNode items = objectMapper.readTree(result.getResponse().getContentAsString(StandardCharsets.UTF_8))
+            .path("data")
+            .path("items");
+        Map<String, String> namesById = new HashMap<>();
+        for (JsonNode item : items) {
+            namesById.put(item.path("id").asText(), item.path("name").asText());
+        }
+
+        assertEquals("病理科管理员", namesById.get("USER_M1_ADMIN"));
+        assertEquals("标本登记员", namesById.get("USER_M2_REGISTER"));
+        assertEquals("取材员", namesById.get("USER_M3_GROSSING"));
+        assertEquals("诊断医生", namesById.get("USER_M4_DIAGNOSIS"));
+        assertEquals("医嘱执行员", namesById.get("USER_M4_ORDER_EXECUTE"));
     }
 }

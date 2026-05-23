@@ -129,6 +129,139 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
     }
 
     @Test
+    void shouldRejectRegistrationWhenApplicationAlreadyInTransitOrClosedByReceipt() throws Exception {
+        String inTransitApplicationId = createApplication("APP-M2-STATUS-INTRANSIT-001");
+        String inTransitBarcode = registerSpecimens(inTransitApplicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-STATUS-INTRANSIT-001")
+            .path("specimens").get(0).path("barcode").asText();
+        completeFixation(inTransitBarcode);
+        String inTransitOrderId = createTransportOrder(inTransitApplicationId, inTransitBarcode).path("id").asText();
+        postJson("/api/v1/transport-orders/%s/handover".formatted(inTransitOrderId), USER_TRANSPORT, """
+            {
+              "receiverUserName": "receiver-in-transit",
+              "terminalCode": "T-IN-TRANSIT"
+            }
+            """)
+            .andExpect(status().isOk());
+
+        postJson("/api/v1/specimens/register", USER_REGISTER, registerSpecimenPayload(
+            inTransitApplicationId, "P-01", "BC-STATUS-INTRANSIT-002"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("OPERATION_NOT_ALLOWED"));
+
+        String receivedApplicationId = createApplication("APP-M2-STATUS-RECEIVED-001");
+        String receivedBarcode = registerSpecimens(receivedApplicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-STATUS-RECEIVED-001")
+            .path("specimens").get(0).path("barcode").asText();
+        completeFixation(receivedBarcode);
+        String receivedOrderId = createTransportOrder(receivedApplicationId, receivedBarcode).path("id").asText();
+        postJson("/api/v1/transport-orders/%s/handover".formatted(receivedOrderId), USER_TRANSPORT, """
+            {
+              "receiverUserName": "receiver-complete",
+              "terminalCode": "T-RECEIVED"
+            }
+            """)
+            .andExpect(status().isOk());
+        postJson("/api/v1/specimen-receipts", USER_RECEIVE, """
+            {
+              "transportOrderId": "%s",
+              "receivedByName": "receiver-complete",
+              "terminalCode": "T-RECEIVED",
+              "items": [
+                {
+                  "specimenBarcode": "%s",
+                  "receiptStatus": "RECEIVED",
+                  "containerCount": 1
+                }
+              ]
+            }
+            """.formatted(receivedOrderId, receivedBarcode))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.receiptStatus").value("RECEIVED"));
+
+        postJson("/api/v1/specimens/register", USER_REGISTER, registerSpecimenPayload(
+            receivedApplicationId, "P-01", "BC-STATUS-RECEIVED-002"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("OPERATION_NOT_ALLOWED"));
+
+        String partialApplicationId = createApplication("APP-M2-STATUS-PARTIAL-001");
+        JsonNode partialRegistration = registerSpecimens(
+            partialApplicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-STATUS-PARTIAL-001", "BC-STATUS-PARTIAL-002");
+        String partialBarcode1 = partialRegistration.path("specimens").get(0).path("barcode").asText();
+        String partialBarcode2 = partialRegistration.path("specimens").get(1).path("barcode").asText();
+        completeFixation(partialBarcode1);
+        completeFixation(partialBarcode2);
+        String partialOrderId = createTransportOrder(partialApplicationId, partialBarcode1, partialBarcode2).path("id").asText();
+        postJson("/api/v1/transport-orders/%s/handover".formatted(partialOrderId), USER_TRANSPORT, """
+            {
+              "receiverUserName": "receiver-partial",
+              "terminalCode": "T-PARTIAL"
+            }
+            """)
+            .andExpect(status().isOk());
+        postJson("/api/v1/specimen-receipts", USER_RECEIVE, """
+            {
+              "transportOrderId": "%s",
+              "receivedByName": "receiver-partial",
+              "terminalCode": "T-PARTIAL",
+              "items": [
+                {
+                  "specimenBarcode": "%s",
+                  "receiptStatus": "RECEIVED",
+                  "containerCount": 1
+                },
+                {
+                  "specimenBarcode": "%s",
+                  "receiptStatus": "REJECTED",
+                  "containerCount": 1,
+                  "reason": "partial-reject"
+                }
+              ]
+            }
+            """.formatted(partialOrderId, partialBarcode1, partialBarcode2))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.receiptStatus").value("PARTIALLY_RECEIVED"));
+
+        postJson("/api/v1/specimens/register", USER_REGISTER, registerSpecimenPayload(
+            partialApplicationId, "P-01", "BC-STATUS-PARTIAL-003"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("OPERATION_NOT_ALLOWED"));
+
+        String rejectedApplicationId = createApplication("APP-M2-STATUS-REJECTED-001");
+        String rejectedBarcode = registerSpecimens(rejectedApplicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-STATUS-REJECTED-001")
+            .path("specimens").get(0).path("barcode").asText();
+        completeFixation(rejectedBarcode);
+        String rejectedOrderId = createTransportOrder(rejectedApplicationId, rejectedBarcode).path("id").asText();
+        postJson("/api/v1/transport-orders/%s/handover".formatted(rejectedOrderId), USER_TRANSPORT, """
+            {
+              "receiverUserName": "receiver-rejected",
+              "terminalCode": "T-REJECTED"
+            }
+            """)
+            .andExpect(status().isOk());
+        postJson("/api/v1/specimen-receipts", USER_RECEIVE, """
+            {
+              "transportOrderId": "%s",
+              "receivedByName": "receiver-rejected",
+              "terminalCode": "T-REJECTED",
+              "items": [
+                {
+                  "specimenBarcode": "%s",
+                  "receiptStatus": "REJECTED",
+                  "containerCount": 1,
+                  "reason": "fully-rejected"
+                }
+              ]
+            }
+            """.formatted(rejectedOrderId, rejectedBarcode))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.receiptStatus").value("REJECTED"));
+
+        postJson("/api/v1/specimens/register", USER_REGISTER, registerSpecimenPayload(
+            rejectedApplicationId, "P-01", "BC-STATUS-REJECTED-002"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("OPERATION_NOT_ALLOWED"));
+    }
+
+    @Test
     void shouldReturnPlaceholderErrorWhenClinicalImportUnavailable() throws Exception {
         postJson("/api/v1/clinical-applications/import", USER_IMPORT, """
             {

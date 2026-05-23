@@ -720,6 +720,78 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
     }
 
     @Override
+    public PagedApplications findApplications(ApplicationListQuery query) {
+        String whereClause = """
+            from applications a
+            where 1 = 1
+            """ + buildApplicationFilters(query);
+        long total = countApplications(whereClause, query);
+        List<ApplicationListRow> items = queryApplications("""
+            select
+                a.id,
+                a.application_no,
+                a.patient_name,
+                a.patient_gender,
+                a.patient_age,
+                a.status,
+                a.submitting_department_name,
+                a.submitting_doctor_name,
+                a.application_type,
+                a.application_form_status,
+                coalesce(
+                    (
+                        select we.node_code
+                        from workflow_events we
+                        where we.application_id = a.id
+                        order by we.event_time desc, we.created_at desc, we.id desc
+                        fetch next 1 rows only
+                    ),
+                    a.status
+                ) as current_node,
+                case
+                    when exists (
+                        select 1
+                        from specimens s
+                        where s.application_id = a.id
+                          and (
+                              s.specimen_status in ('REJECTED', 'RETURNED')
+                              or s.fixation_status = 'ABNORMAL'
+                          )
+                    )
+                    then 1 else 0
+                end as abnormal_flag,
+                (
+                    select count(1)
+                    from specimens s
+                    where s.application_id = a.id
+                ) as registered_specimen_count,
+                (
+                    select case
+                        when sum(case when sb.label_print_status = 'FAILED' then 1 else 0 end) > 0 then 'FAILED'
+                        when sum(case when sb.label_print_status = 'PENDING' then 1 else 0 end) > 0 then 'PENDING'
+                        when sum(case when sb.label_print_status = 'SUCCESS' then 1 else 0 end) > 0 then 'SUCCESS'
+                        else null
+                    end
+                    from specimens sb
+                    where sb.application_id = a.id
+                      and sb.label_print_batch_no = (
+                          select latest.label_print_batch_no
+                          from specimens latest
+                          where latest.application_id = a.id
+                            and latest.label_print_batch_no is not null
+                          order by latest.registered_at desc, latest.created_at desc, latest.id desc
+                          fetch next 1 rows only
+                      )
+                ) as latest_label_print_status,
+                a.application_date,
+                a.submission_date,
+                a.created_at,
+                a.updated_at
+            """ + whereClause + " order by coalesce(a.updated_at, a.created_at) desc, a.id desc", query);
+        return new PagedApplications(items, total);
+    }
+
+    @Override
     public ApplicationTracking getApplicationTracking(String applicationId, Application application) {
         List<Specimen> specimens = findSpecimensByApplicationId(applicationId);
         List<TrackingEvent> events = findTrackingEventsByApplicationId(applicationId);
@@ -847,6 +919,14 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         return total == null ? 0L : total;
     }
 
+    private long countApplications(String whereClause, ApplicationListQuery query) {
+        Long total = jdbcTemplate.queryForObject(
+            "select count(1) " + whereClause,
+            applicationParams(query),
+            Long.class);
+        return total == null ? 0L : total;
+    }
+
     private List<PendingSpecimenRow> queryPending(String sql, PendingSpecimenQuery query) {
         MapSqlParameterSource parameters = pendingParams(query, true)
             .addValue("offset", Math.max(0, (query.page() - 1) * query.size()))
@@ -859,6 +939,13 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             .addValue("offset", Math.max(0, (query.page() - 1) * query.size()))
             .addValue("size", query.size());
         return jdbcTemplate.query(sql + " offset :offset rows fetch next :size rows only", parameters, this::mapPendingTransportOrderRow);
+    }
+
+    private List<ApplicationListRow> queryApplications(String sql, ApplicationListQuery query) {
+        MapSqlParameterSource parameters = applicationParams(query)
+            .addValue("offset", Math.max(0, (query.page() - 1) * query.size()))
+            .addValue("size", query.size());
+        return jdbcTemplate.query(sql + " offset :offset rows fetch next :size rows only", parameters, this::mapApplicationListRow);
     }
 
     private String buildPendingFilters(PendingSpecimenQuery query, String applicationAlias, String specimenAlias) {
@@ -894,6 +981,32 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         }
         if (query.status() != null && !query.status().isBlank()) {
             builder.append(" and t.order_status = :status");
+        }
+        return builder.toString();
+    }
+
+    private String buildApplicationFilters(ApplicationListQuery query) {
+        StringBuilder builder = new StringBuilder();
+        if (query.applicationNo() != null && !query.applicationNo().isBlank()) {
+            builder.append(" and a.application_no like :applicationNo");
+        }
+        if (query.patientName() != null && !query.patientName().isBlank()) {
+            builder.append(" and a.patient_name like :patientName");
+        }
+        if (query.submittingDepartmentId() != null && !query.submittingDepartmentId().isBlank()) {
+            builder.append(" and a.submitting_department_id = :submittingDepartmentId");
+        }
+        if (query.applicationType() != null && !query.applicationType().isBlank()) {
+            builder.append(" and a.application_type = :applicationType");
+        }
+        if (query.applicationFormStatus() != null && !query.applicationFormStatus().isBlank()) {
+            builder.append(" and a.application_form_status = :applicationFormStatus");
+        }
+        if (query.dateFrom() != null) {
+            builder.append(" and a.application_date >= :dateFrom");
+        }
+        if (query.dateTo() != null) {
+            builder.append(" and a.application_date < :dateTo");
         }
         return builder.toString();
     }
@@ -935,6 +1048,32 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         return parameters;
     }
 
+    private MapSqlParameterSource applicationParams(ApplicationListQuery query) {
+        MapSqlParameterSource parameters = new MapSqlParameterSource();
+        if (query.applicationNo() != null && !query.applicationNo().isBlank()) {
+            parameters.addValue("applicationNo", "%" + query.applicationNo() + "%");
+        }
+        if (query.patientName() != null && !query.patientName().isBlank()) {
+            parameters.addValue("patientName", "%" + query.patientName() + "%");
+        }
+        if (query.submittingDepartmentId() != null && !query.submittingDepartmentId().isBlank()) {
+            parameters.addValue("submittingDepartmentId", query.submittingDepartmentId());
+        }
+        if (query.applicationType() != null && !query.applicationType().isBlank()) {
+            parameters.addValue("applicationType", query.applicationType());
+        }
+        if (query.applicationFormStatus() != null && !query.applicationFormStatus().isBlank()) {
+            parameters.addValue("applicationFormStatus", query.applicationFormStatus());
+        }
+        if (query.dateFrom() != null) {
+            parameters.addValue("dateFrom", query.dateFrom());
+        }
+        if (query.dateTo() != null) {
+            parameters.addValue("dateTo", query.dateTo());
+        }
+        return parameters;
+    }
+
     private String nextId(String prefix) {
         return prefix + "-" + UUID.randomUUID();
     }
@@ -969,5 +1108,27 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             rs.getString("order_status"),
             rs.getTimestamp("to_be_transported_at") == null ? null : rs.getTimestamp("to_be_transported_at").toLocalDateTime(),
             rs.getTimestamp("handed_over_at") == null ? null : rs.getTimestamp("handed_over_at").toLocalDateTime());
+    }
+
+    private ApplicationListRow mapApplicationListRow(ResultSet rs, int rowNum) throws SQLException {
+        return new ApplicationListRow(
+            rs.getString("id"),
+            rs.getString("application_no"),
+            rs.getString("patient_name"),
+            rs.getString("patient_gender"),
+            rs.getString("patient_age"),
+            rs.getString("status"),
+            rs.getString("submitting_department_name"),
+            rs.getString("submitting_doctor_name"),
+            rs.getString("application_type"),
+            rs.getString("application_form_status"),
+            rs.getString("current_node"),
+            rs.getInt("abnormal_flag") == 1,
+            rs.getInt("registered_specimen_count"),
+            rs.getString("latest_label_print_status"),
+            rs.getDate("application_date") == null ? null : rs.getDate("application_date").toLocalDate(),
+            rs.getDate("submission_date") == null ? null : rs.getDate("submission_date").toLocalDate(),
+            rs.getTimestamp("created_at") == null ? null : rs.getTimestamp("created_at").toLocalDateTime(),
+            rs.getTimestamp("updated_at") == null ? null : rs.getTimestamp("updated_at").toLocalDateTime());
     }
 }
