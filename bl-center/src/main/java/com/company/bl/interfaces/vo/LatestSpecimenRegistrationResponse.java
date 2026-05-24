@@ -14,6 +14,8 @@ public record LatestSpecimenRegistrationResponse(
     boolean labelPrintSuccess,
     @Schema(description = "打印结果说明")
     String labelPrintMessage,
+    @Schema(description = "最近一次登记表单快照")
+    RegistrationSnapshotResponse registrationSnapshot,
     @Schema(description = "最近一次登记的标本列表")
     List<SpecimenSummaryResponse> specimens
 ) {

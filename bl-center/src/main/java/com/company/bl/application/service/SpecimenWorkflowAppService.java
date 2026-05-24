@@ -73,6 +73,9 @@ public class SpecimenWorkflowAppService {
                 FixationStatus.PENDING,
                 true,
                 null,
+                null,
+                null,
+                null,
                 defaultIfBlank(item.clinicalSymptom(), application.getClinicalSymptom()),
                 application.getSubmittingDepartmentId(),
                 application.getSubmittingDepartmentName(),
@@ -94,6 +97,7 @@ public class SpecimenWorkflowAppService {
                 defaultIfBlank(command.collectionScene(), "OPERATING_ROOM"),
                 specimen.collectionMode(),
                 labelPrintBatchNo,
+                trim(command.printerCode()),
                 command.operatorUserId(),
                 command.operatorName(),
                 now,
@@ -650,24 +654,40 @@ public class SpecimenWorkflowAppService {
     }
 
     @Transactional(readOnly = true)
-    public SpecimenRegistrationResult getLatestRegistrationResult(String applicationId) {
+    public LatestSpecimenRegistrationResult getLatestRegistrationResult(String applicationId) {
         getApplication(applicationId);
         List<Specimen> specimens = specimenWorkflowRepository.findSpecimensByApplicationId(applicationId);
         if (specimens.isEmpty()) {
-            return new SpecimenRegistrationResult(List.of(), null, false, null);
+            return new LatestSpecimenRegistrationResult(applicationId, List.of(), null, false, null, null);
         }
         String latestBatchNo = resolveLatestLabelPrintBatchNo(specimens);
         if (latestBatchNo == null) {
-            return new SpecimenRegistrationResult(List.of(), null, false, null);
+            return new LatestSpecimenRegistrationResult(applicationId, List.of(), null, false, null, null);
         }
         List<Specimen> batchSpecimens = specimens.stream()
             .filter(specimen -> latestBatchNo.equals(specimen.labelPrintBatchNo()))
             .toList();
         List<TrackingEvent> trackingEvents = specimenWorkflowRepository.findTrackingEventsByApplicationId(applicationId);
         String latestPrintMessage = resolveLatestBatchLabelPrintMessage(trackingEvents, batchSpecimens);
+        RegistrationSnapshot snapshot = specimenWorkflowRepository
+            .findRegistrationSnapshotByApplicationIdAndBatchNo(applicationId, latestBatchNo)
+            .map(item -> new RegistrationSnapshot(
+                item.collectionScene(),
+                item.operatorUserId(),
+                item.operatorName(),
+                item.printerCode(),
+                item.terminalCode(),
+                item.remarks()))
+            .orElse(null);
         boolean labelPrintSuccess = batchSpecimens.stream()
             .allMatch(specimen -> "SUCCESS".equalsIgnoreCase(specimen.labelPrintStatus()));
-        return new SpecimenRegistrationResult(batchSpecimens, latestBatchNo, labelPrintSuccess, latestPrintMessage);
+        return new LatestSpecimenRegistrationResult(
+            applicationId,
+            batchSpecimens,
+            latestBatchNo,
+            labelPrintSuccess,
+            latestPrintMessage,
+            snapshot);
     }
 
     @Transactional(readOnly = true)
@@ -1012,6 +1032,9 @@ public class SpecimenWorkflowAppService {
             specimen.fixationStatus(),
             specimen.qualified(),
             specimen.unqualifiedReason(),
+            specimen.receiptStatus(),
+            specimen.qualityCheckResult(),
+            specimen.qualityIssueCodes(),
             specimen.clinicalSymptom(),
             specimen.applicantDepartmentId(),
             specimen.applicantDepartmentName(),
@@ -1146,6 +1169,26 @@ public class SpecimenWorkflowAppService {
         String labelPrintBatchNo,
         boolean labelPrintSuccess,
         String labelPrintMessage
+    ) {
+    }
+
+    public record RegistrationSnapshot(
+        String collectionScene,
+        String operatorUserId,
+        String operatorName,
+        String printerCode,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
+    public record LatestSpecimenRegistrationResult(
+        String applicationId,
+        List<Specimen> specimens,
+        String labelPrintBatchNo,
+        boolean labelPrintSuccess,
+        String labelPrintMessage,
+        RegistrationSnapshot registrationSnapshot
     ) {
     }
 

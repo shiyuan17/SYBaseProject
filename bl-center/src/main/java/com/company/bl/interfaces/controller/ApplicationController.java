@@ -34,6 +34,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/applications")
@@ -137,6 +140,9 @@ public class ApplicationController {
     }
 
     private ApplicationDetailResponse toDetailResponse(ApplicationTracking tracking) {
+        List<SpecimenSummaryResponse> specimenSummaries = tracking.specimens().stream().map(this::toSpecimenSummary).toList();
+        Map<String, SpecimenSummaryResponse> specimenMap = specimenSummaries.stream()
+            .collect(Collectors.toMap(SpecimenSummaryResponse::id, Function.identity()));
         return new ApplicationDetailResponse(
             tracking.application().getId().value(),
             tracking.application().getApplicationNo(),
@@ -163,19 +169,29 @@ public class ApplicationController {
             stringify(tracking.application().getSpecimenRemovalTime()),
             tracking.currentNode(),
             tracking.abnormal(),
-            tracking.specimens().stream().map(this::toSpecimenSummary).toList(),
-            tracking.events().stream().map(event -> new TrackingEventResponse(
-                event.nodeCode(),
-                event.eventType(),
-                event.eventStatus(),
-                stringify(event.eventTime()),
-                event.operatorName(),
-                event.sourceTerminal(),
-                event.eventContent()))
-                .toList(),
+            specimenSummaries,
+            tracking.events().stream().map(event -> toTrackingEventResponse(event, specimenMap)).toList(),
             tracking.application().getRemarks(),
             stringify(tracking.application().getCreatedAt()),
             stringify(tracking.application().getUpdatedAt()));
+    }
+
+    private TrackingEventResponse toTrackingEventResponse(
+        com.company.bl.domain.model.TrackingEvent event,
+        Map<String, SpecimenSummaryResponse> specimenMap
+    ) {
+        SpecimenSummaryResponse specimen = event.specimenId() == null ? null : specimenMap.get(event.specimenId());
+        return new TrackingEventResponse(
+            event.nodeCode(),
+            event.eventType(),
+            event.eventStatus(),
+            stringify(event.eventTime()),
+            event.operatorName(),
+            event.sourceTerminal(),
+            event.specimenId(),
+            specimen == null ? null : specimen.specimenNo(),
+            specimen == null ? null : specimen.barcode(),
+            event.eventContent());
     }
 
     private SpecimenSummaryResponse toSpecimenSummary(Specimen specimen) {
@@ -193,7 +209,11 @@ public class ApplicationController {
             specimen.containerCount(),
             specimen.specimenStatus().name(),
             specimen.fixationStatus().name(),
-            specimen.labelPrintStatus());
+            specimen.labelPrintStatus(),
+            specimen.receiptStatus(),
+            specimen.qualityCheckResult(),
+            splitCommaSeparated(specimen.qualityIssueCodes()),
+            specimen.unqualifiedReason());
     }
 
     private ApplicationListItemResponse toListItemResponse(SpecimenWorkflowAppService.ApplicationListItem item) {
@@ -220,5 +240,15 @@ public class ApplicationController {
 
     private String stringify(Object value) {
         return value == null ? null : value.toString();
+    }
+
+    private List<String> splitCommaSeparated(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(value.split(","))
+            .map(String::trim)
+            .filter(part -> !part.isEmpty())
+            .toList();
     }
 }

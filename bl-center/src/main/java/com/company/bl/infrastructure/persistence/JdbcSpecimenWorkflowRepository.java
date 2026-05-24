@@ -30,8 +30,35 @@ import java.util.UUID;
 @Repository
 public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepository {
 
+    private static final String SPECIMEN_SELECT_COLUMNS = """
+        select
+            s.*,
+            latest_receipt.receipt_status as latest_receipt_status,
+            latest_receipt.quality_check_result as latest_quality_check_result,
+            latest_receipt.quality_issue_codes as latest_quality_issue_codes
+        from specimens s
+        left join (
+            select
+                ranked.specimen_id,
+                ranked.receipt_status,
+                ranked.quality_check_result,
+                ranked.quality_issue_codes
+            from (
+                select
+                    sr.*,
+                    row_number() over (
+                        partition by sr.specimen_id
+                        order by sr.received_at desc, sr.id desc
+                    ) as rn
+                from specimen_receipts sr
+            ) ranked
+            where ranked.rn = 1
+        ) latest_receipt on latest_receipt.specimen_id = s.id
+        """;
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private volatile Boolean specimenContainerColumnsAvailable;
+    private volatile Boolean collectionPrinterCodeColumnAvailable;
 
     public JdbcSpecimenWorkflowRepository(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
@@ -39,22 +66,24 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
 
     @Override
     public Optional<Specimen> findSpecimenByBarcode(String barcode) {
-        List<Specimen> rows = jdbcTemplate.query("""
-            select *
-            from specimens
-            where barcode = :barcode
-            """, Map.of("barcode", barcode), this::mapSpecimen);
+        List<Specimen> rows = jdbcTemplate.query(
+            SPECIMEN_SELECT_COLUMNS + """
+                where s.barcode = :barcode
+                """,
+            Map.of("barcode", barcode),
+            this::mapSpecimen);
         return rows.stream().findFirst();
     }
 
     @Override
     public List<Specimen> findSpecimensByApplicationId(String applicationId) {
-        return jdbcTemplate.query("""
-            select *
-            from specimens
-            where application_id = :applicationId
-            order by registered_at asc, created_at asc
-            """, Map.of("applicationId", applicationId), this::mapSpecimen);
+        return jdbcTemplate.query(
+            SPECIMEN_SELECT_COLUMNS + """
+                where s.application_id = :applicationId
+                order by s.registered_at asc, s.created_at asc
+                """,
+            Map.of("applicationId", applicationId),
+            this::mapSpecimen);
     }
 
     @Override
@@ -235,28 +264,57 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
 
     @Override
     public List<Specimen> findSpecimensByLabelPrintBatchNoAndStatus(String labelPrintBatchNo, String labelPrintStatus) {
-        return jdbcTemplate.query("""
-            select *
-            from specimens
-            where label_print_batch_no = :labelPrintBatchNo
-              and label_print_status = :labelPrintStatus
-            order by registered_at asc, id asc
-            """, new MapSqlParameterSource()
+        return jdbcTemplate.query(
+            SPECIMEN_SELECT_COLUMNS + """
+                where s.label_print_batch_no = :labelPrintBatchNo
+                  and s.label_print_status = :labelPrintStatus
+                order by s.registered_at asc, s.id asc
+                """,
+            new MapSqlParameterSource()
             .addValue("labelPrintBatchNo", labelPrintBatchNo)
-            .addValue("labelPrintStatus", labelPrintStatus), this::mapSpecimen);
+            .addValue("labelPrintStatus", labelPrintStatus),
+            this::mapSpecimen);
     }
 
     @Override
     public List<Specimen> findSpecimensByLabelPrintBatchNoAndStatuses(String labelPrintBatchNo, List<String> labelPrintStatuses) {
-        return jdbcTemplate.query("""
-            select *
-            from specimens
-            where label_print_batch_no = :labelPrintBatchNo
-              and label_print_status in (:labelPrintStatuses)
-            order by registered_at asc, id asc
-            """, new MapSqlParameterSource()
+        return jdbcTemplate.query(
+            SPECIMEN_SELECT_COLUMNS + """
+                where s.label_print_batch_no = :labelPrintBatchNo
+                  and s.label_print_status in (:labelPrintStatuses)
+                order by s.registered_at asc, s.id asc
+                """,
+            new MapSqlParameterSource()
             .addValue("labelPrintBatchNo", labelPrintBatchNo)
-            .addValue("labelPrintStatuses", labelPrintStatuses), this::mapSpecimen);
+            .addValue("labelPrintStatuses", labelPrintStatuses),
+            this::mapSpecimen);
+    }
+
+    @Override
+    public Optional<RegistrationSnapshotData> findRegistrationSnapshotByApplicationIdAndBatchNo(
+        String applicationId,
+        String labelPrintBatchNo
+    ) {
+        String printerCodeSelect = hasCollectionPrinterCodeColumn()
+            ? "printer_code"
+            : "cast(null as varchar(64)) as printer_code";
+        List<RegistrationSnapshotData> rows = jdbcTemplate.query("""
+            select
+                collection_scene,
+                collector_user_id,
+                collector_name,
+                %s,
+                terminal_code,
+                remarks
+            from specimen_collection_records
+            where application_id = :applicationId
+              and label_print_batch_no = :labelPrintBatchNo
+            order by collected_at desc, id desc
+            fetch next 1 rows only
+            """.formatted(printerCodeSelect), new MapSqlParameterSource()
+            .addValue("applicationId", applicationId)
+            .addValue("labelPrintBatchNo", labelPrintBatchNo), this::mapRegistrationSnapshot);
+        return rows.stream().findFirst();
     }
 
     @Override
@@ -266,19 +324,31 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                                        String collectionScene,
                                        String collectionMode,
                                        String labelPrintBatchNo,
+                                       String printerCode,
                                        String collectorUserId,
                                        String collectorName,
                                        LocalDateTime collectedAt,
                                        String terminalCode,
                                        String remarks) {
-        jdbcTemplate.update("""
-            insert into specimen_collection_records
-                (id, application_id, specimen_id, collection_status, collection_scene, collection_mode,
-                 label_print_batch_no, collector_user_id, collector_name, collected_at, terminal_code, remarks)
-            values
-                (:id, :applicationId, :specimenId, :collectionStatus, :collectionScene, :collectionMode,
-                 :labelPrintBatchNo, :collectorUserId, :collectorName, :collectedAt, :terminalCode, :remarks)
-            """, new MapSqlParameterSource()
+        boolean hasPrinterCodeColumn = hasCollectionPrinterCodeColumn();
+        String sql = hasPrinterCodeColumn
+            ? """
+                insert into specimen_collection_records
+                    (id, application_id, specimen_id, collection_status, collection_scene, collection_mode,
+                     label_print_batch_no, printer_code, collector_user_id, collector_name, collected_at, terminal_code, remarks)
+                values
+                    (:id, :applicationId, :specimenId, :collectionStatus, :collectionScene, :collectionMode,
+                     :labelPrintBatchNo, :printerCode, :collectorUserId, :collectorName, :collectedAt, :terminalCode, :remarks)
+                """
+            : """
+                insert into specimen_collection_records
+                    (id, application_id, specimen_id, collection_status, collection_scene, collection_mode,
+                     label_print_batch_no, collector_user_id, collector_name, collected_at, terminal_code, remarks)
+                values
+                    (:id, :applicationId, :specimenId, :collectionStatus, :collectionScene, :collectionMode,
+                     :labelPrintBatchNo, :collectorUserId, :collectorName, :collectedAt, :terminalCode, :remarks)
+                """;
+        jdbcTemplate.update(sql, new MapSqlParameterSource()
             .addValue("id", nextId("SCR"))
             .addValue("applicationId", applicationId)
             .addValue("specimenId", specimenId)
@@ -286,6 +356,7 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             .addValue("collectionScene", collectionScene)
             .addValue("collectionMode", collectionMode)
             .addValue("labelPrintBatchNo", labelPrintBatchNo)
+            .addValue("printerCode", printerCode)
             .addValue("collectorUserId", collectorUserId)
             .addValue("collectorName", collectorName)
             .addValue("collectedAt", collectedAt)
@@ -992,6 +1063,9 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             FixationStatus.from(rs.getString("fixation_status")),
             rs.getInt("qualified_flag") != 0,
             rs.getString("unqualified_reason"),
+            rs.getString("latest_receipt_status"),
+            rs.getString("latest_quality_check_result"),
+            rs.getString("latest_quality_issue_codes"),
             rs.getString("clinical_symptom"),
             rs.getString("applicant_department_id"),
             rs.getString("applicant_department_name"),
@@ -1020,6 +1094,16 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             rs.getString("received_by_user_id"),
             rs.getString("received_by_name"),
             rs.getTimestamp("received_at") == null ? null : rs.getTimestamp("received_at").toLocalDateTime());
+    }
+
+    private RegistrationSnapshotData mapRegistrationSnapshot(ResultSet rs, int rowNum) throws SQLException {
+        return new RegistrationSnapshotData(
+            rs.getString("collection_scene"),
+            rs.getString("collector_user_id"),
+            rs.getString("collector_name"),
+            JdbcResultSetUtils.getNullableString(rs, "printer_code"),
+            rs.getString("terminal_code"),
+            rs.getString("remarks"));
     }
 
     private TransportOrder mapTransportOrder(ResultSet rs, int rowNum) throws SQLException {
@@ -1381,6 +1465,17 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                 && columnExists(connection.getMetaData(), "SPECIMENS", "CONTAINER_COUNT"));
         specimenContainerColumnsAvailable = Boolean.TRUE.equals(resolved);
         return specimenContainerColumnsAvailable;
+    }
+
+    private boolean hasCollectionPrinterCodeColumn() {
+        Boolean cached = collectionPrinterCodeColumnAvailable;
+        if (cached != null) {
+            return cached;
+        }
+        Boolean resolved = jdbcTemplate.getJdbcOperations().execute((ConnectionCallback<Boolean>) connection ->
+            columnExists(connection.getMetaData(), "SPECIMEN_COLLECTION_RECORDS", "PRINTER_CODE"));
+        collectionPrinterCodeColumnAvailable = Boolean.TRUE.equals(resolved);
+        return collectionPrinterCodeColumnAvailable;
     }
 
     private boolean columnExists(DatabaseMetaData metadata, String tableName, String columnName) throws SQLException {

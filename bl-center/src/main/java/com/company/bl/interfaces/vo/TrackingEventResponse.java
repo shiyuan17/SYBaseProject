@@ -16,6 +16,12 @@ public record TrackingEventResponse(
     String operatorName,
     @Schema(description = "来源终端")
     String sourceTerminal,
+    @Schema(description = "标本 ID")
+    String specimenId,
+    @Schema(description = "标本编号")
+    String specimenNo,
+    @Schema(description = "标本条码")
+    String specimenBarcode,
     @Schema(description = "事件内容")
     String eventContent
 ) {

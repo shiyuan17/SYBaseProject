@@ -77,6 +77,9 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
             .andExpect(jsonPath("$.data.status").value("RECEIVED"))
             .andExpect(jsonPath("$.data.currentNode").value("RECEPTION"))
             .andExpect(jsonPath("$.data.abnormalFlag").value(false))
+            .andExpect(jsonPath("$.data.recentEvents[0].specimenId").isNotEmpty())
+            .andExpect(jsonPath("$.data.recentEvents[0].specimenNo").isNotEmpty())
+            .andExpect(jsonPath("$.data.recentEvents[0].specimenBarcode").isNotEmpty())
             .andExpect(jsonPath("$.data.specimens[0].specimenStatus").value("RECEIVED"))
             .andExpect(jsonPath("$.data.specimens[1].specimenStatus").value("RECEIVED"));
 
@@ -268,6 +271,20 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("PARTIALLY_RECEIVED"))
             .andExpect(jsonPath("$.data.abnormalFlag").value(true));
+
+        JsonNode latestRegistration = responseBody(
+            mockMvc.perform(authorized(get("/api/v1/specimens/applications/{applicationId}/latest-registration", applicationId), USER_REGISTER)),
+            200);
+        JsonNode returnedSpecimen = latestRegistration.path("specimens").findParents("barcode").stream()
+            .filter(node -> barcode2.equals(node.path("barcode").asText()))
+            .findFirst()
+            .orElse(null);
+        org.assertj.core.api.Assertions.assertThat(returnedSpecimen).isNotNull();
+        org.assertj.core.api.Assertions.assertThat(returnedSpecimen.path("specimenStatus").asText()).isEqualTo("REJECTED");
+        org.assertj.core.api.Assertions.assertThat(returnedSpecimen.path("receiptStatus").asText()).isEqualTo("REJECTED");
+        org.assertj.core.api.Assertions.assertThat(returnedSpecimen.path("qualityCheckResult").asText()).isEqualTo("FAILED");
+        org.assertj.core.api.Assertions.assertThat(returnedSpecimen.path("qualityIssueCodes").get(0).asText()).isEqualTo("CONTAINER_DAMAGE");
+        org.assertj.core.api.Assertions.assertThat(returnedSpecimen.path("abnormalReason").asText()).isEqualTo("broken-container");
     }
 
     @Test
@@ -340,6 +357,19 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("PARTIALLY_RECEIVED"))
             .andExpect(jsonPath("$.data.abnormalFlag").value(true));
+
+        JsonNode latestRegistration = responseBody(
+            mockMvc.perform(authorized(get("/api/v1/specimens/applications/{applicationId}/latest-registration", applicationId), USER_REGISTER)),
+            200);
+        JsonNode returnedSpecimen = latestRegistration.path("specimens").findParents("barcode").stream()
+            .filter(node -> barcode2.equals(node.path("barcode").asText()))
+            .findFirst()
+            .orElseThrow();
+        org.assertj.core.api.Assertions.assertThat(returnedSpecimen.path("specimenStatus").asText()).isEqualTo("RETURNED");
+        org.assertj.core.api.Assertions.assertThat(returnedSpecimen.path("receiptStatus").asText()).isEqualTo("RETURNED");
+        org.assertj.core.api.Assertions.assertThat(returnedSpecimen.path("qualityCheckResult").asText()).isEqualTo("FAILED");
+        org.assertj.core.api.Assertions.assertThat(returnedSpecimen.path("qualityIssueCodes").get(0).asText()).isEqualTo("PARTIAL_REJECT");
+        org.assertj.core.api.Assertions.assertThat(returnedSpecimen.path("abnormalReason").asText()).isEqualTo("return-after-partial");
 
         mockMvc.perform(authorized(get("/api/v1/transport-orders/pending"), USER_TRANSPORT)
                 .param("page", "1")

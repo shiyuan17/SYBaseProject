@@ -2,6 +2,8 @@ package com.company.bl.interfaces.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.util.List;
+
 @Schema(name = "SpecimenSummaryResponse", description = "标本摘要")
 public record SpecimenSummaryResponse(
     @Schema(description = "标本 ID")
@@ -16,9 +18,9 @@ public record SpecimenSummaryResponse(
     String specimenType,
     @Schema(description = "标本部位")
     String specimenSite,
-    @Schema(description = "Collection mode")
+    @Schema(description = "采集方式")
     String collectionMode,
-    @Schema(description = "Clinical symptom")
+    @Schema(description = "临床症状")
     String clinicalSymptom,
     @Schema(description = "标本数量")
     Integer specimenCount,
@@ -31,6 +33,14 @@ public record SpecimenSummaryResponse(
     @Schema(description = "固定状态")
     String fixationStatus,
     @Schema(description = "标签打印状态")
-    String labelPrintStatus
+    String labelPrintStatus,
+    @Schema(description = "接收结果")
+    String receiptStatus,
+    @Schema(description = "质控结果")
+    String qualityCheckResult,
+    @Schema(description = "质控问题代码")
+    List<String> qualityIssueCodes,
+    @Schema(description = "异常原因")
+    String abnormalReason
 ) {
 }

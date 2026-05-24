@@ -12,6 +12,7 @@ import com.company.bl.interfaces.vo.ApplicationDetailResponse;
 import com.company.bl.interfaces.vo.ApplicationListItemResponse;
 import com.company.bl.interfaces.vo.LabelPrintRetryResponse;
 import com.company.bl.interfaces.vo.LatestSpecimenRegistrationResponse;
+import com.company.bl.interfaces.vo.RegistrationSnapshotResponse;
 import com.company.bl.interfaces.vo.SpecimenManagementItemResponse;
 import com.company.bl.interfaces.vo.SpecimenManagementPageResponse;
 import com.company.bl.interfaces.vo.SpecimenManagementSummaryResponse;
@@ -34,6 +35,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/specimens")
@@ -156,13 +162,14 @@ public class SpecimenController {
     public LatestSpecimenRegistrationResponse getLatestRegistration(
         @Parameter(description = "Application id") @PathVariable("applicationId") String applicationId
     ) {
-        SpecimenWorkflowAppService.SpecimenRegistrationResult result =
+        SpecimenWorkflowAppService.LatestSpecimenRegistrationResult result =
             specimenWorkflowAppService.getLatestRegistrationResult(applicationId);
         return new LatestSpecimenRegistrationResponse(
-            applicationId,
+            result.applicationId(),
             result.labelPrintBatchNo(),
             result.labelPrintSuccess(),
             result.labelPrintMessage(),
+            toRegistrationSnapshot(result.registrationSnapshot()),
             result.specimens().stream().map(this::toSpecimenSummary).toList());
     }
 
@@ -176,6 +183,9 @@ public class SpecimenController {
     }
 
     private ApplicationDetailResponse toApplicationDetail(ApplicationTracking tracking) {
+        List<SpecimenSummaryResponse> specimenSummaries = tracking.specimens().stream().map(this::toSpecimenSummary).toList();
+        Map<String, SpecimenSummaryResponse> specimenMap = specimenSummaries.stream()
+            .collect(Collectors.toMap(SpecimenSummaryResponse::id, Function.identity()));
         return new ApplicationDetailResponse(
             tracking.application().getId().value(),
             tracking.application().getApplicationNo(),
@@ -202,19 +212,29 @@ public class SpecimenController {
             stringify(tracking.application().getSpecimenRemovalTime()),
             tracking.currentNode(),
             tracking.abnormal(),
-            tracking.specimens().stream().map(this::toSpecimenSummary).toList(),
-            tracking.events().stream().map(event -> new TrackingEventResponse(
-                event.nodeCode(),
-                event.eventType(),
-                event.eventStatus(),
-                stringify(event.eventTime()),
-                event.operatorName(),
-                event.sourceTerminal(),
-                event.eventContent()))
-                .toList(),
+            specimenSummaries,
+            tracking.events().stream().map(event -> toTrackingEventResponse(event, specimenMap)).toList(),
             tracking.application().getRemarks(),
             stringify(tracking.application().getCreatedAt()),
             stringify(tracking.application().getUpdatedAt()));
+    }
+
+    private TrackingEventResponse toTrackingEventResponse(
+        com.company.bl.domain.model.TrackingEvent event,
+        Map<String, SpecimenSummaryResponse> specimenMap
+    ) {
+        SpecimenSummaryResponse specimen = event.specimenId() == null ? null : specimenMap.get(event.specimenId());
+        return new TrackingEventResponse(
+            event.nodeCode(),
+            event.eventType(),
+            event.eventStatus(),
+            stringify(event.eventTime()),
+            event.operatorName(),
+            event.sourceTerminal(),
+            event.specimenId(),
+            specimen == null ? null : specimen.specimenNo(),
+            specimen == null ? null : specimen.barcode(),
+            event.eventContent());
     }
 
     private SpecimenSummaryResponse toSpecimenSummary(Specimen specimen) {
@@ -232,7 +252,36 @@ public class SpecimenController {
             specimen.containerCount(),
             specimen.specimenStatus().name(),
             specimen.fixationStatus().name(),
-            specimen.labelPrintStatus());
+            specimen.labelPrintStatus(),
+            specimen.receiptStatus(),
+            specimen.qualityCheckResult(),
+            splitCommaSeparated(specimen.qualityIssueCodes()),
+            specimen.unqualifiedReason());
+    }
+
+    private RegistrationSnapshotResponse toRegistrationSnapshot(
+        SpecimenWorkflowAppService.RegistrationSnapshot snapshot
+    ) {
+        if (snapshot == null) {
+            return null;
+        }
+        return new RegistrationSnapshotResponse(
+            snapshot.collectionScene(),
+            snapshot.operatorUserId(),
+            snapshot.operatorName(),
+            snapshot.printerCode(),
+            snapshot.terminalCode(),
+            snapshot.remarks());
+    }
+
+    private List<String> splitCommaSeparated(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(value.split(","))
+            .map(String::trim)
+            .filter(part -> !part.isEmpty())
+            .toList();
     }
 
     private SpecimenManagementItemResponse toSpecimenManagementItem(

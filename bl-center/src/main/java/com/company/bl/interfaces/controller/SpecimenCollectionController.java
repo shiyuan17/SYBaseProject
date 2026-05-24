@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/specimen-collections")
 @RequiredArgsConstructor
@@ -77,7 +79,21 @@ public class SpecimenCollectionController {
             specimen.containerCount(),
             specimen.specimenStatus().name(),
             specimen.fixationStatus().name(),
-            specimen.labelPrintStatus());
+            specimen.labelPrintStatus(),
+            specimen.receiptStatus(),
+            specimen.qualityCheckResult(),
+            splitCommaSeparated(specimen.qualityIssueCodes()),
+            specimen.unqualifiedReason());
+    }
+
+    private List<String> splitCommaSeparated(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(value.split(","))
+            .map(String::trim)
+            .filter(part -> !part.isEmpty())
+            .toList();
     }
 
     private String resolveUserId(String bodyUserId, HttpServletRequest request) {

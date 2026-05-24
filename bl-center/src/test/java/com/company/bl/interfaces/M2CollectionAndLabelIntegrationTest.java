@@ -229,6 +229,7 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
         JsonNode failedRegistration = registerSpecimens(
             applicationId, USER_REGISTER, "FAIL", "/api/v1/specimens/register", "BC-COLLECT-LOOKUP-001");
         String batchNo = failedRegistration.path("labelPrintBatchNo").asText();
+        String expectedLoginName = userLoginName(USER_REGISTER);
 
         mockMvc.perform(authorized(get("/api/v1/specimens/applications/lookup"), USER_REGISTER)
                 .param("applicationNo", "APP-M2-COLLECT-LOOKUP-001"))
@@ -239,13 +240,34 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
             .andExpect(jsonPath("$.data.registeredSpecimenCount").value(1))
             .andExpect(jsonPath("$.data.latestLabelPrintStatus").value("FAILED"));
 
-        mockMvc.perform(authorized(get("/api/v1/specimens/applications/{applicationId}/latest-registration", applicationId), USER_REGISTER))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.applicationId").value(applicationId))
-            .andExpect(jsonPath("$.data.labelPrintBatchNo").value(batchNo))
-            .andExpect(jsonPath("$.data.labelPrintSuccess").value(false))
-            .andExpect(jsonPath("$.data.specimens[0].barcode").value("BC-COLLECT-LOOKUP-001"))
-            .andExpect(jsonPath("$.data.specimens[0].labelPrintStatus").value("FAILED"));
+        JsonNode latestRegistration = responseBody(
+            mockMvc.perform(authorized(get("/api/v1/specimens/applications/{applicationId}/latest-registration", applicationId), USER_REGISTER)),
+            200);
+
+        assertThat(latestRegistration.path("applicationId").asText()).isEqualTo(applicationId);
+        assertThat(latestRegistration.path("labelPrintBatchNo").asText()).isEqualTo(batchNo);
+        assertThat(latestRegistration.path("labelPrintSuccess").asBoolean()).isFalse();
+        assertThat(latestRegistration.path("registrationSnapshot").path("collectionScene").asText()).isEqualTo("OPERATING_ROOM");
+        assertThat(latestRegistration.path("registrationSnapshot").path("operatorUserId").asText()).isEqualTo(USER_REGISTER);
+        assertThat(latestRegistration.path("registrationSnapshot").path("operatorName").asText()).isEqualTo(expectedLoginName);
+        assertThat(latestRegistration.path("registrationSnapshot").path("printerCode").asText()).isEqualTo("FAIL");
+        assertThat(latestRegistration.path("registrationSnapshot").path("terminalCode").asText()).isEqualTo("OR-01");
+        assertThat(latestRegistration.path("specimens").get(0).path("barcode").asText()).isEqualTo("BC-COLLECT-LOOKUP-001");
+        assertThat(latestRegistration.path("specimens").get(0).path("labelPrintStatus").asText()).isEqualTo("FAILED");
+
+        jdbcTemplate.update(
+            """
+                update specimen_collection_records
+                set printer_code = null
+                where application_id = :applicationId
+                  and label_print_batch_no = :batchNo
+                """,
+            java.util.Map.of("applicationId", applicationId, "batchNo", batchNo));
+
+        JsonNode latestRegistrationWithoutPrinter = responseBody(
+            mockMvc.perform(authorized(get("/api/v1/specimens/applications/{applicationId}/latest-registration", applicationId), USER_REGISTER)),
+            200);
+        assertThat(latestRegistrationWithoutPrinter.path("registrationSnapshot").path("printerCode").isNull()).isTrue();
 
         mockMvc.perform(authorized(post("/api/v1/specimens/label-batches/{batchNo}/retry", batchNo), USER_REGISTER)
                 .contentType(MediaType.APPLICATION_JSON)

@@ -46,12 +46,18 @@ public interface SpecimenWorkflowRepository {
 
     List<Specimen> findSpecimensByLabelPrintBatchNoAndStatuses(String labelPrintBatchNo, List<String> labelPrintStatuses);
 
+    Optional<RegistrationSnapshotData> findRegistrationSnapshotByApplicationIdAndBatchNo(
+        String applicationId,
+        String labelPrintBatchNo
+    );
+
     void insertCollectionRecord(String applicationId,
                                 String specimenId,
                                 String collectionStatus,
                                 String collectionScene,
                                 String collectionMode,
                                 String labelPrintBatchNo,
+                                String printerCode,
                                 String collectorUserId,
                                 String collectorName,
                                 LocalDateTime collectedAt,
@@ -254,6 +260,16 @@ public interface SpecimenWorkflowRepository {
         java.time.LocalDate applicationDate,
         boolean externalOrderMatched,
         boolean sameDaySiteMatched
+    ) {
+    }
+
+    record RegistrationSnapshotData(
+        String collectionScene,
+        String operatorUserId,
+        String operatorName,
+        String printerCode,
+        String terminalCode,
+        String remarks
     ) {
     }
 
