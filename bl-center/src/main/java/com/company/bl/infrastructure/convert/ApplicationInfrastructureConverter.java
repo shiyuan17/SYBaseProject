@@ -34,6 +34,7 @@ public class ApplicationInfrastructureConverter {
         dataObject.setSpecimenSite(application.getSpecimenSite());
         dataObject.setApplicationDate(application.getApplicationDate());
         dataObject.setSubmissionDate(application.getSubmissionDate());
+        dataObject.setSpecimenRemovalTime(application.getSpecimenRemovalTime());
         dataObject.setRemarks(application.getRemarks());
         dataObject.setCreatedAt(application.getCreatedAt());
         dataObject.setUpdatedAt(application.getUpdatedAt());
@@ -64,6 +65,7 @@ public class ApplicationInfrastructureConverter {
             dataObject.getSpecimenSite(),
             dataObject.getApplicationDate(),
             dataObject.getSubmissionDate(),
+            dataObject.getSpecimenRemovalTime(),
             dataObject.getRemarks(),
             dataObject.getCreatedAt(),
             dataObject.getUpdatedAt());

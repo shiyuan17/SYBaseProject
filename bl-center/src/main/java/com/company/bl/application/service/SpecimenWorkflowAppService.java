@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -66,6 +67,8 @@ public class SpecimenWorkflowAppService {
                 trim(item.specimenSite()),
                 trim(item.collectionMode()),
                 item.specimenCount(),
+                trim(item.containerName()),
+                item.containerCount(),
                 SpecimenStatus.REGISTERED,
                 FixationStatus.PENDING,
                 true,
@@ -348,7 +351,7 @@ public class SpecimenWorkflowAppService {
     @Transactional
     public ReceiptResult receiveSpecimens(ReceiveSpecimensCommand command) {
         TransportOrder order = getTransportOrder(command.transportOrderId());
-        if (order.status() != TransportOrderStatus.HANDED_OVER && order.status() != TransportOrderStatus.PRINTED) {
+        if (!isTransportOrderReadyForReceipt(order.status())) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Transport order is not ready for receipt");
         }
         Application application = getApplication(order.applicationId());
@@ -388,11 +391,11 @@ public class SpecimenWorkflowAppService {
 
     @Transactional
     public LabelPrintRetryResult retryLabelPrint(RetryLabelPrintCommand command) {
-        List<Specimen> failedSpecimens = specimenWorkflowRepository.findSpecimensByLabelPrintBatchNoAndStatus(
+        List<Specimen> failedSpecimens = specimenWorkflowRepository.findSpecimensByLabelPrintBatchNoAndStatuses(
             command.labelPrintBatchNo(),
-            "FAILED");
+            List.of("FAILED", "PENDING"));
         if (failedSpecimens.isEmpty()) {
-            return new LabelPrintRetryResult(command.labelPrintBatchNo(), 0, 0, 0, true, "No failed labels found for retry");
+            return new LabelPrintRetryResult(command.labelPrintBatchNo(), 0, 0, 0, true, "No pending or failed labels found for retry");
         }
         LabelPrintGateway.LabelPrintResult printResult = labelPrintGateway.print(
             new LabelPrintGateway.LabelPrintRequest(
@@ -437,6 +440,7 @@ public class SpecimenWorkflowAppService {
                 normalizeSize(query.size()),
                 trim(query.applicationId()),
                 trim(query.departmentId()),
+                trim(query.fixationStatus()),
                 parseDateFrom(query.dateFrom()),
                 parseDateTo(query.dateTo())));
         return new PendingSpecimenPage(
@@ -454,6 +458,7 @@ public class SpecimenWorkflowAppService {
                 normalizeSize(query.size()),
                 trim(query.applicationId()),
                 trim(query.departmentId()),
+                null,
                 parseDateFrom(query.dateFrom()),
                 parseDateTo(query.dateTo())));
         return new PendingSpecimenPage(
@@ -534,6 +539,96 @@ public class SpecimenWorkflowAppService {
             page,
             size,
             result.total());
+    }
+
+    @Transactional(readOnly = true)
+    public DuplicateCheckResult checkApplicationDuplicate(DuplicateCheckCommand command) {
+        String patientId = trim(command.patientId());
+        String patientName = trim(command.patientName());
+        String externalOrderNo = trim(command.externalOrderNo());
+        LocalDate applicationDate = parseLocalDate(command.applicationDate());
+        String applicationType = normalizeStatus(command.applicationType());
+        String specimenSite = trim(command.specimenSite());
+        if (patientId == null && patientName == null) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Patient id or patient name is required");
+        }
+        if (externalOrderNo == null && applicationDate == null) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "External order number or application date is required");
+        }
+        List<DuplicateCheckItem> items = specimenWorkflowRepository.findDuplicateApplications(
+                new SpecimenWorkflowRepository.DuplicateApplicationQuery(
+                    patientId,
+                    patientName,
+                    externalOrderNo,
+                    applicationDate,
+                    applicationType,
+                    specimenSite))
+            .stream()
+            .map(item -> new DuplicateCheckItem(
+                item.id(),
+                item.applicationNo(),
+                item.patientName(),
+                item.applicationDate(),
+                item.specimenSite(),
+                item.status(),
+                item.currentNode(),
+                resolveMatchedBy(item.externalOrderMatched(), item.sameDaySiteMatched())))
+            .toList();
+        String suggestedAction = items.stream().anyMatch(item -> item.matchedBy().contains("EXTERNAL_ORDER_NO"))
+            ? "BLOCK"
+            : items.isEmpty() ? "ALLOW" : "CONFIRM";
+        return new DuplicateCheckResult(items, suggestedAction);
+    }
+
+    @Transactional(readOnly = true)
+    public SpecimenManagementListPage listSpecimenManagementItems(SpecimenManagementListQuery query) {
+        int page = normalizePage(query.page());
+        int size = normalizeSize(query.size());
+        SpecimenWorkflowRepository.PagedSpecimenManagementItems result =
+            specimenWorkflowRepository.findSpecimenManagementItems(
+                new SpecimenWorkflowRepository.SpecimenManagementListQuery(
+                    page,
+                    size,
+                    trim(query.keyword()),
+                    trim(query.applicationNo()),
+                    trim(query.departmentId()),
+                    normalizeStatus(query.specimenStatus()),
+                    normalizeStatus(query.labelPrintStatus()),
+                    query.abnormalFlag(),
+                    parseDateFrom(query.dateFrom()),
+                    parseDateTo(query.dateTo())));
+        return new SpecimenManagementListPage(
+            result.items().stream().map(item -> new SpecimenManagementListItem(
+                item.specimenId(),
+                item.specimenNo(),
+                item.barcode(),
+                item.applicationId(),
+                item.applicationNo(),
+                item.patientName(),
+                item.submittingDepartmentId(),
+                item.submittingDepartmentName(),
+                item.specimenName(),
+                item.specimenType(),
+                item.specimenSite(),
+                item.specimenCount(),
+                item.containerName(),
+                item.containerCount(),
+                item.specimenStatus(),
+                item.fixationStatus(),
+                item.labelPrintStatus(),
+                item.labelPrintBatchNo(),
+                item.registeredAt(),
+                item.latestTrackingAt(),
+                item.abnormalFlag()))
+                .toList(),
+            page,
+            size,
+            result.total(),
+            new SpecimenManagementSummary(
+                result.summary().totalCount(),
+                result.summary().labelPrintedCount(),
+                result.summary().pendingLabelCount(),
+                result.summary().abnormalCount()));
     }
 
     @Transactional(readOnly = true)
@@ -738,6 +833,8 @@ public class SpecimenWorkflowAppService {
                 order == null ? null : order.id(),
                 item.receiptStatus(),
                 item.containerCount(),
+                normalizeQualityCheckResult(item.qualityCheckResult()),
+                joinQualityIssueCodes(item.qualityIssueCodes()),
                 specimen.barcode(),
                 receivedByUserId,
                 receivedByName,
@@ -793,15 +890,22 @@ public class SpecimenWorkflowAppService {
         }
 
         List<Specimen> allSpecimens = specimenWorkflowRepository.findSpecimensByApplicationId(application.getId().value());
+        long receivedSpecimenCount = allSpecimens.stream()
+            .filter(specimen -> specimen.specimenStatus() == SpecimenStatus.RECEIVED)
+            .count();
         long unreceivedCount = allSpecimens.stream().filter(specimen -> specimen.specimenStatus() != SpecimenStatus.RECEIVED).count();
         String applicationStatus = unreceivedCount == 0
             ? "RECEIVED"
-            : receivedCount > 0 ? "PARTIALLY_RECEIVED" : "REJECTED";
+            : receivedSpecimenCount > 0 ? "PARTIALLY_RECEIVED" : "REJECTED";
         specimenWorkflowRepository.updateApplicationStatus(application.getId().value(), applicationStatus);
         if (order != null) {
+            long terminalTransportItemCount = transportOrderItems.stream()
+                .filter(transportOrderItem -> isTransportItemTerminal(transportOrderItem.status()))
+                .count();
+            boolean orderCompleted = terminalTransportItemCount + processedCount >= transportOrderItems.size();
             specimenWorkflowRepository.updateTransportOrderStatus(
                 order.id(),
-                unreceivedCount == 0 ? TransportOrderStatus.COMPLETED : TransportOrderStatus.PARTIALLY_RECEIVED,
+                orderCompleted ? TransportOrderStatus.COMPLETED : TransportOrderStatus.PARTIALLY_RECEIVED,
                 receivedByUserId,
                 receivedByName,
                 null,
@@ -841,6 +945,27 @@ public class SpecimenWorkflowAppService {
         if (directReceive && specimen.fixationStatus() != FixationStatus.COMPLETED) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must be fixed before direct receipt");
         }
+        String qualityCheckResult = normalizeQualityCheckResult(item.qualityCheckResult());
+        List<String> qualityIssueCodes = normalizeQualityIssueCodes(item.qualityIssueCodes());
+        if (item.receiptStatus() == ReceiptStatus.RECEIVED && !"PASSED".equals(qualityCheckResult)) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Received specimens must pass quality check");
+        }
+        if (item.receiptStatus() != ReceiptStatus.RECEIVED && blank(item.reason())) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Rejected or returned specimens must provide a reason");
+        }
+        if ("FAILED".equals(qualityCheckResult) && qualityIssueCodes.isEmpty()) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Failed quality checks must provide issue codes");
+        }
+    }
+
+    private boolean isTransportItemTerminal(TransportItemStatus status) {
+        return status == TransportItemStatus.COMPLETED || status == TransportItemStatus.RETURNED;
+    }
+
+    private boolean isTransportOrderReadyForReceipt(TransportOrderStatus status) {
+        return status == TransportOrderStatus.PRINTED
+            || status == TransportOrderStatus.HANDED_OVER
+            || status == TransportOrderStatus.PARTIALLY_RECEIVED;
     }
 
     private void ensureBarcodeAvailable(String barcode) {
@@ -860,6 +985,8 @@ public class SpecimenWorkflowAppService {
             row.specimenId(),
             row.specimenNo(),
             row.barcode(),
+            row.containerName(),
+            row.containerCount(),
             row.specimenStatus(),
             row.fixationStatus(),
             row.registeredAt(),
@@ -879,6 +1006,8 @@ public class SpecimenWorkflowAppService {
             specimen.specimenSite(),
             specimen.collectionMode(),
             specimen.specimenCount(),
+            specimen.containerName(),
+            specimen.containerCount(),
             specimen.specimenStatus(),
             specimen.fixationStatus(),
             specimen.qualified(),
@@ -910,6 +1039,36 @@ public class SpecimenWorkflowAppService {
         return blank(value) ? fallback : value.trim();
     }
 
+    private String normalizeQualityCheckResult(String value) {
+        String normalized = normalizeStatus(value);
+        if (normalized == null) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Quality check result is required");
+        }
+        if (!"PASSED".equals(normalized) && !"FAILED".equals(normalized)) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Unsupported quality check result");
+        }
+        return normalized;
+    }
+
+    private List<String> normalizeQualityIssueCodes(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        for (String value : values) {
+            String code = trim(value);
+            if (code != null) {
+                normalized.add(code.toUpperCase());
+            }
+        }
+        return List.copyOf(normalized);
+    }
+
+    private String joinQualityIssueCodes(List<String> values) {
+        List<String> normalized = normalizeQualityIssueCodes(values);
+        return normalized.isEmpty() ? null : String.join(",", normalized);
+    }
+
     private int normalizePage(int page) {
         return Math.max(page, 1);
     }
@@ -933,6 +1092,13 @@ public class SpecimenWorkflowAppService {
     }
 
     private LocalDate parseLocalDateFrom(String value) {
+        if (blank(value)) {
+            return null;
+        }
+        return LocalDate.parse(value.trim());
+    }
+
+    private LocalDate parseLocalDate(String value) {
         if (blank(value)) {
             return null;
         }
@@ -968,6 +1134,8 @@ public class SpecimenWorkflowAppService {
         String specimenSite,
         String collectionMode,
         Integer specimenCount,
+        String containerName,
+        Integer containerCount,
         String barcode,
         String clinicalSymptom
     ) {
@@ -1040,6 +1208,8 @@ public class SpecimenWorkflowAppService {
         String specimenBarcode,
         ReceiptStatus receiptStatus,
         Integer containerCount,
+        String qualityCheckResult,
+        List<String> qualityIssueCodes,
         String reason,
         String remarks
     ) {
@@ -1078,6 +1248,7 @@ public class SpecimenWorkflowAppService {
         int size,
         String applicationId,
         String departmentId,
+        String fixationStatus,
         String dateFrom,
         String dateTo
     ) {
@@ -1101,6 +1272,8 @@ public class SpecimenWorkflowAppService {
         String specimenId,
         String specimenNo,
         String barcode,
+        String containerName,
+        Integer containerCount,
         String specimenStatus,
         String fixationStatus,
         LocalDateTime registeredAt,
@@ -1164,6 +1337,34 @@ public class SpecimenWorkflowAppService {
     ) {
     }
 
+    public record DuplicateCheckCommand(
+        String patientId,
+        String patientName,
+        String externalOrderNo,
+        String applicationDate,
+        String applicationType,
+        String specimenSite
+    ) {
+    }
+
+    public record DuplicateCheckItem(
+        String id,
+        String applicationNo,
+        String patientName,
+        LocalDate applicationDate,
+        String specimenSite,
+        String status,
+        String currentNode,
+        List<String> matchedBy
+    ) {
+    }
+
+    public record DuplicateCheckResult(
+        List<DuplicateCheckItem> items,
+        String suggestedAction
+    ) {
+    }
+
     public record ApplicationListItem(
         String id,
         String applicationNo,
@@ -1184,5 +1385,72 @@ public class SpecimenWorkflowAppService {
         LocalDateTime createdAt,
         LocalDateTime updatedAt
     ) {
+    }
+
+    public record SpecimenManagementListQuery(
+        int page,
+        int size,
+        String keyword,
+        String applicationNo,
+        String departmentId,
+        String specimenStatus,
+        String labelPrintStatus,
+        Boolean abnormalFlag,
+        String dateFrom,
+        String dateTo
+    ) {
+    }
+
+    public record SpecimenManagementListPage(
+        List<SpecimenManagementListItem> items,
+        int page,
+        int size,
+        long total,
+        SpecimenManagementSummary summary
+    ) {
+    }
+
+    public record SpecimenManagementListItem(
+        String specimenId,
+        String specimenNo,
+        String barcode,
+        String applicationId,
+        String applicationNo,
+        String patientName,
+        String submittingDepartmentId,
+        String submittingDepartmentName,
+        String specimenName,
+        String specimenType,
+        String specimenSite,
+        Integer specimenCount,
+        String containerName,
+        Integer containerCount,
+        String specimenStatus,
+        String fixationStatus,
+        String labelPrintStatus,
+        String labelPrintBatchNo,
+        LocalDateTime registeredAt,
+        LocalDateTime latestTrackingAt,
+        boolean abnormalFlag
+    ) {
+    }
+
+    public record SpecimenManagementSummary(
+        long totalCount,
+        long labelPrintedCount,
+        long pendingLabelCount,
+        long abnormalCount
+    ) {
+    }
+
+    private List<String> resolveMatchedBy(boolean externalOrderMatched, boolean sameDaySiteMatched) {
+        List<String> matchedBy = new ArrayList<>();
+        if (externalOrderMatched) {
+            matchedBy.add("EXTERNAL_ORDER_NO");
+        }
+        if (sameDaySiteMatched) {
+            matchedBy.add("SAME_DAY_SAME_SITE");
+        }
+        return List.copyOf(matchedBy);
     }
 }

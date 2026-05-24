@@ -47,6 +47,8 @@ class DmBaselineSqlScriptTest {
     void shouldSeedBuiltInUsersThroughM6WithSecurityFields() throws Exception {
         String sql = readBaselineSql();
 
+        assertTrue(sql.contains("quality_check_result VARCHAR2(32)"));
+        assertTrue(sql.contains("quality_issue_codes VARCHAR2(500)"));
         assertTrue(sql.contains("password_algo VARCHAR2(32)"));
         assertTrue(sql.contains("password_salt VARCHAR2(64)"));
         assertTrue(sql.contains("'USER_M1_ADMIN'"));

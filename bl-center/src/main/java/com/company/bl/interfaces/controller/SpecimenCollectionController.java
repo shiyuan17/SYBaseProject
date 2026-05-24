@@ -50,6 +50,8 @@ public class SpecimenCollectionController {
                     item.getSpecimenSite(),
                     item.getCollectionMode(),
                     item.getSpecimenCount(),
+                    item.getContainerName(),
+                    item.getContainerCount(),
                     item.getBarcode(),
                     item.getClinicalSymptom()))
                     .toList()));
@@ -68,7 +70,11 @@ public class SpecimenCollectionController {
             specimen.specimenNameStandardized(),
             specimen.specimenType(),
             specimen.specimenSite(),
+            specimen.collectionMode(),
+            specimen.clinicalSymptom(),
             specimen.specimenCount(),
+            specimen.containerName(),
+            specimen.containerCount(),
             specimen.specimenStatus().name(),
             specimen.fixationStatus().name(),
             specimen.labelPrintStatus());

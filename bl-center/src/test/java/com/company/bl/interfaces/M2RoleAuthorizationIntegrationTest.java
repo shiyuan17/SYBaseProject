@@ -56,7 +56,8 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
                 {
                   "specimenBarcode": "%s",
                   "receiptStatus": "RECEIVED",
-                  "containerCount": 1
+                  "containerCount": 1,
+                  "qualityCheckResult": "PASSED"
                 }
               ]
             }
@@ -103,7 +104,8 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
                 {
                   "specimenBarcode": "BC-DENY-001",
                   "receiptStatus": "RECEIVED",
-                  "containerCount": 1
+                  "containerCount": 1,
+                  "qualityCheckResult": "PASSED"
                 }
               ]
             }
@@ -122,6 +124,8 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
                   "specimenType": "ROUTINE",
                   "specimenSite": "Thyroid",
                   "collectionMode": "SURGERY",
+                  "containerName": "Specimen Bottle",
+                  "containerCount": 1,
                   "specimenCount": 1,
                   "barcode": "BC-DENY-002"
                 }

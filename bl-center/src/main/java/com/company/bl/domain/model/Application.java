@@ -33,6 +33,7 @@ public class Application {
     private final String specimenSite;
     private final LocalDate applicationDate;
     private final LocalDate submissionDate;
+    private final LocalDateTime specimenRemovalTime;
     private final String remarks;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
@@ -59,6 +60,7 @@ public class Application {
                        String specimenSite,
                        LocalDate applicationDate,
                        LocalDate submissionDate,
+                       LocalDateTime specimenRemovalTime,
                        String remarks,
                        LocalDateTime createdAt,
                        LocalDateTime updatedAt) {
@@ -84,6 +86,7 @@ public class Application {
         this.specimenSite = specimenSite;
         this.applicationDate = applicationDate;
         this.submissionDate = submissionDate;
+        this.specimenRemovalTime = specimenRemovalTime;
         this.remarks = remarks;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;

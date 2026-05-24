@@ -51,6 +51,10 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                       "applicationNo": "APP-1001",
                       "applicationType": "ROUTINE",
                       "patientId": "P-1001",
+                      "applicationFormStatus": "PENDING",
+                      "applicationDate": "2026-05-21",
+                      "submissionDate": "2026-05-22",
+                      "specimenRemovalTime": "2026-05-21T09:30:00",
                       "submittingDepartmentId": "DEPT-OR",
                       "submittingDepartmentName": "OR",
                       "submittingDoctorUserId": "DOC-1001",
@@ -202,6 +206,8 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                           "specimenType": "ROUTINE",
                           "specimenSite": "Thyroid",
                           "collectionMode": "SURGERY",
+                          "containerName": "Specimen Bottle",
+                          "containerCount": 1,
                           "specimenCount": 1,
                           "barcode": "BC-LIST-ABNORMAL-001"
                         }
@@ -269,6 +275,8 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                           "specimenBarcode": "%s",
                           "receiptStatus": "REJECTED",
                           "containerCount": 1,
+                          "qualityCheckResult": "FAILED",
+                          "qualityIssueCodes": ["LABEL_MISMATCH"],
                           "reason": "broken-container"
                         }
                       ]
@@ -283,6 +291,127 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.total").value(1))
             .andExpect(jsonPath("$.data.items[0].abnormalFlag").value(true));
+    }
+
+    @Test
+    void shouldExposeSpecimenRemovalTimeAndApplicationFormStatusInDetail() throws Exception {
+        JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "APP-DETAIL-001",
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-DETAIL-001",
+                      "patientName": "Patient Detail",
+                      "applicationDate": "2026-05-20",
+                      "submissionDate": "2026-05-21",
+                      "specimenRemovalTime": "2026-05-20T08:45:00",
+                      "applicationFormStatus": "PENDING",
+                      "submittingDepartmentId": "DEPT-DETAIL",
+                      "submittingDepartmentName": "Detail Department",
+                      "submittingDoctorUserId": "DOC-DETAIL-001",
+                      "submittingDoctorName": "Dr Detail",
+                      "clinicalDiagnosis": "detail diagnosis",
+                      "specimenSite": "Stomach"
+                    }
+                    """)), 201);
+        String applicationId = created.path("id").asText();
+
+        mockMvc.perform(authorized(get("/api/v1/applications/{id}", applicationId), USER_TRACKING))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.applicationFormStatus").value("PENDING"))
+            .andExpect(jsonPath("$.data.applicationDate").value("2026-05-20"))
+            .andExpect(jsonPath("$.data.submissionDate").value("2026-05-21"))
+            .andExpect(jsonPath("$.data.specimenRemovalTime").value("2026-05-20T08:45"));
+    }
+
+    @Test
+    void shouldExposeSpecimenCollectionModeAndClinicalSymptomInDetail() throws Exception {
+        JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "APP-DETAIL-002",
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-DETAIL-002",
+                      "patientName": "Patient Detail Two",
+                      "submittingDepartmentId": "DEPT-DETAIL",
+                      "submittingDepartmentName": "Detail Department",
+                      "submittingDoctorUserId": "DOC-DETAIL-002",
+                      "submittingDoctorName": "Dr Detail Two",
+                      "clinicalDiagnosis": "detail diagnosis",
+                      "clinicalSymptom": "腹痛",
+                      "specimenSite": "Stomach"
+                    }
+                    """)), 201);
+        String applicationId = created.path("id").asText();
+
+        mockMvc.perform(authorized(post("/api/v1/specimens/register"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationId": "%s",
+                      "operatorName": "nurse-detail",
+                      "items": [
+                        {
+                          "specimenNameStandardized": "胃组织",
+                          "specimenType": "组织",
+                          "specimenSite": "胃窦",
+                          "collectionMode": "SURGERY",
+                          "clinicalSymptom": "腹痛",
+                          "containerName": "Specimen Bottle",
+                          "containerCount": 1,
+                          "specimenCount": 1,
+                          "barcode": "BC-DETAIL-002"
+                        }
+                      ]
+                    }
+                    """.formatted(applicationId)))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(authorized(get("/api/v1/applications/{id}", applicationId), USER_TRACKING))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.clinicalSymptom").value("腹痛"))
+            .andExpect(jsonPath("$.data.specimens[0].specimenName").value("胃组织"))
+            .andExpect(jsonPath("$.data.specimens[0].specimenType").value("组织"))
+            .andExpect(jsonPath("$.data.specimens[0].specimenSite").value("胃窦"))
+            .andExpect(jsonPath("$.data.specimens[0].collectionMode").value("SURGERY"))
+            .andExpect(jsonPath("$.data.specimens[0].clinicalSymptom").value("腹痛"));
+    }
+
+    @Test
+    void shouldWarnDuplicateApplicationsByExternalOrderAndSameDaySite() throws Exception {
+        mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "APP-DUP-CHECK-001",
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-DUP-CHECK",
+                      "patientName": "Patient Dup",
+                      "externalOrderNo": "EXT-DUP-001",
+                      "applicationDate": "2026-05-20",
+                      "submittingDepartmentId": "DEPT-DUP",
+                      "submittingDepartmentName": "Dup Department",
+                      "submittingDoctorUserId": "DOC-DUP-001",
+                      "submittingDoctorName": "Dr Dup",
+                      "clinicalDiagnosis": "dup diagnosis",
+                      "specimenSite": "Colon"
+                    }
+                    """))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(authorized(get("/api/v1/applications/duplicate-check"), USER_REGISTER)
+                .param("patientId", "P-DUP-CHECK")
+                .param("externalOrderNo", "EXT-DUP-001")
+                .param("applicationDate", "2026-05-20")
+                .param("applicationType", "ROUTINE")
+                .param("specimenSite", "Colon"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.suggestedAction").value("BLOCK"))
+            .andExpect(jsonPath("$.data.items[0].applicationNo").value("APP-DUP-CHECK-001"))
+            .andExpect(jsonPath("$.data.items[0].matchedBy[0]").value("EXTERNAL_ORDER_NO"))
+            .andExpect(jsonPath("$.data.items[0].matchedBy[1]").value("SAME_DAY_SAME_SITE"));
     }
 
     @Test

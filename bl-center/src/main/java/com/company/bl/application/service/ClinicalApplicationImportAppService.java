@@ -64,6 +64,8 @@ public class ClinicalApplicationImportAppService {
                 imported.specimenSite(),
                 null,
                 null,
+                null,
+                null,
                 "Imported from placeholder gateway"));
             integrationManagementService.markSuccess(taskId, "{\"applicationId\":\"" + applicationId.value() + "\"}");
             return applicationId;

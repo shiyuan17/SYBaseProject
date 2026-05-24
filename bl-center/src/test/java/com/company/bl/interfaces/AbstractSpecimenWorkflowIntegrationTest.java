@@ -112,6 +112,8 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
                   "specimenType": "ROUTINE",
                   "specimenSite": "Thyroid",
                   "collectionMode": "SURGERY",
+                  "containerName": "Specimen Bottle",
+                  "containerCount": 1,
                   "specimenCount": 1,
                   "barcode": "%s"
                 }

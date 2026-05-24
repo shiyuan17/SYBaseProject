@@ -1,6 +1,7 @@
 package com.company.bl.domain.service;
 
 import com.company.bl.domain.enums.ApplicationErrorCode;
+import com.company.bl.domain.enums.ApplicationFormStatus;
 import com.company.bl.domain.enums.ApplicationStatus;
 import com.company.bl.domain.exception.ApplicationDomainException;
 import com.company.bl.domain.factory.ApplicationFactory;
@@ -9,6 +10,7 @@ import com.company.bl.domain.repository.ApplicationRepository;
 import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @RequiredArgsConstructor
 public class ApplicationDomainService {
@@ -36,6 +38,8 @@ public class ApplicationDomainService {
                                 String specimenSite,
                                 LocalDate applicationDate,
                                 LocalDate submissionDate,
+                                LocalDateTime specimenRemovalTime,
+                                String applicationFormStatus,
                                 String remarks) {
         String normalizedApplicationNo = normalizeApplicationNo(applicationNo);
         validateRequiredFields(
@@ -72,6 +76,8 @@ public class ApplicationDomainService {
             trimToNull(specimenSite),
             applicationDate,
             submissionDate,
+            specimenRemovalTime,
+            ApplicationFormStatus.from(applicationFormStatus),
             trimToNull(remarks));
     }
 

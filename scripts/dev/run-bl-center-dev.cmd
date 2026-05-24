@@ -3,11 +3,12 @@ setlocal
 
 set "ROOT_DIR=%~dp0..\.."
 pushd "%ROOT_DIR%" >nul
+set "EXIT_CODE=0"
 
 if not defined JAVA_HOME (
   echo JAVA_HOME is not set. Please point it to JDK 17.
-  popd >nul
-  exit /b 1
+  set "EXIT_CODE=1"
+  goto :finish
 )
 
 if not defined BL_CENTER_DATASOURCE_DRIVER_CLASS_NAME set "BL_CENTER_DATASOURCE_DRIVER_CLASS_NAME=dm.jdbc.driver.DmDriver"
@@ -20,5 +21,17 @@ if not defined SECURITY_AUTH_JWT_SM2_PUBLIC_KEY set "SECURITY_AUTH_JWT_SM2_PUBLI
 call mvnw.cmd -Dmaven.repo.local=.m2/repository -f bl-center/pom.xml -DskipTests spring-boot:run
 set "EXIT_CODE=%ERRORLEVEL%"
 
+:finish
 popd >nul
+if not "%EXIT_CODE%"=="0" call :pause_on_error %EXIT_CODE%
 exit /b %EXIT_CODE%
+
+:pause_on_error
+set "ERROR_CODE=%~1"
+if "%PAUSE_ON_ERROR%"=="0" goto :eof
+if defined CI goto :eof
+echo.
+echo Script failed with exit code %ERROR_CODE%.
+echo Press any key to close this window...
+pause >nul
+goto :eof

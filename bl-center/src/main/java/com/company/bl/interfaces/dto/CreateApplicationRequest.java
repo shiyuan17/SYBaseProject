@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -97,6 +98,13 @@ public class CreateApplicationRequest {
     private LocalDate applicationDate;
     @Schema(description = "送检日期", type = "string", format = "date")
     private LocalDate submissionDate;
+
+    @Schema(description = "离体时间", type = "string", format = "date-time")
+    private LocalDateTime specimenRemovalTime;
+
+    @Schema(description = "申请单随附状态")
+    @Size(max = 32, message = "Application form status must not exceed 32 characters")
+    private String applicationFormStatus;
 
     @Schema(description = "备注")
     @Size(max = 500, message = "Remarks must not exceed 500 characters")

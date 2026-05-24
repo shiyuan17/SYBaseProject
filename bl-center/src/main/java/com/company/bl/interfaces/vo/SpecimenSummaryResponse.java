@@ -16,8 +16,16 @@ public record SpecimenSummaryResponse(
     String specimenType,
     @Schema(description = "标本部位")
     String specimenSite,
+    @Schema(description = "Collection mode")
+    String collectionMode,
+    @Schema(description = "Clinical symptom")
+    String clinicalSymptom,
     @Schema(description = "标本数量")
     Integer specimenCount,
+    @Schema(description = "容器名称")
+    String containerName,
+    @Schema(description = "容器数量")
+    Integer containerCount,
     @Schema(description = "标本状态")
     String specimenStatus,
     @Schema(description = "固定状态")

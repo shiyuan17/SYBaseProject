@@ -77,7 +77,8 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
                 {
                   "specimenBarcode": "%s",
                   "receiptStatus": "RECEIVED",
-                  "containerCount": 1
+                  "containerCount": 1,
+                  "qualityCheckResult": "PASSED"
                 }
               ]
             }
@@ -91,7 +92,8 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
                 {
                   "specimenBarcode": "%s",
                   "receiptStatus": "RECEIVED",
-                  "containerCount": 1
+                  "containerCount": 1,
+                  "qualityCheckResult": "PASSED"
                 }
               ]
             }
@@ -169,7 +171,8 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
                 {
                   "specimenBarcode": "%s",
                   "receiptStatus": "RECEIVED",
-                  "containerCount": 1
+                  "containerCount": 1,
+                  "qualityCheckResult": "PASSED"
                 }
               ]
             }
@@ -206,12 +209,15 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
                 {
                   "specimenBarcode": "%s",
                   "receiptStatus": "RECEIVED",
-                  "containerCount": 1
+                  "containerCount": 1,
+                  "qualityCheckResult": "PASSED"
                 },
                 {
                   "specimenBarcode": "%s",
                   "receiptStatus": "REJECTED",
                   "containerCount": 1,
+                  "qualityCheckResult": "FAILED",
+                  "qualityIssueCodes": ["PARTIAL_REJECT"],
                   "reason": "partial-reject"
                 }
               ]
@@ -247,6 +253,8 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
                   "specimenBarcode": "%s",
                   "receiptStatus": "REJECTED",
                   "containerCount": 1,
+                  "qualityCheckResult": "FAILED",
+                  "qualityIssueCodes": ["FULL_REJECT"],
                   "reason": "fully-rejected"
                 }
               ]

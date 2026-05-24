@@ -7,6 +7,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.LocalDate;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -34,6 +36,8 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
                   "specimenType": "ROUTINE",
                   "specimenSite": "Lung",
                   "collectionMode": "BIOPSY",
+                  "containerName": "Specimen Bottle",
+                  "containerCount": 1,
                   "specimenCount": 1,
                   "barcode": "BC-COLLECT-001"
                 }
@@ -100,7 +104,123 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
             .andExpect(jsonPath("$.data.successCount").value(0))
             .andExpect(jsonPath("$.data.failedCount").value(0))
             .andExpect(jsonPath("$.data.allSuccessful").value(true))
-            .andExpect(jsonPath("$.data.message").value("No failed labels found for retry"));
+            .andExpect(jsonPath("$.data.message").value("No pending or failed labels found for retry"));
+    }
+
+    @Test
+    void shouldRetryPendingLabelsAndListSpecimensForManagement() throws Exception {
+        String applicationIdPrinted = createApplication("APP-M2-MGMT-001", "DEPT-MGMT", "Specimen Department");
+        String applicationIdPending = createApplication("APP-M2-MGMT-002", "DEPT-MGMT", "Specimen Department");
+        String applicationIdAbnormal = createApplication("APP-M2-MGMT-003", "DEPT-MGMT", "Specimen Department");
+
+        registerSpecimens(
+            applicationIdPrinted,
+            USER_REGISTER,
+            "P-01",
+            "/api/v1/specimens/register",
+            "BC-M2-MGMT-001");
+        JsonNode pendingRegistration = registerSpecimens(
+            applicationIdPending,
+            USER_REGISTER,
+            "P-01",
+            "/api/v1/specimens/register",
+            "BC-M2-MGMT-002");
+        JsonNode abnormalRegistration = registerSpecimens(
+            applicationIdAbnormal,
+            USER_REGISTER,
+            "FAIL",
+            "/api/v1/specimens/register",
+            "BC-M2-MGMT-003");
+
+        String pendingBatchNo = pendingRegistration.path("labelPrintBatchNo").asText();
+        String abnormalBatchNo = abnormalRegistration.path("labelPrintBatchNo").asText();
+
+        jdbcTemplate.update(
+            """
+                update specimens
+                set label_print_status = 'PENDING'
+                where barcode = :barcode
+                """,
+            java.util.Map.of("barcode", "BC-M2-MGMT-002"));
+
+        mockMvc.perform(authorized(post("/api/v1/specimens/label-batches/{batchNo}/retry", pendingBatchNo), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "operatorName": "register-user",
+                      "printerCode": "P-02",
+                      "terminalCode": "WARD-PENDING-01"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.labelPrintBatchNo").value(pendingBatchNo))
+            .andExpect(jsonPath("$.data.retriedCount").value(1))
+            .andExpect(jsonPath("$.data.successCount").value(1))
+            .andExpect(jsonPath("$.data.failedCount").value(0))
+            .andExpect(jsonPath("$.data.allSuccessful").value(true));
+
+        jdbcTemplate.update(
+            """
+                update specimens
+                set label_print_status = 'PENDING'
+                where barcode = :barcode
+                """,
+            java.util.Map.of("barcode", "BC-M2-MGMT-002"));
+
+        String today = LocalDate.now().toString();
+        String tomorrow = LocalDate.now().plusDays(1).toString();
+
+        mockMvc.perform(authorized(get("/api/v1/specimens"), USER_REGISTER)
+                .param("page", "1")
+                .param("size", "20")
+                .param("keyword", "M2-MGMT")
+                .param("departmentId", "DEPT-MGMT")
+                .param("specimenStatus", "REGISTERED")
+                .param("dateFrom", today)
+                .param("dateTo", tomorrow))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(3))
+            .andExpect(jsonPath("$.data.summary.totalCount").value(3))
+            .andExpect(jsonPath("$.data.summary.labelPrintedCount").value(1))
+            .andExpect(jsonPath("$.data.summary.pendingLabelCount").value(2))
+            .andExpect(jsonPath("$.data.summary.abnormalCount").value(0))
+            .andExpect(jsonPath("$.data.items[0].specimenId").isNotEmpty())
+            .andExpect(jsonPath("$.data.items[0].applicationNo").value(org.hamcrest.Matchers.containsString("APP-M2-MGMT")))
+            .andExpect(jsonPath("$.data.items[0].submittingDepartmentName").value("Specimen Department"));
+
+        mockMvc.perform(authorized(get("/api/v1/specimens"), USER_REGISTER)
+                .param("page", "1")
+                .param("size", "20")
+                .param("keyword", "M2-MGMT-003")
+                .param("labelPrintStatus", "FAILED"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].labelPrintBatchNo").value(abnormalBatchNo))
+            .andExpect(jsonPath("$.data.items[0].labelPrintStatus").value("FAILED"));
+
+        jdbcTemplate.update(
+            """
+                update specimens
+                set specimen_status = 'REJECTED',
+                    unqualified_reason = 'broken-container'
+                where barcode = :barcode
+                """,
+            java.util.Map.of("barcode", "BC-M2-MGMT-003"));
+
+        mockMvc.perform(authorized(get("/api/v1/specimens"), USER_REGISTER)
+                .param("page", "1")
+                .param("size", "20")
+                .param("keyword", "M2-MGMT-003")
+                .param("abnormalFlag", "true"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.summary.totalCount").value(1))
+            .andExpect(jsonPath("$.data.summary.labelPrintedCount").value(0))
+            .andExpect(jsonPath("$.data.summary.pendingLabelCount").value(1))
+            .andExpect(jsonPath("$.data.summary.abnormalCount").value(1))
+            .andExpect(jsonPath("$.data.items[0].barcode").value("BC-M2-MGMT-003"))
+            .andExpect(jsonPath("$.data.items[0].abnormalFlag").value(true))
+            .andExpect(jsonPath("$.data.items[0].labelPrintBatchNo").value(abnormalBatchNo));
     }
 
     @Test
@@ -164,6 +284,8 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
                   "specimenType": "ROUTINE",
                   "specimenSite": "Lung",
                   "collectionMode": "BIOPSY",
+                  "containerName": "Specimen Bottle",
+                  "containerCount": 1,
                   "specimenCount": 1,
                   "barcode": "BC-COLLECT-OPERATOR-001"
                 }

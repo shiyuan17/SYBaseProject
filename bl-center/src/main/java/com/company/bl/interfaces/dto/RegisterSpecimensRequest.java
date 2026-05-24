@@ -2,6 +2,7 @@ package com.company.bl.interfaces.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -64,7 +65,8 @@ public class RegisterSpecimensRequest {
         @Size(max = 100)
         private String specimenType;
 
-        @Schema(description = "标本部位")
+        @Schema(description = "标本部位", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotBlank
         @Size(max = 200)
         private String specimenSite;
 
@@ -74,7 +76,18 @@ public class RegisterSpecimensRequest {
 
         @Schema(description = "标本数量", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotNull
+        @Min(1)
         private Integer specimenCount;
+
+        @Schema(description = "容器名称", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotBlank
+        @Size(max = 200)
+        private String containerName;
+
+        @Schema(description = "容器数量", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotNull
+        @Min(1)
+        private Integer containerCount;
 
         @Schema(description = "标本条码")
         @Size(max = 128)

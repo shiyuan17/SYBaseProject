@@ -37,6 +37,8 @@ public class ApplicationRepresentationAssembler {
             request.getSpecimenSite(),
             request.getApplicationDate(),
             request.getSubmissionDate(),
+            request.getSpecimenRemovalTime(),
+            request.getApplicationFormStatus(),
             request.getRemarks());
     }
 
@@ -68,6 +70,7 @@ public class ApplicationRepresentationAssembler {
             application.getSpecimenSite(),
             stringify(application.getApplicationDate()),
             stringify(application.getSubmissionDate()),
+            stringify(application.getSpecimenRemovalTime()),
             application.getStatus().name(),
             false,
             List.<SpecimenSummaryResponse>of(),

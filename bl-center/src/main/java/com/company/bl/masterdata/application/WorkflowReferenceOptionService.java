@@ -14,6 +14,7 @@ public class WorkflowReferenceOptionService {
     static final String CATEGORY_COLLECTION_MODE = "COLLECTION_MODE";
     static final String CATEGORY_CLINICAL_SYMPTOM = "CLINICAL_SYMPTOM";
     static final String CATEGORY_FIXATION_LIQUID_TYPE = "FIXATION_LIQUID_TYPE";
+    static final String CATEGORY_CONTAINER_NAME = "CONTAINER_NAME";
 
     private final SystemConfigService systemConfigService;
 
@@ -29,7 +30,8 @@ public class WorkflowReferenceOptionService {
             extractOptions(categoriesByCode.get(CATEGORY_SPECIMEN_TYPE)),
             extractOptions(categoriesByCode.get(CATEGORY_COLLECTION_MODE)),
             extractOptions(categoriesByCode.get(CATEGORY_CLINICAL_SYMPTOM)),
-            extractOptions(categoriesByCode.get(CATEGORY_FIXATION_LIQUID_TYPE))
+            extractOptions(categoriesByCode.get(CATEGORY_FIXATION_LIQUID_TYPE)),
+            extractOptions(categoriesByCode.get(CATEGORY_CONTAINER_NAME))
         );
     }
 
@@ -78,7 +80,8 @@ public class WorkflowReferenceOptionService {
         List<WorkflowReferenceOption> specimenTypes,
         List<WorkflowReferenceOption> collectionModes,
         List<WorkflowReferenceOption> clinicalSymptoms,
-        List<WorkflowReferenceOption> fixationLiquidTypes
+        List<WorkflowReferenceOption> fixationLiquidTypes,
+        List<WorkflowReferenceOption> containerNames
     ) {
     }
 }

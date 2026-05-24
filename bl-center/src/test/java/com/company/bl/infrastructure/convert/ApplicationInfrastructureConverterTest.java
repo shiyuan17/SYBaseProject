@@ -42,6 +42,7 @@ class ApplicationInfrastructureConverterTest {
             "Lung",
             LocalDate.of(2026, 5, 18),
             LocalDate.of(2026, 5, 19),
+            LocalDateTime.of(2026, 5, 18, 9, 15, 0),
             "Remark",
             now,
             now);
@@ -56,6 +57,7 @@ class ApplicationInfrastructureConverterTest {
         assertThat(restored.getApplicationFormStatus()).isEqualTo(ApplicationFormStatus.UPLOADED);
         assertThat(restored.getSubmittingDoctorName()).isEqualTo("Doctor One");
         assertThat(restored.getApplicationDate()).isEqualTo(LocalDate.of(2026, 5, 18));
+        assertThat(restored.getSpecimenRemovalTime()).isEqualTo(LocalDateTime.of(2026, 5, 18, 9, 15, 0));
         assertThat(restored.getCreatedAt()).isEqualTo(now);
     }
 }

@@ -2,7 +2,7 @@ package com.company.bl.interfaces.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(name = "PendingSpecimenItemResponse", description = "待接收标本条目")
+@Schema(name = "PendingSpecimenItemResponse", description = "待处理标本条目")
 public record PendingSpecimenItemResponse(
     @Schema(description = "申请单 ID")
     String applicationId,
@@ -22,6 +22,10 @@ public record PendingSpecimenItemResponse(
     String specimenNo,
     @Schema(description = "标本条码")
     String barcode,
+    @Schema(description = "容器名称")
+    String containerName,
+    @Schema(description = "容器数量")
+    Integer containerCount,
     @Schema(description = "标本状态")
     String specimenStatus,
     @Schema(description = "固定状态")

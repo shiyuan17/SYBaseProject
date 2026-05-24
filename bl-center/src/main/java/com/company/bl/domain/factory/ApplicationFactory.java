@@ -31,6 +31,8 @@ public class ApplicationFactory {
                               String specimenSite,
                               LocalDate applicationDate,
                               LocalDate submissionDate,
+                              LocalDateTime specimenRemovalTime,
+                              ApplicationFormStatus applicationFormStatus,
                               String remarks) {
         LocalDateTime now = LocalDateTime.now();
         return new Application(
@@ -42,7 +44,7 @@ public class ApplicationFactory {
             patientAge,
             applicationType,
             status,
-            ApplicationFormStatus.NOT_UPLOADED,
+            applicationFormStatus == null ? ApplicationFormStatus.NOT_UPLOADED : applicationFormStatus,
             externalOrderNo,
             thirdPartySource,
             sourceHospitalId,
@@ -56,6 +58,7 @@ public class ApplicationFactory {
             specimenSite,
             applicationDate,
             submissionDate,
+            specimenRemovalTime,
             remarks,
             now,
             now);

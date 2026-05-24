@@ -54,12 +54,14 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
                 {
                   "specimenBarcode": "%s",
                   "receiptStatus": "RECEIVED",
-                  "containerCount": 1
+                  "containerCount": 1,
+                  "qualityCheckResult": "PASSED"
                 },
                 {
                   "specimenBarcode": "%s",
                   "receiptStatus": "RECEIVED",
-                  "containerCount": 1
+                  "containerCount": 1,
+                  "qualityCheckResult": "PASSED"
                 }
               ]
             }
@@ -99,7 +101,8 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
                 {
                   "specimenBarcode": "%s",
                   "receiptStatus": "RECEIVED",
-                  "containerCount": 1
+                  "containerCount": 1,
+                  "qualityCheckResult": "PASSED"
                 }
               ]
             }
@@ -116,7 +119,7 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
     }
 
     @Test
-    void shouldExposePendingFixationAndReceiptLists() throws Exception {
+    void shouldExposeFixationProcessingAndReceiptLists() throws Exception {
         String applicationId = createApplication("APP-M2-PENDING-001");
         JsonNode registration = registerSpecimens(applicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-PENDING-001");
         String barcode = registration.path("specimens").get(0).path("barcode").asText();
@@ -124,7 +127,8 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
         mockMvc.perform(authorized(get("/api/v1/specimen-fixations/pending"), USER_FIXATION)
                 .param("page", "1")
                 .param("size", "20")
-                .param("applicationId", applicationId))
+                .param("applicationId", applicationId)
+                .param("fixationStatus", "PENDING"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.total").value(1))
             .andExpect(jsonPath("$.data.items[0].barcode").value(barcode));
@@ -136,9 +140,29 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
                 .param("size", "20")
                 .param("applicationId", applicationId))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.total").value(0));
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].barcode").value(barcode))
+            .andExpect(jsonPath("$.data.items[0].fixationStatus").value("COMPLETED"))
+            .andExpect(jsonPath("$.data.items[0].specimenStatus").value("FIXED"));
+
+        mockMvc.perform(authorized(get("/api/v1/specimen-fixations/pending"), USER_FIXATION)
+                .param("page", "1")
+                .param("size", "20")
+                .param("applicationId", applicationId)
+                .param("fixationStatus", "COMPLETED"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].barcode").value(barcode));
 
         String transportOrderId = createTransportOrder(applicationId, barcode).path("id").asText();
+
+        mockMvc.perform(authorized(get("/api/v1/specimen-fixations/pending"), USER_FIXATION)
+                .param("page", "1")
+                .param("size", "20")
+                .param("applicationId", applicationId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(0));
+
         mockMvc.perform(authorized(get("/api/v1/transport-orders/pending"), USER_TRANSPORT)
                 .param("page", "1")
                 .param("size", "20")
@@ -147,6 +171,13 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
             .andExpect(jsonPath("$.data.total").value(1))
             .andExpect(jsonPath("$.data.items[0].transportOrderNo").isNotEmpty())
             .andExpect(jsonPath("$.data.items[0].specimenBarcodes[0]").value(barcode));
+
+        mockMvc.perform(authorized(get("/api/v1/specimen-receipts/pending"), USER_RECEIVE)
+                .param("page", "1")
+                .param("size", "20")
+                .param("applicationId", applicationId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(0));
 
         postJson("/api/v1/transport-orders/%s/handover".formatted(transportOrderId), USER_TRANSPORT, """
             {
@@ -173,7 +204,8 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
                 {
                   "specimenBarcode": "%s",
                   "receiptStatus": "RECEIVED",
-                  "containerCount": 1
+                  "containerCount": 1,
+                  "qualityCheckResult": "PASSED"
                 }
               ]
             }
@@ -214,12 +246,15 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
                 {
                   "specimenBarcode": "%s",
                   "receiptStatus": "RECEIVED",
-                  "containerCount": 1
+                  "containerCount": 1,
+                  "qualityCheckResult": "PASSED"
                 },
                 {
                   "specimenBarcode": "%s",
                   "receiptStatus": "REJECTED",
                   "containerCount": 1,
+                  "qualityCheckResult": "FAILED",
+                  "qualityIssueCodes": ["CONTAINER_DAMAGE"],
                   "reason": "broken-container"
                 }
               ]
@@ -233,5 +268,84 @@ class SpecimenWorkflowHappyPathIntegrationTest extends AbstractSpecimenWorkflowI
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("PARTIALLY_RECEIVED"))
             .andExpect(jsonPath("$.data.abnormalFlag").value(true));
+    }
+
+    @Test
+    void shouldAllowContinuingReceiptWhenTransportOrderIsPartiallyReceived() throws Exception {
+        String applicationId = createApplication("APP-M2-PARTIAL-ORDER-001");
+        JsonNode registration = registerSpecimens(
+            applicationId,
+            USER_REGISTER,
+            "P-01",
+            "/api/v1/specimens/register",
+            "BC-PARTIAL-ORDER-001",
+            "BC-PARTIAL-ORDER-002");
+        String barcode1 = registration.path("specimens").get(0).path("barcode").asText();
+        String barcode2 = registration.path("specimens").get(1).path("barcode").asText();
+
+        completeFixation(barcode1);
+        completeFixation(barcode2);
+
+        String transportOrderId = createTransportOrder(applicationId, barcode1, barcode2).path("id").asText();
+        postJson("/api/v1/transport-orders/%s/handover".formatted(transportOrderId), USER_TRANSPORT, """
+            {
+              "receiverUserName": "receiver-partial-order",
+              "terminalCode": "T-PARTIAL-ORDER"
+            }
+            """)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("HANDED_OVER"));
+
+        postJson("/api/v1/specimen-receipts", USER_RECEIVE, """
+            {
+              "transportOrderId": "%s",
+              "receivedByName": "receiver-partial-order",
+              "terminalCode": "T-PARTIAL-ORDER",
+              "items": [
+                {
+                  "specimenBarcode": "%s",
+                  "receiptStatus": "RECEIVED",
+                  "containerCount": 1,
+                  "qualityCheckResult": "PASSED"
+                }
+              ]
+            }
+            """.formatted(transportOrderId, barcode1))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.receiptStatus").value("PARTIALLY_RECEIVED"))
+            .andExpect(jsonPath("$.data.unreceivedCount").value(1));
+
+        postJson("/api/v1/specimen-receipts", USER_RECEIVE, """
+            {
+              "transportOrderId": "%s",
+              "receivedByName": "receiver-partial-order",
+              "terminalCode": "T-PARTIAL-ORDER",
+              "items": [
+                {
+                  "specimenBarcode": "%s",
+                  "receiptStatus": "RETURNED",
+                  "containerCount": 1,
+                  "qualityCheckResult": "FAILED",
+                  "qualityIssueCodes": ["PARTIAL_REJECT"],
+                  "reason": "return-after-partial"
+                }
+              ]
+            }
+            """.formatted(transportOrderId, barcode2))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.receiptStatus").value("PARTIALLY_RECEIVED"))
+            .andExpect(jsonPath("$.data.unreceivedCount").value(1));
+
+        mockMvc.perform(authorized(get("/api/v1/applications/{id}/tracking", applicationId), USER_TRACKING))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("PARTIALLY_RECEIVED"))
+            .andExpect(jsonPath("$.data.abnormalFlag").value(true));
+
+        mockMvc.perform(authorized(get("/api/v1/transport-orders/pending"), USER_TRANSPORT)
+                .param("page", "1")
+                .param("size", "20")
+                .param("applicationId", applicationId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(0));
     }
 }

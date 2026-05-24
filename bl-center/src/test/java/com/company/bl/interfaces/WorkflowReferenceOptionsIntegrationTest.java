@@ -21,7 +21,8 @@ class WorkflowReferenceOptionsIntegrationTest extends AbstractTechnicalWorkflowI
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.specimenTypes.length()", greaterThanOrEqualTo(1)))
             .andExpect(jsonPath("$.data.collectionModes.length()", greaterThanOrEqualTo(1)))
-            .andExpect(jsonPath("$.data.fixationLiquidTypes.length()", greaterThanOrEqualTo(1)));
+            .andExpect(jsonPath("$.data.fixationLiquidTypes.length()", greaterThanOrEqualTo(1)))
+            .andExpect(jsonPath("$.data.containerNames.length()", greaterThanOrEqualTo(1)));
 
         mockMvc.perform(authorized(get("/api/v1/workflow-reference-options"), USER_FIXATION))
             .andExpect(status().isOk())
@@ -50,7 +51,8 @@ class WorkflowReferenceOptionsIntegrationTest extends AbstractTechnicalWorkflowI
                 'SPECIMEN_TYPE',
                 'COLLECTION_MODE',
                 'CLINICAL_SYMPTOM',
-                'FIXATION_LIQUID_TYPE'
+                'FIXATION_LIQUID_TYPE',
+                'CONTAINER_NAME'
             )
             """, java.util.Map.of(), Integer.class);
         Integer itemCount = namedParameterJdbcTemplate.queryForObject("""
@@ -59,7 +61,7 @@ class WorkflowReferenceOptionsIntegrationTest extends AbstractTechnicalWorkflowI
             where config_key like 'WORKFLOW_REFERENCE.%'
             """, java.util.Map.of(), Integer.class);
 
-        org.junit.jupiter.api.Assertions.assertEquals(5, categoryCount);
+        org.junit.jupiter.api.Assertions.assertEquals(6, categoryCount);
         org.junit.jupiter.api.Assertions.assertNotNull(itemCount);
         org.junit.jupiter.api.Assertions.assertTrue(itemCount >= 8);
 

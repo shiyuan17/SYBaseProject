@@ -1102,6 +1102,8 @@ CREATE TABLE specimen_receipts (
     transport_order_id VARCHAR2(64),
     receipt_status VARCHAR2(32) NOT NULL,
     container_count NUMBER(10),
+    quality_check_result VARCHAR2(32),
+    quality_issue_codes VARCHAR2(500),
     barcode VARCHAR2(128),
     received_by_user_id VARCHAR2(64),
     received_by_name VARCHAR2(100),

@@ -53,6 +53,8 @@ final class JdbcTechnicalWorkflowRowMappers {
             rs.getString("specimen_site"),
             rs.getString("collection_mode"),
             rs.getObject("specimen_count") == null ? null : rs.getInt("specimen_count"),
+            JdbcResultSetUtils.getNullableString(rs, "container_name"),
+            JdbcResultSetUtils.getNullableInteger(rs, "container_count"),
             SpecimenStatus.from(rs.getString("specimen_status")),
             FixationStatus.from(rs.getString("fixation_status")),
             rs.getInt("qualified_flag") != 0,

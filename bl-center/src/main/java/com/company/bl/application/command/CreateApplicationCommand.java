@@ -1,6 +1,7 @@
 package com.company.bl.application.command;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public record CreateApplicationCommand(
     String applicationNo,
@@ -23,6 +24,8 @@ public record CreateApplicationCommand(
     String specimenSite,
     LocalDate applicationDate,
     LocalDate submissionDate,
+    LocalDateTime specimenRemovalTime,
+    String applicationFormStatus,
     String remarks
 ) {
 }

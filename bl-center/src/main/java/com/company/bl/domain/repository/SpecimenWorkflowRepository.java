@@ -44,6 +44,8 @@ public interface SpecimenWorkflowRepository {
 
     List<Specimen> findSpecimensByLabelPrintBatchNoAndStatus(String labelPrintBatchNo, String labelPrintStatus);
 
+    List<Specimen> findSpecimensByLabelPrintBatchNoAndStatuses(String labelPrintBatchNo, List<String> labelPrintStatuses);
+
     void insertCollectionRecord(String applicationId,
                                 String specimenId,
                                 String collectionStatus,
@@ -103,6 +105,8 @@ public interface SpecimenWorkflowRepository {
                                String transportOrderId,
                                ReceiptStatus receiptStatus,
                                Integer containerCount,
+                               String qualityCheckResult,
+                               String qualityIssueCodes,
                                String barcode,
                                String receivedByUserId,
                                String receivedByName,
@@ -124,6 +128,10 @@ public interface SpecimenWorkflowRepository {
 
     PagedApplications findApplications(ApplicationListQuery query);
 
+    List<DuplicateApplicationRow> findDuplicateApplications(DuplicateApplicationQuery query);
+
+    PagedSpecimenManagementItems findSpecimenManagementItems(SpecimenManagementListQuery query);
+
     ApplicationTracking getApplicationTracking(String applicationId, com.company.bl.domain.model.Application application);
 
     record PendingSpecimenQuery(
@@ -131,6 +139,7 @@ public interface SpecimenWorkflowRepository {
         int size,
         String applicationId,
         String departmentId,
+        String fixationStatus,
         LocalDateTime dateFrom,
         LocalDateTime dateTo
     ) {
@@ -146,6 +155,8 @@ public interface SpecimenWorkflowRepository {
         String specimenId,
         String specimenNo,
         String barcode,
+        String containerName,
+        Integer containerCount,
         String specimenStatus,
         String fixationStatus,
         LocalDateTime registeredAt,
@@ -221,5 +232,82 @@ public interface SpecimenWorkflowRepository {
     }
 
     record PagedApplications(List<ApplicationListRow> items, long total) {
+    }
+
+    record DuplicateApplicationQuery(
+        String patientId,
+        String patientName,
+        String externalOrderNo,
+        java.time.LocalDate applicationDate,
+        String applicationType,
+        String specimenSite
+    ) {
+    }
+
+    record DuplicateApplicationRow(
+        String id,
+        String applicationNo,
+        String patientName,
+        String specimenSite,
+        String status,
+        String currentNode,
+        java.time.LocalDate applicationDate,
+        boolean externalOrderMatched,
+        boolean sameDaySiteMatched
+    ) {
+    }
+
+    record SpecimenManagementListQuery(
+        int page,
+        int size,
+        String keyword,
+        String applicationNo,
+        String departmentId,
+        String specimenStatus,
+        String labelPrintStatus,
+        Boolean abnormalFlag,
+        LocalDateTime dateFrom,
+        LocalDateTime dateTo
+    ) {
+    }
+
+    record SpecimenManagementListRow(
+        String specimenId,
+        String specimenNo,
+        String barcode,
+        String applicationId,
+        String applicationNo,
+        String patientName,
+        String submittingDepartmentId,
+        String submittingDepartmentName,
+        String specimenName,
+        String specimenType,
+        String specimenSite,
+        Integer specimenCount,
+        String containerName,
+        Integer containerCount,
+        String specimenStatus,
+        String fixationStatus,
+        String labelPrintStatus,
+        String labelPrintBatchNo,
+        LocalDateTime registeredAt,
+        LocalDateTime latestTrackingAt,
+        boolean abnormalFlag
+    ) {
+    }
+
+    record SpecimenManagementSummary(
+        long totalCount,
+        long labelPrintedCount,
+        long pendingLabelCount,
+        long abnormalCount
+    ) {
+    }
+
+    record PagedSpecimenManagementItems(
+        List<SpecimenManagementListRow> items,
+        long total,
+        SpecimenManagementSummary summary
+    ) {
     }
 }

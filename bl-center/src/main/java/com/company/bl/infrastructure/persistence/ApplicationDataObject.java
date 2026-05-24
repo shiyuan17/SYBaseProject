@@ -81,6 +81,9 @@ public class ApplicationDataObject {
     @TableField("submission_date")
     private LocalDate submissionDate;
 
+    @TableField("specimen_removal_time")
+    private LocalDateTime specimenRemovalTime;
+
     @TableField("remarks")
     private String remarks;
 

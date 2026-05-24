@@ -8,10 +8,13 @@ import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.RegisterSpecimensRequest;
 import com.company.bl.interfaces.dto.RetryLabelPrintRequest;
-import com.company.bl.interfaces.vo.ApplicationListItemResponse;
 import com.company.bl.interfaces.vo.ApplicationDetailResponse;
+import com.company.bl.interfaces.vo.ApplicationListItemResponse;
 import com.company.bl.interfaces.vo.LabelPrintRetryResponse;
 import com.company.bl.interfaces.vo.LatestSpecimenRegistrationResponse;
+import com.company.bl.interfaces.vo.SpecimenManagementItemResponse;
+import com.company.bl.interfaces.vo.SpecimenManagementPageResponse;
+import com.company.bl.interfaces.vo.SpecimenManagementSummaryResponse;
 import com.company.bl.interfaces.vo.SpecimenRegistrationResponse;
 import com.company.bl.interfaces.vo.SpecimenSummaryResponse;
 import com.company.bl.interfaces.vo.TrackingEventResponse;
@@ -32,18 +35,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/v1/specimens")
 @RequiredArgsConstructor
-@Tag(name = "临床送检", description = "标本登记、标签补打与按条码追踪接口")
+@Tag(name = "Clinical Specimen Workflow", description = "Specimen registration, management, label retry and tracking APIs")
 public class SpecimenController {
 
     private final SpecimenWorkflowAppService specimenWorkflowAppService;
 
-    @Operation(summary = "登记标本", description = "登记申请单下的标本并尝试打印标签。")
-    @ApiResponses(@ApiResponse(responseCode = "201", description = "登记成功", useReturnTypeSchema = true))
+    @Operation(summary = "Register specimens", description = "Register specimens under an application and attempt label printing.")
+    @ApiResponses(@ApiResponse(responseCode = "201", description = "Registration succeeded", useReturnTypeSchema = true))
     @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
     @PostMapping("/register")
     public ResponseEntity<SpecimenRegistrationResponse> register(@Valid @RequestBody RegisterSpecimensRequest request,
@@ -63,6 +64,8 @@ public class SpecimenController {
                     item.getSpecimenSite(),
                     item.getCollectionMode(),
                     item.getSpecimenCount(),
+                    item.getContainerName(),
+                    item.getContainerCount(),
                     item.getBarcode(),
                     item.getClinicalSymptom()))
                     .toList()));
@@ -73,12 +76,14 @@ public class SpecimenController {
             result.specimens().stream().map(this::toSpecimenSummary).toList()));
     }
 
-    @Operation(summary = "重试打印标本标签", description = "对指定标签批次重新发起标签打印。")
+    @Operation(summary = "Retry label printing", description = "Retry printing for a label batch.")
     @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
     @PostMapping("/label-batches/{batchNo}/retry")
-    public LabelPrintRetryResponse retryLabelPrint(@Parameter(description = "标签打印批次号") @PathVariable("batchNo") String batchNo,
-                                                   @Valid @RequestBody RetryLabelPrintRequest request,
-                                                   HttpServletRequest httpServletRequest) {
+    public LabelPrintRetryResponse retryLabelPrint(
+        @Parameter(description = "Label print batch number") @PathVariable("batchNo") String batchNo,
+        @Valid @RequestBody RetryLabelPrintRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
         SpecimenWorkflowAppService.LabelPrintRetryResult result = specimenWorkflowAppService.retryLabelPrint(
             new SpecimenWorkflowAppService.RetryLabelPrintCommand(
                 batchNo,
@@ -96,20 +101,60 @@ public class SpecimenController {
             result.message());
     }
 
-    @Operation(summary = "按申请单号查询登记上下文", description = "用于标本登记场景下按申请单号解析登记上下文。")
+    @Operation(summary = "List specimen management items", description = "Query the specimen management workbench with filters and summary statistics.")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
+    @GetMapping
+    public SpecimenManagementPageResponse listSpecimens(
+        @RequestParam(value = "page", defaultValue = "1") int page,
+        @RequestParam(value = "size", defaultValue = "20") int size,
+        @RequestParam(value = "keyword", required = false) String keyword,
+        @RequestParam(value = "applicationNo", required = false) String applicationNo,
+        @RequestParam(value = "departmentId", required = false) String departmentId,
+        @RequestParam(value = "specimenStatus", required = false) String specimenStatus,
+        @RequestParam(value = "labelPrintStatus", required = false) String labelPrintStatus,
+        @RequestParam(value = "abnormalFlag", required = false) Boolean abnormalFlag,
+        @RequestParam(value = "dateFrom", required = false) String dateFrom,
+        @RequestParam(value = "dateTo", required = false) String dateTo
+    ) {
+        SpecimenWorkflowAppService.SpecimenManagementListPage result =
+            specimenWorkflowAppService.listSpecimenManagementItems(
+                new SpecimenWorkflowAppService.SpecimenManagementListQuery(
+                    page,
+                    size,
+                    keyword,
+                    applicationNo,
+                    departmentId,
+                    specimenStatus,
+                    labelPrintStatus,
+                    abnormalFlag,
+                    dateFrom,
+                    dateTo));
+        return new SpecimenManagementPageResponse(
+            result.items().stream().map(this::toSpecimenManagementItem).toList(),
+            result.page(),
+            result.size(),
+            result.total(),
+            new SpecimenManagementSummaryResponse(
+                result.summary().totalCount(),
+                result.summary().labelPrintedCount(),
+                result.summary().pendingLabelCount(),
+                result.summary().abnormalCount()));
+    }
+
+    @Operation(summary = "Lookup application for registration", description = "Resolve registration context by application number.")
     @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
     @GetMapping("/applications/lookup")
     public ApplicationListItemResponse lookupRegistrationApplication(
-        @Parameter(description = "申请单号") @RequestParam("applicationNo") String applicationNo
+        @Parameter(description = "Application number") @RequestParam("applicationNo") String applicationNo
     ) {
         return toApplicationListItem(specimenWorkflowAppService.getRegistrationApplicationByApplicationNo(applicationNo));
     }
 
-    @Operation(summary = "查询最近一次标本登记结果", description = "按申请单 ID 查询最近一次标本登记及标签打印结果。")
+    @Operation(summary = "Get latest registration result", description = "Query the latest specimen registration result by application id.")
     @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
     @GetMapping("/applications/{applicationId}/latest-registration")
     public LatestSpecimenRegistrationResponse getLatestRegistration(
-        @Parameter(description = "申请单 ID") @PathVariable("applicationId") String applicationId
+        @Parameter(description = "Application id") @PathVariable("applicationId") String applicationId
     ) {
         SpecimenWorkflowAppService.SpecimenRegistrationResult result =
             specimenWorkflowAppService.getLatestRegistrationResult(applicationId);
@@ -121,10 +166,12 @@ public class SpecimenController {
             result.specimens().stream().map(this::toSpecimenSummary).toList());
     }
 
-    @Operation(summary = "按条码查询标本追踪", description = "根据标本条码查询所属申请单及完整追踪信息。")
+    @Operation(summary = "Get tracking by barcode", description = "Query application tracking data by specimen barcode.")
     @RequirePermission(M2PermissionCodes.SPECIMEN_TRACKING_QUERY)
     @GetMapping("/barcodes/{barcode}/tracking")
-    public ApplicationDetailResponse getTrackingByBarcode(@Parameter(description = "标本条码") @PathVariable("barcode") String barcode) {
+    public ApplicationDetailResponse getTrackingByBarcode(
+        @Parameter(description = "Specimen barcode") @PathVariable("barcode") String barcode
+    ) {
         return toApplicationDetail(specimenWorkflowAppService.getTrackingByBarcode(barcode));
     }
 
@@ -152,6 +199,7 @@ public class SpecimenController {
             tracking.application().getSpecimenSite(),
             stringify(tracking.application().getApplicationDate()),
             stringify(tracking.application().getSubmissionDate()),
+            stringify(tracking.application().getSpecimenRemovalTime()),
             tracking.currentNode(),
             tracking.abnormal(),
             tracking.specimens().stream().map(this::toSpecimenSummary).toList(),
@@ -177,10 +225,41 @@ public class SpecimenController {
             specimen.specimenNameStandardized(),
             specimen.specimenType(),
             specimen.specimenSite(),
+            specimen.collectionMode(),
+            specimen.clinicalSymptom(),
             specimen.specimenCount(),
+            specimen.containerName(),
+            specimen.containerCount(),
             specimen.specimenStatus().name(),
             specimen.fixationStatus().name(),
             specimen.labelPrintStatus());
+    }
+
+    private SpecimenManagementItemResponse toSpecimenManagementItem(
+        SpecimenWorkflowAppService.SpecimenManagementListItem item
+    ) {
+        return new SpecimenManagementItemResponse(
+            item.specimenId(),
+            item.specimenNo(),
+            item.barcode(),
+            item.applicationId(),
+            item.applicationNo(),
+            item.patientName(),
+            item.submittingDepartmentId(),
+            item.submittingDepartmentName(),
+            item.specimenName(),
+            item.specimenType(),
+            item.specimenSite(),
+            item.specimenCount(),
+            item.containerName(),
+            item.containerCount(),
+            item.specimenStatus(),
+            item.fixationStatus(),
+            item.labelPrintStatus(),
+            item.labelPrintBatchNo(),
+            stringify(item.registeredAt()),
+            stringify(item.latestTrackingAt()),
+            item.abnormalFlag());
     }
 
     private ApplicationListItemResponse toApplicationListItem(

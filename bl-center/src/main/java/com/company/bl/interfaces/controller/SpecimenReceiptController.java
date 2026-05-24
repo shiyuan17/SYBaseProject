@@ -46,6 +46,8 @@ public class SpecimenReceiptController {
                     item.getSpecimenBarcode(),
                     ReceiptStatus.from(item.getReceiptStatus()),
                     item.getContainerCount(),
+                    item.getQualityCheckResult(),
+                    item.getQualityIssueCodes(),
                     item.getReason(),
                     item.getRemarks()))
                     .toList()));
@@ -66,6 +68,8 @@ public class SpecimenReceiptController {
                     item.getSpecimenBarcode(),
                     ReceiptStatus.from(item.getReceiptStatus()),
                     item.getContainerCount(),
+                    item.getQualityCheckResult(),
+                    item.getQualityIssueCodes(),
                     item.getReason(),
                     item.getRemarks()))
                     .toList()));
@@ -82,7 +86,14 @@ public class SpecimenReceiptController {
                                                    @Parameter(description = "开始日期") @RequestParam(required = false) String dateFrom,
                                                    @Parameter(description = "结束日期") @RequestParam(required = false) String dateTo) {
         SpecimenWorkflowAppService.PendingSpecimenPage result = specimenWorkflowAppService.listPendingReceipts(
-            new SpecimenWorkflowAppService.PendingSpecimenQuery(page, size, applicationId, departmentId, dateFrom, dateTo));
+            new SpecimenWorkflowAppService.PendingSpecimenQuery(
+                page,
+                size,
+                applicationId,
+                departmentId,
+                null,
+                dateFrom,
+                dateTo));
         return new PendingSpecimenPageResponse(
             result.items().stream().map(this::toPendingItem).toList(),
             result.page(),
@@ -101,6 +112,8 @@ public class SpecimenReceiptController {
             item.specimenId(),
             item.specimenNo(),
             item.barcode(),
+            item.containerName(),
+            item.containerCount(),
             item.specimenStatus(),
             item.fixationStatus(),
             stringify(item.registeredAt()),

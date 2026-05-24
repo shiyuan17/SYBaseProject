@@ -2,6 +2,7 @@ package com.company.bl.domain.enums;
 
 public enum ApplicationFormStatus {
     NOT_UPLOADED,
+    PENDING,
     UPLOADED,
     ARCHIVED;
 

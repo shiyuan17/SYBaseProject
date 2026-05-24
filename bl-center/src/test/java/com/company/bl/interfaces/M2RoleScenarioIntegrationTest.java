@@ -117,7 +117,8 @@ class M2RoleScenarioIntegrationTest extends AbstractSpecimenWorkflowIntegrationT
                 {
                   "specimenBarcode": "%s",
                   "receiptStatus": "RECEIVED",
-                  "containerCount": 1
+                  "containerCount": 1,
+                  "qualityCheckResult": "PASSED"
                 }
               ]
             }

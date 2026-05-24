@@ -9,6 +9,8 @@ import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.CreateApplicationRequest;
 import com.company.bl.interfaces.vo.ApplicationDetailResponse;
+import com.company.bl.interfaces.vo.ApplicationDuplicateCheckItemResponse;
+import com.company.bl.interfaces.vo.ApplicationDuplicateCheckResponse;
 import com.company.bl.interfaces.vo.ApplicationIdResponse;
 import com.company.bl.interfaces.vo.ApplicationListItemResponse;
 import com.company.bl.interfaces.vo.ApplicationPageResponse;
@@ -29,6 +31,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/applications")
@@ -83,6 +88,39 @@ public class ApplicationController {
             result.total());
     }
 
+    @Operation(summary = "重复申请预警", description = "按患者标识、外部申请号或同日同部位条件检查疑似重复申请。")
+    @RequirePermission(M2PermissionCodes.APPLICATION_CREATE)
+    @GetMapping("/duplicate-check")
+    public ApplicationDuplicateCheckResponse duplicateCheck(
+        @Parameter(description = "患者 ID") @RequestParam(required = false) String patientId,
+        @Parameter(description = "患者姓名") @RequestParam(required = false) String patientName,
+        @Parameter(description = "外部申请号") @RequestParam(required = false) String externalOrderNo,
+        @Parameter(description = "申请日期") @RequestParam(required = false) LocalDate applicationDate,
+        @Parameter(description = "申请类型") @RequestParam(required = false) String applicationType,
+        @Parameter(description = "送检部位") @RequestParam(required = false) String specimenSite
+    ) {
+        SpecimenWorkflowAppService.DuplicateCheckResult result = specimenWorkflowAppService.checkApplicationDuplicate(
+            new SpecimenWorkflowAppService.DuplicateCheckCommand(
+                patientId,
+                patientName,
+                externalOrderNo,
+                applicationDate == null ? null : applicationDate.toString(),
+                applicationType,
+                specimenSite));
+        List<ApplicationDuplicateCheckItemResponse> items = result.items().stream()
+            .map(item -> new ApplicationDuplicateCheckItemResponse(
+                item.id(),
+                item.applicationNo(),
+                item.patientName(),
+                stringify(item.applicationDate()),
+                item.specimenSite(),
+                item.status(),
+                item.currentNode(),
+                item.matchedBy()))
+            .toList();
+        return new ApplicationDuplicateCheckResponse(items, result.suggestedAction());
+    }
+
     @Operation(summary = "查询申请单详情", description = "按申请单 ID 查询申请单、标本与最近追踪事件。")
     @RequirePermission(M2PermissionCodes.APPLICATION_DETAIL_QUERY)
     @GetMapping("/{id}")
@@ -122,6 +160,7 @@ public class ApplicationController {
             tracking.application().getSpecimenSite(),
             stringify(tracking.application().getApplicationDate()),
             stringify(tracking.application().getSubmissionDate()),
+            stringify(tracking.application().getSpecimenRemovalTime()),
             tracking.currentNode(),
             tracking.abnormal(),
             tracking.specimens().stream().map(this::toSpecimenSummary).toList(),
@@ -147,7 +186,11 @@ public class ApplicationController {
             specimen.specimenNameStandardized(),
             specimen.specimenType(),
             specimen.specimenSite(),
+            specimen.collectionMode(),
+            specimen.clinicalSymptom(),
             specimen.specimenCount(),
+            specimen.containerName(),
+            specimen.containerCount(),
             specimen.specimenStatus().name(),
             specimen.fixationStatus().name(),
             specimen.labelPrintStatus());

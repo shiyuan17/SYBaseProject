@@ -57,6 +57,14 @@ public class ReceiveSpecimensRequest {
         @NotNull
         private Integer containerCount;
 
+        @Schema(description = "质控结果，PASSED/FAILED", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotBlank
+        @Size(max = 32)
+        private String qualityCheckResult;
+
+        @Schema(description = "质控问题代码")
+        private List<@Size(max = 64) String> qualityIssueCodes;
+
         @Schema(description = "异常原因")
         @Size(max = 500)
         private String reason;

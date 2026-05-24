@@ -56,7 +56,7 @@ class ApplicationDomainServiceTest {
         Application application = applicationDomainService.register(
             "APP-001", "P-001", "Patient A", null, null, "ROUTINE", null, null, null,
             null, null, "DEPT-OR", "OR", "DOC-001", "Dr A", "Diagnosis A", null, "Thyroid",
-            null, null, null);
+            null, null, null, null, null);
 
         assertNotNull(application.getId());
         assertEquals("APP-001", application.getApplicationNo());
@@ -69,14 +69,14 @@ class ApplicationDomainServiceTest {
         applicationRepository.save(applicationDomainService.register(
             "APP-001", "P-001", "Patient A", null, null, "ROUTINE", null, null, null,
             null, null, "DEPT-OR", "OR", "DOC-001", "Dr A", "Diagnosis A", null, "Thyroid",
-            null, null, null));
+            null, null, null, null, null));
 
         ApplicationDomainException exception = assertThrows(
             ApplicationDomainException.class,
             () -> applicationDomainService.register(
                 "APP-001", "P-002", "Patient B", null, null, "ROUTINE", null, null, null,
                 null, null, "DEPT-OR", "OR", "DOC-002", "Dr B", "Diagnosis B", null, "Lung",
-                null, null, null));
+                null, null, null, null, null));
 
         assertEquals(ApplicationErrorCode.APPLICATION_NO_CONFLICT.code(), exception.getErrorCode().code());
     }
@@ -88,7 +88,7 @@ class ApplicationDomainServiceTest {
             () -> applicationDomainService.register(
                 "   ", "P-001", "Patient A", null, null, "ROUTINE", null, null, null,
                 null, null, "DEPT-OR", "OR", "DOC-001", "Dr A", "Diagnosis A", null, "Thyroid",
-                null, null, null));
+                null, null, null, null, null));
 
         assertEquals(ApplicationErrorCode.INVALID_APPLICATION_NO.code(), exception.getErrorCode().code());
     }
@@ -100,7 +100,7 @@ class ApplicationDomainServiceTest {
             () -> applicationDomainService.register(
                 "APP-002", "P-002", "Patient B", null, null, "ROUTINE", "UNKNOWN", null, null,
                 null, null, "DEPT-OR", "OR", "DOC-002", "Dr B", "Diagnosis B", null, "Lung",
-                null, null, null));
+                null, null, null, null, null));
 
         assertEquals(ApplicationErrorCode.INVALID_APPLICATION_STATUS.code(), exception.getErrorCode().code());
     }

@@ -17,6 +17,8 @@ public record Specimen(
     String specimenSite,
     String collectionMode,
     Integer specimenCount,
+    String containerName,
+    Integer containerCount,
     SpecimenStatus specimenStatus,
     FixationStatus fixationStatus,
     boolean qualified,

@@ -51,6 +51,8 @@ public class CreateApplicationAppService {
             command.specimenSite(),
             command.applicationDate(),
             command.submissionDate(),
+            command.specimenRemovalTime(),
+            command.applicationFormStatus(),
             command.remarks());
         return applicationRepository.save(application).getId();
     }

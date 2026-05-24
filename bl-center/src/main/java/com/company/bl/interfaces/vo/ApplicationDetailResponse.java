@@ -50,6 +50,8 @@ public record ApplicationDetailResponse(
     String applicationDate,
     @Schema(description = "送检日期")
     String submissionDate,
+    @Schema(description = "离体时间")
+    String specimenRemovalTime,
     @Schema(description = "当前流程节点")
     String currentNode,
     @Schema(description = "是否存在异常标记")

@@ -56,10 +56,18 @@ public class SpecimenFixationController {
                                                    @Parameter(description = "每页条数，默认 20") @RequestParam(defaultValue = "20") int size,
                                                    @Parameter(description = "申请单 ID") @RequestParam(required = false) String applicationId,
                                                    @Parameter(description = "送检科室 ID") @RequestParam(required = false) String departmentId,
+                                                   @Parameter(description = "固定状态") @RequestParam(required = false) String fixationStatus,
                                                    @Parameter(description = "开始日期") @RequestParam(required = false) String dateFrom,
                                                    @Parameter(description = "结束日期") @RequestParam(required = false) String dateTo) {
         SpecimenWorkflowAppService.PendingSpecimenPage result = specimenWorkflowAppService.listPendingFixations(
-            new SpecimenWorkflowAppService.PendingSpecimenQuery(page, size, applicationId, departmentId, dateFrom, dateTo));
+            new SpecimenWorkflowAppService.PendingSpecimenQuery(
+                page,
+                size,
+                applicationId,
+                departmentId,
+                fixationStatus,
+                dateFrom,
+                dateTo));
         return new PendingSpecimenPageResponse(
             result.items().stream().map(this::toPendingItem).toList(),
             result.page(),
@@ -89,6 +97,8 @@ public class SpecimenFixationController {
             item.specimenId(),
             item.specimenNo(),
             item.barcode(),
+            item.containerName(),
+            item.containerCount(),
             item.specimenStatus(),
             item.fixationStatus(),
             stringify(item.registeredAt()),
