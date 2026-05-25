@@ -69,6 +69,21 @@ public class GrossingCompleteRequest {
         @Size(max = 64)
         private String samplingTemplateId;
 
+        @Schema(description = "大小")
+        @Size(max = 100)
+        private String sizeText;
+
+        @Schema(description = "切面特征")
+        @Size(max = 500)
+        private String cutSurfaceFeature;
+
+        @Schema(description = "切缘标记")
+        @Size(max = 500)
+        private String marginMarking;
+
+        @Schema(description = "取材块数")
+        private Integer blockCount;
+
         @Schema(description = "大体描述")
         private String grossDescription;
 

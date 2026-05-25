@@ -3,6 +3,8 @@ package com.company.bl.application.service;
 import com.company.bl.domain.model.PathologyCase;
 import com.company.bl.domain.model.Specimen;
 import com.company.bl.domain.model.TrackingEvent;
+import com.company.bl.domain.enums.BlErrorCode;
+import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRepository;
@@ -40,6 +42,9 @@ class TechnicalWorkflowQueryService {
                 query.size(),
                 query.taskType(),
                 query.taskStatus(),
+                query.priority(),
+                query.assignedToUserId(),
+                query.currentNode(),
                 query.applicationNo(),
                 query.pathologyNo(),
                 query.objectType(),
@@ -57,10 +62,11 @@ class TechnicalWorkflowQueryService {
     }
 
     @Transactional(readOnly = true)
-    TechnicalWorkflowModels.TechnicalTrackingView getTechnicalTracking(String caseId) {
+    TechnicalWorkflowModels.TechnicalTrackingView getTechnicalTracking(String caseIdentifier) {
         LocalDateTime now = LocalDateTime.now();
         TechnicalTaskTimeoutPolicy.TimeoutSnapshot timeoutSnapshot = technicalTaskTimeoutPolicy.snapshot(now);
-        PathologyCase pathologyCase = technicalWorkflowSupport.getCase(caseId);
+        PathologyCase pathologyCase = resolveTrackingCase(caseIdentifier);
+        String caseId = pathologyCase.id();
         List<Specimen> specimens = technicalWorkflowRepository.findSpecimensByCaseId(caseId);
         List<TechnicalWorkflowRecords.TechnicalTask> tasks = technicalWorkflowRepository.findActiveTechnicalTasksByCaseId(caseId);
         List<TechnicalWorkflowRecords.SamplingBlock> blocks = technicalWorkflowRepository.findSamplingBlocksByCaseId(caseId);
@@ -94,6 +100,28 @@ class TechnicalWorkflowQueryService {
                 .sorted(Comparator.comparing(TrackingEvent::eventTime, Comparator.nullsLast(Comparator.naturalOrder())))
                 .map(this::toTrackingEvent)
                 .toList());
+    }
+
+    private PathologyCase resolveTrackingCase(String caseIdentifier) {
+        if (caseIdentifier == null || caseIdentifier.isBlank()) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Pathology case identifier is required");
+        }
+        String normalizedIdentifier = caseIdentifier.trim();
+        return technicalWorkflowRepository.findPathologyCaseById(normalizedIdentifier)
+            .or(() -> technicalWorkflowRepository.findPathologyCaseByPathologyNo(normalizedIdentifier))
+            .or(() -> technicalWorkflowRepository.findSpecimenById(normalizedIdentifier)
+                .map(Specimen::caseId)
+                .flatMap(technicalWorkflowRepository::findPathologyCaseById))
+            .or(() -> technicalWorkflowRepository.findSamplingBlockById(normalizedIdentifier)
+                .map(TechnicalWorkflowRecords.SamplingBlock::caseId)
+                .flatMap(technicalWorkflowRepository::findPathologyCaseById))
+            .or(() -> technicalWorkflowRepository.findEmbeddingBoxById(normalizedIdentifier)
+                .map(TechnicalWorkflowRecords.EmbeddingBox::caseId)
+                .flatMap(technicalWorkflowRepository::findPathologyCaseById))
+            .or(() -> technicalWorkflowRepository.findSlideById(normalizedIdentifier)
+                .map(TechnicalWorkflowProcessingRecords.Slide::caseId)
+                .flatMap(technicalWorkflowRepository::findPathologyCaseById))
+            .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Pathology case not found"));
     }
 
     private TechnicalWorkflowModels.TaskView toTaskView(TechnicalWorkflowRecords.TechnicalTask task,

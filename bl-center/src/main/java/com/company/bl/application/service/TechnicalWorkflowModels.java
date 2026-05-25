@@ -19,6 +19,9 @@ public final class TechnicalWorkflowModels {
         int size,
         String taskType,
         String taskStatus,
+        String priority,
+        String assignedToUserId,
+        String currentNode,
         String applicationNo,
         String pathologyNo,
         String objectType,
@@ -43,6 +46,15 @@ public final class TechnicalWorkflowModels {
         String objectType,
         String objectId,
         String payload,
+        String priority,
+        String currentNode,
+        String stationCode,
+        String stationName,
+        String assignedToUserId,
+        String assignedToName,
+        String expectedCompletedAt,
+        String productionRemarks,
+        String receivedAt,
         String remarks,
         String createdAt,
         String startedAt,
@@ -74,6 +86,61 @@ public final class TechnicalWorkflowModels {
     public record TaskStartResult(String taskId, String caseId, String caseStatus, String taskStatus) {
     }
 
+    public record TechnicalTaskAssignCommand(
+        String taskId,
+        String priority,
+        String stationCode,
+        String stationName,
+        String assignedToUserId,
+        String assignedToName,
+        LocalDateTime expectedCompletedAt,
+        String productionRemarks,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode
+    ) implements OperatorCarrier {
+        @Override
+        public String remarks() {
+            return productionRemarks;
+        }
+    }
+
+    public record TechnicalTaskClaimCommand(
+        String taskId,
+        String assignedToUserId,
+        String assignedToName,
+        String stationCode,
+        String stationName,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) implements OperatorCarrier {
+    }
+
+    public record TechnicalTaskReleaseCommand(
+        String taskId,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) implements OperatorCarrier {
+    }
+
+    public record TechnicalTaskPriorityCommand(
+        String taskId,
+        String priority,
+        String productionRemarks,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode
+    ) implements OperatorCarrier {
+        @Override
+        public String remarks() {
+            return productionRemarks;
+        }
+    }
+
     public record MediaAssetInput(String fileUrl, String fileName) {
     }
 
@@ -85,6 +152,10 @@ public final class TechnicalWorkflowModels {
         String specimenType,
         String bodyPartId,
         String samplingTemplateId,
+        String sizeText,
+        String cutSurfaceFeature,
+        String marginMarking,
+        Integer blockCount,
         String grossDescription,
         List<GrossingBlockItem> blocks,
         List<MediaAssetInput> mediaAssets

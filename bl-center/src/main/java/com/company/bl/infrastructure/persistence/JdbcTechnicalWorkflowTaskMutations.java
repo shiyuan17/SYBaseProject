@@ -63,14 +63,102 @@ final class JdbcTechnicalWorkflowTaskMutations {
             .addValue("updatedAt", LocalDateTime.now()));
     }
 
+    void assignTechnicalTask(String taskId,
+                             String priority,
+                             String stationCode,
+                             String stationName,
+                             String assignedToUserId,
+                             String assignedToName,
+                             LocalDateTime expectedCompletedAt,
+                             String productionRemarks) {
+        jdbcTemplate.update("""
+            update technical_pending_tasks
+            set priority = coalesce(:priority, priority),
+                station_code = :stationCode,
+                station_name = :stationName,
+                assigned_to_user_id = :assignedToUserId,
+                assigned_to_name = :assignedToName,
+                expected_completed_at = :expectedCompletedAt,
+                production_remarks = :productionRemarks,
+                updated_at = :updatedAt
+            where id = :taskId
+            """, new MapSqlParameterSource()
+            .addValue("taskId", taskId)
+            .addValue("priority", priority)
+            .addValue("stationCode", stationCode)
+            .addValue("stationName", stationName)
+            .addValue("assignedToUserId", assignedToUserId)
+            .addValue("assignedToName", assignedToName)
+            .addValue("expectedCompletedAt", expectedCompletedAt)
+            .addValue("productionRemarks", productionRemarks)
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    void claimTechnicalTask(String taskId,
+                            String assignedToUserId,
+                            String assignedToName,
+                            String stationCode,
+                            String stationName,
+                            String remarks) {
+        jdbcTemplate.update("""
+            update technical_pending_tasks
+            set assigned_to_user_id = :assignedToUserId,
+                assigned_to_name = :assignedToName,
+                station_code = coalesce(:stationCode, station_code),
+                station_name = coalesce(:stationName, station_name),
+                production_remarks = coalesce(:remarks, production_remarks),
+                updated_at = :updatedAt
+            where id = :taskId
+            """, new MapSqlParameterSource()
+            .addValue("taskId", taskId)
+            .addValue("assignedToUserId", assignedToUserId)
+            .addValue("assignedToName", assignedToName)
+            .addValue("stationCode", stationCode)
+            .addValue("stationName", stationName)
+            .addValue("remarks", remarks)
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    void releaseTechnicalTask(String taskId, String remarks) {
+        jdbcTemplate.update("""
+            update technical_pending_tasks
+            set assigned_to_user_id = null,
+                assigned_to_name = null,
+                production_remarks = coalesce(:remarks, production_remarks),
+                updated_at = :updatedAt
+            where id = :taskId
+            """, new MapSqlParameterSource()
+            .addValue("taskId", taskId)
+            .addValue("remarks", remarks)
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    void updateTechnicalTaskPriority(String taskId, String priority, String productionRemarks) {
+        jdbcTemplate.update("""
+            update technical_pending_tasks
+            set priority = :priority,
+                production_remarks = coalesce(:productionRemarks, production_remarks),
+                updated_at = :updatedAt
+            where id = :taskId
+            """, new MapSqlParameterSource()
+            .addValue("taskId", taskId)
+            .addValue("priority", priority)
+            .addValue("productionRemarks", productionRemarks)
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
     void insertTechnicalTask(CreateTechnicalTaskCommand command) {
         jdbcTemplate.update("""
             insert into technical_pending_tasks
                 (id, application_id, case_id, specimen_id, task_type, task_status, object_type, object_id,
-                 parent_task_id, payload, created_at, updated_at, remarks)
+                 parent_task_id, priority, current_node, station_code, station_name, assigned_to_user_id,
+                 assigned_to_name, expected_completed_at, production_remarks, received_at, payload,
+                 created_at, updated_at, remarks)
             values
                 (:id, :applicationId, :caseId, :specimenId, :taskType, :taskStatus, :objectType, :objectId,
-                 :parentTaskId, :payload, :createdAt, :updatedAt, :remarks)
+                 :parentTaskId, :priority, :currentNode, :stationCode, :stationName, :assignedToUserId,
+                 :assignedToName, :expectedCompletedAt, :productionRemarks, :receivedAt, :payload,
+                 :createdAt, :updatedAt, :remarks)
             """, new MapSqlParameterSource()
             .addValue("id", command.id())
             .addValue("applicationId", command.applicationId())
@@ -81,6 +169,15 @@ final class JdbcTechnicalWorkflowTaskMutations {
             .addValue("objectType", command.objectType())
             .addValue("objectId", command.objectId())
             .addValue("parentTaskId", command.parentTaskId())
+            .addValue("priority", command.priority())
+            .addValue("currentNode", command.currentNode())
+            .addValue("stationCode", command.stationCode())
+            .addValue("stationName", command.stationName())
+            .addValue("assignedToUserId", command.assignedToUserId())
+            .addValue("assignedToName", command.assignedToName())
+            .addValue("expectedCompletedAt", command.expectedCompletedAt())
+            .addValue("productionRemarks", command.productionRemarks())
+            .addValue("receivedAt", command.receivedAt())
             .addValue("payload", command.payload())
             .addValue("createdAt", command.createdAt())
             .addValue("updatedAt", command.createdAt())
@@ -91,10 +188,12 @@ final class JdbcTechnicalWorkflowTaskMutations {
         jdbcTemplate.update("""
             insert into samplings
                 (id, case_id, specimen_id, sampling_status, block_count, gross_image_count, sampling_template_id,
-                 gross_description, sampled_by_user_id, sampled_by_name, sampled_at, remarks, created_at, updated_at)
+                 size_text, cut_surface_feature, margin_marking, gross_description, sampled_by_user_id,
+                 sampled_by_name, sampled_at, remarks, created_at, updated_at)
             values
                 (:id, :caseId, :specimenId, :samplingStatus, :blockCount, :grossImageCount, :samplingTemplateId,
-                 :grossDescription, :sampledByUserId, :sampledByName, :sampledAt, :remarks, :createdAt, :updatedAt)
+                 :sizeText, :cutSurfaceFeature, :marginMarking, :grossDescription, :sampledByUserId,
+                 :sampledByName, :sampledAt, :remarks, :createdAt, :updatedAt)
             """, new MapSqlParameterSource()
             .addValue("id", command.id())
             .addValue("caseId", command.caseId())
@@ -103,6 +202,9 @@ final class JdbcTechnicalWorkflowTaskMutations {
             .addValue("blockCount", command.blockCount())
             .addValue("grossImageCount", command.grossImageCount())
             .addValue("samplingTemplateId", command.samplingTemplateId())
+            .addValue("sizeText", command.sizeText())
+            .addValue("cutSurfaceFeature", command.cutSurfaceFeature())
+            .addValue("marginMarking", command.marginMarking())
             .addValue("grossDescription", command.grossDescription())
             .addValue("sampledByUserId", command.sampledByUserId())
             .addValue("sampledByName", command.sampledByName())

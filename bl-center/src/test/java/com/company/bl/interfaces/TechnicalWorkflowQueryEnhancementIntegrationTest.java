@@ -171,5 +171,21 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
         assertThat(tracking.path("qcEvaluations").get(0).path("evaluationResult").asText()).isEqualTo("REWORK_REQUIRED");
         assertThat(tracking.path("qcEvaluations").get(0).path("improvementSuggestion").asText()).isEqualTo("please restain");
         assertThat(tracking.path("qcEvaluations").get(0).path("slideNo").asText()).isNotBlank();
+
+        JsonNode trackingBySlide = technicalTracking(slideId, USER_M3_TRACKING);
+        assertThat(trackingBySlide.path("caseId").asText()).isEqualTo(context.caseId());
+        assertThat(trackingBySlide.path("slides").get(0).path("slideId").asText()).isEqualTo(slideId);
+    }
+
+    @Test
+    void shouldQueryTechnicalTrackingByPathologyNo() throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-TRACK-PNO-001", "BC-M3-TRACK-PNO-001");
+
+        JsonNode tracking = technicalTracking(context.pathologyNo(), USER_M3_TRACKING);
+
+        assertThat(tracking.path("caseId").asText()).isEqualTo(context.caseId());
+        assertThat(tracking.path("pathologyNo").asText()).isEqualTo(context.pathologyNo());
+        assertThat(tracking.path("technicalTasks")).hasSize(1);
+        assertThat(tracking.path("technicalTasks").get(0).path("caseId").asText()).isEqualTo(context.caseId());
     }
 }

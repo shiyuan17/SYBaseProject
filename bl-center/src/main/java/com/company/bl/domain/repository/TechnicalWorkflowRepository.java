@@ -38,6 +38,8 @@ public interface TechnicalWorkflowRepository {
 
     Optional<PathologyCase> findPathologyCaseById(String caseId);
 
+    Optional<PathologyCase> findPathologyCaseByPathologyNo(String pathologyNo);
+
     List<Specimen> findSpecimensByCaseId(String caseId);
 
     Optional<Specimen> findSpecimenById(String specimenId);
@@ -62,6 +64,26 @@ public interface TechnicalWorkflowRepository {
                                String taskStatus,
                                String remarks,
                                LocalDateTime completedAt);
+
+    void assignTechnicalTask(String taskId,
+                             String priority,
+                             String stationCode,
+                             String stationName,
+                             String assignedToUserId,
+                             String assignedToName,
+                             LocalDateTime expectedCompletedAt,
+                             String productionRemarks);
+
+    void claimTechnicalTask(String taskId,
+                            String assignedToUserId,
+                            String assignedToName,
+                            String stationCode,
+                            String stationName,
+                            String remarks);
+
+    void releaseTechnicalTask(String taskId, String remarks);
+
+    void updateTechnicalTaskPriority(String taskId, String priority, String productionRemarks);
 
     void insertTechnicalTask(CreateTechnicalTaskCommand command);
 

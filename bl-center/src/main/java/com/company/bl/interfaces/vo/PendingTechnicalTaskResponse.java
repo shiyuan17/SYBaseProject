@@ -26,6 +26,24 @@ public record PendingTechnicalTaskResponse(
     String objectId,
     @Schema(description = "扩展载荷")
     String payload,
+    @Schema(description = "任务优先级")
+    String priority,
+    @Schema(description = "当前节点")
+    String currentNode,
+    @Schema(description = "工作台编码")
+    String stationCode,
+    @Schema(description = "工作台名称")
+    String stationName,
+    @Schema(description = "责任技师用户 ID")
+    String assignedToUserId,
+    @Schema(description = "责任技师姓名")
+    String assignedToName,
+    @Schema(description = "期望完成时间")
+    String expectedCompletedAt,
+    @Schema(description = "生产备注")
+    String productionRemarks,
+    @Schema(description = "接收时间")
+    String receivedAt,
     @Schema(description = "备注")
     String remarks,
     @Schema(description = "创建时间")

@@ -25,11 +25,11 @@ public class PathologyCaseTechnicalTrackingController {
         this.technicalWorkflowAppService = technicalWorkflowAppService;
     }
 
-    @Operation(summary = "查询病例技术追踪", description = "按病例 ID 查询技术任务、蜡块、包埋盒、玻片、质控和返工追踪信息。")
+    @Operation(summary = "查询病例技术追踪", description = "按病例 ID、病理号或技术对象 ID 查询技术任务、蜡块、包埋盒、玻片、质控和返工追踪信息。")
     @RequirePermission(M3PermissionCodes.TECHNICAL_TRACKING_QUERY)
     @GetMapping("/{id}/technical-tracking")
-    public TechnicalTrackingResponse getTracking(@Parameter(description = "病例 ID") @PathVariable("id") String caseId) {
-        TechnicalWorkflowModels.TechnicalTrackingView result = technicalWorkflowAppService.getTechnicalTracking(caseId);
+    public TechnicalTrackingResponse getTracking(@Parameter(description = "病例 ID、病理号或技术对象 ID") @PathVariable("id") String caseIdentifier) {
+        TechnicalWorkflowModels.TechnicalTrackingView result = technicalWorkflowAppService.getTechnicalTracking(caseIdentifier);
         return new TechnicalTrackingResponse(
             result.caseId(),
             result.pathologyNo(),
@@ -37,7 +37,9 @@ public class PathologyCaseTechnicalTrackingController {
             result.technicalTasks().stream().map(task -> new PendingTechnicalTaskResponse(
                 task.id(), task.applicationId(), task.applicationNo(), task.caseId(), task.pathologyNo(),
                 task.specimenId(), task.taskType(), task.taskStatus(), task.objectType(), task.objectId(),
-                task.payload(), task.remarks(), task.createdAt(), task.startedAt(), task.completedAt(),
+                task.payload(), task.priority(), task.currentNode(), task.stationCode(), task.stationName(),
+                task.assignedToUserId(), task.assignedToName(), task.expectedCompletedAt(), task.productionRemarks(),
+                task.receivedAt(), task.remarks(), task.createdAt(), task.startedAt(), task.completedAt(),
                 task.deadlineAt(), task.timeoutRuleCode(), task.timedOut()))
                 .toList(),
             result.specimens().stream().map(item -> new TechnicalTrackingResponse.SpecimenSummary(

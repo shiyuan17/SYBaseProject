@@ -61,6 +61,10 @@ public class GrossingController extends TechnicalControllerSupport {
                     item.getSpecimenType(),
                     item.getBodyPartId(),
                     item.getSamplingTemplateId(),
+                    item.getSizeText(),
+                    item.getCutSurfaceFeature(),
+                    item.getMarginMarking(),
+                    item.getBlockCount(),
                     item.getGrossDescription(),
                     item.getBlocks().stream().map(block -> new TechnicalWorkflowModels.GrossingBlockItem(
                         block.getBlockSite(),

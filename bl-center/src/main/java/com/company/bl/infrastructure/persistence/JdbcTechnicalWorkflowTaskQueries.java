@@ -36,6 +36,15 @@ final class JdbcTechnicalWorkflowTaskQueries {
         return rows.stream().findFirst();
     }
 
+    Optional<PathologyCase> findPathologyCaseByPathologyNo(String pathologyNo) {
+        List<PathologyCase> rows = jdbcTemplate.query("""
+            select *
+            from pathology_cases
+            where pathology_no = :pathologyNo
+            """, Map.of("pathologyNo", pathologyNo), rowMappers::mapPathologyCase);
+        return rows.stream().findFirst();
+    }
+
     List<Specimen> findSpecimensByCaseId(String caseId) {
         return jdbcTemplate.query("""
             select *
@@ -163,6 +172,15 @@ final class JdbcTechnicalWorkflowTaskQueries {
                 t.object_type,
                 t.object_id,
                 t.parent_task_id,
+                t.priority,
+                t.current_node,
+                t.station_code,
+                t.station_name,
+                t.assigned_to_user_id,
+                t.assigned_to_name,
+                t.expected_completed_at,
+                t.production_remarks,
+                t.received_at,
                 t.payload,
                 t.remarks,
                 t.created_at,
@@ -181,6 +199,15 @@ final class JdbcTechnicalWorkflowTaskQueries {
         }
         if (hasText(query.taskStatus())) {
             builder.append(" and t.task_status = :taskStatus");
+        }
+        if (hasText(query.priority())) {
+            builder.append(" and t.priority = :priority");
+        }
+        if (hasText(query.assignedToUserId())) {
+            builder.append(" and t.assigned_to_user_id = :assignedToUserId");
+        }
+        if (hasText(query.currentNode())) {
+            builder.append(" and t.current_node = :currentNode");
         }
         if (hasText(query.applicationNo())) {
             builder.append(" and a.application_no = :applicationNo");
@@ -216,6 +243,15 @@ final class JdbcTechnicalWorkflowTaskQueries {
         }
         if (hasText(query.taskStatus())) {
             params.addValue("taskStatus", query.taskStatus());
+        }
+        if (hasText(query.priority())) {
+            params.addValue("priority", query.priority());
+        }
+        if (hasText(query.assignedToUserId())) {
+            params.addValue("assignedToUserId", query.assignedToUserId());
+        }
+        if (hasText(query.currentNode())) {
+            params.addValue("currentNode", query.currentNode());
         }
         if (hasText(query.applicationNo())) {
             params.addValue("applicationNo", query.applicationNo());

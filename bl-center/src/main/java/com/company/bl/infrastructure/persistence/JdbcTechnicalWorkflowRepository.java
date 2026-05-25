@@ -59,6 +59,11 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     }
 
     @Override
+    public Optional<PathologyCase> findPathologyCaseByPathologyNo(String pathologyNo) {
+        return taskQueries.findPathologyCaseByPathologyNo(pathologyNo);
+    }
+
+    @Override
     public List<Specimen> findSpecimensByCaseId(String caseId) {
         return taskQueries.findSpecimensByCaseId(caseId);
     }
@@ -101,6 +106,40 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     @Override
     public void completeTechnicalTask(String taskId, String taskStatus, String remarks, LocalDateTime completedAt) {
         taskMutations.completeTechnicalTask(taskId, taskStatus, remarks, completedAt);
+    }
+
+    @Override
+    public void assignTechnicalTask(String taskId,
+                                    String priority,
+                                    String stationCode,
+                                    String stationName,
+                                    String assignedToUserId,
+                                    String assignedToName,
+                                    LocalDateTime expectedCompletedAt,
+                                    String productionRemarks) {
+        taskMutations.assignTechnicalTask(
+            taskId, priority, stationCode, stationName, assignedToUserId, assignedToName,
+            expectedCompletedAt, productionRemarks);
+    }
+
+    @Override
+    public void claimTechnicalTask(String taskId,
+                                   String assignedToUserId,
+                                   String assignedToName,
+                                   String stationCode,
+                                   String stationName,
+                                   String remarks) {
+        taskMutations.claimTechnicalTask(taskId, assignedToUserId, assignedToName, stationCode, stationName, remarks);
+    }
+
+    @Override
+    public void releaseTechnicalTask(String taskId, String remarks) {
+        taskMutations.releaseTechnicalTask(taskId, remarks);
+    }
+
+    @Override
+    public void updateTechnicalTaskPriority(String taskId, String priority, String productionRemarks) {
+        taskMutations.updateTechnicalTaskPriority(taskId, priority, productionRemarks);
     }
 
     @Override

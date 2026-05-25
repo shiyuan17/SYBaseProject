@@ -71,8 +71,8 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
         return responseBody(action, 200);
     }
 
-    protected JsonNode technicalTracking(String caseId, String userId) throws Exception {
-        return responseBody(mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/technical-tracking", caseId), userId)), 200);
+    protected JsonNode technicalTracking(String caseIdentifier, String userId) throws Exception {
+        return responseBody(mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/technical-tracking", caseIdentifier), userId)), 200);
     }
 
     protected String querySamplingTemplateId(String caseId, String specimenId) {

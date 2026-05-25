@@ -6,15 +6,18 @@ import org.springframework.stereotype.Service;
 public class TechnicalWorkflowAppService {
 
     private final TechnicalWorkflowQueryService technicalWorkflowQueryService;
+    private final TechnicalTaskManagementService technicalTaskManagementService;
     private final TechnicalGrossingWorkflowService technicalGrossingWorkflowService;
     private final TechnicalProcessingWorkflowService technicalProcessingWorkflowService;
     private final TechnicalReworkWorkflowService technicalReworkWorkflowService;
 
     public TechnicalWorkflowAppService(TechnicalWorkflowQueryService technicalWorkflowQueryService,
+                                       TechnicalTaskManagementService technicalTaskManagementService,
                                        TechnicalGrossingWorkflowService technicalGrossingWorkflowService,
                                        TechnicalProcessingWorkflowService technicalProcessingWorkflowService,
                                        TechnicalReworkWorkflowService technicalReworkWorkflowService) {
         this.technicalWorkflowQueryService = technicalWorkflowQueryService;
+        this.technicalTaskManagementService = technicalTaskManagementService;
         this.technicalGrossingWorkflowService = technicalGrossingWorkflowService;
         this.technicalProcessingWorkflowService = technicalProcessingWorkflowService;
         this.technicalReworkWorkflowService = technicalReworkWorkflowService;
@@ -22,6 +25,22 @@ public class TechnicalWorkflowAppService {
 
     public TechnicalWorkflowModels.PendingTechnicalTaskPage listPendingTasks(TechnicalWorkflowModels.PendingTechnicalTaskQuery query) {
         return technicalWorkflowQueryService.listPendingTasks(query);
+    }
+
+    public TechnicalWorkflowModels.TaskView assignTechnicalTask(TechnicalWorkflowModels.TechnicalTaskAssignCommand command) {
+        return technicalTaskManagementService.assignTechnicalTask(command);
+    }
+
+    public TechnicalWorkflowModels.TaskView claimTechnicalTask(TechnicalWorkflowModels.TechnicalTaskClaimCommand command) {
+        return technicalTaskManagementService.claimTechnicalTask(command);
+    }
+
+    public TechnicalWorkflowModels.TaskView releaseTechnicalTask(TechnicalWorkflowModels.TechnicalTaskReleaseCommand command) {
+        return technicalTaskManagementService.releaseTechnicalTask(command);
+    }
+
+    public TechnicalWorkflowModels.TaskView updateTechnicalTaskPriority(TechnicalWorkflowModels.TechnicalTaskPriorityCommand command) {
+        return technicalTaskManagementService.updateTechnicalTaskPriority(command);
     }
 
     public TechnicalWorkflowModels.TaskStartResult startGrossing(TechnicalWorkflowModels.TaskStartCommand command) {
