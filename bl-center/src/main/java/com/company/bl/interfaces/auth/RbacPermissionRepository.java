@@ -24,6 +24,15 @@ public class RbacPermissionRepository {
         return effectivePermissionCodes.contains(permissionCode);
     }
 
+    public String findPrimaryRoleCode(String userId) {
+        return jdbcTemplate.query("""
+            select role
+            from users
+            where id = :userId
+              and enabled = 1
+            """, Map.of("userId", userId), rs -> rs.next() ? rs.getString(1) : null);
+    }
+
     private List<String> findExplicitPermissionCodes(String userId) {
         return jdbcTemplate.query("""
             select distinct p.permission_code

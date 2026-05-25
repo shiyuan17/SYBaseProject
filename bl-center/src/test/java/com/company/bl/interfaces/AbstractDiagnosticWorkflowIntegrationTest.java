@@ -3,6 +3,9 @@ package com.company.bl.interfaces;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.test.web.servlet.ResultActions;
 
+import java.time.LocalDateTime;
+import java.util.Map;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -31,6 +34,30 @@ abstract class AbstractDiagnosticWorkflowIntegrationTest extends AbstractTechnic
 
     protected JsonNode reportTracking(String caseId, String userId) throws Exception {
         return responseBody(mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/report-tracking", caseId), userId)), 200);
+    }
+
+    protected String createDiagnosisUser(String suffix) {
+        String userId = "USER_M4_DIAGNOSIS_" + suffix;
+        LocalDateTime now = LocalDateTime.now();
+        namedParameterJdbcTemplate.update("""
+            insert into users (id, user_code, login_name, name, role, enabled, created_at, updated_at)
+            values (:id, :userCode, :loginName, :name, :role, 1, :createdAt, :updatedAt)
+            """, Map.of(
+            "id", userId,
+            "userCode", "U-M4-DIAG-" + suffix,
+            "loginName", "m4.diagnosis." + suffix.toLowerCase(),
+            "name", "M4 Diagnosis " + suffix,
+            "role", "M4_DIAGNOSIS",
+            "createdAt", now,
+            "updatedAt", now));
+        namedParameterJdbcTemplate.update("""
+            insert into user_roles (id, user_id, role_id, is_primary, assigned_at, assigned_by_name)
+            values (:id, :userId, 'ROLE_M4_DIAGNOSIS', 1, :assignedAt, 'test')
+            """, Map.of(
+            "id", "UR-M4-DIAG-" + suffix,
+            "userId", userId,
+            "assignedAt", now));
+        return userId;
     }
 
     protected StartedDiagnosticContext prepareStartedDiagnosticCase(String applicationNo, String barcode) throws Exception {

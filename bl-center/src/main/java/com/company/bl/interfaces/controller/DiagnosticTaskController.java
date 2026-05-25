@@ -40,9 +40,17 @@ public class DiagnosticTaskController extends TechnicalControllerSupport {
                                                          @Parameter(description = "每页条数，默认 20") @RequestParam(defaultValue = "20") int size,
                                                          @Parameter(description = "任务类型") @RequestParam(required = false) String taskType,
                                                          @Parameter(description = "任务状态") @RequestParam(required = false) String taskStatus,
-                                                         @Parameter(description = "病理号") @RequestParam(required = false) String pathologyNo) {
+                                                         @Parameter(description = "病理号") @RequestParam(required = false) String pathologyNo,
+                                                         HttpServletRequest httpServletRequest) {
         DiagnosticReportModels.PendingDiagnosticTaskPage result = diagnosticReportAppService.listPendingTasks(
-            new DiagnosticReportModels.PendingDiagnosticTaskQuery(page, size, taskType, taskStatus, pathologyNo));
+            new DiagnosticReportModels.PendingDiagnosticTaskQuery(
+                page,
+                size,
+                taskType,
+                taskStatus,
+                pathologyNo,
+                resolveUserId(null, httpServletRequest),
+                resolveRoleCode(httpServletRequest)));
         return new PendingDiagnosticTaskPageResponse(
             result.items().stream().map(this::toResponse).toList(),
             result.page(),

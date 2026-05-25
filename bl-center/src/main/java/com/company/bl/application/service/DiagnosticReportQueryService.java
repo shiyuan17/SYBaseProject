@@ -35,7 +35,9 @@ class DiagnosticReportQueryService {
                 query.size(),
                 query.taskType(),
                 query.taskStatus(),
-                query.pathologyNo()));
+                query.pathologyNo(),
+                query.currentUserId(),
+                query.currentRoleCode()));
         return new DiagnosticReportModels.PendingDiagnosticTaskPage(
             paged.items().stream().map(this::toTaskView).toList(),
             query.page(),

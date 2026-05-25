@@ -17,6 +17,7 @@ import java.util.Optional;
 public class JdbcDiagnosticReportRepository implements DiagnosticReportRepository {
 
     private static final List<String> ACTIVE_STATUSES = List.of("PENDING", "ASSIGNED", "ACCEPTED", "IN_PROGRESS");
+    private static final String ROLE_M4_DIAGNOSIS = "M4_DIAGNOSIS";
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -509,6 +510,9 @@ public class JdbcDiagnosticReportRepository implements DiagnosticReportRepositor
         if (hasText(query.pathologyNo())) {
             builder.append(" and dt.pathology_no = :pathologyNo");
         }
+        if (ROLE_M4_DIAGNOSIS.equals(query.currentRoleCode()) && hasText(query.currentUserId())) {
+            builder.append(" and (dt.diagnosis_doctor_user_id = :currentUserId or dt.primary_doctor_user_id = :currentUserId)");
+        }
         return builder.toString();
     }
 
@@ -522,6 +526,9 @@ public class JdbcDiagnosticReportRepository implements DiagnosticReportRepositor
         }
         if (hasText(query.pathologyNo())) {
             params.addValue("pathologyNo", query.pathologyNo());
+        }
+        if (ROLE_M4_DIAGNOSIS.equals(query.currentRoleCode()) && hasText(query.currentUserId())) {
+            params.addValue("currentUserId", query.currentUserId());
         }
         return params;
     }

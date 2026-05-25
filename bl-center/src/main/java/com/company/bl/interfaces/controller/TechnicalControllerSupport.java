@@ -9,4 +9,9 @@ abstract class TechnicalControllerSupport {
         Object currentUserId = request.getAttribute(ApiPermissionContext.CURRENT_USER_ID);
         return currentUserId == null ? null : currentUserId.toString();
     }
+
+    protected String resolveRoleCode(HttpServletRequest request) {
+        Object currentRoleCode = request.getAttribute(ApiPermissionContext.CURRENT_ROLE_CODE);
+        return currentRoleCode == null ? null : currentRoleCode.toString();
+    }
 }

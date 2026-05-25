@@ -12,7 +12,9 @@ public final class DiagnosticReportModels {
         int size,
         String taskType,
         String taskStatus,
-        String pathologyNo
+        String pathologyNo,
+        String currentUserId,
+        String currentRoleCode
     ) {
     }
 

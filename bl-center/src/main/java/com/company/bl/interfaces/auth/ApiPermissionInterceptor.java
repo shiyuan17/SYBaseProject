@@ -44,6 +44,7 @@ public class ApiPermissionInterceptor implements HandlerInterceptor {
         }
         request.setAttribute(ApiPermissionContext.CURRENT_USER_ID, normalizedUserId);
         request.setAttribute(ApiPermissionContext.CURRENT_LOGIN_NAME, principal.loginName() == null ? null : principal.loginName().trim());
+        request.setAttribute(ApiPermissionContext.CURRENT_ROLE_CODE, permissionRepository.findPrimaryRoleCode(normalizedUserId));
         return true;
     }
 }

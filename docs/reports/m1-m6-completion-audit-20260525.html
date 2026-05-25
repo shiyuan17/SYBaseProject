@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>M1-M6 完成度深度检查报告 - 2026-05-25</title>
+  <style>
+    :root {
+      --ink: #18202b;
+      --muted: #5f6b7a;
+      --line: #d8dee8;
+      --panel: #f7f9fc;
+      --panel-strong: #eef3f8;
+      --navy: #1f3b57;
+      --blue: #2e6f9f;
+      --green: #1d7a55;
+      --amber: #a4610a;
+      --red: #aa2d2d;
+      --white: #ffffff;
+      --shadow: 0 10px 26px rgba(31, 59, 87, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(239, 245, 250, 0.92), rgba(255, 255, 255, 0.98) 360px),
+        repeating-linear-gradient(90deg, rgba(31, 59, 87, 0.035) 0 1px, transparent 1px 72px);
+      font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+      line-height: 1.62;
+    }
+
+    a {
+      color: var(--blue);
+    }
+
+    code {
+      padding: 0.12rem 0.34rem;
+      border: 1px solid #dfe6ef;
+      border-radius: 4px;
+      background: #f3f6fa;
+      color: #22384d;
+      font-family: "Cascadia Mono", "Consolas", monospace;
+      font-size: 0.92em;
+      word-break: break-word;
+    }
+
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 36px 22px 64px;
+    }
+
+    .hero {
+      padding: 30px 0 22px;
+      border-bottom: 2px solid var(--navy);
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0 0 16px;
+      color: var(--navy);
+      font-size: clamp(30px, 4vw, 48px);
+      line-height: 1.16;
+      font-weight: 800;
+    }
+
+    h2 {
+      margin: 40px 0 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+      color: var(--navy);
+      font-size: 24px;
+    }
+
+    h3 {
+      margin: 28px 0 12px;
+      color: #254967;
+      font-size: 18px;
+    }
+
+    p {
+      margin: 0 0 12px;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .meta-item,
+    .metric,
+    .card,
+    .risk,
+    .milestone,
+    .appendix {
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: var(--shadow);
+    }
+
+    .meta-item {
+      padding: 14px 16px;
+      border-radius: 8px;
+    }
+
+    .meta-label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .meta-value {
+      display: block;
+      margin-top: 4px;
+      color: var(--ink);
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 0.75fr;
+      gap: 18px;
+      margin-top: 22px;
+    }
+
+    .card {
+      padding: 20px;
+      border-radius: 8px;
+    }
+
+    .decision {
+      border-left: 5px solid var(--amber);
+    }
+
+    .decision strong {
+      color: var(--amber);
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .metric {
+      min-height: 116px;
+      padding: 16px;
+      border-radius: 8px;
+    }
+
+    .metric-number {
+      display: block;
+      color: var(--navy);
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .metric-label {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .status.done {
+      color: var(--green);
+      background: #e8f5ef;
+      border: 1px solid #b9ddce;
+    }
+
+    .status.basic {
+      color: var(--blue);
+      background: #e8f2f8;
+      border: 1px solid #bfd6e7;
+    }
+
+    .status.partial {
+      color: var(--amber);
+      background: #fff4df;
+      border: 1px solid #e9c98d;
+    }
+
+    .status.risk {
+      color: var(--red);
+      background: #fdecec;
+      border: 1px solid #ecc0c0;
+    }
+
+    .risk-zone {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .risk {
+      padding: 16px;
+      border-left: 5px solid var(--red);
+      border-radius: 8px;
+    }
+
+    .risk h3 {
+      margin-top: 0;
+      color: var(--red);
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .flow-step {
+      position: relative;
+      min-height: 118px;
+      padding: 15px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--white);
+      box-shadow: var(--shadow);
+    }
+
+    .flow-step::after {
+      content: ">";
+      position: absolute;
+      right: -11px;
+      top: 42%;
+      color: var(--blue);
+      font-weight: 800;
+    }
+
+    .flow-step:last-child::after {
+      content: "";
+    }
+
+    .flow-step b {
+      display: block;
+      color: var(--navy);
+      font-size: 15px;
+    }
+
+    .flow-step span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 20px;
+      overflow-wrap: anywhere;
+    }
+
+    th,
+    td {
+      padding: 12px 10px;
+      border: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: var(--panel-strong);
+      color: var(--navy);
+      font-size: 13px;
+    }
+
+    td {
+      background: rgba(255, 255, 255, 0.92);
+      font-size: 14px;
+    }
+
+    .milestone {
+      margin-top: 18px;
+      padding: 20px;
+      border-radius: 8px;
+    }
+
+    .milestone-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+
+    .milestone h3 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .review-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .review-block {
+      padding: 14px;
+      border: 1px solid #e1e7ef;
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .review-block h4 {
+      margin: 0 0 8px;
+      color: #2e4e69;
+      font-size: 14px;
+    }
+
+    ul {
+      margin: 8px 0 0 20px;
+      padding: 0;
+    }
+
+    li {
+      margin: 5px 0;
+    }
+
+    .recommendations {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .appendix {
+      padding: 18px;
+      border-radius: 8px;
+      background: var(--white);
+    }
+
+    .appendix-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .command {
+      display: block;
+      margin-top: 8px;
+      padding: 12px;
+      border: 1px solid #cfdae6;
+      border-radius: 6px;
+      background: #f6f8fb;
+      color: #23384d;
+      font-family: "Cascadia Mono", "Consolas", monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 920px) {
+      .meta-grid,
+      .summary-grid,
+      .risk-zone,
+      .flow,
+      .review-grid,
+      .recommendations,
+      .appendix-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-step::after {
+        content: "";
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .page {
+        max-width: none;
+        padding: 20px;
+      }
+
+      .card,
+      .metric,
+      .risk,
+      .milestone,
+      .appendix,
+      .flow-step,
+      .meta-item {
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <p class="eyebrow">Pathology Management System Audit</p>
+      <h1>M1-M6 完成度深度检查报告</h1>
+      <p>本报告基于 <code>D:\Github\JW\SYBaseProject</code> 当前仓库文档、接口、迁移、测试与本地验证结果整理，面向产品、研发、测试和实施团队，用于判断 M1-M6 是否具备进入 M7 试点准备的条件。</p>
+      <div class="meta-grid">
+        <div class="meta-item">
+          <span class="meta-label">报告日期</span>
+          <span class="meta-value">2026-05-25</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">检查范围</span>
+          <span class="meta-value">M1-M6 后端主链路</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">输出类型</span>
+          <span class="meta-value">静态 HTML 审查文档</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">总体评级</span>
+          <span class="meta-value">需收口后进入 M7</span>
+        </div>
+      </div>
+    </header>
+
+    <section>
+      <h2>首页摘要</h2>
+      <div class="summary-grid">
+        <article class="card decision">
+          <h3>总体结论</h3>
+          <p><strong>主业务闭环已具备试点基础，但进入 M7 前必须关闭迁移兼容和菜单授权回归阻断项。</strong></p>
+          <p>M1-M5 已有规划、验收清单、接口回归报告与后端实现证据，整体可判定为后端主链路基本完成；M5 文档明确仍处于“后端验收通过，待前端联调”。M6 已落地集成、收费、历史报告、统计分析、权限和可观测性能力，专项测试通过。</p>
+          <p>当前不应对外宣称 M1-M6 全量回归通过。全量选择性回归在本地验证中出现 <code>1</code> 个 failure 和 <code>1</code> 个 error，应作为 M7 前置门禁处理。</p>
+        </article>
+        <div class="metrics">
+          <div class="metric">
+            <span class="metric-number">M1-M5</span>
+            <span class="metric-label">后端主链路基本完成，已有 2026-05-21 回归报告</span>
+          </div>
+          <div class="metric">
+            <span class="metric-number">M6</span>
+            <span class="metric-label">专项回归通过：Tests run 8, Failures 0, Errors 0</span>
+          </div>
+          <div class="metric">
+            <span class="metric-number">120</span>
+            <span class="metric-label">全量选择性回归用例数，本轮出现 1 failure / 1 error</span>
+          </div>
+          <div class="metric">
+            <span class="metric-number">2</span>
+            <span class="metric-label">进入 M7 前必须关闭的阻断项</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="risk-zone">
+        <article class="risk">
+          <h3>阻断项 1：菜单授权回归不一致</h3>
+          <p><code>SystemManagementRoleAndMenuIntegrationTest.shouldSeedRoleMenusForBuiltInAdminAndWorkflowRoles</code> 断言期望 <code>MENU_M2_WORKFLOW</code>、<code>MENU_M2_CLINICAL</code>，实际结果包含 <code>MENU_M2_APPLICATION_LIST</code>。这说明菜单种子、测试期望或 M2 菜单合并策略尚未完全对齐。</p>
+        </article>
+        <article class="risk">
+          <h3>阻断项 2：旧库迁移兼容缺口</h3>
+          <p><code>LegacyDmFlywayOnboardingTest</code> 在 <code>V41__repair_builtin_user_display_names.sql</code> 中访问 legacy baseline 下不存在的 <code>samplings</code> 表。旧库从 V10 baseline 升级时，V41 需要具备表存在性防护或先决迁移保证。</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>流程总览</h2>
+      <div class="flow" aria-label="M1-M6 横向流程">
+        <div class="flow-step">
+          <b>M1 基础配置</b>
+          <span>用户、角色、菜单、字典、编号、系统配置与操作审计。</span>
+        </div>
+        <div class="flow-step">
+          <b>M2 送检接收</b>
+          <span>申请、采集、固定、转运、接收、条码追踪与技术待办。</span>
+        </div>
+        <div class="flow-step">
+          <b>M3 技术生产</b>
+          <span>取材、脱水、包埋、切片、染色、返工与技术追踪。</span>
+        </div>
+        <div class="flow-step">
+          <b>M4 诊断报告</b>
+          <span>诊断任务、报告草稿、审核、签发、发布、修订、会诊和医嘱。</span>
+        </div>
+        <div class="flow-step">
+          <b>M5 归档运营</b>
+          <span>归档柜、柜位、借阅归还、试剂库存、设备保养与预警。</span>
+        </div>
+        <div class="flow-step">
+          <b>M6 集成统计</b>
+          <span>外部导入、收费回写、历史报告、统计报表和可观测性。</span>
+        </div>
+      </div>
+      <p class="note">流程本身从业务依赖关系看是顺畅的：M1 提供基础能力，M2 形成病例和病理号，M3 输出可诊断玻片，M4 形成报告价值闭环，M5 回补实物与运营管理，M6 对接外部系统和管理决策。但试点前仍需补强前端工作站、真实设备/院内接口、旧库迁移兼容和 SOP。</p>
+    </section>
+
+    <section>
+      <h2>M1-M6 完成度矩阵</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>里程碑</th>
+            <th>完成度判断</th>
+            <th>主要证据</th>
+            <th>缺失或待收口要素</th>
+            <th>建议优先级</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>M1 基础平台与主数据</td>
+            <td><span class="status basic">基本完成</span></td>
+            <td>系统用户、角色、权限、菜单、主数据、编号规则、配置与审计接口均有实现和回归覆盖。</td>
+            <td>当前菜单授权回归存在断言不一致；前端管理台和真实认证体系不属于本阶段完整闭环。</td>
+            <td>高：先关闭菜单授权回归，再进入 M7 权限冻结。</td>
+          </tr>
+          <tr>
+            <td>M2 临床送检与接收</td>
+            <td><span class="status basic">基本完成</span></td>
+            <td>申请创建、标本登记、固定、转运、签收、条码追踪、标签补打和 M2 权限测试已覆盖。</td>
+            <td>真实 HIS/EMR 对接仍是 M6/M7 联调；拒收、部分接收和质量核查需要前端流程强化。</td>
+            <td>中高：补齐前端采集接收工作站与异常处理 SOP。</td>
+          </tr>
+          <tr>
+            <td>M3 技术组生产线</td>
+            <td><span class="status basic">基本完成</span></td>
+            <td>取材、脱水、包埋、切片、染色、返工、技术追踪、超时查询和权限矩阵已覆盖。</td>
+            <td>真实设备接入、扫码工作站、高拍仪影像流、技术质控抽检深度仍需落地。</td>
+            <td>中高：试点前补齐设备适配方案和技术岗操作闭环。</td>
+          </tr>
+          <tr>
+            <td>M4 医生诊断与报告</td>
+            <td><span class="status basic">基本完成</span></td>
+            <td>诊断待办、分配、接单、报告草稿、提交、审核、驳回、签发、发布、修订、会诊、医嘱闭环均有接口与测试。</td>
+            <td>正式 PDF 渲染、电子签章、延迟发布、外部会诊、医生端玻片质控入口仍待补强。</td>
+            <td>高：报告正式化和签章是专业病理系统试点的关键门槛。</td>
+          </tr>
+          <tr>
+            <td>M5 归档与运营支撑</td>
+            <td><span class="status partial">后端通过，待前端联调</span></td>
+            <td><code>M5验收清单.md</code> 明确后端验收通过；归档柜、柜位、申请单/蜡块/玻片归档、借阅归还、试剂设备台账和预警已覆盖。</td>
+            <td>前端联调、真实文件上传、对象存储、采购流程、报表和收费联动不在 M5 已承诺范围。</td>
+            <td>中：先完成归档/借阅与试剂设备前端工作站，再扩展采购和文件服务。</td>
+          </tr>
+          <tr>
+            <td>M6 集成、收费、历史、统计</td>
+            <td><span class="status basic">基本完成，需试点联调</span></td>
+            <td>M6 专项测试通过；<code>M6ManagementController</code>、<code>V26</code>、<code>V27</code>、M6 权限与观测性均已落地。</td>
+            <td>当前多为 Mock/适配层基线；真实 HIS/LIS/PACS/收费系统、设备协议和数据对账规则需在试点环境验证。</td>
+            <td>高：真实外部系统联调、失败补偿演练和监控告警必须在 M7 前完成。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>分里程碑深度检查</h2>
+
+      <article class="milestone">
+        <div class="milestone-header">
+          <h3>M1 基础平台与病理主数据底座</h3>
+          <span class="status basic">基本完成</span>
+        </div>
+        <p><strong>规划目标：</strong>建立身份、字典、编码、配置、审计与模板规范能力，为后续流程复用。</p>
+        <div class="review-grid">
+          <div class="review-block">
+            <h4>已落地证据</h4>
+            <ul>
+              <li><code>SystemManagementController</code> 覆盖用户、角色、授权、菜单和登录日志。</li>
+              <li><code>NumberingRuleController</code>、主数据控制器覆盖编号、部位、医嘱、收费、套餐、模板和规范。</li>
+              <li>M1 回归覆盖 <code>SystemManagement*</code>、<code>MasterDataControllerIntegrationTest</code> 和角色权限测试。</li>
+            </ul>
+          </div>
+          <div class="review-block">
+            <h4>缺失要素</h4>
+            <ul>
+              <li>统一登录、SSO、LDAP、完整会话管理在 M1 收口文档中明确未纳入。</li>
+              <li>当前菜单种子与回归断言不一致，是进入 M7 前必须修复的门禁问题。</li>
+            </ul>
+          </div>
+          <div class="review-block">
+            <h4>流程顺畅性</h4>
+            <ul>
+              <li>作为 M2-M6 的底座是顺畅的，编号和权限贯穿后续流程。</li>
+              <li>需在试点前冻结角色、菜单、权限名称，避免培训材料与系统菜单错位。</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="milestone">
+        <div class="milestone-header">
+          <h3>M2 临床送检与标本接收闭环</h3>
+          <span class="status basic">基本完成</span>
+        </div>
+        <p><strong>规划目标：</strong>打通“临床申请 -> 标本采集 -> 固定核对 -> 转运 -> 病理接收”，形成可追踪病例和技术待办。</p>
+        <div class="review-grid">
+          <div class="review-block">
+            <h4>已落地证据</h4>
+            <ul>
+              <li><code>ApplicationController</code>、<code>ClinicalApplicationController</code>、<code>SpecimenController</code>、<code>SpecimenFixationController</code>、<code>TransportOrderController</code>、<code>SpecimenReceiptController</code> 已落地。</li>
+              <li>测试覆盖主链路、部分签收、条码直收、标签补打和 M2 权限边界。</li>
+            </ul>
+          </div>
+          <div class="review-block">
+            <h4>缺失要素</h4>
+            <ul>
+              <li>真实临床系统导入仍依赖适配层和试点联调。</li>
+              <li>冰冻进度查看在原规划中为占位，不应算作 M2 已完成能力。</li>
+            </ul>
+          </div>
+          <div class="review-block">
+            <h4>流程顺畅性</h4>
+            <ul>
+              <li>接收后生成病理号并投递技术待办，衔接 M3 的方式清晰。</li>
+              <li>建议加强前端对拒收、补采、容器质量问题的可视化提醒。</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="milestone">
+        <div class="milestone-header">
+          <h3>M3 技术组核心生产线</h3>
+          <span class="status basic">基本完成</span>
+        </div>
+        <p><strong>规划目标：</strong>完成从病理接收到染色出片的常规病理技术生产线。</p>
+        <div class="review-grid">
+          <div class="review-block">
+            <h4>已落地证据</h4>
+            <ul>
+              <li>取材、脱水、包埋、切片、染色、返工、技术追踪控制器均存在。</li>
+              <li><code>TechnicalWorkflowIntegrationTest</code>、<code>TechnicalWorkflowQueryEnhancementIntegrationTest</code>、<code>M3RoleAuthorizationMatrixIntegrationTest</code> 覆盖主链路和权限矩阵。</li>
+            </ul>
+          </div>
+          <div class="review-block">
+            <h4>缺失要素</h4>
+            <ul>
+              <li>真实打号机、玻片打印机、高拍仪、扫码枪仍需要设备适配与现场验证。</li>
+              <li>技术质量控制目前偏流程能力，尚需专业质控抽检、缺陷分类和责任追踪增强。</li>
+            </ul>
+          </div>
+          <div class="review-block">
+            <h4>流程顺畅性</h4>
+            <ul>
+              <li>任务池驱动从 M2 到 M4 的技术链路，业务顺序自然。</li>
+              <li>返工闭环存在，需在前端设计上避免用户绕过任务池直接改状态。</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="milestone">
+        <div class="milestone-header">
+          <h3>M4 医生诊断与报告闭环</h3>
+          <span class="status basic">基本完成</span>
+        </div>
+        <p><strong>规划目标：</strong>完成医生诊断、报告审核签发、修订、会诊和医嘱闭环。</p>
+        <div class="review-grid">
+          <div class="review-block">
+            <h4>已落地证据</h4>
+            <ul>
+              <li><code>DiagnosticTaskController</code>、<code>PathologyReportController</code>、<code>ReportRevisionRequestController</code>、<code>ConsultationController</code>、<code>PathologyMedicalOrderController</code> 已落地。</li>
+              <li>报告版本链、修订审批、医嘱执行和科内会诊已有自动化覆盖。</li>
+            </ul>
+          </div>
+          <div class="review-block">
+            <h4>缺失要素</h4>
+            <ul>
+              <li>正式报告 PDF、电子签章、打印、延迟发布和外部会诊仍待补齐。</li>
+              <li>医生端玻片质控录入和更复杂的一病例多诊断任务编排仍是后续项。</li>
+            </ul>
+          </div>
+          <div class="review-block">
+            <h4>流程顺畅性</h4>
+            <ul>
+              <li>M3 染色完成后自动进入诊断任务，M4 内部报告流转清晰。</li>
+              <li>若试点涉及纸质报告或电子病历回写，报告正式化能力需要优先前置。</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="milestone">
+        <div class="milestone-header">
+          <h3>M5 归档、借阅与运营支撑</h3>
+          <span class="status partial">后端通过，待前端联调</span>
+        </div>
+        <p><strong>规划目标：</strong>补齐申请单、蜡块、玻片归档借阅，以及试剂、库存、设备、保养预警能力。</p>
+        <div class="review-grid">
+          <div class="review-block">
+            <h4>已落地证据</h4>
+            <ul>
+              <li><code>M5验收清单.md</code> 明确后端验收通过，16 个目标测试通过。</li>
+              <li><code>ArchiveCabinetController</code>、<code>ArchiveRecordController</code>、<code>MaterialLoanController</code>、<code>ReagentController</code>、<code>EquipmentRecordController</code> 已落地。</li>
+            </ul>
+          </div>
+          <div class="review-block">
+            <h4>缺失要素</h4>
+            <ul>
+              <li>前端联调未完成，真实文件上传、对象存储和采购流程不在当前 M5 范围。</li>
+              <li>归档标签、柜位盘点和批量归档效率需要结合现场工作量优化。</li>
+            </ul>
+          </div>
+          <div class="review-block">
+            <h4>流程顺畅性</h4>
+            <ul>
+              <li>归档和借阅状态能回流医生工作台和报告追踪，业务闭环成立。</li>
+              <li>试剂设备作为运营台账可用，但采购、领用、成本核算仍需后续扩展。</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="milestone">
+        <div class="milestone-header">
+          <h3>M6 集成、收费、历史数据与统计分析</h3>
+          <span class="status basic">基本完成，需试点联调</span>
+        </div>
+        <p><strong>规划目标：</strong>让系统具备接入医院外围系统、收费回写、历史查询、统计分析与故障定位能力。</p>
+        <div class="review-grid">
+          <div class="review-block">
+            <h4>已落地证据</h4>
+            <ul>
+              <li><code>M6ManagementController</code> 覆盖集成任务、收费、历史报告、统计查询与 CSV 导出。</li>
+              <li><code>M6ClinicalIntegrationTest</code>、<code>M6BillingIntegrationTest</code>、<code>M6HistoricalReportIntegrationTest</code>、<code>M6StatisticsIntegrationTest</code>、<code>M6AuthorizationIntegrationTest</code>、<code>M6ObservabilityIntegrationTest</code> 本轮专项通过。</li>
+            </ul>
+          </div>
+          <div class="review-block">
+            <h4>缺失要素</h4>
+            <ul>
+              <li>真实 HIS、LIS、PACS、收费、设备协议尚需厂商联调。</li>
+              <li>统计指标已有定义和计算入口，但需与科室质控口径逐项复核。</li>
+            </ul>
+          </div>
+          <div class="review-block">
+            <h4>流程顺畅性</h4>
+            <ul>
+              <li>集成任务、重试、补偿、对账和 Prometheus 指标形成了试点准入基础。</li>
+              <li>建议 M7 前做失败重试、账单不一致、历史重复导入和接口超时的演练。</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section>
+      <h2>专业病理管理系统优化建议</h2>
+      <div class="recommendations">
+        <article class="card">
+          <h3>临床与诊断能力</h3>
+          <ul>
+            <li>补齐冰冻流程：术中申请、快速取材、冰冻报告、石蜡复核和冰石符合率统计。</li>
+            <li>补齐特检/IHC/分子病理：医嘱、计费、执行、结果回传、报告合并和试剂批号追溯。</li>
+            <li>补齐细胞学与液基流程：标本类型、制片、筛查、复核和报告模板独立口径。</li>
+            <li>补齐危急值、阳性结果、补材提醒和临床沟通记录，形成医生责任闭环。</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>报告与合规</h3>
+          <ul>
+            <li>实现正式 PDF 渲染、电子签章、签发后防篡改、重新打印留痕和报告召回。</li>
+            <li>建立报告模板版本管理、诊断术语库、结构化诊断编码和历史诊断对照。</li>
+            <li>强化报告修订的审批链、原因分类、影响范围和对外回写状态。</li>
+            <li>建立按科室、病种、医生、报告类型的 TAT SLA 和超时升级机制。</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>技术与设备</h3>
+          <ul>
+            <li>将打印机、打号机、高拍仪、扫码枪、切片扫描仪纳入统一设备适配和故障重试。</li>
+            <li>强化技术质控：不合格原因、返工责任、批次质量、染色质量、切片质量和抽检闭环。</li>
+            <li>补齐批量工作站交互：批量扫码、批量上机、批量出片、异常分拣和现场补录。</li>
+            <li>引入耗材与试剂批号追溯，支持问题批次反查病例和报告影响范围。</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>试点与运营</h3>
+          <ul>
+            <li>完成护士、技师、医生、归档员、管理员五类岗位前端工作站和 SOP。</li>
+            <li>建立试点问题台账：问题分类、责任域、根因、修复版本、验证人和关闭时间。</li>
+            <li>完成权限冻结、数据初始化、主数据校验、回滚脚本、人工兜底表单和培训材料。</li>
+            <li>建立数据权限与审计策略：科室隔离、敏感字段脱敏、导出审批和管理员操作审计。</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>测试与门禁结论</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>验证项</th>
+            <th>本次结果</th>
+            <th>结论口径</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>M6 专项回归</td>
+            <td><code>Tests run: 8, Failures: 0, Errors: 0, Skipped: 0</code></td>
+            <td><span class="status done">通过</span> 可作为 M6 当前专项能力证据。</td>
+          </tr>
+          <tr>
+            <td>M1-M6 全量选择性回归</td>
+            <td><code>Tests run: 120, Failures: 1, Errors: 1, Skipped: 0</code></td>
+            <td><span class="status risk">未通过</span> 不得宣称 M1-M6 全量绿灯。</td>
+          </tr>
+          <tr>
+            <td>M1-M5 历史回归报告</td>
+            <td><code>docs/reports/m1-m5-api-test-report-20260521.md</code> 显示 PASS</td>
+            <td><span class="status basic">历史通过</span> 需以当前阻断项修复后的新回归为准。</td>
+          </tr>
+          <tr>
+            <td>数据库迁移门禁</td>
+            <td><code>LegacyDmFlywayOnboardingTest</code> 当前存在 V41 旧库兼容错误</td>
+            <td><span class="status risk">需收口</span> 试点前必须关闭。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>证据附录</h2>
+      <div class="appendix-grid">
+        <article class="appendix">
+          <h3>检查过的关键文档</h3>
+          <ul>
+            <li><code>docs/plans/病理全流程系统里程碑规划.md</code></li>
+            <li><code>docs/plans/M1验收清单.md</code>、<code>docs/plans/M1收口说明.md</code></li>
+            <li><code>docs/plans/M2临床送检与标本接收闭环规划.md</code></li>
+            <li><code>docs/plans/M3技术组核心生产线闭环规划.md</code></li>
+            <li><code>docs/plans/M4完成度清单.md</code>、<code>docs/plans/M4第二批闭环与治理完成说明.md</code></li>
+            <li><code>docs/plans/M5验收清单.md</code>、<code>docs/plans/M5补齐归档与运营支撑实施规划.md</code></li>
+            <li><code>docs/plans/M6准入收口说明.md</code></li>
+            <li><code>docs/reports/m1-m5-api-test-report-20260521.md</code></li>
+          </ul>
+        </article>
+        <article class="appendix">
+          <h3>检查过的关键代码资产</h3>
+          <ul>
+            <li>接口层：<code>ApplicationController</code>、<code>SpecimenController</code>、<code>GrossingController</code>、<code>PathologyReportController</code>、<code>ArchiveRecordController</code>、<code>M6ManagementController</code>。</li>
+            <li>权限码：<code>M1PermissionCodes</code> 至 <code>M6PermissionCodes</code>。</li>
+            <li>迁移：<code>V1</code> 至 <code>V27</code> 业务基线，以及 <code>V28</code> 之后的兼容修复迁移。</li>
+            <li>M6 服务：<code>IntegrationManagementService</code>、<code>BillingManagementService</code>、<code>HistoricalReportService</code>、<code>StatisticsService</code>。</li>
+          </ul>
+        </article>
+      </div>
+
+      <article class="appendix" style="margin-top: 14px;">
+        <h3>实际执行命令结果</h3>
+        <p><strong>M6 专项验证通过：</strong></p>
+        <span class="command">.\mvnw.cmd -B -ntp -pl bl-center -am test "-Dtest=M6ClinicalIntegrationTest,M6BillingIntegrationTest,M6HistoricalReportIntegrationTest,M6StatisticsIntegrationTest,M6AuthorizationIntegrationTest,M6ObservabilityIntegrationTest" "-Dsurefire.failIfNoSpecifiedTests=false"</span>
+        <p class="note">结果：<code>BUILD SUCCESS</code>，<code>Tests run: 8, Failures: 0, Errors: 0, Skipped: 0</code>。</p>
+
+        <p><strong>M1-M6 选择性全量验证未通过：</strong></p>
+        <span class="command">.\mvnw.cmd -B -ntp -pl bl-center -am test "-Dtest=SystemManagementUserIntegrationTest,SystemManagementRoleAndMenuIntegrationTest,MasterDataControllerIntegrationTest,M1RoleAuthorizationIntegrationTest,M1SingleApiLifecycleIntegrationTest,ApplicationControllerIntegrationTest,SpecimenWorkflowHappyPathIntegrationTest,SpecimenWorkflowClosureIntegrationTest,M2RoleAuthorizationIntegrationTest,M2RoleScenarioIntegrationTest,M2CollectionAndLabelIntegrationTest,TechnicalWorkflowIntegrationTest,TechnicalWorkflowQueryEnhancementIntegrationTest,M3RoleAuthorizationMatrixIntegrationTest,DiagnosticWorkflowIntegrationTest,DiagnosticRevisionIntegrationTest,InternalConsultationIntegrationTest,MedicalOrderIntegrationTest,M4RoleAuthorizationIntegrationTest,M4Batch2AuthorizationIntegrationTest,ArchiveWorkflowIntegrationTest,ArchiveRoleAuthorizationIntegrationTest,OperationSupportIntegrationTest,M5SingleApiIntegrationTest,M6ClinicalIntegrationTest,M6BillingIntegrationTest,M6HistoricalReportIntegrationTest,M6StatisticsIntegrationTest,M6AuthorizationIntegrationTest,M6ObservabilityIntegrationTest,FlywayTableCoverageTest,LegacyDmFlywayOnboardingTest" "-Dsurefire.failIfNoSpecifiedTests=false"</span>
+        <p class="note">结果：<code>BUILD FAILURE</code>，<code>Tests run: 120, Failures: 1, Errors: 1, Skipped: 0</code>。失败项为菜单授权断言不一致和 V41 legacy 迁移缺表。</p>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
