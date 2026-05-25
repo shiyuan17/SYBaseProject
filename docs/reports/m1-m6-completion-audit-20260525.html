@@ -446,7 +446,7 @@
         </div>
         <div class="meta-item">
           <span class="meta-label">总体评级</span>
-          <span class="meta-value">需收口后进入 M7</span>
+          <span class="meta-value">Phase 0 已收口，可进入 M7 试点准备</span>
         </div>
       </div>
     </header>
@@ -456,9 +456,9 @@
       <div class="summary-grid">
         <article class="card decision">
           <h3>总体结论</h3>
-          <p><strong>主业务闭环已具备试点基础，但进入 M7 前必须关闭迁移兼容和菜单授权回归阻断项。</strong></p>
+          <p><strong>主业务闭环已具备试点基础，迁移兼容和菜单授权回归阻断项已在 Phase 0 修复并验证通过。</strong></p>
           <p>M1-M5 已有规划、验收清单、接口回归报告与后端实现证据，整体可判定为后端主链路基本完成；M5 文档明确仍处于“后端验收通过，待前端联调”。M6 已落地集成、收费、历史报告、统计分析、权限和可观测性能力，专项测试通过。</p>
-          <p>当前不应对外宣称 M1-M6 全量回归通过。全量选择性回归在本地验证中出现 <code>1</code> 个 failure 和 <code>1</code> 个 error，应作为 M7 前置门禁处理。</p>
+          <p>更新验证：M1-M6 全量选择性回归已通过，结果为 <code>Tests run: 120, Failures: 0, Errors: 0, Skipped: 0</code>。历史失败项保留在本报告中作为 Phase 0 收口记录。</p>
         </article>
         <div class="metrics">
           <div class="metric">
@@ -471,23 +471,23 @@
           </div>
           <div class="metric">
             <span class="metric-number">120</span>
-            <span class="metric-label">全量选择性回归用例数，本轮出现 1 failure / 1 error</span>
+            <span class="metric-label">全量选择性回归用例数，本轮 0 failure / 0 error</span>
           </div>
           <div class="metric">
             <span class="metric-number">2</span>
-            <span class="metric-label">进入 M7 前必须关闭的阻断项</span>
+            <span class="metric-label">原 M7 前置阻断项，已关闭并保留历史说明</span>
           </div>
         </div>
       </div>
 
       <div class="risk-zone">
         <article class="risk">
-          <h3>阻断项 1：菜单授权回归不一致</h3>
-          <p><code>SystemManagementRoleAndMenuIntegrationTest.shouldSeedRoleMenusForBuiltInAdminAndWorkflowRoles</code> 断言期望 <code>MENU_M2_WORKFLOW</code>、<code>MENU_M2_CLINICAL</code>，实际结果包含 <code>MENU_M2_APPLICATION_LIST</code>。这说明菜单种子、测试期望或 M2 菜单合并策略尚未完全对齐。</p>
+          <h3>已关闭项 1：菜单授权口径已对齐</h3>
+          <p>历史问题：<code>SystemManagementRoleAndMenuIntegrationTest.shouldSeedRoleMenusForBuiltInAdminAndWorkflowRoles</code> 断言仍以 <code>MENU_M2_CLINICAL</code> 为活跃入口。处理结果：按 V46 后策略改为验收 <code>MENU_M2_APPLICATION_LIST</code>，同时允许隐藏 legacy 菜单保留历史兼容授权。</p>
         </article>
         <article class="risk">
-          <h3>阻断项 2：旧库迁移兼容缺口</h3>
-          <p><code>LegacyDmFlywayOnboardingTest</code> 在 <code>V41__repair_builtin_user_display_names.sql</code> 中访问 legacy baseline 下不存在的 <code>samplings</code> 表。旧库从 V10 baseline 升级时，V41 需要具备表存在性防护或先决迁移保证。</p>
+          <h3>已关闭项 2：旧库迁移兼容已加防护</h3>
+          <p>历史问题：<code>LegacyDmFlywayOnboardingTest</code> 在 <code>V41__repair_builtin_user_display_names.sql</code> 中访问 legacy baseline 下不存在的 <code>samplings</code> 表。处理结果：V41 已改为 Java 迁移，回填历史冗余姓名前先检查表和字段存在性。</p>
         </article>
       </div>
     </section>
@@ -540,8 +540,8 @@
             <td>M1 基础平台与主数据</td>
             <td><span class="status basic">基本完成</span></td>
             <td>系统用户、角色、权限、菜单、主数据、编号规则、配置与审计接口均有实现和回归覆盖。</td>
-            <td>当前菜单授权回归存在断言不一致；前端管理台和真实认证体系不属于本阶段完整闭环。</td>
-            <td>高：先关闭菜单授权回归，再进入 M7 权限冻结。</td>
+            <td>菜单授权回归断言已按 <code>MENU_M2_APPLICATION_LIST</code> 活跃入口收口；前端管理台和真实认证体系不属于本阶段完整闭环。</td>
+            <td>高：进入 M7 权限冻结前，继续保持菜单种子、测试断言和文档口径一致。</td>
           </tr>
           <tr>
             <td>M2 临床送检与接收</td>
@@ -604,7 +604,7 @@
             <h4>缺失要素</h4>
             <ul>
               <li>统一登录、SSO、LDAP、完整会话管理在 M1 收口文档中明确未纳入。</li>
-              <li>当前菜单种子与回归断言不一致，是进入 M7 前必须修复的门禁问题。</li>
+              <li>菜单种子与回归断言不一致问题已关闭，当前验收口径以 <code>MENU_M2_APPLICATION_LIST</code> 为 M2 活跃申请登记入口。</li>
             </ul>
           </div>
           <div class="review-block">
@@ -833,18 +833,18 @@
           </tr>
           <tr>
             <td>M1-M6 全量选择性回归</td>
-            <td><code>Tests run: 120, Failures: 1, Errors: 1, Skipped: 0</code></td>
-            <td><span class="status risk">未通过</span> 不得宣称 M1-M6 全量绿灯。</td>
+            <td><code>Tests run: 120, Failures: 0, Errors: 0, Skipped: 0</code></td>
+            <td><span class="status done">通过</span> Phase 0 阻断项已关闭。</td>
           </tr>
           <tr>
             <td>M1-M5 历史回归报告</td>
             <td><code>docs/reports/m1-m5-api-test-report-20260521.md</code> 显示 PASS</td>
-            <td><span class="status basic">历史通过</span> 需以当前阻断项修复后的新回归为准。</td>
+            <td><span class="status basic">历史通过</span> 已由本次 M1-M6 选择性全量回归补充验证。</td>
           </tr>
           <tr>
             <td>数据库迁移门禁</td>
-            <td><code>LegacyDmFlywayOnboardingTest</code> 当前存在 V41 旧库兼容错误</td>
-            <td><span class="status risk">需收口</span> 试点前必须关闭。</td>
+            <td><code>LegacyDmFlywayOnboardingTest</code> 与 <code>BuiltinUserDisplayNameRepairMigrationTest</code> 通过</td>
+            <td><span class="status done">通过</span> V41 已具备旧库缺表兼容防护。</td>
           </tr>
         </tbody>
       </table>
@@ -883,9 +883,10 @@
         <span class="command">.\mvnw.cmd -B -ntp -pl bl-center -am test "-Dtest=M6ClinicalIntegrationTest,M6BillingIntegrationTest,M6HistoricalReportIntegrationTest,M6StatisticsIntegrationTest,M6AuthorizationIntegrationTest,M6ObservabilityIntegrationTest" "-Dsurefire.failIfNoSpecifiedTests=false"</span>
         <p class="note">结果：<code>BUILD SUCCESS</code>，<code>Tests run: 8, Failures: 0, Errors: 0, Skipped: 0</code>。</p>
 
-        <p><strong>M1-M6 选择性全量验证未通过：</strong></p>
+        <p><strong>M1-M6 选择性全量验证已通过：</strong></p>
         <span class="command">.\mvnw.cmd -B -ntp -pl bl-center -am test "-Dtest=SystemManagementUserIntegrationTest,SystemManagementRoleAndMenuIntegrationTest,MasterDataControllerIntegrationTest,M1RoleAuthorizationIntegrationTest,M1SingleApiLifecycleIntegrationTest,ApplicationControllerIntegrationTest,SpecimenWorkflowHappyPathIntegrationTest,SpecimenWorkflowClosureIntegrationTest,M2RoleAuthorizationIntegrationTest,M2RoleScenarioIntegrationTest,M2CollectionAndLabelIntegrationTest,TechnicalWorkflowIntegrationTest,TechnicalWorkflowQueryEnhancementIntegrationTest,M3RoleAuthorizationMatrixIntegrationTest,DiagnosticWorkflowIntegrationTest,DiagnosticRevisionIntegrationTest,InternalConsultationIntegrationTest,MedicalOrderIntegrationTest,M4RoleAuthorizationIntegrationTest,M4Batch2AuthorizationIntegrationTest,ArchiveWorkflowIntegrationTest,ArchiveRoleAuthorizationIntegrationTest,OperationSupportIntegrationTest,M5SingleApiIntegrationTest,M6ClinicalIntegrationTest,M6BillingIntegrationTest,M6HistoricalReportIntegrationTest,M6StatisticsIntegrationTest,M6AuthorizationIntegrationTest,M6ObservabilityIntegrationTest,FlywayTableCoverageTest,LegacyDmFlywayOnboardingTest" "-Dsurefire.failIfNoSpecifiedTests=false"</span>
-        <p class="note">结果：<code>BUILD FAILURE</code>，<code>Tests run: 120, Failures: 1, Errors: 1, Skipped: 0</code>。失败项为菜单授权断言不一致和 V41 legacy 迁移缺表。</p>
+        <p class="note">结果：<code>BUILD SUCCESS</code>，<code>Tests run: 120, Failures: 0, Errors: 0, Skipped: 0</code>。历史失败项为菜单授权断言不一致和 V41 legacy 迁移缺表，现已关闭。</p>
+        <p class="note">发布注意：<code>V41__repair_builtin_user_display_names</code> 已由 SQL 迁移替换为 Java 迁移。若目标环境已经执行过旧 V41，发布前需执行 Flyway validate/repair 评估，避免迁移类型或校验记录不一致影响启动。</p>
       </article>
     </section>
   </main>

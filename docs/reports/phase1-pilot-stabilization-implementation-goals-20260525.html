@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phase 1 试点稳定化准备分阶段实施计划 - 2026-05-25</title>
+  <style>
+    :root {
+      --ink: #172235;
+      --muted: #5d6f86;
+      --line: #d7e0ea;
+      --paper: #ffffff;
+      --soft: #f4f7fb;
+      --navy: #183b56;
+      --blue: #1d6f9f;
+      --cyan: #0f8ea8;
+      --green: #1f7a57;
+      --amber: #b76d18;
+      --red: #b42318;
+      --code: #0f172a;
+      --shadow: 0 22px 55px rgba(23, 34, 53, 0.09);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(29, 111, 159, 0.18), transparent 30rem),
+        radial-gradient(circle at 92% 12%, rgba(31, 122, 87, 0.12), transparent 26rem),
+        linear-gradient(180deg, #edf4f8 0%, #ffffff 34rem);
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+      line-height: 1.68;
+    }
+
+    code {
+      padding: 0.12rem 0.32rem;
+      border: 1px solid #d2dce7;
+      border-radius: 0.35rem;
+      background: #f7fafc;
+      color: #12324a;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 0.92em;
+    }
+
+    pre {
+      margin: 12px 0 0;
+      overflow-x: auto;
+      border-radius: 16px;
+      background: var(--code);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    }
+
+    pre code {
+      display: block;
+      padding: 16px 18px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: #e5edf5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.9rem;
+      line-height: 1.72;
+    }
+
+    .page {
+      width: min(1200px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 34px 0 72px;
+    }
+
+    header {
+      position: relative;
+      overflow: hidden;
+      padding: 36px;
+      border: 1px solid rgba(24, 59, 86, 0.16);
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    header::after {
+      content: "";
+      position: absolute;
+      right: -80px;
+      bottom: -120px;
+      width: 330px;
+      height: 330px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(29, 111, 159, 0.18), rgba(31, 122, 87, 0.12));
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      color: var(--navy);
+      line-height: 1.25;
+    }
+
+    h1 {
+      position: relative;
+      z-index: 1;
+      max-width: 920px;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      letter-spacing: -0.04em;
+    }
+
+    h2 {
+      margin-bottom: 16px;
+      font-size: 1.5rem;
+    }
+
+    h3 {
+      margin-bottom: 8px;
+      font-size: 1.08rem;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    ul {
+      margin: 10px 0 0;
+      padding-left: 1.18rem;
+    }
+
+    li {
+      margin: 0.35rem 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--paper);
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #edf4f8;
+      color: var(--navy);
+      font-size: 0.92rem;
+      white-space: nowrap;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .lead {
+      position: relative;
+      z-index: 1;
+      max-width: 880px;
+      margin-top: 16px;
+      color: #344963;
+      font-size: 1.04rem;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0.2rem 0.58rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .tag.blue {
+      background: #e0f2fe;
+      color: #075985;
+    }
+
+    .tag.green {
+      background: #dcfce7;
+      color: var(--green);
+    }
+
+    .tag.amber {
+      background: #fff2d6;
+      color: var(--amber);
+    }
+
+    .tag.red {
+      background: #fee4e2;
+      color: var(--red);
+    }
+
+    .meta-grid,
+    .summary-grid,
+    .phase-flow,
+    .phase-body,
+    .gate-grid,
+    .sop-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .meta-grid {
+      position: relative;
+      z-index: 1;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-top: 26px;
+    }
+
+    .meta-item,
+    .card,
+    .phase,
+    .gate,
+    .sop {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--paper);
+    }
+
+    .meta-item {
+      padding: 16px;
+    }
+
+    .label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .value {
+      display: block;
+      margin-top: 5px;
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    section {
+      margin-top: 28px;
+    }
+
+    .card {
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(23, 34, 53, 0.05);
+    }
+
+    .summary-grid {
+      grid-template-columns: 1.05fr 0.95fr;
+      margin-top: 16px;
+    }
+
+    .summary-box {
+      padding: 18px;
+      border-radius: 16px;
+      background: var(--soft);
+      border-left: 5px solid var(--blue);
+    }
+
+    .phase-flow {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      margin-top: 14px;
+    }
+
+    .flow-step {
+      position: relative;
+      min-height: 142px;
+      padding: 16px;
+      border: 1px solid #cbd8e5;
+      border-radius: 18px;
+      background: linear-gradient(180deg, #ffffff, #f7fbfd);
+    }
+
+    .flow-step::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: -16px;
+      width: 16px;
+      height: 2px;
+      background: #99adbf;
+    }
+
+    .flow-step:last-child::after {
+      display: none;
+    }
+
+    .flow-step b {
+      display: block;
+      margin: 10px 0 6px;
+      color: var(--navy);
+    }
+
+    .phase {
+      overflow: hidden;
+      box-shadow: 0 14px 34px rgba(23, 34, 53, 0.055);
+    }
+
+    .phase + .phase {
+      margin-top: 18px;
+    }
+
+    .phase-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 20px 22px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(90deg, #f6f9fc, #ffffff);
+    }
+
+    .phase-body {
+      grid-template-columns: 1fr 1fr;
+      padding: 22px;
+    }
+
+    .goal-box {
+      grid-column: 1 / -1;
+      padding: 18px;
+      border: 1px solid #c9d6e3;
+      border-radius: 18px;
+      background: #f8fbfd;
+    }
+
+    .goal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .copy-hint {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .note {
+      margin-top: 12px;
+      padding: 14px 16px;
+      border-left: 5px solid var(--amber);
+      border-radius: 12px;
+      background: #fff8eb;
+      color: #67400b;
+    }
+
+    .ok-note {
+      margin-top: 12px;
+      padding: 14px 16px;
+      border-left: 5px solid var(--green);
+      border-radius: 12px;
+      background: #effaf4;
+      color: #14533b;
+    }
+
+    .gate-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .gate,
+    .sop {
+      padding: 18px;
+    }
+
+    .sop-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .path-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .path-list code {
+      display: block;
+      width: fit-content;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+
+    @media (max-width: 1000px) {
+      .meta-grid,
+      .summary-grid,
+      .phase-flow,
+      .phase-body,
+      .gate-grid,
+      .sop-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-step::after {
+        display: none;
+      }
+
+      header,
+      .card {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <span class="tag blue">Phase 1 Execution Goals</span>
+      <h1>Phase 1 试点稳定化准备分阶段实施计划</h1>
+      <p class="lead">本报告聚焦 M5 前端联调与四类岗位 SOP，目标是把系统推进到“单试点科室可操作、可培训、可验收”。每个阶段均提供可直接复制执行的 <code>/goal</code> 提示词，供后续研发、测试、实施或 Codex 任务拆分使用。</p>
+      <div class="meta-grid">
+        <div class="meta-item">
+          <span class="label">报告日期</span>
+          <span class="value">2026-05-25</span>
+        </div>
+        <div class="meta-item">
+          <span class="label">后端仓库</span>
+          <span class="value"><code>D:\Github\JW\SYBaseProject</code></span>
+        </div>
+        <div class="meta-item">
+          <span class="label">前端仓库</span>
+          <span class="value"><code>D:\Github\JW\SYBaseProjectWeb</code></span>
+        </div>
+        <div class="meta-item">
+          <span class="label">主应用入口</span>
+          <span class="value"><code>apps/web-ele</code></span>
+        </div>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>首页摘要</h2>
+      <div class="summary-grid">
+        <article class="summary-box">
+          <h3>当前结论</h3>
+          <p><strong>Phase 0 已通过，Phase 1 目标是单试点科室可操作、可培训、可验收。</strong> 本阶段不扩展 M5 后端业务范围，重点把归档/借阅、试剂/设备台账和预警查询联调成可用工作站，并配套护士、技师、医生、管理员四类岗位 SOP。</p>
+          <p class="ok-note">前端入口已明确：<code>D:\Github\JW\SYBaseProjectWeb</code>；M5 页面默认落在 <code>apps/web-ele/src/modules/operation-support</code>。</p>
+        </article>
+        <article class="summary-box">
+          <h3>实施边界</h3>
+          <ul>
+            <li>不新增后端接口，不新增依赖。</li>
+            <li>不做采购、收费、真实文件上传、Excel 导出和统计报表。</li>
+            <li>申请单图片继续使用 <code>fileUrl</code> URL 方式。</li>
+            <li>前端通过 <code>requestClient</code> 接入 <code>bl-center</code> 现有 API。</li>
+          </ul>
+        </article>
+      </div>
+      <div class="note">
+        当前前端仓库已有未提交改动，实施时不得回退或覆盖：
+        <div class="path-list">
+          <code>apps/web-ele/src/api/core/menu-mapper.ts</code>
+          <code>apps/web-ele/src/api/core/menu.test.ts</code>
+          <code>apps/web-ele/src/modules/dashboard/api/dashboard-service.ts</code>
+          <code>apps/web-ele/src/modules/dashboard/utils/dashboard-visualization.test.ts</code>
+          <code>apps/web-ele/src/router/routes/modules/technical-workflow.ts</code>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>阶段路线图</h2>
+      <div class="phase-flow">
+        <div class="flow-step">
+          <span class="tag blue">1.0</span>
+          <b>联调基线确认</b>
+          <span>只读确认入口、模块、路由、权限和风险。</span>
+        </div>
+        <div class="flow-step">
+          <span class="tag blue">1.1</span>
+          <b>API 与骨架</b>
+          <span>封装 M5 API，补齐路由和占位页面。</span>
+        </div>
+        <div class="flow-step">
+          <span class="tag amber">1.2</span>
+          <b>归档柜柜位</b>
+          <span>归档柜管理与可用柜位选择。</span>
+        </div>
+        <div class="flow-step">
+          <span class="tag amber">1.3</span>
+          <b>归档借阅</b>
+          <span>三类材料归档、查询、借出和归还。</span>
+        </div>
+        <div class="flow-step">
+          <span class="tag green">1.4</span>
+          <b>试剂设备</b>
+          <span>台账、库存、保养和预警查询。</span>
+        </div>
+        <div class="flow-step">
+          <span class="tag green">1.5</span>
+          <b>SOP 与验收</b>
+          <span>四类岗位 SOP 与现场演练。</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>M5 API 清单</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>能力域</th>
+            <th>接口</th>
+            <th>前端工作站用途</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>归档柜与柜位</td>
+            <td><code>GET/POST/PATCH /api/v1/archive-cabinets</code><br><code>GET /api/v1/archive-positions/available</code></td>
+            <td>归档柜初始化、启停维护、可用柜位选择。</td>
+          </tr>
+          <tr>
+            <td>归档操作</td>
+            <td><code>POST /api/v1/archive/application-forms</code><br><code>POST /api/v1/archive/embedding-boxes</code><br><code>POST /api/v1/archive/slides</code></td>
+            <td>申请单、蜡块、玻片归档到柜位。</td>
+          </tr>
+          <tr>
+            <td>归档查询与借阅</td>
+            <td><code>GET /api/v1/archive-records/search</code><br><code>GET /api/v1/material-loans/pending</code><br><code>POST /api/v1/material-loans</code><br><code>POST /api/v1/material-loans/{id}/return</code></td>
+            <td>归档记录检索、借出、待归还、归还。</td>
+          </tr>
+          <tr>
+            <td>试剂台账</td>
+            <td><code>GET/POST/PATCH /api/v1/reagents</code><br><code>GET/POST/PATCH /api/v1/reagent-stocks</code><br><code>GET /api/v1/reagent-stocks/warnings</code></td>
+            <td>试剂基础信息、库存批次、低库存和近效期预警。</td>
+          </tr>
+          <tr>
+            <td>设备台账</td>
+            <td><code>GET/POST/PATCH /api/v1/equipment-records</code><br><code>GET/POST /api/v1/equipment-records/{id}/maintenance-logs</code><br><code>GET /api/v1/equipment-records/warnings</code></td>
+            <td>设备基础信息、保养维修记录、到期和逾期预警。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <article class="phase">
+        <div class="phase-head">
+          <div>
+            <span class="tag blue">Phase 1.0</span>
+            <h2>前端入口与联调基线确认</h2>
+          </div>
+          <strong>建议周期：0.5-1 天</strong>
+        </div>
+        <div class="phase-body">
+          <div>
+            <h3>目标与范围</h3>
+            <ul>
+              <li>确认 <code>apps/web-ele</code> 是 M5 前端入口。</li>
+              <li>梳理 <code>operation-support</code> 模块、<code>requestClient</code>、路由目录、权限/菜单现状。</li>
+              <li>只做只读检查和文档化记录，不改业务代码。</li>
+            </ul>
+          </div>
+          <div>
+            <h3>交付物与验收</h3>
+            <ul>
+              <li>输出 M5 前端联调基线说明。</li>
+              <li>列出拟新增页面清单、API 基地址机制、风险点和下一阶段建议。</li>
+              <li>确认已有未提交改动未被回退或覆盖。</li>
+            </ul>
+          </div>
+          <div class="goal-box">
+            <div class="goal-head">
+              <h3>可复制 /goal 提示词</h3>
+              <span class="copy-hint">复制以下完整文本执行 Phase 1.0</span>
+            </div>
+            <pre><code>/goal 工作目录：D:\Github\JW\SYBaseProjectWeb。完成 Phase 1.0：前端入口与 M5 联调基线确认。只做只读检查和文档化记录，不改业务代码。确认 apps/web-ele 可作为 M5 前端入口，梳理 operation-support 模块、apps/web-ele/src/api/request.ts 的 requestClient、路由目录、权限/菜单现状，并输出 M5 前端联调基线说明。注意当前仓库已有未提交改动，尤其不得回退或覆盖 apps/web-ele/src/api/core/menu-mapper.ts、apps/web-ele/src/api/core/menu.test.ts、apps/web-ele/src/modules/dashboard/api/dashboard-service.ts、apps/web-ele/src/modules/dashboard/utils/dashboard-visualization.test.ts、apps/web-ele/src/router/routes/modules/technical-workflow.ts。验收命令：只读阶段不强制跑构建，如发现需验证可执行 pnpm -F @vben/web-ele run typecheck。最终输出：列出前端入口、API 基地址机制、拟新增页面清单、风险点、下一阶段实施建议，并明确未修改业务代码。</code></pre>
+          </div>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-head">
+          <div>
+            <span class="tag blue">Phase 1.1</span>
+            <h2>M5 API Service、路由和菜单骨架</h2>
+          </div>
+          <strong>建议周期：1-2 天</strong>
+        </div>
+        <div class="phase-body">
+          <div>
+            <h3>目标与范围</h3>
+            <ul>
+              <li>基于 <code>requestClient</code> 封装 M5 API。</li>
+              <li>新增或完善运营支撑路由。</li>
+              <li>页面可先使用占位视图，确保菜单和权限入口可验证。</li>
+            </ul>
+          </div>
+          <div>
+            <h3>交付物与验收</h3>
+            <ul>
+              <li>API 方法覆盖归档柜、柜位、归档记录、借阅、试剂、库存、设备、保养、预警。</li>
+              <li><code>pnpm -F @vben/web-ele run typecheck</code> 通过。</li>
+              <li>路由可访问，不新增或修改后端接口。</li>
+            </ul>
+          </div>
+          <div class="goal-box">
+            <div class="goal-head">
+              <h3>可复制 /goal 提示词</h3>
+              <span class="copy-hint">复制以下完整文本执行 Phase 1.1</span>
+            </div>
+            <pre><code>/goal 工作目录：D:\Github\JW\SYBaseProjectWeb。完成 Phase 1.1：M5 API Service、路由和菜单骨架。基于 apps/web-ele/src/api/request.ts 的 requestClient，在 apps/web-ele/src/modules/operation-support 内封装 M5 API；新增或完善运营支撑路由和菜单骨架，页面先可使用占位视图。不得改后端接口，不得回退现有未提交改动，尤其不要覆盖 apps/web-ele/src/api/core/menu-mapper.ts、apps/web-ele/src/api/core/menu.test.ts、apps/web-ele/src/modules/dashboard/api/dashboard-service.ts、apps/web-ele/src/modules/dashboard/utils/dashboard-visualization.test.ts、apps/web-ele/src/router/routes/modules/technical-workflow.ts。实现范围：API 方法覆盖归档柜、柜位、归档记录、借阅、试剂、库存、设备、保养、预警。验收命令：pnpm -F @vben/web-ele run typecheck；pnpm test:system-management:frontend。最终输出：说明新增/修改文件、可访问路由、API 方法清单、验证结果和遗留风险。</code></pre>
+          </div>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-head">
+          <div>
+            <span class="tag amber">Phase 1.2</span>
+            <h2>归档柜与柜位工作站</h2>
+          </div>
+          <strong>建议周期：1-2 天</strong>
+        </div>
+        <div class="phase-body">
+          <div>
+            <h3>目标与范围</h3>
+            <ul>
+              <li>实现归档柜列表、新增、启停/更新。</li>
+              <li>实现可用柜位查询与选择。</li>
+              <li>展示 <code>position_code</code> 规则、柜位占用状态和禁用状态。</li>
+            </ul>
+          </div>
+          <div>
+            <h3>交付物与验收</h3>
+            <ul>
+              <li>归档管理员可完成归档柜初始化和柜位查询。</li>
+              <li>无权限账号访问受控入口时提示权限不足。</li>
+              <li>正确处理 <code>403</code> 与 <code>409</code> 错误提示。</li>
+            </ul>
+          </div>
+          <div class="goal-box">
+            <div class="goal-head">
+              <h3>可复制 /goal 提示词</h3>
+              <span class="copy-hint">复制以下完整文本执行 Phase 1.2</span>
+            </div>
+            <pre><code>/goal 工作目录：D:\Github\JW\SYBaseProjectWeb。完成 Phase 1.2：归档柜与柜位工作站。基于 Phase 1.1 的 M5 API Service，在 apps/web-ele/src/modules/operation-support 中实现归档柜列表、新增、启停/更新，以及可用柜位查询与选择能力。前端必须展示 position_code 规则、柜位占用状态、禁用状态，并正确处理 403/409 错误提示。不得新增后端接口，不得回退或覆盖当前已有未提交改动。实现范围仅限归档柜、柜位、权限提示和必要的页面交互。验收命令：pnpm -F @vben/web-ele run typecheck；pnpm test:system-management:frontend。最终输出：说明归档柜初始化、柜位查询、403/409 提示、权限边界的验证结果，以及未完成项。</code></pre>
+          </div>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-head">
+          <div>
+            <span class="tag amber">Phase 1.3</span>
+            <h2>申请单、蜡块、玻片归档与借阅归还</h2>
+          </div>
+          <strong>建议周期：2-3 天</strong>
+        </div>
+        <div class="phase-body">
+          <div>
+            <h3>目标与范围</h3>
+            <ul>
+              <li>实现统一归档操作和归档记录查询。</li>
+              <li>实现借出、待归还列表和归还。</li>
+              <li>申请单图片只使用 <code>fileUrl</code>，不做文件上传。</li>
+            </ul>
+          </div>
+          <div>
+            <h3>交付物与验收</h3>
+            <ul>
+              <li>归档管理员可完成申请单/蜡块/玻片归档、借出和归还。</li>
+              <li>医生工作台可看到归档/借阅回流状态。</li>
+              <li>处理重复占位、重复借出、重复归还、无效归还等 <code>409</code> 场景。</li>
+            </ul>
+          </div>
+          <div class="goal-box">
+            <div class="goal-head">
+              <h3>可复制 /goal 提示词</h3>
+              <span class="copy-hint">复制以下完整文本执行 Phase 1.3</span>
+            </div>
+            <pre><code>/goal 工作目录：D:\Github\JW\SYBaseProjectWeb。完成 Phase 1.3：申请单、蜡块、玻片归档与借阅归还工作站。基于 Phase 1.1 的 M5 API Service，在 apps/web-ele/src/modules/operation-support 中实现统一归档操作、归档记录查询、借出、待归还列表、归还。申请单图片使用 fileUrl，不做文件上传。必须处理重复占位、重复借出、重复归还、无效归还等 409 场景。不得新增后端接口，不得回退或覆盖当前已有未提交改动。实现范围不包含真实上传、Excel 导出和统计报表。验收命令：pnpm -F @vben/web-ele run typecheck；pnpm test:system-management:frontend。最终输出：说明申请单/蜡块/玻片归档、借出、归还、医生工作台回流状态和 409 场景的验证结果。</code></pre>
+          </div>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-head">
+          <div>
+            <span class="tag green">Phase 1.4</span>
+            <h2>试剂设备台账与预警查询工作站</h2>
+          </div>
+          <strong>建议周期：2 天</strong>
+        </div>
+        <div class="phase-body">
+          <div>
+            <h3>目标与范围</h3>
+            <ul>
+              <li>实现试剂基础信息、试剂库存批次、设备台账、设备保养记录页面。</li>
+              <li>实现试剂预警和设备预警页面。</li>
+              <li>预警支持跳转到对应批次或设备详情。</li>
+            </ul>
+          </div>
+          <div>
+            <h3>交付物与验收</h3>
+            <ul>
+              <li>试剂设备管理员可维护台账和查看预警。</li>
+              <li>归档管理员不能执行试剂设备维护。</li>
+              <li>预警类型覆盖 <code>LOW_STOCK</code>、<code>NEAR_EXPIRY</code>、<code>DUE_SOON</code>、<code>OVERDUE</code>。</li>
+            </ul>
+          </div>
+          <div class="goal-box">
+            <div class="goal-head">
+              <h3>可复制 /goal 提示词</h3>
+              <span class="copy-hint">复制以下完整文本执行 Phase 1.4</span>
+            </div>
+            <pre><code>/goal 工作目录：D:\Github\JW\SYBaseProjectWeb。完成 Phase 1.4：试剂设备台账与预警查询工作站。基于 Phase 1.1 的 M5 API Service，在 apps/web-ele/src/modules/operation-support 中实现试剂基础信息、试剂库存批次、设备台账、设备保养记录、试剂预警、设备预警页面。预警类型包括 LOW_STOCK、NEAR_EXPIRY、DUE_SOON、OVERDUE，并支持跳转到对应批次或设备详情。不得新增后端接口，不得回退或覆盖当前已有未提交改动。实现范围不包含采购中心、收费联动和统计驾驶舱。验收命令：pnpm -F @vben/web-ele run typecheck；pnpm test:system-management:frontend。最终输出：说明试剂设备管理员维护台账、查看预警、预警跳转和归档管理员无维护权限的验证结果。</code></pre>
+          </div>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-head">
+          <div>
+            <span class="tag green">Phase 1.5</span>
+            <h2>四类岗位 SOP 与现场演练验收</h2>
+          </div>
+          <strong>建议周期：1-2 天</strong>
+        </div>
+        <div class="phase-body">
+          <div>
+            <h3>目标与范围</h3>
+            <ul>
+              <li>新增或更新护士、技师、医生、管理员四类岗位 SOP。</li>
+              <li>同步整理 Phase 1 联调验收记录和问题台账模板。</li>
+              <li>组织四类角色现场演练。</li>
+            </ul>
+          </div>
+          <div>
+            <h3>交付物与验收</h3>
+            <ul>
+              <li>每份 SOP 包含主流程、异常处理、权限缺失、人工兜底、复核记录和升级联系人。</li>
+              <li>四类角色均可按 SOP 独立完成演练。</li>
+              <li>阻断问题为 <code>0</code>。</li>
+            </ul>
+          </div>
+          <div class="goal-box">
+            <div class="goal-head">
+              <h3>可复制 /goal 提示词</h3>
+              <span class="copy-hint">复制以下完整文本执行 Phase 1.5</span>
+            </div>
+            <pre><code>/goal 工作目录：D:\Github\JW\SYBaseProject 和 D:\Github\JW\SYBaseProjectWeb。完成 Phase 1.5：四类岗位 SOP 与现场演练验收。新增或更新 SOP 文档，覆盖护士、技师、医生、管理员四类角色。每份 SOP 必须包含主流程、异常处理、权限缺失、人工兜底、复核记录和升级联系人。同步整理 Phase 1 联调验收记录和问题台账模板。不得回退或覆盖两个仓库中的当前未提交改动。实现范围聚焦 M5 前端联调、四类角色试点演练和验收材料，不扩展采购、收费、真实文件上传、Excel 导出和统计报表。验收命令：在 D:\Github\JW\SYBaseProjectWeb 执行 pnpm -F @vben/web-ele run typecheck、pnpm test:system-management:frontend；在 D:\Github\JW\SYBaseProject 执行 M5 相关后端测试和 M1-M6 选择性回归。最终输出：说明四类 SOP 文档位置、演练记录、问题台账、验证命令结果和阻断问题数量。</code></pre>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="card">
+      <h2>四类岗位 SOP 骨架</h2>
+      <div class="sop-grid">
+        <article class="sop">
+          <h3>护士</h3>
+          <ul>
+            <li>送检、标签、追踪。</li>
+            <li>申请单归档状态查看。</li>
+            <li>纸质登记人工兜底。</li>
+          </ul>
+        </article>
+        <article class="sop">
+          <h3>技师</h3>
+          <ul>
+            <li>技术生产节点协同。</li>
+            <li>蜡块/玻片归档。</li>
+            <li>借阅归还异常处理。</li>
+          </ul>
+        </article>
+        <article class="sop">
+          <h3>医生</h3>
+          <ul>
+            <li>诊断工作台查看归档回流。</li>
+            <li>查看材料借阅状态。</li>
+            <li>图片不可访问处理。</li>
+          </ul>
+        </article>
+        <article class="sop">
+          <h3>管理员</h3>
+          <ul>
+            <li>归档柜初始化。</li>
+            <li>试剂设备台账维护。</li>
+            <li>权限核查和问题台账。</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>验收门禁</h2>
+      <div class="gate-grid">
+        <article class="gate">
+          <h3>前端门禁</h3>
+          <ul>
+            <li><code>pnpm -F @vben/web-ele run typecheck</code> 通过。</li>
+            <li><code>pnpm test:system-management:frontend</code> 不因 M5 改动回退。</li>
+            <li>六个阶段页面或文档交付物均可访问、可复核。</li>
+          </ul>
+        </article>
+        <article class="gate">
+          <h3>后端门禁</h3>
+          <ul>
+            <li><code>ArchiveWorkflowIntegrationTest</code> 通过。</li>
+            <li><code>ArchiveRoleAuthorizationIntegrationTest</code> 通过。</li>
+            <li><code>OperationSupportIntegrationTest</code> 与 <code>M5SingleApiIntegrationTest</code> 通过。</li>
+          </ul>
+        </article>
+      </div>
+      <table style="margin-top: 16px;">
+        <thead>
+          <tr>
+            <th>验收项</th>
+            <th>通过标准</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>M5 工作站</td>
+            <td>归档柜、柜位、申请单/蜡块/玻片归档、借阅归还、试剂设备台账、预警查询均可操作。</td>
+          </tr>
+          <tr>
+            <td>角色权限</td>
+            <td>归档管理员、试剂设备管理员、医生只读和无权限用户边界清晰，无阻断性权限缺失。</td>
+          </tr>
+          <tr>
+            <td>SOP</td>
+            <td>四类岗位 SOP 完成演练签收，每份包含主流程、异常处理、权限缺失、人工兜底。</td>
+          </tr>
+          <tr>
+            <td>问题台账</td>
+            <td>阻断问题为 <code>0</code>，高频体验问题有绕行方案、负责人和修复版本。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

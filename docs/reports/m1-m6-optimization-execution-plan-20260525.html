@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>M1-M6 分阶段优化执行计划 - 2026-05-25</title>
+  <style>
+    :root {
+      --ink: #162235;
+      --muted: #607086;
+      --line: #dbe3ec;
+      --panel: #ffffff;
+      --soft: #f5f8fb;
+      --navy: #1f3d5a;
+      --blue: #256b9a;
+      --green: #1f7a57;
+      --amber: #a86612;
+      --red: #b42318;
+      --shadow: 0 18px 45px rgba(22, 34, 53, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(37, 107, 154, 0.13), transparent 32rem),
+        linear-gradient(180deg, #eef4f8 0%, #ffffff 26rem);
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+      line-height: 1.68;
+    }
+
+    code {
+      padding: 0.12rem 0.32rem;
+      border: 1px solid #d4dde8;
+      border-radius: 0.35rem;
+      background: #f7fafc;
+      color: #12324a;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 0.92em;
+    }
+
+    .page {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 34px 0 64px;
+    }
+
+    header {
+      padding: 34px;
+      border: 1px solid rgba(31, 61, 90, 0.16);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      color: var(--navy);
+      line-height: 1.25;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      letter-spacing: -0.04em;
+    }
+
+    h2 {
+      margin-bottom: 16px;
+      font-size: 1.55rem;
+    }
+
+    h3 {
+      margin-bottom: 8px;
+      font-size: 1.08rem;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    .lead {
+      max-width: 860px;
+      margin-top: 16px;
+      color: #344963;
+      font-size: 1.05rem;
+    }
+
+    .meta-grid,
+    .kpi-grid,
+    .risk-grid,
+    .phase-grid,
+    .owner-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .meta-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-top: 26px;
+    }
+
+    .meta-item,
+    .card,
+    .phase,
+    .risk,
+    .gate,
+    .evidence {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+    }
+
+    .meta-item {
+      padding: 16px;
+    }
+
+    .label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .value {
+      display: block;
+      margin-top: 5px;
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    section {
+      margin-top: 28px;
+    }
+
+    .card {
+      padding: 24px;
+      box-shadow: 0 10px 28px rgba(22, 34, 53, 0.05);
+    }
+
+    .kpi-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 16px;
+    }
+
+    .kpi {
+      padding: 18px;
+      border-radius: 16px;
+      background: var(--soft);
+      border-left: 5px solid var(--blue);
+    }
+
+    .kpi strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 1.15rem;
+      color: var(--navy);
+    }
+
+    .risk-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-top: 16px;
+    }
+
+    .risk {
+      padding: 18px;
+      border-left: 6px solid var(--red);
+      background: #fff8f6;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0.18rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .tag.red {
+      background: #fee4e2;
+      color: var(--red);
+    }
+
+    .tag.amber {
+      background: #fff2d6;
+      color: var(--amber);
+    }
+
+    .tag.green {
+      background: #dcfce7;
+      color: var(--green);
+    }
+
+    .tag.blue {
+      background: #e0f2fe;
+      color: #075985;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .flow-step {
+      position: relative;
+      min-height: 150px;
+      padding: 18px;
+      border: 1px solid #c9d6e3;
+      border-radius: 18px;
+      background: linear-gradient(180deg, #ffffff, #f7fbfd);
+    }
+
+    .flow-step::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: -14px;
+      width: 14px;
+      height: 2px;
+      background: #9fb2c4;
+    }
+
+    .flow-step:last-child::after {
+      display: none;
+    }
+
+    .phase-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .phase {
+      overflow: hidden;
+      box-shadow: 0 12px 34px rgba(22, 34, 53, 0.05);
+    }
+
+    .phase-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 20px 22px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(90deg, #f6f9fc, #ffffff);
+    }
+
+    .phase-body {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 20px;
+      padding: 22px;
+    }
+
+    ul {
+      margin: 10px 0 0;
+      padding-left: 1.2rem;
+    }
+
+    li {
+      margin: 0.35rem 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #eef4f8;
+      color: var(--navy);
+      font-size: 0.92rem;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .owner-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-top: 16px;
+    }
+
+    .gate {
+      padding: 18px;
+    }
+
+    .evidence {
+      padding: 18px;
+      background: #fbfdff;
+    }
+
+    .note {
+      margin-top: 12px;
+      padding: 14px 16px;
+      border-left: 5px solid var(--amber);
+      border-radius: 12px;
+      background: #fff8eb;
+      color: #67400b;
+    }
+
+    .command {
+      display: block;
+      overflow-x: auto;
+      margin-top: 10px;
+      padding: 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 14px;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 900px) {
+      .meta-grid,
+      .kpi-grid,
+      .risk-grid,
+      .flow,
+      .phase-body,
+      .owner-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-step::after {
+        display: none;
+      }
+
+      header,
+      .card {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <span class="tag blue">执行计划</span>
+      <h1>M1-M6 分阶段优化执行计划</h1>
+      <p class="lead">基于 <code>docs/reports/m1-m6-completion-audit-20260525.html</code> 的审查结论，将优化拆成 4 个阶段推进。默认目标是单试点科室稳定运行：试点前冻结新增需求，只接受阻断缺陷、门禁缺口和必要稳定化改动。</p>
+      <div class="meta-grid">
+        <div class="meta-item">
+          <span class="label">报告日期</span>
+          <span class="value">2026-05-25</span>
+        </div>
+        <div class="meta-item">
+          <span class="label">环境</span>
+          <span class="value"><code>D:\Github\JW\SYBaseProject</code></span>
+        </div>
+        <div class="meta-item">
+          <span class="label">目标版本门禁</span>
+          <span class="value">M7 试点准入</span>
+        </div>
+        <div class="meta-item">
+          <span class="label">总体策略</span>
+          <span class="value">先止血，再试点，再专业化</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>首页结论</h2>
+      <p><strong>主业务闭环已具备试点基础，但进入 M7 前必须关闭迁移兼容和菜单授权回归阻断项。</strong> 本计划优先把当前全量选择性回归的 <code>1 failure</code> 和 <code>1 error</code> 归零，然后再推进前端工作站、真实联调、可观测性、发布演练和专业病理能力补齐。</p>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <strong>Phase 0：1-3 天</strong>
+          <span>关闭 M7 前置阻断项，恢复 M1-M6 选择性全量回归绿灯。</span>
+        </div>
+        <div class="kpi">
+          <strong>Phase 1：1-2 周</strong>
+          <span>让单试点科室具备可操作、可监控、可发布、可回滚能力。</span>
+        </div>
+        <div class="kpi">
+          <strong>Phase 2-3：2-8 周</strong>
+          <span>补齐正式报告、质控、设备适配，再扩展冰冻、特检/IHC、细胞学。</span>
+        </div>
+      </div>
+      <div class="risk-grid">
+        <article class="risk">
+          <span class="tag green">已关闭</span>
+          <h3>菜单授权回归口径已对齐</h3>
+          <p><code>MENU_M2_APPLICATION_LIST</code> 已作为 V46 后的活跃申请登记入口纳入验收；隐藏 legacy 菜单 <code>MENU_M2_CLINICAL</code> 保留历史兼容授权，不再作为活跃入口断言。</p>
+        </article>
+        <article class="risk">
+          <span class="tag green">已关闭</span>
+          <h3>Legacy 迁移兼容已加防护</h3>
+          <p><code>V41__repair_builtin_user_display_names</code> 已改为 Java 迁移，在 V10 baseline 旧库场景下会先检查表和字段存在性，再回填历史冗余姓名字段。</p>
+        </article>
+      </div>
+      <div class="note">当前执行状态：Phase 0 已完成。针对性回归 <code>Tests run: 11, Failures: 0, Errors: 0</code>，M1-M6 选择性全量回归 <code>Tests run: 120, Failures: 0, Errors: 0</code>。下一阶段可进入 Phase 1 试点稳定化准备。</div>
+    </section>
+
+    <section class="card">
+      <h2>阶段路线图</h2>
+      <div class="flow">
+        <div class="flow-step">
+          <span class="tag red">Phase 0</span>
+          <h3>M7 前置阻断收口</h3>
+          <p>修菜单授权与 legacy 迁移，重跑 M1-M6 选择性全量回归。</p>
+        </div>
+        <div class="flow-step">
+          <span class="tag amber">Phase 1</span>
+          <h3>试点稳定化准备</h3>
+          <p>M5 前端联调、四类岗位 SOP、M6 真实联调准备、监控和发布演练。</p>
+        </div>
+        <div class="flow-step">
+          <span class="tag blue">Phase 2</span>
+          <h3>核心专业化补齐</h3>
+          <p>报告正式化、质控、TAT、设备真实适配、问题日清和审计增强。</p>
+        </div>
+        <div class="flow-step">
+          <span class="tag green">Phase 3</span>
+          <h3>专业病理扩展</h3>
+          <p>冰冻、特检/IHC、分子病理、细胞学、归档运营增强和驾驶舱。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="phase-grid">
+      <article class="phase">
+        <div class="phase-head">
+          <div>
+            <span class="tag red">Phase 0</span>
+            <h2>M7 前置阻断收口</h2>
+          </div>
+          <strong>周期：1-3 天</strong>
+        </div>
+        <div class="phase-body">
+          <div>
+            <h3>执行任务</h3>
+            <ul>
+              <li>明确 <code>MENU_M2_APPLICATION_LIST</code> 与 <code>MENU_M2_WORKFLOW</code>、<code>MENU_M2_CLINICAL</code> 的最终菜单策略，统一种子数据、测试断言和文档口径。</li>
+              <li>修复 <code>V41__repair_builtin_user_display_names</code> 在 V10 baseline 旧库下访问不存在表的问题，所有历史冗余姓名回填必须先检查表和字段存在性。</li>
+              <li>重新执行 M1-M6 选择性全量回归，目标为 <code>Tests run: 120+</code> 且 <code>Failures: 0, Errors: 0</code>。</li>
+              <li>输出更新后的回归记录，替换旧报告中的“当前阻断项”状态，同时保留历史问题说明。</li>
+            </ul>
+          </div>
+          <div>
+            <h3>验收标准</h3>
+            <ul>
+              <li>菜单授权测试全部通过。</li>
+              <li><code>LegacyDmFlywayOnboardingTest</code> 全部通过。</li>
+              <li>M1-M6 选择性全量回归全部通过。</li>
+            </ul>
+            <p class="note">建议将 Phase 0 设为 M7 分支合并门禁：未绿灯时不进入试点需求评审。</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-head">
+          <div>
+            <span class="tag amber">Phase 1</span>
+            <h2>试点稳定化准备</h2>
+          </div>
+          <strong>周期：1-2 周</strong>
+        </div>
+        <div class="phase-body">
+          <div>
+            <h3>执行任务</h3>
+            <ul>
+              <li>完成 M5 前端联调：归档柜、柜位、申请单/蜡块/玻片归档、借阅归还、试剂设备台账和预警查询形成可操作工作站。</li>
+              <li>完成护士、技师、医生、管理员四类岗位 SOP，覆盖主流程、异常处理、权限缺失和人工兜底。</li>
+              <li>完成 HIS/EMR/LIS/PACS/收费系统字段映射、请求响应样例、失败码、重试策略和对账规则确认。</li>
+              <li>验证 <code>/actuator/health</code>、<code>/actuator/prometheus</code>、Prometheus 抓取、Grafana 看板和核心告警。</li>
+              <li>按 <code>docs/rules/RELEASE.md</code> 完成 staging 验证、灰度发布、回滚演练和值班通知。</li>
+            </ul>
+          </div>
+          <div>
+            <h3>验收标准</h3>
+            <ul>
+              <li><code>docs/plans/M7试点验收清单.md</code> 的验收前提全部打勾。</li>
+              <li>未关闭阻断项为 <code>0</code>。</li>
+              <li>试点角色可独立完成日常操作，不依赖研发手工兜底。</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-head">
+          <div>
+            <span class="tag blue">Phase 2</span>
+            <h2>试点运行与核心专业化补齐</h2>
+          </div>
+          <strong>周期：2-4 周</strong>
+        </div>
+        <div class="phase-body">
+          <div>
+            <h3>执行任务</h3>
+            <ul>
+              <li>报告正式化：新增正式报告 PDF 渲染、打印、电子签章或签名留痕、签发后防篡改、重新打印留痕。</li>
+              <li>质控专业化：补齐技术质控、报告质控、TAT SLA、超时升级、阳性/危急值提醒和质控抽检闭环。</li>
+              <li>设备真实适配：优先接入标签打印机、玻片打号机、包埋盒打号机、高拍仪和扫码枪，统一走适配层并记录失败补偿。</li>
+              <li>建立试点问题日清机制，按阻断、高频、一般分级，记录根因、绕行方案、修复版本和复核结论。</li>
+              <li>强化数据权限与审计：导出审批、敏感字段脱敏、管理员操作审计和科室数据隔离策略。</li>
+            </ul>
+          </div>
+          <div>
+            <h3>接口边界</h3>
+            <ul>
+              <li>可新增报告 PDF/打印相关接口。</li>
+              <li>可新增设备适配任务查询接口。</li>
+              <li>可新增质控录入与 TAT 查询接口。</li>
+              <li>不得破坏 M1-M6 既有接口兼容性。</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-head">
+          <div>
+            <span class="tag green">Phase 3</span>
+            <h2>专业病理扩展能力</h2>
+          </div>
+          <strong>周期：4-8 周</strong>
+        </div>
+        <div class="phase-body">
+          <div>
+            <h3>执行任务</h3>
+            <ul>
+              <li>冰冻流程：术中申请、冰冻取材、快速报告、石蜡复核、冰石符合率统计。</li>
+              <li>特检/IHC/分子病理：特检医嘱、计费、执行、结果回传、报告合并、试剂批号追溯。</li>
+              <li>细胞学/液基细胞学：独立标本类型、制片、筛查、复核、报告模板和统计口径。</li>
+              <li>归档运营增强：批量归档、柜位盘点、归档标签、对象存储文件上传、借阅逾期提醒。</li>
+              <li>管理驾驶舱：按科室、医生、技师、病种、设备、试剂、TAT、质控维度输出可复核统计。</li>
+            </ul>
+          </div>
+          <div>
+            <h3>验收标准</h3>
+            <ul>
+              <li>每个扩展业务域具备主链路自动化测试。</li>
+              <li>每个扩展业务域具备权限测试、异常测试和统计口径验证。</li>
+              <li>每个扩展业务域具备可培训、可复盘的操作 SOP。</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="card">
+      <h2>责任与门禁矩阵</h2>
+      <div class="owner-grid">
+        <div class="gate">
+          <h3>产品与实施</h3>
+          <ul>
+            <li>冻结试点范围，维护问题台账和 SOP。</li>
+            <li>确认外部系统字段映射、失败码、对账规则和人工兜底流程。</li>
+            <li>组织护士、技师、医生、管理员四类角色演练。</li>
+          </ul>
+        </div>
+        <div class="gate">
+          <h3>研发与测试</h3>
+          <ul>
+            <li>关闭 Phase 0 阻断，守住接口兼容和迁移兼容。</li>
+            <li>补齐前端工作站、设备适配层、报告 PDF/签章、质控与 TAT 能力。</li>
+            <li>把 M1-M6 选择性回归、专项测试和发布回滚演练纳入门禁。</li>
+          </ul>
+        </div>
+      </div>
+      <table style="margin-top: 16px;">
+        <thead>
+          <tr>
+            <th>阶段</th>
+            <th>必须通过的测试/演练</th>
+            <th>不通过时处理</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Phase 0</td>
+            <td>M1-M6 全量选择性回归、<code>LegacyDmFlywayOnboardingTest</code>、菜单/权限相关测试。</td>
+            <td>停止进入 M7；只允许修复阻断缺陷。</td>
+          </tr>
+          <tr>
+            <td>Phase 1</td>
+            <td>M1-M5 回归、M6 六个专项测试、健康检查、Prometheus、发布回滚演练。</td>
+            <td>不开放真实试点；先完成稳定化门禁。</td>
+          </tr>
+          <tr>
+            <td>Phase 2</td>
+            <td>报告 PDF/签章测试、设备失败补偿测试、TAT/质控统计测试、权限与审计测试。</td>
+            <td>限制新增专业域开发；优先补齐核心专业化短板。</td>
+          </tr>
+          <tr>
+            <td>Phase 3</td>
+            <td>新增专业域端到端主链路、异常链路、权限矩阵、数据迁移和统计导出测试。</td>
+            <td>单域未达标不得并入试点主流程。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>验证命令</h2>
+      <p>Phase 0 已按以下命令验证通过。后续每次修改迁移、菜单授权、M5 前端联调或 M6 真实联调配置后，仍应重新执行对应门禁。</p>
+      <span class="command">.\mvnw.cmd -B -ntp -pl bl-center -am test "-Dtest=SystemManagementRoleAndMenuIntegrationTest,LegacyDmFlywayOnboardingTest,BuiltinUserDisplayNameRepairMigrationTest" "-Dsurefire.failIfNoSpecifiedTests=false"</span>
+      <p class="note">结果：<code>BUILD SUCCESS</code>，<code>Tests run: 11, Failures: 0, Errors: 0, Skipped: 0</code>。</p>
+      <span class="command">.\mvnw.cmd -B -ntp -pl bl-center -am test "-Dtest=SystemManagementUserIntegrationTest,SystemManagementRoleAndMenuIntegrationTest,MasterDataControllerIntegrationTest,M1RoleAuthorizationIntegrationTest,M1SingleApiLifecycleIntegrationTest,ApplicationControllerIntegrationTest,SpecimenWorkflowHappyPathIntegrationTest,SpecimenWorkflowClosureIntegrationTest,M2RoleAuthorizationIntegrationTest,M2RoleScenarioIntegrationTest,M2CollectionAndLabelIntegrationTest,TechnicalWorkflowIntegrationTest,TechnicalWorkflowQueryEnhancementIntegrationTest,M3RoleAuthorizationMatrixIntegrationTest,DiagnosticWorkflowIntegrationTest,DiagnosticRevisionIntegrationTest,InternalConsultationIntegrationTest,MedicalOrderIntegrationTest,M4RoleAuthorizationIntegrationTest,M4Batch2AuthorizationIntegrationTest,ArchiveWorkflowIntegrationTest,ArchiveRoleAuthorizationIntegrationTest,OperationSupportIntegrationTest,M5SingleApiIntegrationTest,M6ClinicalIntegrationTest,M6BillingIntegrationTest,M6HistoricalReportIntegrationTest,M6StatisticsIntegrationTest,M6AuthorizationIntegrationTest,M6ObservabilityIntegrationTest,FlywayTableCoverageTest,LegacyDmFlywayOnboardingTest" "-Dsurefire.failIfNoSpecifiedTests=false"</span>
+      <p class="note">结果：<code>BUILD SUCCESS</code>，<code>Tests run: 120, Failures: 0, Errors: 0, Skipped: 0</code>。</p>
+    </section>
+
+    <section class="card">
+      <h2>假设与边界</h2>
+      <ul>
+        <li>首轮目标为单试点科室，不做多科室并行上线。</li>
+        <li>M7 前不新增独立业务中心，继续以 <code>bl-center</code> 承载主业务。</li>
+        <li>试点阶段功能冻结，除阻断缺陷、高频体验问题、稳定化门禁缺口外不接新需求。</li>
+        <li>所有新增外部系统和设备能力必须走适配层，不直接耦合工作站业务逻辑。</li>
+      </ul>
+      <div class="evidence" style="margin-top: 16px;">
+        <h3>依据材料</h3>
+        <p><code>docs/reports/m1-m6-completion-audit-20260525.html</code>、<code>docs/plans/M7试点上线与稳定化实施规划.md</code>、<code>docs/plans/M7试点验收清单.md</code>、<code>docs/rules/RELEASE.md</code>。</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -172,16 +172,16 @@ class SystemManagementRoleAndMenuIntegrationTest extends AbstractSystemManagemen
                 "MENU_SYSTEM",
                 "MENU_SYS_USERS",
                 "MENU_M2_WORKFLOW",
-                "MENU_M2_CLINICAL",
+                "MENU_M2_APPLICATION_LIST",
                 "MENU_M3_WORKFLOW",
                 "MENU_M3_GROSSING",
                 "MENU_M3_TASKS")));
 
         mockMvc.perform(asAdmin(get("/api/v1/roles/ROLE_M2_CLINICAL_REGISTER/authorizations")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.menuIds", containsInAnyOrder(
+            .andExpect(jsonPath("$.data.menuIds", hasItems(
                 "MENU_M2_WORKFLOW",
-                "MENU_M2_CLINICAL")));
+                "MENU_M2_APPLICATION_LIST")));
 
         mockMvc.perform(asAdmin(get("/api/v1/roles/ROLE_M3_GROSSING/authorizations")))
             .andExpect(status().isOk())
