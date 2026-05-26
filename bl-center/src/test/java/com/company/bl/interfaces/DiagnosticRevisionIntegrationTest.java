@@ -28,6 +28,7 @@ class DiagnosticRevisionIntegrationTest extends AbstractDiagnosticWorkflowIntegr
             """.formatted(context.reportId())), 200);
         String requestId = revision.path("requestId").asText();
         assertThat(revision.path("requestStatus").asText()).isEqualTo("PENDING");
+        assertThat(countNotifications(USER_M4_SIGN, "REPORT_REVISION", requestId)).isEqualTo(1L);
 
         JsonNode workbench = diagnosticWorkbench(context.caseId(), USER_M4_DIAGNOSIS);
         assertThat(workbench.path("hasPendingRevision").asBoolean()).isTrue();
@@ -43,6 +44,7 @@ class DiagnosticRevisionIntegrationTest extends AbstractDiagnosticWorkflowIntegr
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.requestStatus").value("APPROVED"))
             .andExpect(jsonPath("$.data.approvedVersionNo").value(2));
+        assertThat(countNotifications(USER_M4_DIAGNOSIS, "REPORT_REVISION", requestId)).isEqualTo(1L);
 
         JsonNode trackingAfterApprove = reportTracking(context.caseId(), USER_M4_TRACKING);
         assertThat(trackingAfterApprove.path("currentReport").path("reportStatus").asText()).isEqualTo("DRAFT");
@@ -106,6 +108,7 @@ class DiagnosticRevisionIntegrationTest extends AbstractDiagnosticWorkflowIntegr
             """)
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.requestStatus").value("REJECTED"));
+        assertThat(countNotifications(USER_M4_DIAGNOSIS, "REPORT_REVISION", requestId)).isEqualTo(1L);
 
         JsonNode tracking = reportTracking(context.caseId(), USER_M4_TRACKING);
         assertThat(tracking.path("currentReport").path("reportStatus").asText()).isEqualTo("PUBLISHED");

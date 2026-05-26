@@ -199,6 +199,8 @@ final class JdbcTechnicalWorkflowTaskQueries {
         }
         if (hasText(query.taskStatus())) {
             builder.append(" and t.task_status = :taskStatus");
+        } else {
+            builder.append(" and t.task_status in (:activeStatuses)");
         }
         if (hasText(query.priority())) {
             builder.append(" and t.priority = :priority");
@@ -243,6 +245,8 @@ final class JdbcTechnicalWorkflowTaskQueries {
         }
         if (hasText(query.taskStatus())) {
             params.addValue("taskStatus", query.taskStatus());
+        } else {
+            params.addValue("activeStatuses", ACTIVE_TASK_STATUSES);
         }
         if (hasText(query.priority())) {
             params.addValue("priority", query.priority());
@@ -269,7 +273,6 @@ final class JdbcTechnicalWorkflowTaskQueries {
             params.addValue("createdTo", query.createdTo());
         }
         if (query.timedOutOnly()) {
-            params.addValue("activeStatuses", ACTIVE_TASK_STATUSES);
             params.addValue("grossingTimedOutBefore", query.grossingTimedOutBefore());
             params.addValue("dehydrationTimedOutBefore", query.dehydrationTimedOutBefore());
             params.addValue("stainingTimedOutBefore", query.stainingTimedOutBefore());

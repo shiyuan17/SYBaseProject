@@ -4,8 +4,12 @@ import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRepository;
+import com.company.bl.notification.application.WorkflowNotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Service
 class TechnicalTaskManagementService {
@@ -13,13 +17,16 @@ class TechnicalTaskManagementService {
     private final TechnicalWorkflowRepository technicalWorkflowRepository;
     private final TechnicalWorkflowSupport technicalWorkflowSupport;
     private final TechnicalTaskTimeoutPolicy technicalTaskTimeoutPolicy;
+    private final WorkflowNotificationService workflowNotificationService;
 
     TechnicalTaskManagementService(TechnicalWorkflowRepository technicalWorkflowRepository,
                                    TechnicalWorkflowSupport technicalWorkflowSupport,
-                                   TechnicalTaskTimeoutPolicy technicalTaskTimeoutPolicy) {
+                                   TechnicalTaskTimeoutPolicy technicalTaskTimeoutPolicy,
+                                   WorkflowNotificationService workflowNotificationService) {
         this.technicalWorkflowRepository = technicalWorkflowRepository;
         this.technicalWorkflowSupport = technicalWorkflowSupport;
         this.technicalTaskTimeoutPolicy = technicalTaskTimeoutPolicy;
+        this.workflowNotificationService = workflowNotificationService;
     }
 
     @Transactional
@@ -36,7 +43,23 @@ class TechnicalTaskManagementService {
             command.productionRemarks());
         technicalWorkflowSupport.insertWorkflowEvent(task, task.currentNode(), "ASSIGN", "SUCCESS",
             command.operatorUserId(), command.operatorName(), command.terminalCode(), "Technical task assigned");
-        return reloadTaskView(task.id());
+        TechnicalWorkflowModels.TaskView view = reloadTaskView(task.id());
+        workflowNotificationService.notifyUsers(new WorkflowNotificationService.BulkNotificationCommand(
+            WorkflowNotificationService.TOPIC_TECH_TASK_ASSIGN,
+            WorkflowNotificationService.CATEGORY_TODO_TASK,
+            WorkflowNotificationService.LEVEL_MEDIUM,
+            "技术任务已分派",
+            "病理号 %s 的 %s 任务已分派给你，请及时处理。".formatted(task.pathologyNo(), task.taskType()),
+            "病理号 %s 的 %s 任务已分派给你".formatted(task.pathologyNo(), task.taskType()),
+            null,
+            "/technical-workflow/tasks",
+            buildTaskQuery(view),
+            "查看任务",
+            command.operatorUserId(),
+            false,
+            java.util.List.of(new WorkflowNotificationService.Recipient(view.assignedToUserId(), view.assignedToName()))
+        ));
+        return view;
     }
 
     @Transactional
@@ -60,7 +83,23 @@ class TechnicalTaskManagementService {
         technicalWorkflowRepository.releaseTechnicalTask(task.id(), command.remarks());
         technicalWorkflowSupport.insertWorkflowEvent(task, task.currentNode(), "RELEASE", "SUCCESS",
             command.operatorUserId(), command.operatorName(), command.terminalCode(), "Technical task released");
-        return reloadTaskView(task.id());
+        TechnicalWorkflowModels.TaskView view = reloadTaskView(task.id());
+        workflowNotificationService.notifyUsers(new WorkflowNotificationService.BulkNotificationCommand(
+            WorkflowNotificationService.TOPIC_TECH_TASK_RELEASE,
+            WorkflowNotificationService.CATEGORY_SYSTEM_MESSAGE,
+            WorkflowNotificationService.LEVEL_MEDIUM,
+            "技术任务已释放",
+            "病理号 %s 的 %s 任务已从你的名下释放，请以最新任务分派为准。".formatted(task.pathologyNo(), task.taskType()),
+            "病理号 %s 的 %s 任务已从你的名下释放".formatted(task.pathologyNo(), task.taskType()),
+            null,
+            "/technical-workflow/tasks",
+            buildTaskQuery(view),
+            "查看任务",
+            command.operatorUserId(),
+            false,
+            java.util.List.of(new WorkflowNotificationService.Recipient(task.assignedToUserId(), task.assignedToName()))
+        ));
+        return view;
     }
 
     @Transactional
@@ -72,7 +111,23 @@ class TechnicalTaskManagementService {
             command.productionRemarks());
         technicalWorkflowSupport.insertWorkflowEvent(task, task.currentNode(), "PRIORITY", "SUCCESS",
             command.operatorUserId(), command.operatorName(), command.terminalCode(), "Technical task priority updated");
-        return reloadTaskView(task.id());
+        TechnicalWorkflowModels.TaskView view = reloadTaskView(task.id());
+        workflowNotificationService.notifyUsers(new WorkflowNotificationService.BulkNotificationCommand(
+            WorkflowNotificationService.TOPIC_TECH_TASK_PRIORITY,
+            WorkflowNotificationService.CATEGORY_TODO_TASK,
+            WorkflowNotificationService.LEVEL_MEDIUM,
+            "技术任务优先级已调整",
+            buildPriorityContent(task, view.priority(), command.productionRemarks()),
+            "病理号 %s 的 %s 任务优先级已调整为 %s".formatted(task.pathologyNo(), task.taskType(), view.priority()),
+            null,
+            "/technical-workflow/tasks",
+            buildTaskQuery(view),
+            "查看任务",
+            command.operatorUserId(),
+            false,
+            java.util.List.of(new WorkflowNotificationService.Recipient(task.assignedToUserId(), task.assignedToName()))
+        ));
+        return view;
     }
 
     private TechnicalWorkflowRecords.TechnicalTask requireTask(String taskId) {
@@ -107,5 +162,38 @@ class TechnicalTaskManagementService {
             throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, message);
         }
         return value.trim();
+    }
+
+    private Map<String, String> buildTaskQuery(TechnicalWorkflowModels.TaskView task) {
+        Map<String, String> query = new LinkedHashMap<>();
+        putIfPresent(query, "taskId", task.id());
+        putIfPresent(query, "caseId", task.caseId());
+        putIfPresent(query, "pathologyNo", task.pathologyNo());
+        return query;
+    }
+
+    private String buildPriorityContent(
+        TechnicalWorkflowRecords.TechnicalTask task,
+        String priority,
+        String productionRemarks
+    ) {
+        StringBuilder builder = new StringBuilder()
+            .append("病理号 ")
+            .append(task.pathologyNo())
+            .append(" 的 ")
+            .append(task.taskType())
+            .append(" 任务优先级已调整为 ")
+            .append(priority)
+            .append("。");
+        if (productionRemarks != null && !productionRemarks.isBlank()) {
+            builder.append(" 备注：").append(productionRemarks.trim());
+        }
+        return builder.toString();
+    }
+
+    private void putIfPresent(Map<String, String> query, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            query.put(key, value);
+        }
     }
 }

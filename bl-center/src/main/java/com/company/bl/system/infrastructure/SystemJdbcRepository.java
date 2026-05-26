@@ -216,7 +216,7 @@ public class SystemJdbcRepository {
     public List<RoleRow> findRoles() {
         return jdbcTemplate.query("""
             select id, role_code, role_name, role_type, data_scope, remarks, enabled, created_at, updated_at
-            from roles
+                from roles
             order by role_code
             """, this::mapRole);
     }

@@ -415,7 +415,51 @@ class TechnicalWorkflowIntegrationTest extends AbstractTechnicalWorkflowIntegrat
                 .param("taskType", "STAINING")
                 .param("pathologyNo", context.pathologyNo()))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.total").value(2));
+            .andExpect(jsonPath("$.data.total").value(1));
+    }
+
+    @Test
+    void shouldCreateNotificationsForTechnicalTaskAssignReleaseAndPriority() throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-NOTIFY-001", "BC-M3-NOTIFY-001");
+
+        postJson("/api/v1/technical-tasks/%s/assign".formatted(context.grossingTaskId()), USER_M3_DEHYDRATION, """
+            {
+              "priority": "PRIORITY",
+              "stationCode": "G-01",
+              "stationName": "Grossing Station",
+              "assignedToUserId": "%s",
+              "assignedToName": "M3 Grossing",
+              "operatorName": "dehydration-user",
+              "terminalCode": "M3-N-01"
+            }
+            """.formatted(USER_M3_GROSSING))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.assignedToUserId").value(USER_M3_GROSSING));
+
+        postJson("/api/v1/technical-tasks/%s/priority".formatted(context.grossingTaskId()), USER_M3_DEHYDRATION, """
+            {
+              "priority": "STAT",
+              "productionRemarks": "expedite",
+              "operatorName": "dehydration-user",
+              "terminalCode": "M3-N-02"
+            }
+            """)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.priority").value("STAT"));
+
+        postJson("/api/v1/technical-tasks/%s/release".formatted(context.grossingTaskId()), USER_M3_DEHYDRATION, """
+            {
+              "operatorName": "dehydration-user",
+              "terminalCode": "M3-N-03",
+              "remarks": "re-balance"
+            }
+            """)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.assignedToUserId").isEmpty());
+
+        assertThat(countNotifications(USER_M3_GROSSING, "TECH_TASK_ASSIGN", context.grossingTaskId())).isEqualTo(1L);
+        assertThat(countNotifications(USER_M3_GROSSING, "TECH_TASK_PRIORITY", context.grossingTaskId())).isEqualTo(1L);
+        assertThat(countNotifications(USER_M3_GROSSING, "TECH_TASK_RELEASE", context.grossingTaskId())).isEqualTo(1L);
     }
 
     @Test
@@ -430,4 +474,5 @@ class TechnicalWorkflowIntegrationTest extends AbstractTechnicalWorkflowIntegrat
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
     }
+
 }

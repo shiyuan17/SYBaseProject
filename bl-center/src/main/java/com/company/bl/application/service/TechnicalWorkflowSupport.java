@@ -250,7 +250,8 @@ class TechnicalWorkflowSupport {
                              String operatorName,
                              String terminalCode,
                              String content) {
-        insertWorkflowEvent(task.applicationId(), task.specimenId(), task.caseId(), nodeCode, eventType, eventStatus,
+        insertWorkflowEvent(task.applicationId(), task.specimenId(), task.caseId(),
+            resolveNodeCode(nodeCode, task), eventType, eventStatus,
             operatorUserId, operatorName, terminalCode, content);
     }
 
@@ -297,6 +298,16 @@ class TechnicalWorkflowSupport {
             throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, message);
         }
         return value.trim();
+    }
+
+    private String resolveNodeCode(String explicitNodeCode, TechnicalWorkflowRecords.TechnicalTask task) {
+        if (explicitNodeCode != null && !explicitNodeCode.isBlank()) {
+            return explicitNodeCode.trim();
+        }
+        if (task.currentNode() != null && !task.currentNode().isBlank()) {
+            return task.currentNode().trim();
+        }
+        return requireText(task.taskType(), "Technical workflow node code is required");
     }
 
     private String nullToBlank(String value) {

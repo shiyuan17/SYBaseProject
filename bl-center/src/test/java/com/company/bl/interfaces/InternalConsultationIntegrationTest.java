@@ -32,6 +32,7 @@ class InternalConsultationIntegrationTest extends AbstractDiagnosticWorkflowInte
             """.formatted(context.caseId())), 200);
         String consultationId = created.path("consultationId").asText();
         assertThat(created.path("status").asText()).isEqualTo("IN_PROGRESS");
+        assertThat(countNotifications(USER_M4_SIGN, "CONSULTATION_INVITE", consultationId)).isEqualTo(1L);
 
         String signParticipantId = namedParameterJdbcTemplate.queryForObject("""
             select id
@@ -49,6 +50,7 @@ class InternalConsultationIntegrationTest extends AbstractDiagnosticWorkflowInte
             """)
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("IN_PROGRESS"));
+        assertThat(countNotifications(USER_M4_DIAGNOSIS, "CONSULTATION_COMMENT", consultationId)).isEqualTo(1L);
 
         postJson("/api/v1/consultations/%s/complete".formatted(consultationId), USER_M4_DIAGNOSIS, """
             {

@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Phase 1.5 现场复演签到与签字页</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #1f2937;
+        --muted: #5b6472;
+        --line: #d6dce5;
+        --panel: #ffffff;
+        --bg: #eef3f8;
+        --accent: #155e75;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: var(--ink);
+        background: linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+      }
+
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 32px 24px 48px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 30px;
+        margin-bottom: 10px;
+      }
+
+      h2 {
+        font-size: 20px;
+        margin-bottom: 12px;
+      }
+
+      h3 {
+        font-size: 16px;
+        margin-bottom: 8px;
+      }
+
+      p,
+      li {
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .hero {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 24px 24px 20px;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+      }
+
+      .badge {
+        display: inline-block;
+        margin-bottom: 10px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: #dff4fb;
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 20px;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 18px;
+      }
+
+      .role-chip {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: #edf7ed;
+        color: #166534;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .meta {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 16px;
+      }
+
+      .meta th,
+      .meta td,
+      .sheet th,
+      .sheet td {
+        border: 1px solid var(--line);
+        padding: 10px 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .meta th,
+      .sheet th {
+        background: #f7fafc;
+        font-weight: 700;
+      }
+
+      .sheet {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 14px;
+      }
+
+      .section {
+        margin-top: 22px;
+      }
+
+      .hint {
+        font-size: 13px;
+      }
+
+      .sign-line {
+        min-height: 62px;
+      }
+
+      .wide {
+        grid-column: 1 / -1;
+      }
+
+      @media print {
+        body {
+          background: #fff;
+        }
+
+        main {
+          max-width: none;
+          padding: 12px;
+        }
+
+        .hero,
+        .card {
+          box-shadow: none;
+        }
+      }
+
+      @media (max-width: 900px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <span class="badge">PHASE 1.5 SIGN-OFF</span>
+        <h1>Phase 1.5 现场复演签到与签字页</h1>
+        <p>
+          本页用于 Phase 1.5 四类角色现场复演的签到、过程记录、异常留痕和签字确认。
+          正式留档采用双留痕：本页填写后的截图或打印签字件 + 验收记录回填。
+        </p>
+        <table class="meta">
+          <tr>
+            <th>演练日期</th>
+            <td>2026-05-26</td>
+            <th>环境</th>
+            <td>Phase 1.5 联调环境 / 内置测试账号</td>
+          </tr>
+          <tr>
+            <th>组织人</th>
+            <td>________________</td>
+            <th>管理员复核人</th>
+            <td>________________</td>
+          </tr>
+          <tr>
+            <th>配套验收记录</th>
+            <td colspan="3">D:\Github\JW\SYBaseProject\docs\reports\phase1-integration-acceptance-record-20260525.md</td>
+          </tr>
+        </table>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <span class="role-chip">护士</span>
+          <div class="section">
+            <h3>复演账号</h3>
+            <p><code>m2.register</code> / <code>m2.fixation</code> / <code>m2.transport</code></p>
+          </div>
+          <div class="section">
+            <h3>主流程</h3>
+            <p>送检登记、固定核验、转运交接，确认标签、时间戳和交接信息完整。</p>
+          </div>
+        </article>
+
+        <article class="card">
+          <span class="role-chip">技师</span>
+          <div class="section">
+            <h3>复演账号</h3>
+            <p><code>m3.grossing</code> / <code>m3.dehydration</code> / <code>m3.embedding</code> / <code>m3.slicing</code> / <code>m3.staining</code></p>
+          </div>
+          <div class="section">
+            <h3>主流程</h3>
+            <p>接收后完成取材、脱水、包埋、切片、染色最小闭环，并记录异常上报。</p>
+          </div>
+        </article>
+
+        <article class="card">
+          <span class="role-chip">医生</span>
+          <div class="section">
+            <h3>复演账号</h3>
+            <p><code>m4.diagnosis</code> / <code>m4.review</code> / <code>m4.sign</code></p>
+          </div>
+          <div class="section">
+            <h3>主流程</h3>
+            <p>完成工作台、报告、追踪最小闭环，并核对归档、借阅回流字段。</p>
+          </div>
+        </article>
+
+        <article class="card">
+          <span class="role-chip">管理员</span>
+          <div class="section">
+            <h3>复演账号</h3>
+            <p><code>m1.admin</code> / <code>m1.archive</code> / <code>m1.reagent</code></p>
+          </div>
+          <div class="section">
+            <h3>主流程</h3>
+            <p>核对账号、菜单、M5 页面访问，检查归档、试剂、设备三类运营支持能力。</p>
+          </div>
+        </article>
+
+        <article class="card wide">
+          <h2>现场签到表</h2>
+          <table class="sheet">
+            <tr>
+              <th>角色</th>
+              <th>参与人姓名</th>
+              <th>登录账号</th>
+              <th>开始时间</th>
+              <th>完成时间</th>
+              <th>是否通过</th>
+              <th>异常摘要</th>
+              <th>参与人签字</th>
+            </tr>
+            <tr>
+              <td>护士</td>
+              <td></td>
+              <td>m2.register / m2.fixation / m2.transport</td>
+              <td></td>
+              <td></td>
+              <td>通过 / 不通过</td>
+              <td></td>
+              <td class="sign-line"></td>
+            </tr>
+            <tr>
+              <td>技师</td>
+              <td></td>
+              <td>m3.grossing / m3.dehydration / m3.embedding / m3.slicing / m3.staining</td>
+              <td></td>
+              <td></td>
+              <td>通过 / 不通过</td>
+              <td></td>
+              <td class="sign-line"></td>
+            </tr>
+            <tr>
+              <td>医生</td>
+              <td></td>
+              <td>m4.diagnosis / m4.review / m4.sign</td>
+              <td></td>
+              <td></td>
+              <td>通过 / 不通过</td>
+              <td></td>
+              <td class="sign-line"></td>
+            </tr>
+            <tr>
+              <td>管理员</td>
+              <td></td>
+              <td>m1.admin / m1.archive / m1.reagent</td>
+              <td></td>
+              <td></td>
+              <td>通过 / 不通过</td>
+              <td></td>
+              <td class="sign-line"></td>
+            </tr>
+          </table>
+          <p class="hint">提示：若某角色未通过，请同步记录问题台账编号，并在“异常摘要”中填写问题编号。</p>
+        </article>
+
+        <article class="card wide">
+          <h2>复演执行顺序与核对项</h2>
+          <table class="sheet">
+            <tr>
+              <th>顺序</th>
+              <th>执行角色</th>
+              <th>关键核对项</th>
+              <th>结果</th>
+            </tr>
+            <tr>
+              <td>1</td>
+              <td>管理员</td>
+              <td>账号可登录、菜单可见、M5 页面可访问</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>护士</td>
+              <td>送检登记、固定核验、转运交接闭环</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>技师</td>
+              <td>接收至染色主链路闭环，异常可上报</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>医生</td>
+              <td>工作台、报告、追踪可用，M5 回流字段可见</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>管理员</td>
+              <td>归档/借阅、试剂预警、设备预警核对</td>
+              <td></td>
+            </tr>
+          </table>
+        </article>
+
+        <article class="card wide">
+          <h2>管理员复核与留档确认</h2>
+          <table class="sheet">
+            <tr>
+              <th>检查项</th>
+              <th>复核结果</th>
+              <th>备注</th>
+            </tr>
+            <tr>
+              <td>前端 `typecheck` 已通过</td>
+              <td>是 / 否</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>系统管理前端测试已通过</td>
+              <td>是 / 否</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>四类角色均完成复演</td>
+              <td>是 / 否</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>问题台账已同步更新</td>
+              <td>是 / 否</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>截图或打印签字件已留档</td>
+              <td>是 / 否</td>
+              <td>留档路径：________________</td>
+            </tr>
+          </table>
+          <table class="sheet">
+            <tr>
+              <th>管理员复核意见</th>
+              <th>管理员签字</th>
+              <th>项目负责人签字</th>
+            </tr>
+            <tr>
+              <td class="sign-line"></td>
+              <td class="sign-line"></td>
+              <td class="sign-line"></td>
+            </tr>
+          </table>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

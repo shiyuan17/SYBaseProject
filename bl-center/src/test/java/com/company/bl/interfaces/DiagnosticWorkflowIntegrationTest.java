@@ -457,4 +457,28 @@ class DiagnosticWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegr
         assertThat(otherDiagnosisView.path("total").asInt()).isEqualTo(1);
         assertThat(otherDiagnosisView.path("items").get(0).path("id").asText()).isEqualTo(diagnosticTaskId);
     }
+
+    @Test
+    void shouldCreateDeduplicatedNotificationsForDiagnosticAssignment() throws Exception {
+        PendingDiagnosticContext context = preparePendingDiagnosticCase("APP-M4-NOTIFY-001", "BC-M4-NOTIFY-001");
+        String sameDoctorId = createDiagnosisUser("NOTIFY");
+
+        postJson("/api/v1/diagnostic-tasks/%s/assign".formatted(context.diagnosticTaskId()), USER_M4_ASSIGN, """
+            {
+              "diagnosisDoctorUserId":"%s",
+              "diagnosisDoctorName":"Notify Diagnosis",
+              "primaryDoctorUserId":"%s",
+              "primaryDoctorName":"Notify Diagnosis",
+              "reviewerUserId":"USER_M4_REVIEW",
+              "reviewerName":"M4 Review",
+              "operatorName":"assign-user",
+              "terminalCode":"M4-N-01"
+            }
+            """.formatted(sameDoctorId, sameDoctorId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.taskStatus").value("ASSIGNED"));
+
+        assertThat(countNotifications(sameDoctorId, "DIAG_TASK_ASSIGN", context.diagnosticTaskId())).isEqualTo(1L);
+        assertThat(countNotifications(USER_M4_REVIEW, "DIAG_TASK_ASSIGN", context.diagnosticTaskId())).isEqualTo(1L);
+    }
 }

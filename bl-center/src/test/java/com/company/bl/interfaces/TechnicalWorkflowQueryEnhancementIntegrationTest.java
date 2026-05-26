@@ -59,6 +59,46 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
                 .param("taskType", "GROSSING")
                 .param("pathologyNo", context.pathologyNo())
                 .param("createdFrom", createdAt.plusMinutes(1).toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total").value(0));
+    }
+
+    @Test
+    void shouldHideCompletedTechnicalTasksFromPendingListByDefault() throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-PENDING-ONLY-001", "BC-M3-PENDING-ONLY-001");
+
+        postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
+            {
+              "taskId": "%s",
+              "operatorName": "grossing-user"
+            }
+            """.formatted(context.grossingTaskId()))
+            .andExpect(status().isOk());
+
+        postJson("/api/v1/grossings/complete", USER_M3_GROSSING, """
+            {
+              "taskId": "%s",
+              "caseId": "%s",
+              "operatorName": "grossing-user",
+              "specimens": [
+                {
+                  "specimenId": "%s",
+                  "specimenType": "ROUTINE",
+                  "grossDescription": "complete for pending query",
+                  "blocks": [
+                    {"blockSite": "A", "blockDescription": "block-1"}
+                  ]
+                }
+              ]
+            }
+            """.formatted(context.grossingTaskId(), context.caseId(), context.specimenId()))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(get("/api/v1/technical-tasks/pending"), USER_M3_GROSSING)
+                .param("page", "1")
+                .param("size", "20")
+                .param("taskType", "GROSSING")
+                .param("pathologyNo", context.pathologyNo()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.total").value(0));
     }

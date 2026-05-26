@@ -4,22 +4,28 @@ import com.company.bl.domain.model.PathologyCase;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRepository;
+import com.company.bl.notification.application.WorkflowNotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 class TechnicalReworkWorkflowService {
 
     private final TechnicalWorkflowRepository technicalWorkflowRepository;
     private final TechnicalWorkflowSupport technicalWorkflowSupport;
+    private final WorkflowNotificationService workflowNotificationService;
 
     TechnicalReworkWorkflowService(TechnicalWorkflowRepository technicalWorkflowRepository,
-                                   TechnicalWorkflowSupport technicalWorkflowSupport) {
+                                   TechnicalWorkflowSupport technicalWorkflowSupport,
+                                   WorkflowNotificationService workflowNotificationService) {
         this.technicalWorkflowRepository = technicalWorkflowRepository;
         this.technicalWorkflowSupport = technicalWorkflowSupport;
+        this.workflowNotificationService = workflowNotificationService;
     }
 
     @Transactional
@@ -111,11 +117,50 @@ class TechnicalReworkWorkflowService {
             objectId,
             parentTaskId,
             "reworkOrderId=" + order.id() + ";reworkType=" + order.reworkType());
+        List<TechnicalWorkflowRecords.TechnicalTask> regeneratedTasks =
+            technicalWorkflowRepository.findActiveTechnicalTasksByObject(taskType, objectType, objectId);
         technicalWorkflowRepository.updateReworkOrderStatus(
             order.id(), TechnicalWorkflowConstants.TASK_COMPLETED, command.operatorUserId(), command.operatorName(), now, command.remarks());
         technicalWorkflowSupport.insertWorkflowEvent(pathologyCase.applicationId(), specimenId, pathologyCase.id(),
             TechnicalWorkflowConstants.NODE_REWORK, "EXECUTE", "SUCCESS", command.operatorUserId(),
             command.operatorName(), command.terminalCode(), order.reason());
+        if (!regeneratedTasks.isEmpty()) {
+            TechnicalWorkflowRecords.TechnicalTask regeneratedTask = regeneratedTasks.get(0);
+            workflowNotificationService.notifyUsers(new WorkflowNotificationService.BulkNotificationCommand(
+                WorkflowNotificationService.TOPIC_REWORK_CREATED,
+                WorkflowNotificationService.CATEGORY_TODO_TASK,
+                WorkflowNotificationService.LEVEL_MEDIUM,
+                "返工任务已生成",
+                "病理号 %s 已生成新的返工任务，请及时处理。".formatted(pathologyCase.pathologyNo()),
+                "病理号 %s 已生成新的返工任务".formatted(pathologyCase.pathologyNo()),
+                null,
+                "/technical-workflow/tasks",
+                buildTaskQuery(regeneratedTask, pathologyCase.pathologyNo()),
+                "查看任务",
+                command.operatorUserId(),
+                false,
+                List.of(new WorkflowNotificationService.Recipient(
+                    regeneratedTask.assignedToUserId(),
+                    regeneratedTask.assignedToName()))
+            ));
+        }
         return new TechnicalWorkflowModels.ReworkOrderResult(order.caseId(), order.reworkType(), TechnicalWorkflowConstants.TASK_COMPLETED);
+    }
+
+    private Map<String, String> buildTaskQuery(
+        TechnicalWorkflowRecords.TechnicalTask task,
+        String pathologyNo
+    ) {
+        Map<String, String> query = new LinkedHashMap<>();
+        putIfPresent(query, "taskId", task.id());
+        putIfPresent(query, "caseId", task.caseId());
+        putIfPresent(query, "pathologyNo", pathologyNo);
+        return query;
+    }
+
+    private void putIfPresent(Map<String, String> query, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            query.put(key, value);
+        }
     }
 }

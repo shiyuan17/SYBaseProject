@@ -86,6 +86,21 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
             """, Map.of("caseId", caseId, "specimenId", specimenId), String.class);
     }
 
+    protected long countNotifications(String userId, String topicCode, String payloadFragment) {
+        Long count = namedParameterJdbcTemplate.queryForObject("""
+            select count(*)
+            from user_notifications
+            where user_id = :userId
+              and topic_code = :topicCode
+              and action_payload_json like :payloadPattern
+            """, Map.of(
+            "userId", userId,
+            "topicCode", topicCode,
+            "payloadPattern", "%" + payloadFragment + "%"
+        ), Long.class);
+        return count == null ? 0L : count;
+    }
+
     protected record TechnicalCaseContext(
         String applicationId,
         String caseId,

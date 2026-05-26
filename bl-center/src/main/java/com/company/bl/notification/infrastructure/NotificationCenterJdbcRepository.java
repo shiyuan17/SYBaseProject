@@ -198,6 +198,36 @@ public class NotificationCenterJdbcRepository {
             .addValue("updatedAt", now));
     }
 
+    public void insertNotification(CreateNotificationRow row) {
+        jdbcTemplate.update("""
+            insert into user_notifications
+                (id, user_id, topic_code, category, level, title, content, summary,
+                 avatar, action_type, action_target, action_payload_json, action_text,
+                 status, read_at, archived_at, created_at)
+            values
+                (:id, :userId, :topicCode, :category, :level, :title, :content, :summary,
+                 :avatar, :actionType, :actionTarget, :actionPayloadJson, :actionText,
+                 :status, :readAt, :archivedAt, :createdAt)
+            """, new MapSqlParameterSource()
+            .addValue("id", row.id())
+            .addValue("userId", row.userId())
+            .addValue("topicCode", row.topicCode())
+            .addValue("category", row.category())
+            .addValue("level", row.level())
+            .addValue("title", row.title())
+            .addValue("content", row.content())
+            .addValue("summary", row.summary())
+            .addValue("avatar", row.avatar())
+            .addValue("actionType", row.actionType())
+            .addValue("actionTarget", row.actionTarget())
+            .addValue("actionPayloadJson", row.actionPayloadJson())
+            .addValue("actionText", row.actionText())
+            .addValue("status", row.status())
+            .addValue("readAt", row.readAt())
+            .addValue("archivedAt", row.archivedAt())
+            .addValue("createdAt", row.createdAt()));
+    }
+
     public Set<String> findAuthorizedTopicCodes(String userId) {
         return new LinkedHashSet<>(jdbcTemplate.query("""
             select distinct mt.topic_code
@@ -210,6 +240,16 @@ public class NotificationCenterJdbcRepository {
               and mt.enabled = 1
             order by mt.topic_code
             """, Map.of("userId", userId), (rs, rowNum) -> rs.getString(1)));
+    }
+
+    public boolean userExists(String userId) {
+        Integer count = jdbcTemplate.queryForObject("""
+            select count(*)
+            from users
+            where id = :userId
+              and enabled = 1
+            """, Map.of("userId", userId), Integer.class);
+        return count != null && count > 0;
     }
 
     private MapSqlParameterSource createVisibilityParams(
@@ -328,6 +368,27 @@ public class NotificationCenterJdbcRepository {
         boolean systemMessageEnabled,
         boolean todoTaskEnabled,
         LocalDateTime updatedAt
+    ) {
+    }
+
+    public record CreateNotificationRow(
+        String id,
+        String userId,
+        String topicCode,
+        String category,
+        String level,
+        String title,
+        String content,
+        String summary,
+        String avatar,
+        String actionType,
+        String actionTarget,
+        String actionPayloadJson,
+        String actionText,
+        String status,
+        LocalDateTime readAt,
+        LocalDateTime archivedAt,
+        LocalDateTime createdAt
     ) {
     }
 }

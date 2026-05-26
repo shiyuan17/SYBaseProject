@@ -64,6 +64,96 @@ abstract class AbstractDiagnosticWorkflowIntegrationTest extends AbstractTechnic
         return prepareStartedDiagnosticCase(applicationNo, barcode, "DEPT-OR", "OR");
     }
 
+    protected PendingDiagnosticContext preparePendingDiagnosticCase(String applicationNo, String barcode) throws Exception {
+        return preparePendingDiagnosticCase(applicationNo, barcode, "DEPT-OR", "OR");
+    }
+
+    protected PendingDiagnosticContext preparePendingDiagnosticCase(String applicationNo,
+                                                                    String barcode,
+                                                                    String submittingDepartmentId,
+                                                                    String submittingDepartmentName) throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask(applicationNo, barcode, submittingDepartmentId, submittingDepartmentName);
+
+        postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
+            {"taskId":"%s","operatorName":"grossing-user","terminalCode":"M4-G-01"}
+            """.formatted(context.grossingTaskId()))
+            .andExpect(status().isOk());
+        postJson("/api/v1/grossings/complete", USER_M3_GROSSING, """
+            {
+              "taskId":"%s",
+              "caseId":"%s",
+              "operatorName":"grossing-user",
+              "terminalCode":"M4-G-02",
+              "specimens":[{"specimenId":"%s","specimenType":"ROUTINE","grossDescription":"gd","blocks":[{"blockSite":"A","blockDescription":"B"}]}]
+            }
+            """.formatted(context.grossingTaskId(), context.caseId(), context.specimenId()))
+            .andExpect(status().isOk());
+
+        String samplingBlockId = listPendingTasks("DEHYDRATION", context.pathologyNo(), USER_M3_DEHYDRATION)
+            .path("items").get(0).path("objectId").asText();
+        String batchId = responseBody(postJson("/api/v1/dehydration-batches", USER_M3_DEHYDRATION, """
+            {
+              "caseId":"%s",
+              "basketNo":"B1",
+              "deviceNo":"D1",
+              "operatorName":"dehydration-user",
+              "terminalCode":"M4-D-01",
+              "samplingBlockIds":["%s"]
+            }
+            """.formatted(context.caseId(), samplingBlockId)), 201).path("batchId").asText();
+        postJson("/api/v1/dehydration-batches/%s/start".formatted(batchId), USER_M3_DEHYDRATION, """
+            {"operatorName":"dehydration-user","terminalCode":"M4-D-02"}
+            """).andExpect(status().isOk());
+        postJson("/api/v1/dehydration-batches/%s/complete".formatted(batchId), USER_M3_DEHYDRATION, """
+            {"operatorName":"dehydration-user","terminalCode":"M4-D-03"}
+            """).andExpect(status().isOk());
+
+        String embeddingTaskId = listPendingTasks("EMBEDDING", context.pathologyNo(), USER_M3_EMBEDDING)
+            .path("items").get(0).path("id").asText();
+        postJson("/api/v1/embeddings/start", USER_M3_EMBEDDING, """
+            {"taskId":"%s","operatorName":"embedding-user","terminalCode":"M4-E-01"}
+            """.formatted(embeddingTaskId)).andExpect(status().isOk());
+        String embeddingBoxId = responseBody(postJson("/api/v1/embeddings/complete", USER_M3_EMBEDDING, """
+            {
+              "taskId":"%s",
+              "samplingBlockId":"%s",
+              "blockCount":1,
+              "sliceNotice":"n",
+              "operatorName":"embedding-user",
+              "terminalCode":"M4-E-02"
+            }
+            """.formatted(embeddingTaskId, samplingBlockId)), 200).path("embeddingBoxId").asText();
+
+        String slicingTaskId = listPendingTasks("SLICING", context.pathologyNo(), USER_M3_SLICING)
+            .path("items").get(0).path("id").asText();
+        postJson("/api/v1/slicings/start", USER_M3_SLICING, """
+            {"taskId":"%s","operatorName":"slicing-user","terminalCode":"M4-S-01"}
+            """.formatted(slicingTaskId)).andExpect(status().isOk());
+        String slideId = responseBody(postJson("/api/v1/slicings/complete", USER_M3_SLICING, """
+            {
+              "taskId":"%s",
+              "embeddingBoxId":"%s",
+              "slideCount":1,
+              "operatorName":"slicing-user",
+              "terminalCode":"M4-S-02"
+            }
+            """.formatted(slicingTaskId, embeddingBoxId)), 200).path("slideIds").get(0).asText();
+
+        String stainingTaskId = listPendingTasks("STAINING", context.pathologyNo(), USER_M3_STAINING)
+            .path("items").get(0).path("id").asText();
+        postJson("/api/v1/slide-stainings/start", USER_M3_STAINING, """
+            {"taskId":"%s","operatorName":"staining-user","terminalCode":"M4-T-01"}
+            """.formatted(stainingTaskId)).andExpect(status().isOk());
+        postJson("/api/v1/slide-stainings/complete", USER_M3_STAINING, """
+            {"taskId":"%s","slideId":"%s","stainingType":"HE","operatorName":"staining-user","terminalCode":"M4-T-02"}
+            """.formatted(stainingTaskId, slideId)).andExpect(status().isOk());
+
+        JsonNode pendingDiagnosticTasks = listPendingDiagnosticTasks(context.pathologyNo(), USER_M4_ASSIGN);
+        assertThat(pendingDiagnosticTasks.path("total").asInt()).isEqualTo(1);
+        String diagnosticTaskId = pendingDiagnosticTasks.path("items").get(0).path("id").asText();
+        return new PendingDiagnosticContext(context.caseId(), context.pathologyNo(), diagnosticTaskId);
+    }
+
     protected StartedDiagnosticContext prepareStartedDiagnosticCase(String applicationNo,
                                                                     String barcode,
                                                                     String submittingDepartmentId,
@@ -213,6 +303,13 @@ abstract class AbstractDiagnosticWorkflowIntegrationTest extends AbstractTechnic
     }
 
     protected record StartedDiagnosticContext(
+        String caseId,
+        String pathologyNo,
+        String diagnosticTaskId
+    ) {
+    }
+
+    protected record PendingDiagnosticContext(
         String caseId,
         String pathologyNo,
         String diagnosticTaskId
