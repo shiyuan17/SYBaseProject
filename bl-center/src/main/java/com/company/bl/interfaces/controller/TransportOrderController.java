@@ -31,27 +31,39 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/transport-orders")
 @RequiredArgsConstructor
-@Tag(name = "临床送检", description = "标本转运单创建、打印与交接接口")
+@Tag(name = "Clinical Submission", description = "Transport order workflow APIs")
 public class TransportOrderController {
 
     private final SpecimenWorkflowAppService specimenWorkflowAppService;
 
-    @Operation(summary = "查询待处理转运单", description = "分页查询当前待处理的转运单工作台列表。")
+    @Operation(summary = "List pending transport orders", description = "Query pending transport orders with paging.")
     @RequirePermission(M2PermissionCodes.TRANSPORT_HANDOVER)
     @GetMapping("/pending")
-    public PendingTransportOrderPageResponse listPending(@Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
-                                                         @Parameter(description = "每页条数，默认 20") @RequestParam(defaultValue = "20") int size,
-                                                         @Parameter(description = "申请单 ID") @RequestParam(required = false) String applicationId,
-                                                         @Parameter(description = "送检科室 ID") @RequestParam(required = false) String departmentId,
-                                                         @Parameter(description = "开始日期") @RequestParam(required = false) String dateFrom,
-                                                         @Parameter(description = "结束日期") @RequestParam(required = false) String dateTo,
-                                                         @Parameter(description = "转运状态") @RequestParam(required = false) String status) {
+    public PendingTransportOrderPageResponse listPending(
+        @Parameter(description = "Page number, starting from 1")
+        @RequestParam(defaultValue = "1") int page,
+        @Parameter(description = "Page size, default 20")
+        @RequestParam(defaultValue = "20") int size,
+        @Parameter(description = "Application ID")
+        @RequestParam(required = false) String applicationId,
+        @Parameter(description = "Specimen serial number")
+        @RequestParam(required = false) String specimenNo,
+        @Parameter(description = "Submitting department ID")
+        @RequestParam(required = false) String departmentId,
+        @Parameter(description = "Start date")
+        @RequestParam(required = false) String dateFrom,
+        @Parameter(description = "End date")
+        @RequestParam(required = false) String dateTo,
+        @Parameter(description = "Transport order status")
+        @RequestParam(required = false) String status
+    ) {
         SpecimenWorkflowAppService.PendingTransportOrderPage result =
             specimenWorkflowAppService.listPendingTransportOrders(
                 new SpecimenWorkflowAppService.PendingTransportOrderQuery(
                     page,
                     size,
                     applicationId,
+                    specimenNo,
                     departmentId,
                     dateFrom,
                     dateTo,
@@ -63,8 +75,8 @@ public class TransportOrderController {
             result.total());
     }
 
-    @Operation(summary = "创建转运单", description = "为申请单下指定标本创建转运单。")
-    @ApiResponses(@ApiResponse(responseCode = "201", description = "创建成功", useReturnTypeSchema = true))
+    @Operation(summary = "Create transport order", description = "Create transport order for selected specimen barcodes.")
+    @ApiResponses(@ApiResponse(responseCode = "201", description = "Created successfully", useReturnTypeSchema = true))
     @RequirePermission(M2PermissionCodes.TRANSPORT_HANDOVER)
     @PostMapping
     public ResponseEntity<TransportOrderResponse> create(@Valid @RequestBody CreateTransportOrderRequest request,
@@ -83,10 +95,10 @@ public class TransportOrderController {
                 request.getRemarks()))));
     }
 
-    @Operation(summary = "打印转运单", description = "对指定转运单执行打印操作。")
+    @Operation(summary = "Print transport order", description = "Print the specified transport order.")
     @RequirePermission(M2PermissionCodes.TRANSPORT_HANDOVER)
     @PostMapping("/{id}/print")
-    public TransportOrderResponse print(@Parameter(description = "转运单 ID") @PathVariable("id") String id,
+    public TransportOrderResponse print(@Parameter(description = "Transport order ID") @PathVariable("id") String id,
                                         @Valid @RequestBody TransportOrderOperatorRequest request,
                                         HttpServletRequest httpServletRequest) {
         return toResponse(specimenWorkflowAppService.printTransportOrder(
@@ -97,10 +109,10 @@ public class TransportOrderController {
                 request.getTerminalCode())));
     }
 
-    @Operation(summary = "交接转运单", description = "对指定转运单执行交接确认。")
+    @Operation(summary = "Handover transport order", description = "Confirm handover for the specified transport order.")
     @RequirePermission(M2PermissionCodes.TRANSPORT_HANDOVER)
     @PostMapping("/{id}/handover")
-    public TransportOrderResponse handover(@Parameter(description = "转运单 ID") @PathVariable("id") String id,
+    public TransportOrderResponse handover(@Parameter(description = "Transport order ID") @PathVariable("id") String id,
                                            @Valid @RequestBody HandoverTransportOrderRequest request,
                                            HttpServletRequest httpServletRequest) {
         return toResponse(specimenWorkflowAppService.handoverTransportOrder(

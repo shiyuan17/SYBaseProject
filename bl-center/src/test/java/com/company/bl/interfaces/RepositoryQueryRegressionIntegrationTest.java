@@ -141,7 +141,7 @@ class RepositoryQueryRegressionIntegrationTest extends AbstractDiagnosticWorkflo
 
         SpecimenWorkflowRepository.PagedPendingSpecimens pendingFixations =
             specimenWorkflowRepository.findPendingFixations(
-                new SpecimenWorkflowRepository.PendingSpecimenQuery(1, 10, applicationId, null, null, null, null)
+                new SpecimenWorkflowRepository.PendingSpecimenQuery(1, 10, applicationId, null, null, null, null, null)
             );
         assertThat(pendingFixations.total()).isGreaterThanOrEqualTo(1);
         assertThat(pendingFixations.items()).anyMatch(item -> specimenId.equals(item.specimenId()));
@@ -158,7 +158,7 @@ class RepositoryQueryRegressionIntegrationTest extends AbstractDiagnosticWorkflo
 
         SpecimenWorkflowRepository.PagedPendingSpecimens pendingReceipts =
             specimenWorkflowRepository.findPendingReceipts(
-                new SpecimenWorkflowRepository.PendingSpecimenQuery(1, 10, applicationId, null, null, null, null)
+                new SpecimenWorkflowRepository.PendingSpecimenQuery(1, 10, applicationId, null, null, null, null, null)
             );
         assertThat(pendingReceipts.total()).isGreaterThanOrEqualTo(1);
         assertThat(pendingReceipts.items()).anyMatch(item -> specimenId.equals(item.specimenId()));

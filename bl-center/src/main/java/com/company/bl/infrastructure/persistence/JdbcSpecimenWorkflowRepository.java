@@ -1244,6 +1244,9 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         if (query.applicationId() != null && !query.applicationId().isBlank()) {
             builder.append(" and ").append(applicationAlias).append(".id = :applicationId");
         }
+        if (query.specimenNo() != null && !query.specimenNo().isBlank()) {
+            builder.append(" and ").append(specimenAlias).append(".specimen_no = :specimenNo");
+        }
         if (query.departmentId() != null && !query.departmentId().isBlank()) {
             builder.append(" and ").append(applicationAlias).append(".submitting_department_id = :departmentId");
         }
@@ -1263,6 +1266,17 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         StringBuilder builder = new StringBuilder();
         if (query.applicationId() != null && !query.applicationId().isBlank()) {
             builder.append(" and a.id = :applicationId");
+        }
+        if (query.specimenNo() != null && !query.specimenNo().isBlank()) {
+            builder.append("""
+                 and exists (
+                    select 1
+                    from transport_order_items toi
+                    join specimens s on s.id = toi.specimen_id
+                    where toi.transport_order_id = t.id
+                      and s.specimen_no = :specimenNo
+                )
+                """);
         }
         if (query.departmentId() != null && !query.departmentId().isBlank()) {
             builder.append(" and a.submitting_department_id = :departmentId");
@@ -1358,6 +1372,9 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         if (query.applicationId() != null && !query.applicationId().isBlank()) {
             parameters.addValue("applicationId", query.applicationId());
         }
+        if (query.specimenNo() != null && !query.specimenNo().isBlank()) {
+            parameters.addValue("specimenNo", query.specimenNo());
+        }
         if (query.departmentId() != null && !query.departmentId().isBlank()) {
             parameters.addValue("departmentId", query.departmentId());
         }
@@ -1377,6 +1394,9 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         MapSqlParameterSource parameters = new MapSqlParameterSource();
         if (query.applicationId() != null && !query.applicationId().isBlank()) {
             parameters.addValue("applicationId", query.applicationId());
+        }
+        if (query.specimenNo() != null && !query.specimenNo().isBlank()) {
+            parameters.addValue("specimenNo", query.specimenNo());
         }
         if (query.departmentId() != null && !query.departmentId().isBlank()) {
             parameters.addValue("departmentId", query.departmentId());

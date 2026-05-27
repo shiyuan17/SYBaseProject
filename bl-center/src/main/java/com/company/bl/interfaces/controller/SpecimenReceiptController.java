@@ -104,6 +104,7 @@ public class SpecimenReceiptController {
                 page,
                 size,
                 applicationId,
+                null,
                 departmentId,
                 null,
                 dateFrom,
