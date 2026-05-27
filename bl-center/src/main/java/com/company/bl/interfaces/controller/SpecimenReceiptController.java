@@ -51,7 +51,14 @@ public class SpecimenReceiptController {
                     item.getReason(),
                     item.getRemarks()))
                     .toList()));
-        return new SpecimenReceiptResponse(result.caseId(), result.pathologyNo(), result.receiptStatus(), result.unreceivedCount());
+        return new SpecimenReceiptResponse(
+            result.caseId(),
+            result.pathologyNo(),
+            result.receiptStatus(),
+            result.unreceivedCount(),
+            result.unreceivedCount() > 0,
+            result.unreceivedCount() > 0 ? "存在未接收标本，请继续回查接收异常和质控记录。" : null,
+            result.unreceivedCount());
     }
 
     @Operation(summary = "按条码直接接收标本", description = "不依赖转运单，直接根据标本条码完成接收。")
@@ -73,7 +80,14 @@ public class SpecimenReceiptController {
                     item.getReason(),
                     item.getRemarks()))
                     .toList()));
-        return new SpecimenReceiptResponse(result.caseId(), result.pathologyNo(), result.receiptStatus(), result.unreceivedCount());
+        return new SpecimenReceiptResponse(
+            result.caseId(),
+            result.pathologyNo(),
+            result.receiptStatus(),
+            result.unreceivedCount(),
+            result.unreceivedCount() > 0,
+            result.unreceivedCount() > 0 ? "存在未接收标本，请继续回查接收异常和质控记录。" : null,
+            result.unreceivedCount());
     }
 
     @Operation(summary = "查询待接收标本", description = "分页查询当前待接收的标本列表。")
@@ -116,6 +130,10 @@ public class SpecimenReceiptController {
             item.containerCount(),
             item.specimenStatus(),
             item.fixationStatus(),
+            resolveAbnormalType(item.specimenStatus(), item.fixationStatus(), item.abnormalFlag()),
+            item.abnormalFlag() ? 1 : 0,
+            "RECEIVED".equals(item.specimenStatus()) ? 0 : 1,
+            item.abnormalFlag(),
             stringify(item.registeredAt()),
             stringify(item.latestTrackingAt()),
             item.abnormalFlag());
@@ -128,5 +146,15 @@ public class SpecimenReceiptController {
     private String resolveUserId(String bodyUserId, HttpServletRequest request) {
         Object currentUserId = request.getAttribute(ApiPermissionContext.CURRENT_USER_ID);
         return currentUserId == null ? null : currentUserId.toString();
+    }
+
+    private String resolveAbnormalType(String specimenStatus, String fixationStatus, boolean abnormalFlag) {
+        if ("REJECTED".equals(specimenStatus) || "RETURNED".equals(specimenStatus)) {
+            return specimenStatus;
+        }
+        if ("ABNORMAL".equals(fixationStatus)) {
+            return "FIXATION_ABNORMAL";
+        }
+        return abnormalFlag ? "WORKFLOW_ABNORMAL" : null;
     }
 }

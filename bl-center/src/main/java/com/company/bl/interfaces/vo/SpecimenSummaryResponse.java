@@ -32,6 +32,10 @@ public record SpecimenSummaryResponse(
     String specimenStatus,
     @Schema(description = "固定状态")
     String fixationStatus,
+    @Schema(description = "核对状态")
+    String verificationStatus,
+    @Schema(description = "条码绑定状态")
+    String barcodeBindingStatus,
     @Schema(description = "标签打印状态")
     String labelPrintStatus,
     @Schema(description = "接收结果")
@@ -40,6 +44,8 @@ public record SpecimenSummaryResponse(
     String qualityCheckResult,
     @Schema(description = "质控问题代码")
     List<String> qualityIssueCodes,
+    @Schema(description = "异常类型")
+    String abnormalType,
     @Schema(description = "异常原因")
     String abnormalReason
 ) {

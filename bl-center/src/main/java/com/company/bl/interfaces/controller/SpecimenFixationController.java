@@ -101,6 +101,10 @@ public class SpecimenFixationController {
             item.containerCount(),
             item.specimenStatus(),
             item.fixationStatus(),
+            resolveAbnormalType(item.specimenStatus(), item.fixationStatus(), item.abnormalFlag()),
+            item.abnormalFlag() ? 1 : 0,
+            "RECEIVED".equals(item.specimenStatus()) ? 0 : 1,
+            item.abnormalFlag(),
             stringify(item.registeredAt()),
             stringify(item.latestTrackingAt()),
             item.abnormalFlag());
@@ -113,5 +117,15 @@ public class SpecimenFixationController {
     private String resolveUserId(String bodyUserId, HttpServletRequest request) {
         Object currentUserId = request.getAttribute(ApiPermissionContext.CURRENT_USER_ID);
         return currentUserId == null ? null : currentUserId.toString();
+    }
+
+    private String resolveAbnormalType(String specimenStatus, String fixationStatus, boolean abnormalFlag) {
+        if ("REJECTED".equals(specimenStatus) || "RETURNED".equals(specimenStatus)) {
+            return specimenStatus;
+        }
+        if ("ABNORMAL".equals(fixationStatus)) {
+            return "FIXATION_ABNORMAL";
+        }
+        return abnormalFlag ? "WORKFLOW_ABNORMAL" : null;
     }
 }

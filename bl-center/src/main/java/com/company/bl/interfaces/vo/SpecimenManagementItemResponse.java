@@ -36,10 +36,18 @@ public record SpecimenManagementItemResponse(
     String specimenStatus,
     @Schema(description = "Fixation status")
     String fixationStatus,
+    @Schema(description = "Verification status")
+    String verificationStatus,
+    @Schema(description = "Barcode binding status")
+    String barcodeBindingStatus,
     @Schema(description = "Label print status")
     String labelPrintStatus,
     @Schema(description = "Label print batch number")
     String labelPrintBatchNo,
+    @Schema(description = "Abnormal type")
+    String abnormalType,
+    @Schema(description = "Recent node")
+    String recentNode,
     @Schema(description = "Registration time")
     String registeredAt,
     @Schema(description = "Latest tracking time")

@@ -30,6 +30,14 @@ public record PendingSpecimenItemResponse(
     String specimenStatus,
     @Schema(description = "固定状态")
     String fixationStatus,
+    @Schema(description = "异常类型")
+    String abnormalType,
+    @Schema(description = "提醒计数")
+    int reminderCount,
+    @Schema(description = "未接收数量")
+    int unreceivedCount,
+    @Schema(description = "批次级异常标记")
+    boolean batchAbnormalFlag,
     @Schema(description = "登记时间")
     String registeredAt,
     @Schema(description = "最近追踪时间")

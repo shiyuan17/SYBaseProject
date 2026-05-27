@@ -22,6 +22,12 @@ public record PendingTransportOrderResponse(
     String receiverDepartmentName,
     @Schema(description = "转运状态")
     String status,
+    @Schema(description = "提醒计数")
+    int reminderCount,
+    @Schema(description = "未接收数量")
+    int unreceivedCount,
+    @Schema(description = "批次级异常标记")
+    boolean batchAbnormalFlag,
     @Schema(description = "待转运时间")
     String toBeTransportedAt,
     @Schema(description = "交接完成时间")

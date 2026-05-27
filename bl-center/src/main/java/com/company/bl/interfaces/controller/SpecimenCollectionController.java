@@ -79,10 +79,13 @@ public class SpecimenCollectionController {
             specimen.containerCount(),
             specimen.specimenStatus().name(),
             specimen.fixationStatus().name(),
+            specimen.fixationStatus().name(),
+            specimen.barcode() == null || specimen.barcode().isBlank() ? "UNBOUND" : "BOUND",
             specimen.labelPrintStatus(),
             specimen.receiptStatus(),
             specimen.qualityCheckResult(),
             splitCommaSeparated(specimen.qualityIssueCodes()),
+            specimen.unqualifiedReason() == null || specimen.unqualifiedReason().isBlank() ? null : "QUALITY_EXCEPTION",
             specimen.unqualifiedReason());
     }
 

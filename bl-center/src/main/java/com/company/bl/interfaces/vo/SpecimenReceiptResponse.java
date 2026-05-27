@@ -10,6 +10,12 @@ public record SpecimenReceiptResponse(
     String pathologyNo,
     @Schema(description = "签收状态")
     String receiptStatus,
+    @Schema(description = "提醒计数")
+    int reminderCount,
+    @Schema(description = "批次级异常标记")
+    boolean batchAbnormalFlag,
+    @Schema(description = "接收异常摘要")
+    String receiptAbnormalSummary,
     @Schema(description = "未签收标本数量")
     int unreceivedCount
 ) {

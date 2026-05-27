@@ -135,6 +135,9 @@ public class TransportOrderController {
             item.handoverDepartmentName(),
             item.receiverDepartmentName(),
             item.status(),
+            item.specimenBarcodes().size(),
+            item.specimenBarcodes().size(),
+            "PARTIALLY_RECEIVED".equals(item.status()),
             stringify(item.toBeTransportedAt()),
             stringify(item.handedOverAt()),
             item.specimenBarcodes());

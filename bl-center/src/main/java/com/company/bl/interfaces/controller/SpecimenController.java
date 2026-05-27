@@ -190,6 +190,7 @@ public class SpecimenController {
             tracking.application().getId().value(),
             tracking.application().getApplicationNo(),
             tracking.application().getPatientId(),
+            resolvePatientCheckStatus(tracking),
             tracking.application().getPatientName(),
             tracking.application().getPatientGender(),
             tracking.application().getPatientAge(),
@@ -210,8 +211,14 @@ public class SpecimenController {
             stringify(tracking.application().getApplicationDate()),
             stringify(tracking.application().getSubmissionDate()),
             stringify(tracking.application().getSpecimenRemovalTime()),
+            resolveLatestEventTime(tracking, "FIXATION", "COMPLETED"),
+            resolveLatestEventTime(tracking, "TRANSPORT", "HANDED_OVER"),
             tracking.currentNode(),
             tracking.abnormal(),
+            null,
+            false,
+            buildReceiptAbnormalSummary(tracking.specimens()),
+            countUnreceivedSpecimens(tracking.specimens()),
             specimenSummaries,
             tracking.events().stream().map(event -> toTrackingEventResponse(event, specimenMap)).toList(),
             tracking.application().getRemarks(),
@@ -252,10 +259,13 @@ public class SpecimenController {
             specimen.containerCount(),
             specimen.specimenStatus().name(),
             specimen.fixationStatus().name(),
+            resolveVerificationStatus(specimen),
+            resolveBarcodeBindingStatus(specimen),
             specimen.labelPrintStatus(),
             specimen.receiptStatus(),
             specimen.qualityCheckResult(),
             splitCommaSeparated(specimen.qualityIssueCodes()),
+            resolveAbnormalType(specimen),
             specimen.unqualifiedReason());
     }
 
@@ -304,8 +314,12 @@ public class SpecimenController {
             item.containerCount(),
             item.specimenStatus(),
             item.fixationStatus(),
+            item.fixationStatus(),
+            item.barcode() == null || item.barcode().isBlank() ? "UNBOUND" : "BOUND",
             item.labelPrintStatus(),
             item.labelPrintBatchNo(),
+            resolveAbnormalType(item.specimenStatus(), item.fixationStatus(), item.abnormalFlag()),
+            item.specimenStatus(),
             stringify(item.registeredAt()),
             stringify(item.latestTrackingAt()),
             item.abnormalFlag());
@@ -350,5 +364,63 @@ public class SpecimenController {
             return loginName.trim();
         }
         return bodyOperatorName == null ? null : bodyOperatorName.trim();
+    }
+
+    private String resolvePatientCheckStatus(ApplicationTracking tracking) {
+        return tracking.application().getPatientId() == null || tracking.application().getPatientId().isBlank()
+            ? null
+            : "PENDING";
+    }
+
+    private String resolveLatestEventTime(ApplicationTracking tracking, String nodeCode, String eventType) {
+        return tracking.events().stream()
+            .filter(event -> nodeCode.equals(event.nodeCode()) && eventType.equals(event.eventType()))
+            .reduce((first, second) -> second)
+            .map(event -> stringify(event.eventTime()))
+            .orElse(null);
+    }
+
+    private String buildReceiptAbnormalSummary(List<Specimen> specimens) {
+        long abnormalCount = specimens.stream()
+            .filter(specimen -> resolveAbnormalType(specimen) != null)
+            .count();
+        if (abnormalCount == 0) {
+            return null;
+        }
+        return "存在 " + abnormalCount + " 条标本处于异常或待回查状态";
+    }
+
+    private int countUnreceivedSpecimens(List<Specimen> specimens) {
+        return (int) specimens.stream()
+            .filter(specimen -> specimen.receiptStatus() == null || !"RECEIVED".equalsIgnoreCase(specimen.receiptStatus()))
+            .count();
+    }
+
+    private String resolveVerificationStatus(Specimen specimen) {
+        return specimen.fixationStatus() == null ? null : specimen.fixationStatus().name();
+    }
+
+    private String resolveBarcodeBindingStatus(Specimen specimen) {
+        return specimen.barcode() == null || specimen.barcode().isBlank() ? "UNBOUND" : "BOUND";
+    }
+
+    private String resolveAbnormalType(Specimen specimen) {
+        return resolveAbnormalType(
+            specimen.specimenStatus() == null ? null : specimen.specimenStatus().name(),
+            specimen.fixationStatus() == null ? null : specimen.fixationStatus().name(),
+            specimen.unqualifiedReason() != null && !specimen.unqualifiedReason().isBlank()
+                || specimen.qualityCheckResult() != null && "FAILED".equalsIgnoreCase(specimen.qualityCheckResult())
+                || specimen.specimenStatus() != null && ("REJECTED".equals(specimen.specimenStatus().name()) || "RETURNED".equals(specimen.specimenStatus().name()))
+        );
+    }
+
+    private String resolveAbnormalType(String specimenStatus, String fixationStatus, boolean abnormalFlag) {
+        if ("REJECTED".equals(specimenStatus) || "RETURNED".equals(specimenStatus)) {
+            return specimenStatus;
+        }
+        if ("ABNORMAL".equals(fixationStatus)) {
+            return "FIXATION_ABNORMAL";
+        }
+        return abnormalFlag ? "WORKFLOW_ABNORMAL" : null;
     }
 }

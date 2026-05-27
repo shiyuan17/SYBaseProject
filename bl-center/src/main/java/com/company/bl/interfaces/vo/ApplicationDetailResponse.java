@@ -12,6 +12,8 @@ public record ApplicationDetailResponse(
     String applicationNo,
     @Schema(description = "患者 ID")
     String patientId,
+    @Schema(description = "患者核对状态")
+    String patientCheckStatus,
     @Schema(description = "患者姓名")
     String patientName,
     @Schema(description = "患者性别")
@@ -52,10 +54,22 @@ public record ApplicationDetailResponse(
     String submissionDate,
     @Schema(description = "离体时间")
     String specimenRemovalTime,
+    @Schema(description = "固定完成时间")
+    String fixationCompletedAt,
+    @Schema(description = "标本确认时间")
+    String specimenConfirmedAt,
     @Schema(description = "当前流程节点")
     String currentNode,
     @Schema(description = "是否存在异常标记")
     boolean abnormalFlag,
+    @Schema(description = "报告状态")
+    String reportStatus,
+    @Schema(description = "是否已签发报告")
+    boolean reportIssued,
+    @Schema(description = "接收异常摘要")
+    String receiptAbnormalSummary,
+    @Schema(description = "未接收数量")
+    int unreceivedCount,
     @Schema(description = "标本摘要列表")
     List<SpecimenSummaryResponse> specimens,
     @Schema(description = "最近追踪事件列表")
