@@ -459,6 +459,124 @@ class DiagnosticWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegr
     }
 
     @Test
+    void shouldAllowReassignAssignedDiagnosticTask() throws Exception {
+        PendingDiagnosticContext context = preparePendingDiagnosticCase("APP-M4-REASSIGN-001", "BC-M4-REASSIGN-001");
+        String reassignedDiagnosisUserId = createDiagnosisUser("REASSIGN");
+
+        postJson("/api/v1/diagnostic-tasks/%s/assign".formatted(context.diagnosticTaskId()), USER_M4_ASSIGN, """
+            {
+              "diagnosisDoctorUserId":"USER_M4_DIAGNOSIS",
+              "diagnosisDoctorName":"M4 Diagnosis",
+              "primaryDoctorUserId":"USER_M4_DIAGNOSIS",
+              "primaryDoctorName":"M4 Diagnosis",
+              "reviewerUserId":"USER_M4_REVIEW",
+              "reviewerName":"M4 Review",
+              "operatorName":"assign-user",
+              "terminalCode":"M4-A-01"
+            }
+            """)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.taskStatus").value("ASSIGNED"));
+
+        postJson("/api/v1/diagnostic-tasks/%s/assign".formatted(context.diagnosticTaskId()), USER_M4_ASSIGN, """
+            {
+              "diagnosisDoctorUserId":"%s",
+              "diagnosisDoctorName":"M4 Diagnosis REASSIGN",
+              "primaryDoctorUserId":"%s",
+              "primaryDoctorName":"M4 Diagnosis REASSIGN",
+              "reviewerUserId":"USER_M4_REVIEW",
+              "reviewerName":"M4 Review",
+              "operatorName":"assign-user",
+              "terminalCode":"M4-A-02",
+              "remarks":"reassign task"
+            }
+            """.formatted(reassignedDiagnosisUserId, reassignedDiagnosisUserId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.taskStatus").value("ASSIGNED"));
+
+        JsonNode previousDiagnosisView = listPendingDiagnosticTasks(context.pathologyNo(), USER_M4_DIAGNOSIS);
+        assertThat(previousDiagnosisView.path("total").asInt()).isEqualTo(0);
+
+        JsonNode reassignedDiagnosisView = listPendingDiagnosticTasks(context.pathologyNo(), reassignedDiagnosisUserId);
+        assertThat(reassignedDiagnosisView.path("total").asInt()).isEqualTo(1);
+        assertThat(reassignedDiagnosisView.path("items").get(0).path("id").asText()).isEqualTo(context.diagnosticTaskId());
+
+        Long reassignEventCount = namedParameterJdbcTemplate.queryForObject("""
+            select count(*)
+            from workflow_events
+            where case_id = :caseId
+              and node_code = 'DIAGNOSIS_ASSIGN'
+              and event_type = 'REASSIGN'
+            """, java.util.Map.of("caseId", context.caseId()), Long.class);
+        assertThat(reassignEventCount).isEqualTo(1L);
+
+        assertThat(countNotifications(USER_M4_DIAGNOSIS, "DIAG_TASK_ASSIGN", context.diagnosticTaskId())).isEqualTo(1L);
+        assertThat(countNotifications(reassignedDiagnosisUserId, "DIAG_TASK_ASSIGN", context.diagnosticTaskId())).isEqualTo(1L);
+    }
+
+    @Test
+    void shouldRejectReassignAfterDiagnosticTaskAccepted() throws Exception {
+        PendingDiagnosticContext context = preparePendingDiagnosticCase("APP-M4-REASSIGN-ACCEPTED-001", "BC-M4-REASSIGN-ACCEPTED-001");
+        String reassignedDiagnosisUserId = createDiagnosisUser("ACCEPTED");
+
+        postJson("/api/v1/diagnostic-tasks/%s/assign".formatted(context.diagnosticTaskId()), USER_M4_ASSIGN, """
+            {
+              "diagnosisDoctorUserId":"USER_M4_DIAGNOSIS",
+              "diagnosisDoctorName":"M4 Diagnosis",
+              "primaryDoctorUserId":"USER_M4_DIAGNOSIS",
+              "primaryDoctorName":"M4 Diagnosis",
+              "reviewerUserId":"USER_M4_REVIEW",
+              "reviewerName":"M4 Review",
+              "operatorName":"assign-user",
+              "terminalCode":"M4-A-01"
+            }
+            """).andExpect(status().isOk());
+
+        postJson("/api/v1/diagnostic-tasks/%s/accept".formatted(context.diagnosticTaskId()), USER_M4_DIAGNOSIS, """
+            {
+              "operatorName":"diag-user",
+              "terminalCode":"M4-A-02"
+            }
+            """).andExpect(status().isOk());
+
+        postJson("/api/v1/diagnostic-tasks/%s/assign".formatted(context.diagnosticTaskId()), USER_M4_ASSIGN, """
+            {
+              "diagnosisDoctorUserId":"%s",
+              "diagnosisDoctorName":"M4 Diagnosis ACCEPTED",
+              "primaryDoctorUserId":"%s",
+              "primaryDoctorName":"M4 Diagnosis ACCEPTED",
+              "reviewerUserId":"USER_M4_REVIEW",
+              "reviewerName":"M4 Review",
+              "operatorName":"assign-user",
+              "terminalCode":"M4-A-03"
+            }
+            """.formatted(reassignedDiagnosisUserId, reassignedDiagnosisUserId))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("OPERATION_NOT_ALLOWED"));
+    }
+
+    @Test
+    void shouldRejectReassignAfterDiagnosticTaskStarted() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-REASSIGN-STARTED-001", "BC-M4-REASSIGN-STARTED-001");
+        String reassignedDiagnosisUserId = createDiagnosisUser("STARTED");
+
+        postJson("/api/v1/diagnostic-tasks/%s/assign".formatted(context.diagnosticTaskId()), USER_M4_ASSIGN, """
+            {
+              "diagnosisDoctorUserId":"%s",
+              "diagnosisDoctorName":"M4 Diagnosis STARTED",
+              "primaryDoctorUserId":"%s",
+              "primaryDoctorName":"M4 Diagnosis STARTED",
+              "reviewerUserId":"USER_M4_REVIEW",
+              "reviewerName":"M4 Review",
+              "operatorName":"assign-user",
+              "terminalCode":"M4-A-04"
+            }
+            """.formatted(reassignedDiagnosisUserId, reassignedDiagnosisUserId))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("OPERATION_NOT_ALLOWED"));
+    }
+
+    @Test
     void shouldCreateDeduplicatedNotificationsForDiagnosticAssignment() throws Exception {
         PendingDiagnosticContext context = preparePendingDiagnosticCase("APP-M4-NOTIFY-001", "BC-M4-NOTIFY-001");
         String sameDoctorId = createDiagnosisUser("NOTIFY");

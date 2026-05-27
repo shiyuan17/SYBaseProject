@@ -82,4 +82,41 @@ class M4RoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInteg
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
     }
+
+    @Test
+    void shouldRejectAcceptAndStartForDiagnosisUserWhoIsNotAssignedToTask() throws Exception {
+        PendingDiagnosticContext context = preparePendingDiagnosticCase("APP-M4-AUTH-001", "BC-M4-AUTH-001");
+        String otherDiagnosisUserId = createDiagnosisUser("AUTHALT");
+
+        postJson("/api/v1/diagnostic-tasks/%s/assign".formatted(context.diagnosticTaskId()), USER_M4_ASSIGN, """
+            {
+              "diagnosisDoctorUserId":"USER_M4_DIAGNOSIS",
+              "diagnosisDoctorName":"M4 Diagnosis",
+              "primaryDoctorUserId":"USER_M4_DIAGNOSIS",
+              "primaryDoctorName":"M4 Diagnosis",
+              "reviewerUserId":"USER_M4_REVIEW",
+              "reviewerName":"M4 Review",
+              "operatorName":"assign-user"
+            }
+            """)
+            .andExpect(status().isOk());
+
+        postJson("/api/v1/diagnostic-tasks/%s/accept".formatted(context.diagnosticTaskId()), otherDiagnosisUserId, """
+            {
+              "operatorName":"other-diagnosis-user"
+            }
+            """)
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"))
+            .andExpect(jsonPath("$.message").value("User is not assigned to diagnostic task"));
+
+        postJson("/api/v1/diagnostic-tasks/%s/start".formatted(context.diagnosticTaskId()), otherDiagnosisUserId, """
+            {
+              "operatorName":"other-diagnosis-user"
+            }
+            """)
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"))
+            .andExpect(jsonPath("$.message").value("User is not assigned to diagnostic task"));
+    }
 }

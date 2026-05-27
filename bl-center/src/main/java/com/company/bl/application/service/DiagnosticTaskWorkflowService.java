@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 class DiagnosticTaskWorkflowService {
@@ -54,9 +55,15 @@ class DiagnosticTaskWorkflowService {
     @Transactional
     DiagnosticReportModels.DiagnosticTaskResult assignTask(DiagnosticReportModels.AssignDiagnosticTaskCommand command) {
         DiagnosticReportRepository.DiagnosticTask task = diagnosticReportSupport.getDiagnosticTask(command.taskId());
-        if (!DiagnosticReportConstants.TASK_PENDING.equals(task.status())) {
-            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Diagnostic task is not pending");
+        if (!isAssignableStatus(task.status())) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Diagnostic task is not assignable");
         }
+
+        boolean reassignment = DiagnosticReportConstants.TASK_ASSIGNED.equals(task.status());
+        if (reassignment && isSameAssignment(task, command)) {
+            return new DiagnosticReportModels.DiagnosticTaskResult(task.id(), task.caseId(), "DIAGNOSIS_PENDING", task.status());
+        }
+
         LocalDateTime now = LocalDateTime.now();
         diagnosticReportRepository.assignDiagnosticTask(new DiagnosticReportRepository.AssignDiagnosticTaskCommand(
             command.taskId(),
@@ -70,21 +77,30 @@ class DiagnosticTaskWorkflowService {
             command.reviewerName(),
             command.remarks(),
             now));
-        diagnosticReportSupport.insertWorkflowEvent(task.caseId(), "DIAGNOSIS_ASSIGN", "ASSIGN", "SUCCESS",
-            command.operatorUserId(), command.operatorName(), command.terminalCode(), "Diagnostic task assigned");
+
+        diagnosticReportSupport.insertWorkflowEvent(
+            task.caseId(),
+            "DIAGNOSIS_ASSIGN",
+            reassignment ? "REASSIGN" : "ASSIGN",
+            "SUCCESS",
+            command.operatorUserId(),
+            command.operatorName(),
+            command.terminalCode(),
+            reassignment ? "Diagnostic task reassigned" : "Diagnostic task assigned");
+
         DiagnosticReportRepository.DiagnosticTask updated = diagnosticReportSupport.getDiagnosticTask(command.taskId());
         PathologyCase pathologyCase = diagnosticReportSupport.getCase(task.caseId());
         workflowNotificationService.notifyUsers(new WorkflowNotificationService.BulkNotificationCommand(
             WorkflowNotificationService.TOPIC_DIAG_TASK_ASSIGN,
             WorkflowNotificationService.CATEGORY_TODO_TASK,
             WorkflowNotificationService.LEVEL_MEDIUM,
-            "诊断任务已分派",
-            "病理号 %s 的诊断任务已分派，请及时处理。".formatted(pathologyCase.pathologyNo()),
-            "病理号 %s 的诊断任务已分派".formatted(pathologyCase.pathologyNo()),
+            reassignment ? "Diagnostic task reassigned" : "Diagnostic task assigned",
+            assignmentNotificationBody(pathologyCase.pathologyNo(), reassignment),
+            assignmentNotificationSummary(pathologyCase.pathologyNo(), reassignment),
             null,
             "/doctor-workflow/assignment",
             buildTaskQuery(updated, pathologyCase.pathologyNo()),
-            "查看任务",
+            "View task",
             command.operatorUserId(),
             false,
             List.of(
@@ -127,6 +143,34 @@ class DiagnosticTaskWorkflowService {
             command.operatorUserId(), command.operatorName(), command.terminalCode(), "Diagnostic task started");
         DiagnosticReportRepository.DiagnosticTask updated = diagnosticReportSupport.getDiagnosticTask(task.id());
         return new DiagnosticReportModels.DiagnosticTaskResult(updated.id(), updated.caseId(), "DIAGNOSING", updated.status());
+    }
+
+    private boolean isAssignableStatus(String status) {
+        return DiagnosticReportConstants.TASK_PENDING.equals(status)
+            || DiagnosticReportConstants.TASK_ASSIGNED.equals(status);
+    }
+
+    private boolean isSameAssignment(DiagnosticReportRepository.DiagnosticTask task,
+                                     DiagnosticReportModels.AssignDiagnosticTaskCommand command) {
+        return Objects.equals(task.diagnosisDoctorUserId(), command.diagnosisDoctorUserId())
+            && Objects.equals(task.diagnosisDoctorName(), command.diagnosisDoctorName())
+            && Objects.equals(task.primaryDoctorUserId(), command.primaryDoctorUserId())
+            && Objects.equals(task.primaryDoctorName(), command.primaryDoctorName())
+            && Objects.equals(task.reviewerUserId(), command.reviewerUserId())
+            && Objects.equals(task.reviewerName(), command.reviewerName())
+            && Objects.equals(task.remarks(), command.remarks());
+    }
+
+    private String assignmentNotificationBody(String pathologyNo, boolean reassignment) {
+        return reassignment
+            ? "Pathology case %s has been reassigned to you. Please review it in time.".formatted(pathologyNo)
+            : "Pathology case %s has been assigned to you. Please review it in time.".formatted(pathologyNo);
+    }
+
+    private String assignmentNotificationSummary(String pathologyNo, boolean reassignment) {
+        return reassignment
+            ? "Pathology case %s has been reassigned".formatted(pathologyNo)
+            : "Pathology case %s has been assigned".formatted(pathologyNo);
     }
 
     private Map<String, String> buildTaskQuery(
