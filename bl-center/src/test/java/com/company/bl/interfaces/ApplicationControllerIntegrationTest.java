@@ -81,6 +81,8 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                     """))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code", is("VALIDATION_ERROR")))
+            .andExpect(jsonPath("$.message", containsString("申请单号长度不能超过64个字符")))
+            .andExpect(jsonPath("$.message", containsString("申请类型不能为空")))
             .andExpect(jsonPath("$.traceId", notNullValue()));
     }
 
@@ -90,6 +92,7 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code", is("VALIDATION_ERROR")))
+            .andExpect(jsonPath("$.message", is("请求体不能为空，且必须是合法的 JSON")))
             .andExpect(jsonPath("$.traceId", notNullValue()));
     }
 
@@ -98,6 +101,7 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
         mockMvc.perform(authorized(get("/api/v1/applications/not-found-id"), USER_TRACKING))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.code", is("APPLICATION_NOT_FOUND")))
+            .andExpect(jsonPath("$.message", is("申请单不存在")))
             .andExpect(jsonPath("$.traceId", notNullValue()));
     }
 

@@ -3,10 +3,10 @@ package com.company.common.security.exception;
 import com.company.common.core.enums.ErrorCode;
 
 public enum SecurityErrorCode implements ErrorCode {
-    AUTHENTICATION_REQUIRED("AUTHENTICATION_REQUIRED", "Authentication is required"),
-    INVALID_ACCESS_TOKEN("INVALID_ACCESS_TOKEN", "Access token is invalid"),
-    ACCESS_TOKEN_EXPIRED("ACCESS_TOKEN_EXPIRED", "Access token is expired"),
-    ACCESS_TOKEN_REVOKED("ACCESS_TOKEN_REVOKED", "Access token is revoked");
+    AUTHENTICATION_REQUIRED("AUTHENTICATION_REQUIRED", "需要登录认证"),
+    INVALID_ACCESS_TOKEN("INVALID_ACCESS_TOKEN", "访问令牌无效"),
+    ACCESS_TOKEN_EXPIRED("ACCESS_TOKEN_EXPIRED", "访问令牌已过期"),
+    ACCESS_TOKEN_REVOKED("ACCESS_TOKEN_REVOKED", "访问令牌已失效");
 
     private final String code;
     private final String message;

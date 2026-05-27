@@ -2,6 +2,7 @@ package com.company.common.security.web;
 
 import com.company.common.security.context.AuthenticatedPrincipal;
 import com.company.common.security.context.AuthenticatedPrincipalContext;
+import com.company.common.core.i18n.HttpMessageTranslator;
 import com.company.common.security.exception.SecurityAuthenticationException;
 import com.company.common.security.exception.SecurityErrorCode;
 import com.company.common.security.jwt.JwtAccessTokenClaims;
@@ -80,7 +81,7 @@ public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("code", exception.getErrorCode().code());
-        body.put("message", exception.getMessage());
+        body.put("message", HttpMessageTranslator.translate(exception.getMessage()));
         body.put("traceId", traceId(request));
         body.put("data", null);
         objectMapper.writeValue(response.getWriter(), body);

@@ -101,7 +101,8 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
         mockMvc.perform(authorized(get("/api/v1/application-registration-workbench/lookup"), USER_REGISTER)
                 .param("keyword", "MISSING-WORKBENCH-KEYWORD"))
             .andExpect(status().isNotFound())
-            .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+            .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"))
+            .andExpect(jsonPath("$.message").value("申请登记工作台记录不存在"));
     }
 
     @Test
@@ -130,7 +131,8 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
             USER_REGISTER,
             workbenchSavePayload("ZY-WORKBENCH-409", "乳腺复存病灶", "乳腺"))
             .andExpect(status().isConflict())
-            .andExpect(jsonPath("$.code").value("OPERATION_NOT_ALLOWED"));
+            .andExpect(jsonPath("$.code").value("OPERATION_NOT_ALLOWED"))
+            .andExpect(jsonPath("$.message").value("申请单已进入下游流程，无法在登记工作台重新填写"));
     }
 
     @Test

@@ -3,8 +3,8 @@ package com.company.auth.domain.enums;
 import com.company.common.core.enums.ErrorCode;
 
 public enum AuthCenterErrorCode implements ErrorCode {
-    INVALID_CREDENTIALS("INVALID_CREDENTIALS", "Login name or password is incorrect"),
-    USER_DISABLED("USER_DISABLED", "Current account is disabled");
+    INVALID_CREDENTIALS("INVALID_CREDENTIALS", "登录名或密码错误"),
+    USER_DISABLED("USER_DISABLED", "当前账号已被禁用");
 
     private final String code;
     private final String message;

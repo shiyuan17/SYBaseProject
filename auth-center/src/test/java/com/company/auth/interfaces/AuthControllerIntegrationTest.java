@@ -90,7 +90,8 @@ class AuthControllerIntegrationTest extends BaseWebIntegrationTest {
                     }
                     """))
             .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+            .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"))
+            .andExpect(jsonPath("$.message").value("登录名或密码错误"));
 
         Map<String, Object> failedLog = jdbcTemplate.queryForMap("""
             select login_name, login_result, failure_reason
@@ -115,7 +116,8 @@ class AuthControllerIntegrationTest extends BaseWebIntegrationTest {
                     }
                     """))
             .andExpect(status().isForbidden())
-            .andExpect(jsonPath("$.code").value("USER_DISABLED"));
+            .andExpect(jsonPath("$.code").value("USER_DISABLED"))
+            .andExpect(jsonPath("$.message").value("当前账号已被禁用"));
 
         Map<String, Object> failedLog = jdbcTemplate.queryForMap("""
             select login_name, login_result, failure_reason
@@ -211,7 +213,8 @@ class AuthControllerIntegrationTest extends BaseWebIntegrationTest {
         mockMvc.perform(get("/api/v1/auth/me")
                 .header("Authorization", bearerToken(accessToken)))
             .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.code").value("ACCESS_TOKEN_REVOKED"));
+            .andExpect(jsonPath("$.code").value("ACCESS_TOKEN_REVOKED"))
+            .andExpect(jsonPath("$.message").value("访问令牌已失效或不可用"));
     }
 
     @Test
@@ -238,15 +241,18 @@ class AuthControllerIntegrationTest extends BaseWebIntegrationTest {
     void shouldRequireAuthenticationForProtectedEndpoints() throws Exception {
         mockMvc.perform(get("/api/v1/auth/me"))
             .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+            .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+            .andExpect(jsonPath("$.message").value("缺少 Authorization Bearer 令牌"));
 
         mockMvc.perform(get("/api/v1/auth/access-codes"))
             .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+            .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+            .andExpect(jsonPath("$.message").value("缺少 Authorization Bearer 令牌"));
 
         mockMvc.perform(post("/api/v1/auth/logout"))
             .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+            .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+            .andExpect(jsonPath("$.message").value("缺少 Authorization Bearer 令牌"));
     }
 
     @Test
@@ -254,7 +260,8 @@ class AuthControllerIntegrationTest extends BaseWebIntegrationTest {
         mockMvc.perform(get("/api/v1/auth/me")
                 .header("Authorization", bearerToken("not-a-jwt")))
             .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.code").value("INVALID_ACCESS_TOKEN"));
+            .andExpect(jsonPath("$.code").value("INVALID_ACCESS_TOKEN"))
+            .andExpect(jsonPath("$.message").value("访问令牌格式无效"));
     }
 
     @Test
@@ -270,7 +277,8 @@ class AuthControllerIntegrationTest extends BaseWebIntegrationTest {
         mockMvc.perform(get("/api/v1/auth/me")
                 .header("Authorization", bearerToken(accessToken)))
             .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.code").value("ACCESS_TOKEN_EXPIRED"));
+            .andExpect(jsonPath("$.code").value("ACCESS_TOKEN_EXPIRED"))
+            .andExpect(jsonPath("$.message").value("访问令牌已过期"));
     }
 
     private String bearerToken(String accessToken) {

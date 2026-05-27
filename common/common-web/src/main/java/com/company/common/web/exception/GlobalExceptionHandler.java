@@ -2,6 +2,7 @@ package com.company.common.web.exception;
 
 import com.company.common.core.enums.CommonErrorCode;
 import com.company.common.core.exception.BaseException;
+import com.company.common.core.i18n.HttpMessageTranslator;
 import com.company.common.web.filter.TraceIdFilter;
 import com.company.common.web.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,7 +30,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(exception.getHttpStatus())
             .body(ApiResponse.failure(
                 exception.getErrorCode().code(),
-                exception.getMessage(),
+                HttpMessageTranslator.translate(exception.getMessage()),
                 traceId(request)));
     }
 
@@ -38,6 +39,7 @@ public class GlobalExceptionHandler {
                                                                           HttpServletRequest request) {
         String message = exception.getBindingResult().getFieldErrors().stream()
             .map(FieldError::getDefaultMessage)
+            .map(HttpMessageTranslator::translate)
             .collect(Collectors.joining("; "));
         return ResponseEntity.badRequest()
             .body(ApiResponse.failure(CommonErrorCode.VALIDATION_ERROR.code(), message, traceId(request)));
@@ -49,7 +51,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
             .body(ApiResponse.failure(
                 CommonErrorCode.VALIDATION_ERROR.code(),
-                exception.getMessage(),
+                HttpMessageTranslator.translate(exception.getMessage()),
                 traceId(request)));
     }
 
@@ -59,7 +61,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
             .body(ApiResponse.failure(
                 CommonErrorCode.VALIDATION_ERROR.code(),
-                "Request body is required and must be valid JSON",
+                HttpMessageTranslator.translate("Request body is required and must be valid JSON"),
                 traceId(request)));
     }
 

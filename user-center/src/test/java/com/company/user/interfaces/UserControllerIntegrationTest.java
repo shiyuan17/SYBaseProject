@@ -57,6 +57,8 @@ class UserControllerIntegrationTest extends BaseWebIntegrationTest {
                     """))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code", is("VALIDATION_ERROR")))
+            .andExpect(jsonPath("$.message", containsString("用户名不能为空")))
+            .andExpect(jsonPath("$.message", containsString("邮箱格式不正确")))
             .andExpect(jsonPath("$.traceId", notNullValue()));
     }
 
@@ -66,7 +68,7 @@ class UserControllerIntegrationTest extends BaseWebIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code", is("VALIDATION_ERROR")))
-            .andExpect(jsonPath("$.message", is("Request body is required and must be valid JSON")))
+            .andExpect(jsonPath("$.message", is("请求体不能为空，且必须是合法的 JSON")))
             .andExpect(jsonPath("$.traceId", notNullValue()));
     }
 
@@ -75,6 +77,7 @@ class UserControllerIntegrationTest extends BaseWebIntegrationTest {
         mockMvc.perform(get("/api/v1/users/not-found-id"))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.code", is("USER_NOT_FOUND")))
+            .andExpect(jsonPath("$.message", is("用户不存在")))
             .andExpect(jsonPath("$.traceId", notNullValue()));
     }
 

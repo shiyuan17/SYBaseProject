@@ -11,7 +11,7 @@ import lombok.Setter;
 public class CreateUserRequest {
 
     @NotBlank(message = "用户名不能为空")
-    @Size(max = 64, message = "用户名长度不能超过64")
+    @Size(max = 64, message = "用户名长度不能超过64个字符")
     private String name;
 
     @NotBlank(message = "邮箱不能为空")
