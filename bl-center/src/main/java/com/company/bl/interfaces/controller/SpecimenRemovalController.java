@@ -5,6 +5,7 @@ import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.SpecimenRemovalConfirmRequest;
+import com.company.bl.interfaces.dto.SpecimenRemovalQuickConfirmRequest;
 import com.company.bl.interfaces.vo.SpecimenRemovalConfirmResponse;
 import com.company.bl.interfaces.vo.SpecimenRemovalItemResponse;
 import com.company.bl.interfaces.vo.SpecimenRemovalPageResponse;
@@ -84,6 +85,28 @@ public class SpecimenRemovalController {
         SpecimenWorkflowAppService.SpecimenRemovalResult result = specimenWorkflowAppService.confirmSpecimenRemoval(
             new SpecimenWorkflowAppService.SpecimenRemovalCommand(
                 request.getSpecimenBarcode(),
+                resolveUserId(request.getOperatorUserId(), httpServletRequest),
+                resolveOperatorName(request.getOperatorName(), httpServletRequest),
+                request.getTerminalCode(),
+                request.getRemarks()));
+        return new SpecimenRemovalConfirmResponse(
+            result.specimenId(),
+            result.barcode(),
+            stringify(result.specimenRemovalAt()),
+            result.operatorName());
+    }
+
+    @Operation(summary = "Quick confirm specimen removal", description = "Confirm specimen removal by barcode or specimen number.")
+    @RequirePermission(M2PermissionCodes.FIXATION_VERIFY)
+    @PostMapping("/confirm-by-identifier")
+    public SpecimenRemovalConfirmResponse confirmByIdentifier(
+        @Valid @RequestBody SpecimenRemovalQuickConfirmRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        SpecimenWorkflowAppService.SpecimenRemovalResult result = specimenWorkflowAppService.quickConfirmSpecimenRemoval(
+            new SpecimenWorkflowAppService.SpecimenRemovalQuickConfirmCommand(
+                request.getIdentifierType(),
+                request.getIdentifier(),
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 resolveOperatorName(request.getOperatorName(), httpServletRequest),
                 request.getTerminalCode(),

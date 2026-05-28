@@ -74,6 +74,17 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
     }
 
     @Override
+    public List<Specimen> findSpecimensBySpecimenNo(String specimenNo) {
+        return jdbcTemplate.query(
+            specimenSelectColumns() + """
+                where s.specimen_no = :specimenNo
+                order by s.registered_at asc, s.created_at asc
+                """,
+            Map.of("specimenNo", specimenNo),
+            this::mapSpecimen);
+    }
+
+    @Override
     public List<Specimen> findSpecimensByApplicationId(String applicationId) {
         return jdbcTemplate.query(
             specimenSelectColumns() + """
@@ -1261,7 +1272,7 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         String whereClause = specimenRemovalWhereClause(query, abnormalExpression, true);
         return jdbcTemplate.query(
             specimenRemovalSelectSql(whereClause, abnormalExpression, false)
-                + " order by coalesce(s.specimen_removal_at, s.registered_at, evt.latest_event_time) desc, s.id desc",
+                + " order by coalesce(" + specimenRemovalAtExpression("s") + ", s.registered_at, evt.latest_event_time) desc, s.id desc",
             specimenRemovalParams(query),
             this::mapSpecimenRemovalListRow);
     }
@@ -1575,20 +1586,21 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             .addValue("offset", Math.max(0, (query.page() - 1) * query.size()))
             .addValue("size", query.size());
         return jdbcTemplate.query(
-            sql + " order by coalesce(s.specimen_removal_at, s.registered_at, evt.latest_event_time) desc, s.id desc"
+            sql + " order by coalesce(" + specimenRemovalAtExpression("s") + ", s.registered_at, evt.latest_event_time) desc, s.id desc"
                 + " offset :offset rows fetch next :size rows only",
             parameters,
             this::mapSpecimenRemovalListRow);
     }
 
     private SpecimenRemovalSummary summarizeSpecimenRemoval(String whereClause, SpecimenRemovalListQuery query) {
+        String specimenRemovalAtExpression = specimenRemovalAtExpression("s");
         return jdbcTemplate.queryForObject(
             """
             select
                 count(1) as total_count,
-                sum(case when s.specimen_removal_at is not null then 1 else 0 end) as confirmed_count,
-                sum(case when s.specimen_removal_at is null then 1 else 0 end) as pending_count,
             """
+                + "    sum(case when " + specimenRemovalAtExpression + " is not null then 1 else 0 end) as confirmed_count,\n"
+                + "    sum(case when " + specimenRemovalAtExpression + " is null then 1 else 0 end) as pending_count,\n"
                 + "    sum(case when (" + specimenManagementAbnormalExpression("s") + ")\n"
                 + """
                     then 1 else 0
@@ -2091,6 +2103,13 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             return "                " + alias + ".specimen_removal_at as specimen_removal_at,\n";
         }
         return "                cast(null as timestamp) as specimen_removal_at,\n";
+    }
+
+    private String specimenRemovalAtExpression(String alias) {
+        if (hasSpecimenRemovalColumns()) {
+            return alias + ".specimen_removal_at";
+        }
+        return "cast(null as timestamp)";
     }
 
     private String specimenRemovalOperatorUserIdSelect(String alias) {

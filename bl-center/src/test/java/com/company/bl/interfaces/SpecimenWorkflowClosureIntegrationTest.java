@@ -103,6 +103,152 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
     }
 
     @Test
+    void shouldQuickConfirmRemovalByBarcodeAndPersistAudit() throws Exception {
+        String applicationId = createApplication("APP-M2-REMOVAL-BARCODE-001");
+        JsonNode registration = registerSpecimens(
+            applicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-REMOVAL-BARCODE-001");
+        String barcode = registration.path("specimens").get(0).path("barcode").asText();
+        String specimenId = registration.path("specimens").get(0).path("id").asText();
+        String loginName = userLoginName(USER_FIXATION);
+
+        postJson("/api/v1/specimen-removals/confirm-by-identifier", USER_FIXATION, """
+            {
+              "identifierType": "BARCODE",
+              "identifier": "%s",
+              "operatorName": "manual-name",
+              "terminalCode": "T-REMOVAL-BARCODE",
+              "remarks": "离体确认"
+            }
+            """.formatted(barcode))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.specimenId").value(specimenId))
+            .andExpect(jsonPath("$.data.barcode").value(barcode))
+            .andExpect(jsonPath("$.data.operatorName").value(loginName))
+            .andExpect(jsonPath("$.data.specimenRemovalAt").isNotEmpty());
+
+        assertThat(querySingleString(
+            """
+                select specimen_removal_operator_name
+                from specimens
+                where id = :specimenId
+                """,
+            "specimenId",
+            specimenId)).isEqualTo(loginName);
+        assertThat(jdbcTemplate.queryForObject(
+            """
+                select count(1)
+                from workflow_events
+                where specimen_id = :specimenId
+                  and node_code = 'REMOVAL'
+                  and event_type = 'COMPLETED'
+                  and event_status = 'SUCCESS'
+                """,
+            java.util.Map.of("specimenId", specimenId),
+            Long.class)).isEqualTo(1L);
+    }
+
+    @Test
+    void shouldQuickConfirmRemovalBySpecimenNo() throws Exception {
+        String applicationId = createApplication("APP-M2-REMOVAL-NO-001");
+        JsonNode registration = registerSpecimens(
+            applicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-REMOVAL-NO-001");
+        String barcode = registration.path("specimens").get(0).path("barcode").asText();
+        String specimenNo = "SN-REMOVAL-NO-UNIQUE-001";
+
+        jdbcTemplate.update(
+            """
+                update specimens
+                set specimen_no = :specimenNo
+                where barcode = :barcode
+                """,
+            java.util.Map.of("specimenNo", specimenNo, "barcode", barcode));
+
+        postJson("/api/v1/specimen-removals/confirm-by-identifier", USER_FIXATION, """
+            {
+              "identifierType": "SPECIMEN_NO",
+              "identifier": "%s",
+              "operatorName": "manual-name",
+              "terminalCode": "T-REMOVAL-NO",
+              "remarks": "离体确认"
+            }
+            """.formatted(specimenNo))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.barcode").value(barcode))
+            .andExpect(jsonPath("$.data.specimenRemovalAt").isNotEmpty());
+    }
+
+    @Test
+    void shouldRejectQuickConfirmWhenSpecimenNoMatchesMultipleRecords() throws Exception {
+        String applicationId1 = createApplication("APP-M2-REMOVAL-DUP-001");
+        JsonNode registration1 = registerSpecimens(
+            applicationId1, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-REMOVAL-DUP-001");
+        String specimenNo = registration1.path("specimens").get(0).path("specimenNo").asText();
+
+        String applicationId2 = createApplication("APP-M2-REMOVAL-DUP-002");
+        JsonNode registration2 = registerSpecimens(
+            applicationId2, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-REMOVAL-DUP-002");
+        String secondBarcode = registration2.path("specimens").get(0).path("barcode").asText();
+
+        jdbcTemplate.update(
+            """
+                update specimens
+                set specimen_no = :specimenNo
+                where barcode = :barcode
+                """,
+            java.util.Map.of("specimenNo", specimenNo, "barcode", secondBarcode));
+
+        postJson("/api/v1/specimen-removals/confirm-by-identifier", USER_FIXATION, """
+            {
+              "identifierType": "SPECIMEN_NO",
+              "identifier": "%s",
+              "operatorName": "manual-name"
+            }
+            """.formatted(specimenNo))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("INVALID_ARGUMENT"));
+    }
+
+    @Test
+    void shouldRejectQuickConfirmWhenSpecimenAlreadyConfirmed() throws Exception {
+        String applicationId = createApplication("APP-M2-REMOVAL-CONFLICT-001");
+        JsonNode registration = registerSpecimens(
+            applicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-REMOVAL-CONFLICT-001");
+        String barcode = registration.path("specimens").get(0).path("barcode").asText();
+
+        postJson("/api/v1/specimen-removals/confirm-by-identifier", USER_FIXATION, """
+            {
+              "identifierType": "BARCODE",
+              "identifier": "%s",
+              "operatorName": "manual-name"
+            }
+            """.formatted(barcode))
+            .andExpect(status().isOk());
+
+        postJson("/api/v1/specimen-removals/confirm-by-identifier", USER_FIXATION, """
+            {
+              "identifierType": "BARCODE",
+              "identifier": "%s",
+              "operatorName": "manual-name"
+            }
+            """.formatted(barcode))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("RESOURCE_CONFLICT"));
+    }
+
+    @Test
+    void shouldRejectQuickConfirmWhenIdentifierNotFound() throws Exception {
+        postJson("/api/v1/specimen-removals/confirm-by-identifier", USER_FIXATION, """
+            {
+              "identifierType": "BARCODE",
+              "identifier": "BC-NOT-FOUND",
+              "operatorName": "manual-name"
+            }
+            """)
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+    }
+
+    @Test
     void shouldRetryFailedLabelPrintAndPersistStatus() throws Exception {
         String applicationId = createApplication("APP-M2-PRINT-001");
         JsonNode registration = registerSpecimens(applicationId, USER_REGISTER, "FAIL", "/api/v1/specimens/register", "BC-PRINT-001");

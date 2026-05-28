@@ -20,6 +20,8 @@ public interface SpecimenWorkflowRepository {
 
     Optional<Specimen> findSpecimenByBarcode(String barcode);
 
+    List<Specimen> findSpecimensBySpecimenNo(String specimenNo);
+
     List<Specimen> findSpecimensByApplicationId(String applicationId);
 
     Optional<PathologyCase> findPathologyCaseByApplicationId(String applicationId);

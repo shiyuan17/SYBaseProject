@@ -913,6 +913,17 @@ public class SpecimenWorkflowAppService {
             command.operatorName());
     }
 
+    @Transactional
+    public SpecimenRemovalResult quickConfirmSpecimenRemoval(SpecimenRemovalQuickConfirmCommand command) {
+        Specimen specimen = resolveSpecimenForRemoval(command.identifierType(), command.identifier());
+        return confirmSpecimenRemoval(new SpecimenRemovalCommand(
+            specimen.barcode(),
+            command.operatorUserId(),
+            command.operatorName(),
+            command.terminalCode(),
+            command.remarks()));
+    }
+
     @Transactional(readOnly = true)
     public byte[] exportSpecimenRemovalItems(SpecimenRemovalQuery query) {
         List<SpecimenWorkflowRepository.SpecimenRemovalListRow> rows = specimenWorkflowRepository.listSpecimenRemovalExportRows(
@@ -1004,6 +1015,23 @@ public class SpecimenWorkflowAppService {
     private Specimen getSpecimen(String barcode) {
         return specimenWorkflowRepository.findSpecimenByBarcode(barcode)
             .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Specimen barcode not found"));
+    }
+
+    private Specimen resolveSpecimenForRemoval(String identifierType, String identifier) {
+        if ("BARCODE".equals(identifierType)) {
+            return getSpecimen(identifier);
+        }
+        if ("SPECIMEN_NO".equals(identifierType)) {
+            List<Specimen> specimens = specimenWorkflowRepository.findSpecimensBySpecimenNo(identifier);
+            if (specimens.isEmpty()) {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Specimen specimenNo not found");
+            }
+            if (specimens.size() > 1) {
+                throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Specimen number matches multiple records");
+            }
+            return specimens.get(0);
+        }
+        throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Unsupported specimen identifier type");
     }
 
     private SpecimenVerificationResult buildSpecimenVerificationResult(Specimen specimen) {
@@ -2103,6 +2131,16 @@ public class SpecimenWorkflowAppService {
 
     public record SpecimenRemovalCommand(
         String specimenBarcode,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
+    public record SpecimenRemovalQuickConfirmCommand(
+        String identifierType,
+        String identifier,
         String operatorUserId,
         String operatorName,
         String terminalCode,
