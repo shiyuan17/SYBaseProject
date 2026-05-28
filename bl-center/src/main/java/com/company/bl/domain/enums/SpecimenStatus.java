@@ -2,8 +2,10 @@ package com.company.bl.domain.enums;
 
 public enum SpecimenStatus {
     REGISTERED,
+    VERIFIED,
     FIXING,
     FIXED,
+    CHECKED_IN,
     IN_TRANSIT,
     RECEIVED,
     REJECTED,

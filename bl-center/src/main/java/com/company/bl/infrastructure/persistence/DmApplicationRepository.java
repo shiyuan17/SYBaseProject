@@ -27,6 +27,13 @@ public class DmApplicationRepository implements ApplicationRepository {
     }
 
     @Override
+    public Application update(Application application) {
+        ApplicationDataObject dataObject = applicationInfrastructureConverter.toDataObject(application);
+        applicationMapper.updateById(dataObject);
+        return applicationInfrastructureConverter.toDomain(dataObject);
+    }
+
+    @Override
     public Optional<Application> findById(ApplicationId applicationId) {
         return Optional.ofNullable(applicationMapper.selectById(applicationId.value()))
             .map(applicationInfrastructureConverter::toDomain);

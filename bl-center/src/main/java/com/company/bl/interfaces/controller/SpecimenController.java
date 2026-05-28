@@ -6,6 +6,8 @@ import com.company.bl.domain.model.Specimen;
 import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
+import com.company.bl.interfaces.dto.SpecimenCheckInRequest;
+import com.company.bl.interfaces.dto.SpecimenConfirmRequest;
 import com.company.bl.interfaces.dto.RegisterSpecimensRequest;
 import com.company.bl.interfaces.dto.RetryLabelPrintRequest;
 import com.company.bl.interfaces.vo.ApplicationDetailResponse;
@@ -18,6 +20,7 @@ import com.company.bl.interfaces.vo.SpecimenManagementPageResponse;
 import com.company.bl.interfaces.vo.SpecimenManagementSummaryResponse;
 import com.company.bl.interfaces.vo.SpecimenRegistrationResponse;
 import com.company.bl.interfaces.vo.SpecimenSummaryResponse;
+import com.company.bl.interfaces.vo.SpecimenVerificationRecordResponse;
 import com.company.bl.interfaces.vo.TrackingEventResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -36,6 +39,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -182,10 +186,68 @@ public class SpecimenController {
         return toApplicationDetail(specimenWorkflowAppService.getTrackingByBarcode(barcode));
     }
 
+    @Operation(summary = "List specimen verification records", description = "Query verification records by specimen barcode.")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_TRACKING_QUERY)
+    @GetMapping("/barcodes/{barcode}/verification-records")
+    public List<SpecimenVerificationRecordResponse> listVerificationRecords(
+        @Parameter(description = "Specimen barcode") @PathVariable("barcode") String barcode
+    ) {
+        return specimenWorkflowAppService.listSpecimenVerificationRecords(barcode).stream()
+            .map(item -> new SpecimenVerificationRecordResponse(
+                item.applicationId(),
+                item.barcode(),
+                item.operatorName(),
+                item.remarks(),
+                item.result(),
+                item.specimenId(),
+                item.terminalCode(),
+                item.verificationType(),
+                stringify(item.verifiedAt())))
+            .toList();
+    }
+
+    @Operation(summary = "Confirm specimen", description = "Confirm a fixed specimen before check-in.")
+    @RequirePermission(M2PermissionCodes.FIXATION_VERIFY)
+    @PostMapping("/barcodes/{barcode}/confirm")
+    public SpecimenSummaryResponse confirm(
+        @Parameter(description = "Specimen barcode") @PathVariable("barcode") String barcode,
+        @Valid @RequestBody SpecimenConfirmRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        Specimen specimen = specimenWorkflowAppService.confirmSpecimen(
+            new SpecimenWorkflowAppService.ConfirmSpecimenCommand(
+                barcode,
+                resolveUserId(request.getOperatorUserId(), httpServletRequest),
+                resolveOperatorName(request.getOperatorName(), httpServletRequest),
+                request.getTerminalCode(),
+                request.getRemarks()));
+        return toSpecimenSummary(specimen);
+    }
+
+    @Operation(summary = "Check in specimen", description = "Check in a confirmed specimen before transport.")
+    @RequirePermission(M2PermissionCodes.FIXATION_VERIFY)
+    @PostMapping("/barcodes/{barcode}/check-in")
+    public SpecimenSummaryResponse checkIn(
+        @Parameter(description = "Specimen barcode") @PathVariable("barcode") String barcode,
+        @Valid @RequestBody SpecimenCheckInRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        Specimen specimen = specimenWorkflowAppService.checkInSpecimen(
+            new SpecimenWorkflowAppService.CheckInSpecimenCommand(
+                barcode,
+                resolveUserId(request.getOperatorUserId(), httpServletRequest),
+                resolveOperatorName(request.getOperatorName(), httpServletRequest),
+                request.getTerminalCode(),
+                request.getRemarks()));
+        return toSpecimenSummary(specimen);
+    }
+
     private ApplicationDetailResponse toApplicationDetail(ApplicationTracking tracking) {
         List<SpecimenSummaryResponse> specimenSummaries = tracking.specimens().stream().map(this::toSpecimenSummary).toList();
         Map<String, SpecimenSummaryResponse> specimenMap = specimenSummaries.stream()
             .collect(Collectors.toMap(SpecimenSummaryResponse::id, Function.identity()));
+        SpecimenWorkflowAppService.ApplicationOperationState operationState =
+            specimenWorkflowAppService.resolveApplicationOperationState(tracking.application());
         return new ApplicationDetailResponse(
             tracking.application().getId().value(),
             tracking.application().getApplicationNo(),
@@ -212,9 +274,13 @@ public class SpecimenController {
             stringify(tracking.application().getSubmissionDate()),
             stringify(tracking.application().getSpecimenRemovalTime()),
             resolveLatestEventTime(tracking, "FIXATION", "COMPLETED"),
-            resolveLatestEventTime(tracking, "TRANSPORT", "HANDED_OVER"),
+            resolveLatestSpecimenConfirmedAt(tracking.specimens()),
             tracking.currentNode(),
             tracking.abnormal(),
+            operationState.editable(),
+            operationState.deletable(),
+            operationState.voided(),
+            operationState.disabledReason(),
             null,
             false,
             buildReceiptAbnormalSummary(tracking.specimens()),
@@ -260,8 +326,14 @@ public class SpecimenController {
             specimen.specimenStatus().name(),
             specimen.fixationStatus().name(),
             resolveVerificationStatus(specimen),
+            stringify(specimen.verificationStartedAt()),
+            stringify(specimen.verificationCompletedAt()),
             resolveBarcodeBindingStatus(specimen),
             specimen.labelPrintStatus(),
+            stringify(specimen.specimenConfirmedAt()),
+            resolveCheckInStatus(specimen),
+            stringify(specimen.checkedInAt()),
+            specimen.checkedInByName(),
             specimen.receiptStatus(),
             specimen.qualityCheckResult(),
             splitCommaSeparated(specimen.qualityIssueCodes()),
@@ -314,7 +386,11 @@ public class SpecimenController {
             item.containerCount(),
             item.specimenStatus(),
             item.fixationStatus(),
-            item.fixationStatus(),
+            item.verificationStatus(),
+            stringify(item.specimenConfirmedAt()),
+            item.checkInStatus(),
+            stringify(item.checkedInAt()),
+            item.checkedInByName(),
             item.barcode() == null || item.barcode().isBlank() ? "UNBOUND" : "BOUND",
             item.labelPrintStatus(),
             item.labelPrintBatchNo(),
@@ -343,6 +419,10 @@ public class SpecimenController {
             item.abnormalFlag(),
             item.registeredSpecimenCount(),
             item.latestLabelPrintStatus(),
+            item.editable(),
+            item.deletable(),
+            item.voided(),
+            item.operationDisabledReason(),
             stringify(item.applicationDate()),
             stringify(item.submissionDate()),
             stringify(item.createdAt()),
@@ -397,11 +477,26 @@ public class SpecimenController {
     }
 
     private String resolveVerificationStatus(Specimen specimen) {
-        return specimen.fixationStatus() == null ? null : specimen.fixationStatus().name();
+        return specimen.verificationStatus();
+    }
+
+    private String resolveCheckInStatus(Specimen specimen) {
+        return specimen.checkInStatus() == null || specimen.checkInStatus().isBlank()
+            ? "NOT_CHECKED_IN"
+            : specimen.checkInStatus();
     }
 
     private String resolveBarcodeBindingStatus(Specimen specimen) {
         return specimen.barcode() == null || specimen.barcode().isBlank() ? "UNBOUND" : "BOUND";
+    }
+
+    private String resolveLatestSpecimenConfirmedAt(List<Specimen> specimens) {
+        return specimens.stream()
+            .map(Specimen::specimenConfirmedAt)
+            .filter(java.util.Objects::nonNull)
+            .max(LocalDateTime::compareTo)
+            .map(this::stringify)
+            .orElse(null);
     }
 
     private String resolveAbnormalType(Specimen specimen) {

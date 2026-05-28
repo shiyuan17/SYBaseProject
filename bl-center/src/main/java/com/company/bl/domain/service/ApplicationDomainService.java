@@ -7,6 +7,7 @@ import com.company.bl.domain.exception.ApplicationDomainException;
 import com.company.bl.domain.factory.ApplicationFactory;
 import com.company.bl.domain.model.Application;
 import com.company.bl.domain.repository.ApplicationRepository;
+import com.company.bl.domain.valueobject.ApplicationId;
 import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDate;
@@ -79,6 +80,74 @@ public class ApplicationDomainService {
             specimenRemovalTime,
             ApplicationFormStatus.from(applicationFormStatus),
             trimToNull(remarks));
+    }
+
+    public Application revise(Application existing,
+                              String applicationNo,
+                              String patientId,
+                              String patientName,
+                              String patientGender,
+                              String patientAge,
+                              String applicationType,
+                              String externalOrderNo,
+                              String thirdPartySource,
+                              String sourceHospitalId,
+                              String sourceHospitalName,
+                              String submittingDepartmentId,
+                              String submittingDepartmentName,
+                              String submittingDoctorUserId,
+                              String submittingDoctorName,
+                              String clinicalDiagnosis,
+                              String clinicalSymptom,
+                              String specimenSite,
+                              LocalDate applicationDate,
+                              LocalDate submissionDate,
+                              LocalDateTime specimenRemovalTime,
+                              String applicationFormStatus,
+                              String remarks) {
+        String normalizedApplicationNo = normalizeApplicationNo(applicationNo);
+        validateRequiredFields(
+            patientId,
+            patientName,
+            applicationType,
+            submittingDepartmentId,
+            submittingDepartmentName,
+            submittingDoctorUserId,
+            submittingDoctorName,
+            clinicalDiagnosis,
+            specimenSite);
+        applicationRepository.findByApplicationNo(normalizedApplicationNo)
+            .filter(found -> !found.getId().equals(existing.getId()))
+            .ifPresent((found) -> {
+                throw new ApplicationDomainException(ApplicationErrorCode.APPLICATION_NO_CONFLICT, 409);
+            });
+        return new Application(
+            new ApplicationId(existing.getId().value()),
+            normalizedApplicationNo,
+            trimToNull(patientId),
+            trimToNull(patientName),
+            trimToNull(patientGender),
+            trimToNull(patientAge),
+            trimToNull(applicationType),
+            existing.getStatus(),
+            ApplicationFormStatus.from(applicationFormStatus),
+            trimToNull(externalOrderNo),
+            trimToNull(thirdPartySource),
+            trimToNull(sourceHospitalId),
+            trimToNull(sourceHospitalName),
+            trimToNull(submittingDepartmentId),
+            trimToNull(submittingDepartmentName),
+            trimToNull(submittingDoctorUserId),
+            trimToNull(submittingDoctorName),
+            trimToNull(clinicalDiagnosis),
+            trimToNull(clinicalSymptom),
+            trimToNull(specimenSite),
+            applicationDate,
+            submissionDate,
+            specimenRemovalTime,
+            trimToNull(remarks),
+            existing.getCreatedAt(),
+            LocalDateTime.now());
     }
 
     private void validateRequiredFields(String patientId,

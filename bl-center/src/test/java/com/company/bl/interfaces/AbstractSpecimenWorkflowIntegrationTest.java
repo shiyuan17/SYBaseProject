@@ -65,7 +65,30 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
         return responseBody(postJson(path, userId, registerSpecimenPayload(applicationId, printerCode, barcodes)), 201);
     }
 
+    protected void startVerification(String barcode) throws Exception {
+        postJson("/api/v1/specimen-verifications/start", USER_FIXATION, """
+            {
+              "specimenBarcode": "%s",
+              "operatorName": "nurse-b"
+            }
+            """.formatted(barcode))
+            .andExpect(status().isOk());
+    }
+
+    protected void completeVerification(String barcode) throws Exception {
+        postJson("/api/v1/specimen-verifications/complete", USER_FIXATION, """
+            {
+              "specimenBarcode": "%s",
+              "operatorName": "nurse-b"
+            }
+            """.formatted(barcode))
+            .andExpect(status().isOk());
+    }
+
     protected void completeFixation(String barcode) throws Exception {
+        startVerification(barcode);
+        completeVerification(barcode);
+
         postJson("/api/v1/specimen-fixations/start", USER_FIXATION, """
             {
               "specimenBarcode": "%s",
@@ -83,6 +106,33 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
             }
             """.formatted(barcode))
             .andExpect(status().isOk());
+    }
+
+    protected void confirmSpecimen(String barcode) throws Exception {
+        postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(barcode), USER_FIXATION, """
+            {
+              "operatorName": "nurse-b",
+              "terminalCode": "T-CONFIRM"
+            }
+            """)
+            .andExpect(status().isOk());
+    }
+
+    protected void checkInSpecimen(String barcode) throws Exception {
+        postJson("/api/v1/specimens/barcodes/%s/check-in".formatted(barcode), USER_FIXATION, """
+            {
+              "operatorName": "nurse-b",
+              "specimenBarcode": "%s",
+              "terminalCode": "T-CHECK-IN"
+            }
+            """.formatted(barcode))
+            .andExpect(status().isOk());
+    }
+
+    protected void prepareTransportReadySpecimen(String barcode) throws Exception {
+        completeFixation(barcode);
+        confirmSpecimen(barcode);
+        checkInSpecimen(barcode);
     }
 
     protected JsonNode createTransportOrder(String applicationId, String... barcodes) throws Exception {

@@ -10,7 +10,8 @@ public enum ApplicationStatus {
     PARTIALLY_RECEIVED,
     REJECTED,
     CLOSED,
-    CANCELLED;
+    CANCELLED,
+    VOIDED;
 
     public static ApplicationStatus from(String value) {
         if (value == null || value.isBlank()) {

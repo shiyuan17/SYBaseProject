@@ -18,6 +18,7 @@ import com.company.bl.domain.model.TrackingEvent;
 import com.company.bl.domain.model.TransportOrder;
 import com.company.bl.domain.model.TransportOrderItem;
 import com.company.bl.domain.repository.ApplicationRepository;
+import com.company.bl.domain.repository.ApplicationRegistrationWorkbenchRepository;
 import com.company.bl.domain.repository.SpecimenWorkflowRepository;
 import com.company.bl.domain.valueobject.ApplicationId;
 import com.company.bl.infrastructure.observability.ObservedOperation;
@@ -35,12 +36,22 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.format.DateTimeFormatter;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @Service
 @RequiredArgsConstructor
 public class SpecimenWorkflowAppService {
+    private static final DateTimeFormatter EXPORT_TIME_FORMATTER =
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
 
     private final ApplicationRepository applicationRepository;
+    private final ApplicationRegistrationWorkbenchRepository workbenchRepository;
     private final SpecimenWorkflowRepository specimenWorkflowRepository;
     private final NumberingService numberingService;
     private final LabelPrintGateway labelPrintGateway;
@@ -71,6 +82,16 @@ public class SpecimenWorkflowAppService {
                 item.containerCount(),
                 SpecimenStatus.REGISTERED,
                 FixationStatus.PENDING,
+                "UNVERIFIED",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 true,
                 null,
                 null,
@@ -153,6 +174,9 @@ public class SpecimenWorkflowAppService {
     @Transactional
     public FixationResult startFixation(FixationCommand command) {
         Specimen specimen = getSpecimen(command.specimenBarcode());
+        if (!"VERIFIED".equals(specimen.verificationStatus())) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must be verified before fixation");
+        }
         LocalDateTime now = LocalDateTime.now();
         specimenWorkflowRepository.upsertFixationRecord(
             specimen.applicationId(),
@@ -161,9 +185,6 @@ public class SpecimenWorkflowAppService {
             command.fixationLiquidType(),
             now,
             null,
-            command.operatorUserId(),
-            command.operatorName(),
-            now,
             command.terminalCode(),
             command.remarks());
         specimenWorkflowRepository.updateSpecimenStatus(specimen.id(), SpecimenStatus.FIXING, FixationStatus.FIXING, null, command.remarks(), null);
@@ -195,9 +216,6 @@ public class SpecimenWorkflowAppService {
             command.fixationLiquidType(),
             null,
             now,
-            command.operatorUserId(),
-            command.operatorName(),
-            now,
             command.terminalCode(),
             command.remarks());
         specimenWorkflowRepository.updateSpecimenStatus(specimen.id(), SpecimenStatus.FIXED, FixationStatus.COMPLETED, null, command.remarks(), null);
@@ -219,6 +237,139 @@ public class SpecimenWorkflowAppService {
     }
 
     @Transactional
+    public SpecimenVerificationResult startSpecimenVerification(SpecimenVerificationCommand command) {
+        Specimen specimen = getSpecimen(command.specimenBarcode());
+        if (isReceiptTerminalStatus(specimen.specimenStatus())) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen already reached receipt terminal status");
+        }
+        if ("VERIFYING".equals(specimen.verificationStatus()) || "VERIFIED".equals(specimen.verificationStatus())) {
+            throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Specimen verification already started");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        specimenWorkflowRepository.startSpecimenVerification(
+            specimen.applicationId(),
+            specimen.id(),
+            command.operatorUserId(),
+            command.operatorName(),
+            now,
+            command.terminalCode(),
+            command.remarks());
+        specimenWorkflowRepository.insertWorkflowEvent(new TrackingEvent(
+            "EVT-" + UUID.randomUUID(),
+            specimen.applicationId(),
+            specimen.id(),
+            null,
+            null,
+            "VERIFICATION",
+            "STARTED",
+            "SUCCESS",
+            now,
+            command.operatorUserId(),
+            command.operatorName(),
+            command.terminalCode(),
+            "Specimen verification started"));
+        return buildSpecimenVerificationResult(getSpecimen(command.specimenBarcode()));
+    }
+
+    @Transactional
+    public SpecimenVerificationResult completeSpecimenVerification(SpecimenVerificationCommand command) {
+        Specimen specimen = getSpecimen(command.specimenBarcode());
+        if (!"VERIFYING".equals(specimen.verificationStatus())) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen verification must be started before completion");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        specimenWorkflowRepository.completeSpecimenVerification(
+            specimen.id(),
+            command.operatorUserId(),
+            command.operatorName(),
+            now,
+            command.terminalCode(),
+            command.remarks());
+        specimenWorkflowRepository.insertWorkflowEvent(new TrackingEvent(
+            "EVT-" + UUID.randomUUID(),
+            specimen.applicationId(),
+            specimen.id(),
+            null,
+            null,
+            "VERIFICATION",
+            "COMPLETED",
+            "SUCCESS",
+            now,
+            command.operatorUserId(),
+            command.operatorName(),
+            command.terminalCode(),
+            "Specimen verification completed"));
+        return buildSpecimenVerificationResult(getSpecimen(command.specimenBarcode()));
+    }
+
+    @Transactional
+    public Specimen confirmSpecimen(ConfirmSpecimenCommand command) {
+        Specimen specimen = getSpecimen(command.specimenBarcode());
+        if (isReceiptTerminalStatus(specimen.specimenStatus())) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen already reached receipt terminal status");
+        }
+        if (specimen.fixationStatus() != FixationStatus.COMPLETED) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must complete fixation before confirmation");
+        }
+        if (specimen.specimenConfirmedAt() != null) {
+            throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Specimen already confirmed");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        specimenWorkflowRepository.confirmSpecimen(specimen.id(), now);
+        specimenWorkflowRepository.insertWorkflowEvent(new TrackingEvent(
+            "EVT-" + UUID.randomUUID(),
+            specimen.applicationId(),
+            specimen.id(),
+            null,
+            null,
+            "CONFIRMATION",
+            "COMPLETED",
+            "SUCCESS",
+            now,
+            command.operatorUserId(),
+            command.operatorName(),
+            command.terminalCode(),
+            "Specimen confirmation completed"));
+        return getSpecimen(command.specimenBarcode());
+    }
+
+    @Transactional
+    public Specimen checkInSpecimen(CheckInSpecimenCommand command) {
+        Specimen specimen = getSpecimen(command.specimenBarcode());
+        if (isReceiptTerminalStatus(specimen.specimenStatus())) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen already reached receipt terminal status");
+        }
+        if (specimen.specimenConfirmedAt() == null) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must be confirmed before check-in");
+        }
+        if ("CHECKED_IN".equalsIgnoreCase(commandCheckInStatus(specimen))) {
+            throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Specimen already checked in");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        specimenWorkflowRepository.checkInSpecimen(
+            specimen.id(),
+            "CHECKED_IN",
+            now,
+            command.operatorUserId(),
+            command.operatorName());
+        specimenWorkflowRepository.insertWorkflowEvent(new TrackingEvent(
+            "EVT-" + UUID.randomUUID(),
+            specimen.applicationId(),
+            specimen.id(),
+            null,
+            null,
+            "CHECK_IN",
+            "CHECKED_IN",
+            "SUCCESS",
+            now,
+            command.operatorUserId(),
+            command.operatorName(),
+            command.terminalCode(),
+            "Specimen check-in completed"));
+        return getSpecimen(command.specimenBarcode());
+    }
+
+    @Transactional
     public TransportOrder createTransportOrder(CreateTransportOrderCommand command) {
         Application application = getApplication(command.applicationId());
         List<Specimen> specimens = command.specimenBarcodes().stream()
@@ -230,6 +381,12 @@ public class SpecimenWorkflowAppService {
             }
             if (specimen.fixationStatus() != FixationStatus.COMPLETED) {
                 throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must be fixed before transport");
+            }
+            if (specimen.specimenConfirmedAt() == null) {
+                throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must be confirmed before transport");
+            }
+            if (!"CHECKED_IN".equalsIgnoreCase(commandCheckInStatus(specimen))) {
+                throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must be checked in before transport");
             }
         });
         LocalDateTime now = LocalDateTime.now();
@@ -446,6 +603,7 @@ public class SpecimenWorkflowAppService {
                 trim(query.specimenNo()),
                 trim(query.departmentId()),
                 trim(query.fixationStatus()),
+                trim(query.verificationStatus()),
                 parseDateFrom(query.dateFrom()),
                 parseDateTo(query.dateTo())));
         return new PendingSpecimenPage(
@@ -465,6 +623,7 @@ public class SpecimenWorkflowAppService {
                 trim(query.specimenNo()),
                 trim(query.departmentId()),
                 null,
+                null,
                 parseDateFrom(query.dateFrom()),
                 parseDateTo(query.dateTo())));
         return new PendingSpecimenPage(
@@ -472,6 +631,25 @@ public class SpecimenWorkflowAppService {
             normalizePage(query.page()),
             normalizeSize(query.size()),
             page.total());
+    }
+
+    @Transactional(readOnly = true)
+    public List<SpecimenVerificationRecord> listSpecimenVerificationRecords(String barcode) {
+        if (blank(barcode)) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Specimen barcode is required");
+        }
+        return specimenWorkflowRepository.listSpecimenVerificationRecords(trim(barcode)).stream()
+            .map(row -> new SpecimenVerificationRecord(
+                row.applicationId(),
+                row.specimenId(),
+                row.barcode(),
+                row.verificationType(),
+                row.result(),
+                row.operatorName(),
+                row.terminalCode(),
+                row.remarks(),
+                row.verifiedAt()))
+            .toList();
     }
 
     @Transactional(readOnly = true)
@@ -538,6 +716,10 @@ public class SpecimenWorkflowAppService {
                 item.abnormalFlag(),
                 item.registeredSpecimenCount(),
                 item.latestLabelPrintStatus(),
+                item.editable(),
+                item.deletable(),
+                item.voided(),
+                item.operationDisabledReason(),
                 item.applicationDate(),
                 item.submissionDate(),
                 item.createdAt(),
@@ -622,6 +804,11 @@ public class SpecimenWorkflowAppService {
                 item.containerCount(),
                 item.specimenStatus(),
                 item.fixationStatus(),
+                item.verificationStatus(),
+                item.specimenConfirmedAt(),
+                item.checkInStatus(),
+                item.checkedInAt(),
+                item.checkedInByName(),
                 item.labelPrintStatus(),
                 item.labelPrintBatchNo(),
                 item.registeredAt(),
@@ -636,6 +823,110 @@ public class SpecimenWorkflowAppService {
                 result.summary().labelPrintedCount(),
                 result.summary().pendingLabelCount(),
                 result.summary().abnormalCount()));
+    }
+
+    @Transactional(readOnly = true)
+    public SpecimenRemovalListPage listSpecimenRemovalItems(SpecimenRemovalQuery query) {
+        int page = normalizePage(query.page());
+        int size = normalizeSize(query.size());
+        SpecimenWorkflowRepository.PagedSpecimenRemovalItems result =
+            specimenWorkflowRepository.findSpecimenRemovalItems(
+                new SpecimenWorkflowRepository.SpecimenRemovalListQuery(
+                    page,
+                    size,
+                    trim(query.keyword()),
+                    trim(query.applicationNo()),
+                    trim(query.departmentId()),
+                    normalizeStatus(query.specimenStatus()),
+                    query.abnormalFlag(),
+                    parseDateFrom(query.dateFrom()),
+                    parseDateTo(query.dateTo())));
+        return new SpecimenRemovalListPage(
+            result.items().stream().map(item -> new SpecimenRemovalListItem(
+                item.specimenId(),
+                item.specimenNo(),
+                item.barcode(),
+                item.applicationId(),
+                item.applicationNo(),
+                item.patientName(),
+                item.patientGender(),
+                item.inpatientNo(),
+                item.surgeryName(),
+                item.submittingDepartmentId(),
+                item.submittingDepartmentName(),
+                item.specimenName(),
+                item.specimenType(),
+                item.specimenCount(),
+                item.containerName(),
+                item.containerCount(),
+                item.specimenStatus(),
+                item.fixationStatus(),
+                item.verificationStatus(),
+                item.specimenRemovalAt(),
+                item.specimenRemovalOperatorName(),
+                item.registeredAt(),
+                item.labelPrintBatchNo(),
+                item.registeredByName(),
+                item.latestTrackingAt(),
+                item.abnormalFlag()))
+                .toList(),
+            page,
+            size,
+            result.total(),
+            new SpecimenRemovalSummary(
+                result.summary().totalCount(),
+                result.summary().confirmedCount(),
+                result.summary().pendingCount(),
+                result.summary().abnormalCount()));
+    }
+
+    @Transactional
+    public SpecimenRemovalResult confirmSpecimenRemoval(SpecimenRemovalCommand command) {
+        Specimen specimen = getSpecimen(command.specimenBarcode());
+        if (specimen.specimenRemovalAt() != null) {
+            throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Specimen already confirmed for removal");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        specimenWorkflowRepository.confirmSpecimenRemoval(
+            specimen.id(),
+            now,
+            command.operatorUserId(),
+            command.operatorName());
+        specimenWorkflowRepository.insertWorkflowEvent(new TrackingEvent(
+            "EVT-" + UUID.randomUUID(),
+            specimen.applicationId(),
+            specimen.id(),
+            null,
+            null,
+            "REMOVAL",
+            "COMPLETED",
+            "SUCCESS",
+            now,
+            command.operatorUserId(),
+            command.operatorName(),
+            command.terminalCode(),
+            "Specimen removal time confirmed"));
+        return new SpecimenRemovalResult(
+            specimen.id(),
+            specimen.barcode(),
+            now,
+            command.operatorName());
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportSpecimenRemovalItems(SpecimenRemovalQuery query) {
+        List<SpecimenWorkflowRepository.SpecimenRemovalListRow> rows = specimenWorkflowRepository.listSpecimenRemovalExportRows(
+            new SpecimenWorkflowRepository.SpecimenRemovalListQuery(
+                normalizePage(query.page()),
+                normalizeSize(query.size()),
+                trim(query.keyword()),
+                trim(query.applicationNo()),
+                trim(query.departmentId()),
+                normalizeStatus(query.specimenStatus()),
+                query.abnormalFlag(),
+                parseDateFrom(query.dateFrom()),
+                parseDateTo(query.dateTo())));
+        return buildSpecimenRemovalExport(rows);
     }
 
     @Transactional(readOnly = true)
@@ -715,6 +1006,30 @@ public class SpecimenWorkflowAppService {
             .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Specimen barcode not found"));
     }
 
+    private SpecimenVerificationResult buildSpecimenVerificationResult(Specimen specimen) {
+        return new SpecimenVerificationResult(
+            specimen.id(),
+            specimen.specimenNo(),
+            specimen.barcode(),
+            specimen.specimenNameStandardized(),
+            specimen.specimenType(),
+            specimen.specimenSite(),
+            specimen.collectionMode(),
+            specimen.clinicalSymptom(),
+            specimen.specimenCount(),
+            specimen.containerName(),
+            specimen.containerCount(),
+            specimen.specimenStatus() == null ? null : specimen.specimenStatus().name(),
+            specimen.fixationStatus() == null ? null : specimen.fixationStatus().name(),
+            specimen.verificationStatus(),
+            specimen.verificationStartedAt(),
+            specimen.verificationCompletedAt(),
+            specimen.labelPrintStatus(),
+            specimen.receiptStatus(),
+            specimen.qualityCheckResult(),
+            specimen.unqualifiedReason());
+    }
+
     private TransportOrder getTransportOrder(String transportOrderId) {
         return specimenWorkflowRepository.findTransportOrderById(transportOrderId)
             .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Transport order not found"));
@@ -792,11 +1107,163 @@ public class SpecimenWorkflowAppService {
         return latestMessage;
     }
 
+    private byte[] buildSpecimenRemovalExport(List<SpecimenWorkflowRepository.SpecimenRemovalListRow> rows) {
+        List<List<String>> sheetRows = new ArrayList<>();
+        sheetRows.add(List.of(
+            "标本ID",
+            "申请单",
+            "标本编号",
+            "姓名",
+            "住院号",
+            "性别",
+            "手术间",
+            "标本名称",
+            "标本状态",
+            "类型",
+            "离体时间",
+            "离体操作人",
+            "添加时间",
+            "添加人"
+        ));
+        for (SpecimenWorkflowRepository.SpecimenRemovalListRow row : rows) {
+            sheetRows.add(List.of(
+                defaultString(row.barcode()),
+                defaultString(row.applicationNo()),
+                defaultString(row.specimenNo()),
+                defaultString(row.patientName()),
+                defaultString(row.inpatientNo()),
+                defaultString(row.patientGender()),
+                defaultString(row.surgeryName()),
+                defaultString(row.specimenName()),
+                defaultString(row.specimenStatus()),
+                defaultString(row.specimenType()),
+                formatExportDateTime(row.specimenRemovalAt()),
+                defaultString(row.specimenRemovalOperatorName()),
+                formatExportDateTime(row.registeredAt()),
+                defaultString(row.registeredByName())
+            ));
+        }
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+             ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream, StandardCharsets.UTF_8)) {
+            writeZipEntry(zipOutputStream, "[Content_Types].xml", contentTypesXml());
+            writeZipEntry(zipOutputStream, "_rels/.rels", rootRelsXml());
+            writeZipEntry(zipOutputStream, "xl/workbook.xml", workbookXml());
+            writeZipEntry(zipOutputStream, "xl/_rels/workbook.xml.rels", workbookRelsXml());
+            writeZipEntry(zipOutputStream, "xl/worksheets/sheet1.xml", worksheetXml(sheetRows));
+            zipOutputStream.finish();
+            return outputStream.toByteArray();
+        } catch (IOException exception) {
+            throw new IllegalStateException("Failed to build specimen removal export", exception);
+        }
+    }
+
+    private void writeZipEntry(ZipOutputStream zipOutputStream, String entryName, String content) throws IOException {
+        zipOutputStream.putNextEntry(new ZipEntry(entryName));
+        zipOutputStream.write(content.getBytes(StandardCharsets.UTF_8));
+        zipOutputStream.closeEntry();
+    }
+
+    private String contentTypesXml() {
+        return """
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+              <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+              <Default Extension="xml" ContentType="application/xml"/>
+              <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+              <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+            </Types>
+            """;
+    }
+
+    private String rootRelsXml() {
+        return """
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+              <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+            </Relationships>
+            """;
+    }
+
+    private String workbookXml() {
+        return """
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+                xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+              <sheets>
+                <sheet name="离体时间设置" sheetId="1" r:id="rId1"/>
+              </sheets>
+            </workbook>
+            """;
+    }
+
+    private String workbookRelsXml() {
+        return """
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+              <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+            </Relationships>
+            """;
+    }
+
+    private String worksheetXml(List<List<String>> rows) {
+        StringBuilder builder = new StringBuilder("""
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+              <sheetData>
+            """);
+        for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+            builder.append("<row r=\"").append(rowIndex + 1).append("\">");
+            List<String> cells = rows.get(rowIndex);
+            for (int columnIndex = 0; columnIndex < cells.size(); columnIndex++) {
+                builder.append("<c r=\"")
+                    .append(excelColumnName(columnIndex))
+                    .append(rowIndex + 1)
+                    .append("\" t=\"inlineStr\"><is><t>")
+                    .append(escapeXml(cells.get(columnIndex)))
+                    .append("</t></is></c>");
+            }
+            builder.append("</row>");
+        }
+        builder.append("""
+              </sheetData>
+            </worksheet>
+            """);
+        return builder.toString();
+    }
+
+    private String excelColumnName(int columnIndex) {
+        StringBuilder builder = new StringBuilder();
+        int current = columnIndex;
+        do {
+            builder.insert(0, (char) ('A' + (current % 26)));
+            current = current / 26 - 1;
+        } while (current >= 0);
+        return builder.toString();
+    }
+
+    private String escapeXml(String value) {
+        return value
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&apos;");
+    }
+
+    private String formatExportDateTime(LocalDateTime value) {
+        return value == null ? "" : value.format(EXPORT_TIME_FORMATTER);
+    }
+
+    private String defaultString(String value) {
+        return value == null ? "" : value;
+    }
+
     private ApplicationListItem toApplicationListItem(ApplicationTracking tracking) {
         String latestBatchNo = resolveLatestLabelPrintBatchNo(tracking.specimens());
         String latestLabelPrintStatus = latestBatchNo == null
             ? null
             : resolveLatestBatchLabelPrintStatus(tracking.specimens(), latestBatchNo);
+        ApplicationOperationState operationState = resolveApplicationOperationState(tracking.application());
         return new ApplicationListItem(
             tracking.application().getId().value(),
             tracking.application().getApplicationNo(),
@@ -812,10 +1279,24 @@ public class SpecimenWorkflowAppService {
             tracking.abnormal(),
             tracking.specimens().size(),
             latestLabelPrintStatus,
+            operationState.editable(),
+            operationState.deletable(),
+            operationState.voided(),
+            operationState.disabledReason(),
             tracking.application().getApplicationDate(),
             tracking.application().getSubmissionDate(),
             tracking.application().getCreatedAt(),
             tracking.application().getUpdatedAt());
+    }
+
+    public ApplicationOperationState resolveApplicationOperationState(Application application) {
+        if (application.getStatus() == ApplicationStatus.VOIDED) {
+            return new ApplicationOperationState(false, false, true, "申请单已作废，不能再编辑或作废");
+        }
+        if (workbenchRepository.hasStartedDownstreamWorkflow(application.getId().value())) {
+            return new ApplicationOperationState(false, false, false, "申请单已进入下游流程，不能再编辑或作废");
+        }
+        return new ApplicationOperationState(true, true, false, null);
     }
 
     private ReceiptResult processReceipt(Application application,
@@ -991,6 +1472,12 @@ public class SpecimenWorkflowAppService {
             || status == TransportOrderStatus.PARTIALLY_RECEIVED;
     }
 
+    private boolean isReceiptTerminalStatus(SpecimenStatus status) {
+        return status == SpecimenStatus.RECEIVED
+            || status == SpecimenStatus.REJECTED
+            || status == SpecimenStatus.RETURNED;
+    }
+
     private void ensureBarcodeAvailable(String barcode) {
         if (specimenWorkflowRepository.findSpecimenByBarcode(barcode).isPresent()) {
             throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Specimen barcode already exists");
@@ -1012,6 +1499,13 @@ public class SpecimenWorkflowAppService {
             row.containerCount(),
             row.specimenStatus(),
             row.fixationStatus(),
+            row.verificationStatus(),
+            row.verificationStartedAt(),
+            row.verificationCompletedAt(),
+            row.specimenConfirmedAt(),
+            row.checkInStatus(),
+            row.checkedInAt(),
+            row.checkedInByName(),
             row.registeredAt(),
             row.latestTrackingAt(),
             row.abnormalFlag());
@@ -1033,6 +1527,16 @@ public class SpecimenWorkflowAppService {
             specimen.containerCount(),
             specimen.specimenStatus(),
             specimen.fixationStatus(),
+            specimen.verificationStatus(),
+            specimen.verificationStartedAt(),
+            specimen.verificationCompletedAt(),
+            specimen.specimenRemovalAt(),
+            specimen.specimenRemovalOperatorUserId(),
+            specimen.specimenRemovalOperatorName(),
+            specimen.specimenConfirmedAt(),
+            specimen.checkInStatus(),
+            specimen.checkedInAt(),
+            specimen.checkedInByName(),
             specimen.qualified(),
             specimen.unqualifiedReason(),
             specimen.receiptStatus(),
@@ -1142,6 +1646,10 @@ public class SpecimenWorkflowAppService {
         return blank(value) ? null : value.trim().toUpperCase();
     }
 
+    private String commandCheckInStatus(Specimen specimen) {
+        return blank(specimen.checkInStatus()) ? "NOT_CHECKED_IN" : specimen.checkInStatus().trim().toUpperCase();
+    }
+
     public record RegisterSpecimensCommand(
         String applicationId,
         String printerCode,
@@ -1206,6 +1714,70 @@ public class SpecimenWorkflowAppService {
     }
 
     public record FixationResult(String specimenId, String barcode, String fixationStatus) {
+    }
+
+    public record SpecimenVerificationCommand(
+        String specimenBarcode,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
+    public record ConfirmSpecimenCommand(
+        String specimenBarcode,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
+    public record CheckInSpecimenCommand(
+        String specimenBarcode,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
+    public record SpecimenVerificationResult(
+        String id,
+        String specimenNo,
+        String barcode,
+        String specimenName,
+        String specimenType,
+        String specimenSite,
+        String collectionMode,
+        String clinicalSymptom,
+        Integer specimenCount,
+        String containerName,
+        Integer containerCount,
+        String specimenStatus,
+        String fixationStatus,
+        String verificationStatus,
+        LocalDateTime verificationStartedAt,
+        LocalDateTime verificationCompletedAt,
+        String labelPrintStatus,
+        String receiptStatus,
+        String qualityCheckResult,
+        String abnormalReason
+    ) {
+    }
+
+    public record SpecimenVerificationRecord(
+        String applicationId,
+        String specimenId,
+        String barcode,
+        String verificationType,
+        String result,
+        String operatorName,
+        String terminalCode,
+        String remarks,
+        LocalDateTime verifiedAt
+    ) {
     }
 
     public record CreateTransportOrderCommand(
@@ -1296,6 +1868,7 @@ public class SpecimenWorkflowAppService {
         String specimenNo,
         String departmentId,
         String fixationStatus,
+        String verificationStatus,
         String dateFrom,
         String dateTo
     ) {
@@ -1323,6 +1896,13 @@ public class SpecimenWorkflowAppService {
         Integer containerCount,
         String specimenStatus,
         String fixationStatus,
+        String verificationStatus,
+        LocalDateTime verificationStartedAt,
+        LocalDateTime verificationCompletedAt,
+        LocalDateTime specimenConfirmedAt,
+        String checkInStatus,
+        LocalDateTime checkedInAt,
+        String checkedInByName,
         LocalDateTime registeredAt,
         LocalDateTime latestTrackingAt,
         boolean abnormalFlag
@@ -1428,10 +2008,22 @@ public class SpecimenWorkflowAppService {
         boolean abnormalFlag,
         int registeredSpecimenCount,
         String latestLabelPrintStatus,
+        boolean editable,
+        boolean deletable,
+        boolean voided,
+        String operationDisabledReason,
         LocalDate applicationDate,
         LocalDate submissionDate,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
+    ) {
+    }
+
+    public record ApplicationOperationState(
+        boolean editable,
+        boolean deletable,
+        boolean voided,
+        String disabledReason
     ) {
     }
 
@@ -1475,6 +2067,11 @@ public class SpecimenWorkflowAppService {
         Integer containerCount,
         String specimenStatus,
         String fixationStatus,
+        String verificationStatus,
+        LocalDateTime specimenConfirmedAt,
+        String checkInStatus,
+        LocalDateTime checkedInAt,
+        String checkedInByName,
         String labelPrintStatus,
         String labelPrintBatchNo,
         LocalDateTime registeredAt,
@@ -1487,6 +2084,83 @@ public class SpecimenWorkflowAppService {
         long totalCount,
         long labelPrintedCount,
         long pendingLabelCount,
+        long abnormalCount
+    ) {
+    }
+
+    public record SpecimenRemovalQuery(
+        int page,
+        int size,
+        String keyword,
+        String applicationNo,
+        String departmentId,
+        String specimenStatus,
+        Boolean abnormalFlag,
+        String dateFrom,
+        String dateTo
+    ) {
+    }
+
+    public record SpecimenRemovalCommand(
+        String specimenBarcode,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
+    public record SpecimenRemovalResult(
+        String specimenId,
+        String barcode,
+        LocalDateTime specimenRemovalAt,
+        String operatorName
+    ) {
+    }
+
+    public record SpecimenRemovalListPage(
+        List<SpecimenRemovalListItem> items,
+        int page,
+        int size,
+        long total,
+        SpecimenRemovalSummary summary
+    ) {
+    }
+
+    public record SpecimenRemovalListItem(
+        String specimenId,
+        String specimenNo,
+        String barcode,
+        String applicationId,
+        String applicationNo,
+        String patientName,
+        String patientGender,
+        String inpatientNo,
+        String surgeryName,
+        String submittingDepartmentId,
+        String submittingDepartmentName,
+        String specimenName,
+        String specimenType,
+        Integer specimenCount,
+        String containerName,
+        Integer containerCount,
+        String specimenStatus,
+        String fixationStatus,
+        String verificationStatus,
+        LocalDateTime specimenRemovalAt,
+        String specimenRemovalOperatorName,
+        LocalDateTime registeredAt,
+        String labelPrintBatchNo,
+        String registeredByName,
+        LocalDateTime latestTrackingAt,
+        boolean abnormalFlag
+    ) {
+    }
+
+    public record SpecimenRemovalSummary(
+        long totalCount,
+        long confirmedCount,
+        long pendingCount,
         long abnormalCount
     ) {
     }

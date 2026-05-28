@@ -30,6 +30,20 @@ public record PendingSpecimenItemResponse(
     String specimenStatus,
     @Schema(description = "固定状态")
     String fixationStatus,
+    @Schema(description = "核对状态")
+    String verificationStatus,
+    @Schema(description = "开始核对时间")
+    String verificationStartedAt,
+    @Schema(description = "完成核对时间")
+    String verificationCompletedAt,
+    @Schema(description = "标本确认时间")
+    String specimenConfirmedAt,
+    @Schema(description = "入库状态")
+    String checkInStatus,
+    @Schema(description = "入库时间")
+    String checkedInAt,
+    @Schema(description = "入库操作人")
+    String checkedInByName,
     @Schema(description = "异常类型")
     String abnormalType,
     @Schema(description = "提醒计数")

@@ -20,11 +20,14 @@ class DiagnosticReportQueryService {
 
     private final DiagnosticReportRepository diagnosticReportRepository;
     private final DiagnosticTrackingQueryRepository diagnosticTrackingQueryRepository;
+    private final DiagnosticReportSupport diagnosticReportSupport;
 
     DiagnosticReportQueryService(DiagnosticReportRepository diagnosticReportRepository,
-                                 DiagnosticTrackingQueryRepository diagnosticTrackingQueryRepository) {
+                                 DiagnosticTrackingQueryRepository diagnosticTrackingQueryRepository,
+                                 DiagnosticReportSupport diagnosticReportSupport) {
         this.diagnosticReportRepository = diagnosticReportRepository;
         this.diagnosticTrackingQueryRepository = diagnosticTrackingQueryRepository;
+        this.diagnosticReportSupport = diagnosticReportSupport;
     }
 
     @Transactional(readOnly = true)
@@ -46,7 +49,8 @@ class DiagnosticReportQueryService {
     }
 
     @Transactional(readOnly = true)
-    DiagnosticReportViews.DiagnosticWorkbenchView getDiagnosticWorkbench(String caseId) {
+    DiagnosticReportViews.DiagnosticWorkbenchView getDiagnosticWorkbench(String caseIdentifier) {
+        String caseId = diagnosticReportSupport.resolveCaseIdentifier(caseIdentifier).id();
         DiagnosticTrackingQueryRepository.DiagnosticWorkbenchAggregate aggregate =
             diagnosticTrackingQueryRepository.getDiagnosticWorkbench(caseId);
         Map<String, com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingBox> embeddingBoxesByNo =
@@ -83,7 +87,8 @@ class DiagnosticReportQueryService {
     }
 
     @Transactional(readOnly = true)
-    DiagnosticReportViews.ReportTrackingView getReportTracking(String caseId) {
+    DiagnosticReportViews.ReportTrackingView getReportTracking(String caseIdentifier) {
+        String caseId = diagnosticReportSupport.resolveCaseIdentifier(caseIdentifier).id();
         DiagnosticTrackingQueryRepository.ReportTrackingAggregate aggregate =
             diagnosticTrackingQueryRepository.getReportTracking(caseId);
         return new DiagnosticReportViews.ReportTrackingView(

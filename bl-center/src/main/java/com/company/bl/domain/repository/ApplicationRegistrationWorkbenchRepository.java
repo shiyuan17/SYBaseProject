@@ -7,6 +7,8 @@ public interface ApplicationRegistrationWorkbenchRepository {
 
     Optional<WorkbenchApplicationRow> findApplicationByKeyword(String keyword);
 
+    Optional<WorkbenchApplicationRow> findApplicationByKeyword(String keyword, String queryType);
+
     Optional<WorkbenchExtensionData> findExtensionByApplicationId(String applicationId);
 
     void upsertExtension(SaveWorkbenchExtensionCommand command);

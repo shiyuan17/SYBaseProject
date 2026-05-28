@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/pathology-cases")
-@Tag(name = "医生流程", description = "病例级诊断工作台与报告跟踪接口")
+@Tag(name = "医生流程", description = "病例级诊断工作台与报告追踪接口")
 public class PathologyCaseDiagnosticController {
 
     private final DiagnosticReportAppService diagnosticReportAppService;
@@ -27,11 +27,14 @@ public class PathologyCaseDiagnosticController {
         this.diagnosticReportAppService = diagnosticReportAppService;
     }
 
-    @Operation(summary = "查询病例诊断工作台", description = "按病例 ID 查询诊断工作台聚合信息。")
+    @Operation(summary = "查询病例诊断工作台", description = "按病例 ID 或病理号查询诊断工作台聚合信息。")
     @RequirePermission(M4PermissionCodes.WORKBENCH_QUERY)
     @GetMapping("/{id}/diagnostic-workbench")
-    public DiagnosticWorkbenchResponse getDiagnosticWorkbench(@Parameter(description = "病例 ID") @PathVariable("id") String caseId) {
-        DiagnosticReportViews.DiagnosticWorkbenchView result = diagnosticReportAppService.getDiagnosticWorkbench(caseId);
+    public DiagnosticWorkbenchResponse getDiagnosticWorkbench(
+        @Parameter(description = "病例 ID 或病理号") @PathVariable("id") String caseIdentifier
+    ) {
+        DiagnosticReportViews.DiagnosticWorkbenchView result =
+            diagnosticReportAppService.getDiagnosticWorkbench(caseIdentifier);
         return new DiagnosticWorkbenchResponse(
             result.caseId(),
             result.applicationNo(),
@@ -62,11 +65,14 @@ public class PathologyCaseDiagnosticController {
             result.hasPendingRevision());
     }
 
-    @Operation(summary = "查询病例报告跟踪", description = "按病例 ID 查询诊断任务、报告状态、版本摘要和关键时间线。")
+    @Operation(summary = "查询病例报告追踪", description = "按病例 ID 或病理号查询诊断任务、报告状态、版本摘要和关键时间线。")
     @RequirePermission(M4PermissionCodes.REPORT_TRACKING_QUERY)
     @GetMapping("/{id}/report-tracking")
-    public ReportTrackingResponse getReportTracking(@Parameter(description = "病例 ID") @PathVariable("id") String caseId) {
-        DiagnosticReportViews.ReportTrackingView result = diagnosticReportAppService.getReportTracking(caseId);
+    public ReportTrackingResponse getReportTracking(
+        @Parameter(description = "病例 ID 或病理号") @PathVariable("id") String caseIdentifier
+    ) {
+        DiagnosticReportViews.ReportTrackingView result =
+            diagnosticReportAppService.getReportTracking(caseIdentifier);
         return new ReportTrackingResponse(
             result.caseId(),
             result.applicationNo(),

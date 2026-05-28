@@ -30,6 +30,12 @@ class ApplicationDomainServiceTest {
         }
 
         @Override
+        public Application update(Application application) {
+            applications.put(application.getId().value(), application);
+            return application;
+        }
+
+        @Override
         public Optional<Application> findById(ApplicationId applicationId) {
             return Optional.ofNullable(applications.get(applicationId.value()));
         }

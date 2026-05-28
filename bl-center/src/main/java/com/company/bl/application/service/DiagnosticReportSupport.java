@@ -4,10 +4,13 @@ import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.domain.model.Application;
 import com.company.bl.domain.model.PathologyCase;
+import com.company.bl.domain.model.Specimen;
 import com.company.bl.domain.model.TrackingEvent;
 import com.company.bl.domain.repository.ApplicationRepository;
 import com.company.bl.domain.repository.ConsultationRepository;
 import com.company.bl.domain.repository.DiagnosticReportRepository;
+import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRepository;
 import com.company.bl.domain.valueobject.ApplicationId;
 import org.springframework.stereotype.Component;
@@ -45,6 +48,28 @@ class DiagnosticReportSupport {
 
     PathologyCase getCase(String caseId) {
         return technicalWorkflowRepository.findPathologyCaseById(caseId)
+            .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Pathology case not found"));
+    }
+
+    PathologyCase resolveCaseIdentifier(String caseIdentifier) {
+        if (caseIdentifier == null || caseIdentifier.isBlank()) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Pathology case identifier is required");
+        }
+        String normalizedIdentifier = caseIdentifier.trim();
+        return technicalWorkflowRepository.findPathologyCaseById(normalizedIdentifier)
+            .or(() -> technicalWorkflowRepository.findPathologyCaseByPathologyNo(normalizedIdentifier))
+            .or(() -> technicalWorkflowRepository.findSpecimenById(normalizedIdentifier)
+                .map(Specimen::caseId)
+                .flatMap(technicalWorkflowRepository::findPathologyCaseById))
+            .or(() -> technicalWorkflowRepository.findSamplingBlockById(normalizedIdentifier)
+                .map(TechnicalWorkflowRecords.SamplingBlock::caseId)
+                .flatMap(technicalWorkflowRepository::findPathologyCaseById))
+            .or(() -> technicalWorkflowRepository.findEmbeddingBoxById(normalizedIdentifier)
+                .map(TechnicalWorkflowRecords.EmbeddingBox::caseId)
+                .flatMap(technicalWorkflowRepository::findPathologyCaseById))
+            .or(() -> technicalWorkflowRepository.findSlideById(normalizedIdentifier)
+                .map(TechnicalWorkflowProcessingRecords.Slide::caseId)
+                .flatMap(technicalWorkflowRepository::findPathologyCaseById))
             .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Pathology case not found"));
     }
 

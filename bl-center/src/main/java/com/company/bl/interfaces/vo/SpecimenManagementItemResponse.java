@@ -38,6 +38,14 @@ public record SpecimenManagementItemResponse(
     String fixationStatus,
     @Schema(description = "Verification status")
     String verificationStatus,
+    @Schema(description = "Specimen confirmed at")
+    String specimenConfirmedAt,
+    @Schema(description = "Check-in status")
+    String checkInStatus,
+    @Schema(description = "Checked-in at")
+    String checkedInAt,
+    @Schema(description = "Checked-in by name")
+    String checkedInByName,
     @Schema(description = "Barcode binding status")
     String barcodeBindingStatus,
     @Schema(description = "Label print status")

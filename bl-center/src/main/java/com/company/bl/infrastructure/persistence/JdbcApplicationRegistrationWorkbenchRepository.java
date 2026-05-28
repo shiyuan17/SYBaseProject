@@ -11,6 +11,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -81,21 +82,200 @@ public class JdbcApplicationRegistrationWorkbenchRepository implements Applicati
 
     @Override
     public Optional<WorkbenchApplicationRow> findApplicationByKeyword(String keyword) {
+        return findApplicationByKeyword(keyword, "AUTO");
+    }
+
+    @Override
+    public Optional<WorkbenchApplicationRow> findApplicationByKeyword(String keyword, String queryType) {
         String normalizedKeyword = keyword == null ? "" : keyword.trim();
         if (normalizedKeyword.isEmpty()) {
             return Optional.empty();
         }
-        String keywordLike = "%" + normalizedKeyword.toUpperCase() + "%";
-        return withWorkbenchTable(() -> jdbcTemplate.query(buildLookupSql(), new MapSqlParameterSource()
-                .addValue("keyword", normalizedKeyword)
-                .addValue("keywordLike", keywordLike), this::mapWorkbenchApplicationRow)
-                .stream()
-                .findFirst());
+        String normalizedQueryType = normalizeQueryType(queryType);
+        String keywordLike = "%" + normalizedKeyword.toUpperCase(Locale.ROOT) + "%";
+        return withWorkbenchTable(() -> jdbcTemplate.query(
+                buildLookupSql(normalizedQueryType),
+                new MapSqlParameterSource()
+                    .addValue("keyword", normalizedKeyword)
+                    .addValue("keywordLike", keywordLike),
+                this::mapWorkbenchApplicationRow)
+            .stream()
+            .findFirst());
     }
 
-    private String buildLookupSql() {
+    private String normalizeQueryType(String queryType) {
+        if (queryType == null || queryType.isBlank()) {
+            return "AUTO";
+        }
+        return queryType.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String buildLookupSql(String queryType) {
         if (hasPatientsTable()) {
-            return """
+            return switch (queryType) {
+                case "APPLICATION_NO" -> """
+                    select
+                        a.id as application_id,
+                        a.application_no,
+                        a.patient_id,
+                        a.patient_name,
+                        a.patient_gender,
+                        a.patient_age,
+                        a.submitting_department_name,
+                        a.submitting_doctor_name,
+                        a.clinical_diagnosis,
+                        a.remarks,
+                        a.status,
+                        a.application_date,
+                        a.submission_date
+                    from applications a
+                    where upper(coalesce(a.application_no, '')) = upper(:keyword)
+                       or upper(coalesce(a.application_no, '')) like :keywordLike
+                    order by case
+                        when upper(coalesce(a.application_no, '')) = upper(:keyword) then 0
+                        else 1
+                    end,
+                    a.updated_at desc
+                    fetch next 1 rows only
+                    """;
+                case "INPATIENT_NO" -> """
+                    select
+                        a.id as application_id,
+                        a.application_no,
+                        a.patient_id,
+                        a.patient_name,
+                        a.patient_gender,
+                        a.patient_age,
+                        a.submitting_department_name,
+                        a.submitting_doctor_name,
+                        a.clinical_diagnosis,
+                        a.remarks,
+                        a.status,
+                        a.application_date,
+                        a.submission_date
+                    from applications a
+                    left join application_registration_workbench w on w.application_id = a.id
+                    left join patients p
+                        on p.id = a.patient_id
+                        or p.patient_no = a.patient_id
+                    where upper(coalesce(w.inpatient_no, '')) = upper(:keyword)
+                       or upper(coalesce(p.patient_no, '')) = upper(:keyword)
+                       or upper(coalesce(p.inpatient_no, '')) = upper(:keyword)
+                       or upper(coalesce(p.outpatient_no, '')) = upper(:keyword)
+                       or upper(coalesce(w.inpatient_no, '')) like :keywordLike
+                       or upper(coalesce(p.patient_no, '')) like :keywordLike
+                       or upper(coalesce(p.inpatient_no, '')) like :keywordLike
+                       or upper(coalesce(p.outpatient_no, '')) like :keywordLike
+                    order by case
+                        when upper(coalesce(w.inpatient_no, '')) = upper(:keyword) then 0
+                        when upper(coalesce(p.patient_no, '')) = upper(:keyword) then 0
+                        when upper(coalesce(p.inpatient_no, '')) = upper(:keyword) then 0
+                        when upper(coalesce(p.outpatient_no, '')) = upper(:keyword) then 0
+                        else 1
+                    end,
+                    a.updated_at desc
+                    fetch next 1 rows only
+                    """;
+                case "PATIENT_NAME" -> """
+                    select
+                        a.id as application_id,
+                        a.application_no,
+                        a.patient_id,
+                        a.patient_name,
+                        a.patient_gender,
+                        a.patient_age,
+                        a.submitting_department_name,
+                        a.submitting_doctor_name,
+                        a.clinical_diagnosis,
+                        a.remarks,
+                        a.status,
+                        a.application_date,
+                        a.submission_date
+                    from applications a
+                    where upper(coalesce(a.patient_name, '')) like :keywordLike
+                    order by a.updated_at desc
+                    fetch next 1 rows only
+                    """;
+                default -> """
+                    select
+                        a.id as application_id,
+                        a.application_no,
+                        a.patient_id,
+                        a.patient_name,
+                        a.patient_gender,
+                        a.patient_age,
+                        a.submitting_department_name,
+                        a.submitting_doctor_name,
+                        a.clinical_diagnosis,
+                        a.remarks,
+                        a.status,
+                        a.application_date,
+                        a.submission_date
+                    from applications a
+                    left join application_registration_workbench w on w.application_id = a.id
+                    left join patients p
+                        on p.id = a.patient_id
+                        or p.patient_no = a.patient_id
+                    where a.id = :keyword
+                       or upper(a.application_no) = upper(:keyword)
+                       or upper(coalesce(a.external_order_no, '')) = upper(:keyword)
+                       or upper(coalesce(a.patient_id, '')) = upper(:keyword)
+                       or upper(coalesce(w.inpatient_no, '')) = upper(:keyword)
+                       or upper(coalesce(p.patient_no, '')) = upper(:keyword)
+                       or upper(coalesce(p.inpatient_no, '')) = upper(:keyword)
+                       or upper(coalesce(p.outpatient_no, '')) = upper(:keyword)
+                       or upper(coalesce(a.application_no, '')) like :keywordLike
+                       or upper(coalesce(a.external_order_no, '')) like :keywordLike
+                       or upper(coalesce(a.patient_id, '')) like :keywordLike
+                       or upper(coalesce(a.patient_name, '')) like :keywordLike
+                       or upper(coalesce(w.inpatient_no, '')) like :keywordLike
+                       or upper(coalesce(p.patient_no, '')) like :keywordLike
+                       or upper(coalesce(p.inpatient_no, '')) like :keywordLike
+                       or upper(coalesce(p.outpatient_no, '')) like :keywordLike
+                    order by case
+                        when a.id = :keyword then 0
+                        when upper(a.application_no) = upper(:keyword) then 0
+                        when upper(coalesce(a.external_order_no, '')) = upper(:keyword) then 0
+                        when upper(coalesce(a.patient_id, '')) = upper(:keyword) then 0
+                        when upper(coalesce(w.inpatient_no, '')) = upper(:keyword) then 0
+                        when upper(coalesce(p.patient_no, '')) = upper(:keyword) then 0
+                        when upper(coalesce(p.inpatient_no, '')) = upper(:keyword) then 0
+                        when upper(coalesce(p.outpatient_no, '')) = upper(:keyword) then 0
+                        else 1
+                    end,
+                    a.updated_at desc
+                    fetch next 1 rows only
+                    """;
+            };
+        }
+
+        return switch (queryType) {
+            case "APPLICATION_NO" -> """
+                select
+                    a.id as application_id,
+                    a.application_no,
+                    a.patient_id,
+                    a.patient_name,
+                    a.patient_gender,
+                    a.patient_age,
+                    a.submitting_department_name,
+                    a.submitting_doctor_name,
+                    a.clinical_diagnosis,
+                    a.remarks,
+                    a.status,
+                    a.application_date,
+                    a.submission_date
+                from applications a
+                where upper(coalesce(a.application_no, '')) = upper(:keyword)
+                   or upper(coalesce(a.application_no, '')) like :keywordLike
+                order by case
+                    when upper(coalesce(a.application_no, '')) = upper(:keyword) then 0
+                    else 1
+                end,
+                a.updated_at desc
+                fetch next 1 rows only
+                """;
+            case "INPATIENT_NO" -> """
                 select
                     a.id as application_id,
                     a.application_no,
@@ -112,78 +292,74 @@ public class JdbcApplicationRegistrationWorkbenchRepository implements Applicati
                     a.submission_date
                 from applications a
                 left join application_registration_workbench w on w.application_id = a.id
-                left join patients p
-                    on p.id = a.patient_id
-                    or p.patient_no = a.patient_id
+                where upper(coalesce(w.inpatient_no, '')) = upper(:keyword)
+                   or upper(coalesce(w.inpatient_no, '')) like :keywordLike
+                order by case
+                    when upper(coalesce(w.inpatient_no, '')) = upper(:keyword) then 0
+                    else 1
+                end,
+                a.updated_at desc
+                fetch next 1 rows only
+                """;
+            case "PATIENT_NAME" -> """
+                select
+                    a.id as application_id,
+                    a.application_no,
+                    a.patient_id,
+                    a.patient_name,
+                    a.patient_gender,
+                    a.patient_age,
+                    a.submitting_department_name,
+                    a.submitting_doctor_name,
+                    a.clinical_diagnosis,
+                    a.remarks,
+                    a.status,
+                    a.application_date,
+                    a.submission_date
+                from applications a
+                where upper(coalesce(a.patient_name, '')) like :keywordLike
+                order by a.updated_at desc
+                fetch next 1 rows only
+                """;
+            default -> """
+                select
+                    a.id as application_id,
+                    a.application_no,
+                    a.patient_id,
+                    a.patient_name,
+                    a.patient_gender,
+                    a.patient_age,
+                    a.submitting_department_name,
+                    a.submitting_doctor_name,
+                    a.clinical_diagnosis,
+                    a.remarks,
+                    a.status,
+                    a.application_date,
+                    a.submission_date
+                from applications a
+                left join application_registration_workbench w on w.application_id = a.id
                 where a.id = :keyword
                    or upper(a.application_no) = upper(:keyword)
                    or upper(coalesce(a.external_order_no, '')) = upper(:keyword)
                    or upper(coalesce(a.patient_id, '')) = upper(:keyword)
                    or upper(coalesce(w.inpatient_no, '')) = upper(:keyword)
-                   or upper(coalesce(p.patient_no, '')) = upper(:keyword)
-                   or upper(coalesce(p.inpatient_no, '')) = upper(:keyword)
-                   or upper(coalesce(p.outpatient_no, '')) = upper(:keyword)
                    or upper(coalesce(a.application_no, '')) like :keywordLike
                    or upper(coalesce(a.external_order_no, '')) like :keywordLike
                    or upper(coalesce(a.patient_id, '')) like :keywordLike
                    or upper(coalesce(a.patient_name, '')) like :keywordLike
                    or upper(coalesce(w.inpatient_no, '')) like :keywordLike
-                   or upper(coalesce(p.patient_no, '')) like :keywordLike
-                   or upper(coalesce(p.inpatient_no, '')) like :keywordLike
-                   or upper(coalesce(p.outpatient_no, '')) like :keywordLike
                 order by case
                     when a.id = :keyword then 0
                     when upper(a.application_no) = upper(:keyword) then 0
                     when upper(coalesce(a.external_order_no, '')) = upper(:keyword) then 0
                     when upper(coalesce(a.patient_id, '')) = upper(:keyword) then 0
                     when upper(coalesce(w.inpatient_no, '')) = upper(:keyword) then 0
-                    when upper(coalesce(p.patient_no, '')) = upper(:keyword) then 0
-                    when upper(coalesce(p.inpatient_no, '')) = upper(:keyword) then 0
-                    when upper(coalesce(p.outpatient_no, '')) = upper(:keyword) then 0
                     else 1
                 end,
                 a.updated_at desc
                 fetch next 1 rows only
                 """;
-        }
-        return """
-            select
-                a.id as application_id,
-                a.application_no,
-                a.patient_id,
-                a.patient_name,
-                a.patient_gender,
-                a.patient_age,
-                a.submitting_department_name,
-                a.submitting_doctor_name,
-                a.clinical_diagnosis,
-                a.remarks,
-                a.status,
-                a.application_date,
-                a.submission_date
-            from applications a
-            left join application_registration_workbench w on w.application_id = a.id
-            where a.id = :keyword
-               or upper(a.application_no) = upper(:keyword)
-               or upper(coalesce(a.external_order_no, '')) = upper(:keyword)
-               or upper(coalesce(a.patient_id, '')) = upper(:keyword)
-               or upper(coalesce(w.inpatient_no, '')) = upper(:keyword)
-               or upper(coalesce(a.application_no, '')) like :keywordLike
-               or upper(coalesce(a.external_order_no, '')) like :keywordLike
-               or upper(coalesce(a.patient_id, '')) like :keywordLike
-               or upper(coalesce(a.patient_name, '')) like :keywordLike
-               or upper(coalesce(w.inpatient_no, '')) like :keywordLike
-            order by case
-                when a.id = :keyword then 0
-                when upper(a.application_no) = upper(:keyword) then 0
-                when upper(coalesce(a.external_order_no, '')) = upper(:keyword) then 0
-                when upper(coalesce(a.patient_id, '')) = upper(:keyword) then 0
-                when upper(coalesce(w.inpatient_no, '')) = upper(:keyword) then 0
-                else 1
-            end,
-            a.updated_at desc
-            fetch next 1 rows only
-            """;
+        };
     }
 
     @Override
@@ -193,8 +369,8 @@ public class JdbcApplicationRegistrationWorkbenchRepository implements Applicati
                 from application_registration_workbench
                 where application_id = :applicationId
                 """, Map.of("applicationId", applicationId), this::mapWorkbenchExtensionData)
-                .stream()
-                .findFirst());
+            .stream()
+            .findFirst());
     }
 
     @Override

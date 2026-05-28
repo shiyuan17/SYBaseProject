@@ -2,12 +2,14 @@ package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.CreateApplicationAppService;
 import com.company.bl.application.service.SpecimenWorkflowAppService;
+import com.company.bl.application.service.UpdateApplicationAppService;
 import com.company.bl.domain.model.ApplicationTracking;
 import com.company.bl.domain.model.Specimen;
 import com.company.bl.interfaces.assembler.ApplicationRepresentationAssembler;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.CreateApplicationRequest;
+import com.company.bl.interfaces.dto.UpdateApplicationRequest;
 import com.company.bl.interfaces.vo.ApplicationDetailResponse;
 import com.company.bl.interfaces.vo.ApplicationDuplicateCheckItemResponse;
 import com.company.bl.interfaces.vo.ApplicationDuplicateCheckResponse;
@@ -25,7 +27,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,6 +37,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -45,6 +50,7 @@ import java.util.stream.Collectors;
 public class ApplicationController {
 
     private final CreateApplicationAppService createApplicationAppService;
+    private final UpdateApplicationAppService updateApplicationAppService;
     private final SpecimenWorkflowAppService specimenWorkflowAppService;
     private final ApplicationRepresentationAssembler applicationRepresentationAssembler;
 
@@ -56,6 +62,27 @@ public class ApplicationController {
         ApplicationIdResponse response = applicationRepresentationAssembler.toIdResponse(
             createApplicationAppService.create(applicationRepresentationAssembler.toCommand(request)));
         return ResponseEntity.status(201).body(response);
+    }
+
+    @Operation(summary = "更新病理申请单", description = "更新未进入下游流程的病理申请单。")
+    @RequirePermission(M2PermissionCodes.APPLICATION_UPDATE)
+    @PatchMapping("/{id}")
+    public ApplicationIdResponse update(
+        @Parameter(description = "申请单 ID") @PathVariable("id") String id,
+        @Valid @RequestBody UpdateApplicationRequest request
+    ) {
+        return applicationRepresentationAssembler.toIdResponse(
+            updateApplicationAppService.update(id, applicationRepresentationAssembler.toCommand(request)).getId());
+    }
+
+    @Operation(summary = "作废病理申请单", description = "逻辑作废未进入下游流程的病理申请单。")
+    @RequirePermission(M2PermissionCodes.APPLICATION_DELETE)
+    @DeleteMapping("/{id}")
+    public ApplicationIdResponse delete(
+        @Parameter(description = "申请单 ID") @PathVariable("id") String id
+    ) {
+        return applicationRepresentationAssembler.toIdResponse(
+            updateApplicationAppService.voidApplication(id).getId());
     }
 
     @Operation(summary = "分页查询申请单", description = "按筛选条件分页查询申请单列表。")
@@ -143,6 +170,8 @@ public class ApplicationController {
         List<SpecimenSummaryResponse> specimenSummaries = tracking.specimens().stream().map(this::toSpecimenSummary).toList();
         Map<String, SpecimenSummaryResponse> specimenMap = specimenSummaries.stream()
             .collect(Collectors.toMap(SpecimenSummaryResponse::id, Function.identity()));
+        SpecimenWorkflowAppService.ApplicationOperationState operationState =
+            specimenWorkflowAppService.resolveApplicationOperationState(tracking.application());
         return new ApplicationDetailResponse(
             tracking.application().getId().value(),
             tracking.application().getApplicationNo(),
@@ -169,9 +198,13 @@ public class ApplicationController {
             stringify(tracking.application().getSubmissionDate()),
             stringify(tracking.application().getSpecimenRemovalTime()),
             resolveLatestEventTime(tracking, "FIXATION", "COMPLETED"),
-            resolveLatestEventTime(tracking, "TRANSPORT", "HANDED_OVER"),
+            resolveLatestSpecimenConfirmedAt(tracking.specimens()),
             tracking.currentNode(),
             tracking.abnormal(),
+            operationState.editable(),
+            operationState.deletable(),
+            operationState.voided(),
+            operationState.disabledReason(),
             null,
             false,
             buildReceiptAbnormalSummary(tracking.specimens()),
@@ -217,8 +250,14 @@ public class ApplicationController {
             specimen.specimenStatus().name(),
             specimen.fixationStatus().name(),
             resolveVerificationStatus(specimen),
+            stringify(specimen.verificationStartedAt()),
+            stringify(specimen.verificationCompletedAt()),
             resolveBarcodeBindingStatus(specimen),
             specimen.labelPrintStatus(),
+            stringify(specimen.specimenConfirmedAt()),
+            resolveCheckInStatus(specimen),
+            stringify(specimen.checkedInAt()),
+            specimen.checkedInByName(),
             specimen.receiptStatus(),
             specimen.qualityCheckResult(),
             splitCommaSeparated(specimen.qualityIssueCodes()),
@@ -242,6 +281,10 @@ public class ApplicationController {
             item.abnormalFlag(),
             item.registeredSpecimenCount(),
             item.latestLabelPrintStatus(),
+            item.editable(),
+            item.deletable(),
+            item.voided(),
+            item.operationDisabledReason(),
             stringify(item.applicationDate()),
             stringify(item.submissionDate()),
             stringify(item.createdAt()),
@@ -293,11 +336,26 @@ public class ApplicationController {
     }
 
     private String resolveVerificationStatus(Specimen specimen) {
-        return specimen.fixationStatus() == null ? null : specimen.fixationStatus().name();
+        return specimen.verificationStatus();
+    }
+
+    private String resolveCheckInStatus(Specimen specimen) {
+        return specimen.checkInStatus() == null || specimen.checkInStatus().isBlank()
+            ? "NOT_CHECKED_IN"
+            : specimen.checkInStatus();
     }
 
     private String resolveBarcodeBindingStatus(Specimen specimen) {
         return specimen.barcode() == null || specimen.barcode().isBlank() ? "UNBOUND" : "BOUND";
+    }
+
+    private String resolveLatestSpecimenConfirmedAt(List<Specimen> specimens) {
+        return specimens.stream()
+            .map(Specimen::specimenConfirmedAt)
+            .filter(java.util.Objects::nonNull)
+            .max(LocalDateTime::compareTo)
+            .map(this::stringify)
+            .orElse(null);
     }
 
     private String resolveAbnormalType(Specimen specimen) {

@@ -32,8 +32,16 @@ abstract class AbstractDiagnosticWorkflowIntegrationTest extends AbstractTechnic
         return responseBody(mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/diagnostic-workbench", caseId), userId)), 200);
     }
 
+    protected JsonNode diagnosticWorkbenchByIdentifier(String caseIdentifier, String userId) throws Exception {
+        return responseBody(mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/diagnostic-workbench", caseIdentifier), userId)), 200);
+    }
+
     protected JsonNode reportTracking(String caseId, String userId) throws Exception {
         return responseBody(mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/report-tracking", caseId), userId)), 200);
+    }
+
+    protected JsonNode reportTrackingByIdentifier(String caseIdentifier, String userId) throws Exception {
+        return responseBody(mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/report-tracking", caseIdentifier), userId)), 200);
     }
 
     protected String createDiagnosisUser(String suffix) {

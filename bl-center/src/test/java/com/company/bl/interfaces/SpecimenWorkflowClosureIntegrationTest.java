@@ -135,7 +135,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
         String inTransitApplicationId = createApplication("APP-M2-STATUS-INTRANSIT-001");
         String inTransitBarcode = registerSpecimens(inTransitApplicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-STATUS-INTRANSIT-001")
             .path("specimens").get(0).path("barcode").asText();
-        completeFixation(inTransitBarcode);
+        prepareTransportReadySpecimen(inTransitBarcode);
         String inTransitOrderId = createTransportOrder(inTransitApplicationId, inTransitBarcode).path("id").asText();
         postJson("/api/v1/transport-orders/%s/handover".formatted(inTransitOrderId), USER_TRANSPORT, """
             {
@@ -153,7 +153,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
         String receivedApplicationId = createApplication("APP-M2-STATUS-RECEIVED-001");
         String receivedBarcode = registerSpecimens(receivedApplicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-STATUS-RECEIVED-001")
             .path("specimens").get(0).path("barcode").asText();
-        completeFixation(receivedBarcode);
+        prepareTransportReadySpecimen(receivedBarcode);
         String receivedOrderId = createTransportOrder(receivedApplicationId, receivedBarcode).path("id").asText();
         postJson("/api/v1/transport-orders/%s/handover".formatted(receivedOrderId), USER_TRANSPORT, """
             {
@@ -190,8 +190,8 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             partialApplicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-STATUS-PARTIAL-001", "BC-STATUS-PARTIAL-002");
         String partialBarcode1 = partialRegistration.path("specimens").get(0).path("barcode").asText();
         String partialBarcode2 = partialRegistration.path("specimens").get(1).path("barcode").asText();
-        completeFixation(partialBarcode1);
-        completeFixation(partialBarcode2);
+        prepareTransportReadySpecimen(partialBarcode1);
+        prepareTransportReadySpecimen(partialBarcode2);
         String partialOrderId = createTransportOrder(partialApplicationId, partialBarcode1, partialBarcode2).path("id").asText();
         postJson("/api/v1/transport-orders/%s/handover".formatted(partialOrderId), USER_TRANSPORT, """
             {
@@ -234,7 +234,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
         String rejectedApplicationId = createApplication("APP-M2-STATUS-REJECTED-001");
         String rejectedBarcode = registerSpecimens(rejectedApplicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-STATUS-REJECTED-001")
             .path("specimens").get(0).path("barcode").asText();
-        completeFixation(rejectedBarcode);
+        prepareTransportReadySpecimen(rejectedBarcode);
         String rejectedOrderId = createTransportOrder(rejectedApplicationId, rejectedBarcode).path("id").asText();
         postJson("/api/v1/transport-orders/%s/handover".formatted(rejectedOrderId), USER_TRANSPORT, """
             {

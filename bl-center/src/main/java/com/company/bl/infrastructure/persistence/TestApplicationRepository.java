@@ -25,6 +25,14 @@ public class TestApplicationRepository implements ApplicationRepository {
     }
 
     @Override
+    public Application update(Application application) {
+        applications.put(application.getId().value(), application);
+        applicationNoIndex.entrySet().removeIf((entry) -> entry.getValue().equals(application.getId().value()));
+        applicationNoIndex.put(application.getApplicationNo(), application.getId().value());
+        return application;
+    }
+
+    @Override
     public Optional<Application> findById(ApplicationId applicationId) {
         return Optional.ofNullable(applications.get(applicationId.value()));
     }

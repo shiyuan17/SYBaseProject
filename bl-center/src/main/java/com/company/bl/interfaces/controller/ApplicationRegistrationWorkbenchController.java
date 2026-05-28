@@ -30,9 +30,10 @@ public class ApplicationRegistrationWorkbenchController {
     @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
     @GetMapping("/lookup")
     public ApplicationRegistrationWorkbenchResponse lookup(
-        @Parameter(description = "申请单号或住院号关键字") @RequestParam("keyword") String keyword
+        @Parameter(description = "申请单号或者住院号关键字") @RequestParam("keyword") String keyword,
+        @Parameter(description = "查询类型") @RequestParam(value = "queryType", required = false) String queryType
     ) {
-        return toResponse(workbenchAppService.lookup(keyword));
+        return toResponse(workbenchAppService.lookup(keyword, queryType));
     }
 
     @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)

@@ -62,6 +62,14 @@ public record ApplicationDetailResponse(
     String currentNode,
     @Schema(description = "是否存在异常标记")
     boolean abnormalFlag,
+    @Schema(description = "是否可编辑")
+    boolean editable,
+    @Schema(description = "是否可删除")
+    boolean deletable,
+    @Schema(description = "是否已作废")
+    boolean voided,
+    @Schema(description = "操作禁用原因")
+    String operationDisabledReason,
     @Schema(description = "报告状态")
     String reportStatus,
     @Schema(description = "是否已签发报告")

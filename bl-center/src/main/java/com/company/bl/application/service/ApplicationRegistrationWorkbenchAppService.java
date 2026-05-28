@@ -32,8 +32,13 @@ public class ApplicationRegistrationWorkbenchAppService {
 
     @Transactional(readOnly = true)
     public WorkbenchRecord lookup(String keyword) {
-        var applicationRow = workbenchRepository.findApplicationByKeyword(keyword)
-            .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Application workbench record not found"));
+        return lookup(keyword, "AUTO");
+    }
+
+    @Transactional(readOnly = true)
+    public WorkbenchRecord lookup(String keyword, String queryType) {
+        var applicationRow = workbenchRepository.findApplicationByKeyword(keyword, queryType)
+            .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "申请登记工作台记录不存在"));
         return loadByApplicationId(applicationRow.applicationId());
     }
 
@@ -45,7 +50,7 @@ public class ApplicationRegistrationWorkbenchAppService {
             throw new BlBusinessException(
                 BlErrorCode.OPERATION_NOT_ALLOWED,
                 409,
-                "Application has entered downstream workflow and cannot be rewritten in the registration workbench");
+                "申请单已进入下游流程，无法在登记工作台重新填写");
         }
 
         workbenchRepository.updateApplicationEditableFields(

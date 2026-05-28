@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ActiveProfiles("test")
 @SpringBootTest(classes = com.company.bl.BlCenterApplication.class)
@@ -138,16 +139,81 @@ class RepositoryQueryRegressionIntegrationTest extends AbstractDiagnosticWorkflo
         String barcode = "BC-REPO-PENDING-" + System.nanoTime();
         var registration = registerSpecimens(applicationId, USER_REGISTER, "P-REPO-01", "/api/v1/specimens/register", barcode);
         String specimenId = registration.path("specimens").get(0).path("id").asText();
+        String specimenNo = registration.path("specimens").get(0).path("specimenNo").asText();
 
         SpecimenWorkflowRepository.PagedPendingSpecimens pendingFixations =
             specimenWorkflowRepository.findPendingFixations(
-                new SpecimenWorkflowRepository.PendingSpecimenQuery(1, 10, applicationId, null, null, null, null, null)
+                new SpecimenWorkflowRepository.PendingSpecimenQuery(1, 10, applicationId, null, null, null, null, null, null)
             );
         assertThat(pendingFixations.total()).isGreaterThanOrEqualTo(1);
-        assertThat(pendingFixations.items()).anyMatch(item -> specimenId.equals(item.specimenId()));
+        assertThat(pendingFixations.items()).anyMatch(item ->
+            specimenId.equals(item.specimenId()) && "UNVERIFIED".equals(item.verificationStatus()));
 
-        completeFixation(barcode);
+        SpecimenWorkflowRepository.PagedPendingSpecimens pendingFixationsBySpecimenNo =
+            specimenWorkflowRepository.findPendingFixations(
+                new SpecimenWorkflowRepository.PendingSpecimenQuery(1, 10, null, specimenNo, null, null, null, null, null)
+            );
+        assertThat(pendingFixationsBySpecimenNo.items()).anyMatch(item ->
+            specimenId.equals(item.specimenId()) && specimenNo.equals(item.specimenNo()));
+
+        SpecimenWorkflowRepository.PagedPendingSpecimens pendingUnverifiedFixations =
+            specimenWorkflowRepository.findPendingFixations(
+                new SpecimenWorkflowRepository.PendingSpecimenQuery(1, 10, applicationId, null, null, null, "UNVERIFIED", null, null)
+            );
+        assertThat(pendingUnverifiedFixations.items()).anyMatch(item ->
+            specimenId.equals(item.specimenId()) && "UNVERIFIED".equals(item.verificationStatus()));
+
+        startVerification(barcode);
+
+        SpecimenWorkflowRepository.PagedPendingSpecimens pendingVerifyingFixations =
+            specimenWorkflowRepository.findPendingFixations(
+                new SpecimenWorkflowRepository.PendingSpecimenQuery(1, 10, applicationId, null, null, null, "VERIFYING", null, null)
+            );
+        assertThat(pendingVerifyingFixations.items()).anyMatch(item ->
+            specimenId.equals(item.specimenId()) && "VERIFYING".equals(item.verificationStatus()));
+
+        completeVerification(barcode);
+
+        SpecimenWorkflowRepository.PagedPendingSpecimens pendingVerifiedFixations =
+            specimenWorkflowRepository.findPendingFixations(
+                new SpecimenWorkflowRepository.PendingSpecimenQuery(1, 10, applicationId, null, null, null, "VERIFIED", null, null)
+            );
+        assertThat(pendingVerifiedFixations.items()).anyMatch(item ->
+            specimenId.equals(item.specimenId()) && "VERIFIED".equals(item.verificationStatus()));
+
+        assertThat(specimenWorkflowRepository.listSpecimenVerificationRecords(barcode))
+            .isNotEmpty()
+            .anyMatch(item -> "SPECIMEN_VERIFICATION_COMPLETE".equals(item.verificationType()));
+
+        postJson("/api/v1/specimen-fixations/start", USER_FIXATION, """
+            {
+              "specimenBarcode": "%s",
+              "fixationLiquidType": "FORMALIN",
+              "operatorName": "nurse-b"
+            }
+            """.formatted(barcode))
+            .andExpect(status().isOk());
+
+        postJson("/api/v1/specimen-fixations/complete", USER_FIXATION, """
+            {
+              "specimenBarcode": "%s",
+              "fixationLiquidType": "FORMALIN",
+              "operatorName": "nurse-b"
+            }
+            """.formatted(barcode))
+            .andExpect(status().isOk());
+
+        confirmSpecimen(barcode);
+        checkInSpecimen(barcode);
+
         String transportOrderId = createTransportOrder(applicationId, barcode).path("id").asText();
+
+        SpecimenWorkflowRepository.PagedPendingTransportOrders pendingTransportOrdersBySpecimenNo =
+            specimenWorkflowRepository.findPendingTransportOrders(
+                new SpecimenWorkflowRepository.PendingTransportOrderQuery(1, 10, null, specimenNo, null, null, null, null)
+            );
+        assertThat(pendingTransportOrdersBySpecimenNo.items()).anyMatch(item ->
+            applicationId.equals(item.applicationId()));
 
         postJson("/api/v1/transport-orders/%s/handover".formatted(transportOrderId), USER_TRANSPORT, """
             {
@@ -158,10 +224,17 @@ class RepositoryQueryRegressionIntegrationTest extends AbstractDiagnosticWorkflo
 
         SpecimenWorkflowRepository.PagedPendingSpecimens pendingReceipts =
             specimenWorkflowRepository.findPendingReceipts(
-                new SpecimenWorkflowRepository.PendingSpecimenQuery(1, 10, applicationId, null, null, null, null, null)
+                new SpecimenWorkflowRepository.PendingSpecimenQuery(1, 10, applicationId, null, null, null, null, null, null)
             );
         assertThat(pendingReceipts.total()).isGreaterThanOrEqualTo(1);
         assertThat(pendingReceipts.items()).anyMatch(item -> specimenId.equals(item.specimenId()));
+
+        SpecimenWorkflowRepository.PagedPendingSpecimens pendingReceiptsBySpecimenNo =
+            specimenWorkflowRepository.findPendingReceipts(
+                new SpecimenWorkflowRepository.PendingSpecimenQuery(1, 10, null, specimenNo, null, null, null, null, null)
+            );
+        assertThat(pendingReceiptsBySpecimenNo.items()).anyMatch(item ->
+            specimenId.equals(item.specimenId()) && specimenNo.equals(item.specimenNo()));
 
         assertThat(specimenWorkflowRepository.findTransportOrderSpecimenBarcodes(transportOrderId))
             .contains(barcode);

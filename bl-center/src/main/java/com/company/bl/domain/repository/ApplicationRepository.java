@@ -9,6 +9,8 @@ public interface ApplicationRepository {
 
     Application save(Application application);
 
+    Application update(Application application);
+
     Optional<Application> findById(ApplicationId applicationId);
 
     Optional<Application> findByApplicationNo(String applicationNo);

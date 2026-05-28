@@ -107,6 +107,7 @@ public class SpecimenReceiptController {
                 null,
                 departmentId,
                 null,
+                null,
                 dateFrom,
                 dateTo));
         return new PendingSpecimenPageResponse(
@@ -131,6 +132,13 @@ public class SpecimenReceiptController {
             item.containerCount(),
             item.specimenStatus(),
             item.fixationStatus(),
+            item.verificationStatus(),
+            stringify(item.verificationStartedAt()),
+            stringify(item.verificationCompletedAt()),
+            stringify(item.specimenConfirmedAt()),
+            item.checkInStatus(),
+            stringify(item.checkedInAt()),
+            item.checkedInByName(),
             resolveAbnormalType(item.specimenStatus(), item.fixationStatus(), item.abnormalFlag()),
             item.abnormalFlag() ? 1 : 0,
             "RECEIVED".equals(item.specimenStatus()) ? 0 : 1,

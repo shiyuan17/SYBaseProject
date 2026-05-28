@@ -43,7 +43,8 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
         assertThat(saved.path("specimenItems")).hasSize(1);
 
         mockMvc.perform(authorized(get("/api/v1/application-registration-workbench/lookup"), USER_REGISTER)
-                .param("keyword", "ZY-WORKBENCH-001"))
+                .param("keyword", "ZY-WORKBENCH-001")
+                .param("queryType", "INPATIENT_NO"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.applicationId").value(applicationId))
             .andExpect(jsonPath("$.data.patientInfo.inpatientNo").value("ZY-WORKBENCH-001"));
@@ -66,7 +67,7 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.specimens[0].barcode").value(barcode));
 
-        completeFixation(barcode);
+        prepareTransportReadySpecimen(barcode);
         String transportOrderId = createTransportOrder(applicationId, barcode).path("id").asText();
         postJson("/api/v1/transport-orders/%s/handover".formatted(transportOrderId), USER_TRANSPORT, """
             {
@@ -92,6 +93,23 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
             """.formatted(transportOrderId, barcode))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.receiptStatus").value("RECEIVED"));
+    }
+
+    @Test
+    void shouldSupportExplicitLookupTypes() throws Exception {
+        createApplication("1122");
+
+        mockMvc.perform(authorized(get("/api/v1/application-registration-workbench/lookup"), USER_REGISTER)
+                .param("keyword", "1122")
+                .param("queryType", "APPLICATION_NO"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.patientInfo.applicationNo").value("1122"));
+
+        mockMvc.perform(authorized(get("/api/v1/application-registration-workbench/lookup"), USER_REGISTER)
+                .param("keyword", "Patient")
+                .param("queryType", "PATIENT_NAME"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.patientInfo.patientName").value("Patient A"));
     }
 
     @Test
@@ -158,9 +176,9 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
                 workbenchSavePayloadWithTwoItems(
                     "ZY-WORKBENCH-REPLACE",
                     "第二次标本A",
-                    "胃",
+                    "肝",
                     "第二次标本B",
-                    "肠")),
+                    "肺")),
             200);
 
         mockMvc.perform(authorized(get("/api/v1/specimens"), USER_REGISTER)

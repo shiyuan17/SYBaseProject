@@ -166,6 +166,22 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
     }
 
     private void completeFixationAsAdmin(String barcode) throws Exception {
+        postJson("/api/v1/specimen-verifications/start", USER_ADMIN, """
+            {
+              "specimenBarcode": "%s",
+              "operatorName": "admin-user"
+            }
+            """.formatted(barcode))
+            .andExpect(status().isOk());
+
+        postJson("/api/v1/specimen-verifications/complete", USER_ADMIN, """
+            {
+              "specimenBarcode": "%s",
+              "operatorName": "admin-user"
+            }
+            """.formatted(barcode))
+            .andExpect(status().isOk());
+
         postJson("/api/v1/specimen-fixations/start", USER_ADMIN, """
             {
               "specimenBarcode": "%s",

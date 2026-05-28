@@ -65,6 +65,8 @@ public class SpecimenFixationController {
         @RequestParam(required = false) String departmentId,
         @Parameter(description = "Fixation status")
         @RequestParam(required = false) String fixationStatus,
+        @Parameter(description = "Verification status")
+        @RequestParam(required = false) String verificationStatus,
         @Parameter(description = "Start date")
         @RequestParam(required = false) String dateFrom,
         @Parameter(description = "End date")
@@ -78,6 +80,7 @@ public class SpecimenFixationController {
                 specimenNo,
                 departmentId,
                 fixationStatus,
+                verificationStatus,
                 dateFrom,
                 dateTo));
         return new PendingSpecimenPageResponse(
@@ -113,6 +116,13 @@ public class SpecimenFixationController {
             item.containerCount(),
             item.specimenStatus(),
             item.fixationStatus(),
+            item.verificationStatus(),
+            stringify(item.verificationStartedAt()),
+            stringify(item.verificationCompletedAt()),
+            stringify(item.specimenConfirmedAt()),
+            item.checkInStatus(),
+            stringify(item.checkedInAt()),
+            item.checkedInByName(),
             resolveAbnormalType(item.specimenStatus(), item.fixationStatus(), item.abnormalFlag()),
             item.abnormalFlag() ? 1 : 0,
             "RECEIVED".equals(item.specimenStatus()) ? 0 : 1,

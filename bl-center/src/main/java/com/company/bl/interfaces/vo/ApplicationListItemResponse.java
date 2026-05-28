@@ -32,6 +32,14 @@ public record ApplicationListItemResponse(
     int registeredSpecimenCount,
     @Schema(description = "最近一次标签状态")
     String latestLabelPrintStatus,
+    @Schema(description = "是否可编辑")
+    boolean editable,
+    @Schema(description = "是否可删除")
+    boolean deletable,
+    @Schema(description = "是否已作废")
+    boolean voided,
+    @Schema(description = "操作禁用原因")
+    String operationDisabledReason,
     @Schema(description = "申请日期")
     String applicationDate,
     @Schema(description = "送检日期")

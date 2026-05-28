@@ -17,7 +17,9 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -220,6 +222,26 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                     """.formatted(applicationId))), 201);
         String barcode = registration.path("specimens").get(0).path("barcode").asText();
 
+        mockMvc.perform(authorized(post("/api/v1/specimen-verifications/start"), USER_FIXATION)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "specimenBarcode": "%s",
+                      "operatorName": "nurse-b"
+                    }
+                    """.formatted(barcode)))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(post("/api/v1/specimen-verifications/complete"), USER_FIXATION)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "specimenBarcode": "%s",
+                      "operatorName": "nurse-b"
+                    }
+                    """.formatted(barcode)))
+            .andExpect(status().isOk());
+
         mockMvc.perform(authorized(post("/api/v1/specimen-fixations/start"), USER_FIXATION)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
@@ -295,6 +317,204 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.total").value(1))
             .andExpect(jsonPath("$.data.items[0].abnormalFlag").value(true));
+    }
+
+    @Test
+    void shouldUpdateApplicationBeforeDownstreamWorkflowStarts() throws Exception {
+        JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "APP-UPDATE-001",
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-UPDATE-001",
+                      "patientName": "Patient Before Update",
+                      "applicationDate": "2026-05-20",
+                      "submissionDate": "2026-05-21",
+                      "specimenRemovalTime": "2026-05-20T08:45:00",
+                      "applicationFormStatus": "PENDING",
+                      "submittingDepartmentId": "DEPT-UPDATE",
+                      "submittingDepartmentName": "Update Department",
+                      "submittingDoctorUserId": "DOC-UPDATE-001",
+                      "submittingDoctorName": "Dr Update",
+                      "clinicalDiagnosis": "before update",
+                      "specimenSite": "Stomach"
+                    }
+                    """)), 201);
+        String applicationId = created.path("id").asText();
+
+        mockMvc.perform(authorized(patch("/api/v1/applications/{id}", applicationId), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "APP-UPDATE-001-R",
+                      "applicationType": "FROZEN",
+                      "patientId": "P-UPDATE-001",
+                      "patientName": "Patient After Update",
+                      "applicationDate": "2026-05-22",
+                      "submissionDate": "2026-05-23",
+                      "specimenRemovalTime": "2026-05-22T09:15:00",
+                      "applicationFormStatus": "UPLOADED",
+                      "submittingDepartmentId": "DEPT-UPDATE",
+                      "submittingDepartmentName": "Update Department",
+                      "submittingDoctorUserId": "DOC-UPDATE-002",
+                      "submittingDoctorName": "Dr Updated",
+                      "clinicalDiagnosis": "after update",
+                      "specimenSite": "Thyroid"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(applicationId));
+
+        mockMvc.perform(authorized(get("/api/v1/applications/{id}", applicationId), USER_TRACKING))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.applicationNo").value("APP-UPDATE-001-R"))
+            .andExpect(jsonPath("$.data.patientName").value("Patient After Update"))
+            .andExpect(jsonPath("$.data.applicationType").value("FROZEN"))
+            .andExpect(jsonPath("$.data.applicationFormStatus").value("UPLOADED"))
+            .andExpect(jsonPath("$.data.editable").value(true))
+            .andExpect(jsonPath("$.data.deletable").value(true))
+            .andExpect(jsonPath("$.data.voided").value(false));
+    }
+
+    @Test
+    void shouldVoidApplicationAndHideItFromDefaultList() throws Exception {
+        JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "APP-VOID-001",
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-VOID-001",
+                      "patientName": "Patient Void",
+                      "submittingDepartmentId": "DEPT-VOID",
+                      "submittingDepartmentName": "Void Department",
+                      "submittingDoctorUserId": "DOC-VOID-001",
+                      "submittingDoctorName": "Dr Void",
+                      "clinicalDiagnosis": "void diagnosis",
+                      "specimenSite": "Lung"
+                    }
+                    """)), 201);
+        String applicationId = created.path("id").asText();
+
+        mockMvc.perform(authorized(delete("/api/v1/applications/{id}", applicationId), USER_REGISTER))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(applicationId));
+
+        mockMvc.perform(authorized(get("/api/v1/applications"), USER_TRACKING)
+                .param("page", "1")
+                .param("size", "20")
+                .param("applicationNo", "APP-VOID-001"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(0));
+
+        mockMvc.perform(authorized(get("/api/v1/applications"), USER_TRACKING)
+                .param("page", "1")
+                .param("size", "20")
+                .param("applicationFormStatus", "VOIDED")
+                .param("applicationNo", "APP-VOID-001"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].status").value("VOIDED"))
+            .andExpect(jsonPath("$.data.items[0].currentNode").value("VOIDED"))
+            .andExpect(jsonPath("$.data.items[0].editable").value(false))
+            .andExpect(jsonPath("$.data.items[0].deletable").value(false))
+            .andExpect(jsonPath("$.data.items[0].voided").value(true))
+            .andExpect(jsonPath("$.data.items[0].operationDisabledReason").value("申请单已作废，不能再编辑或作废"));
+    }
+
+    @Test
+    void shouldRejectUpdateAndVoidAfterDownstreamWorkflowStarts() throws Exception {
+        JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "APP-DOWNSTREAM-LOCK-001",
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-DOWNSTREAM-LOCK",
+                      "patientName": "Patient Locked",
+                      "submittingDepartmentId": "DEPT-LOCK",
+                      "submittingDepartmentName": "Lock Department",
+                      "submittingDoctorUserId": "DOC-LOCK-001",
+                      "submittingDoctorName": "Dr Lock",
+                      "clinicalDiagnosis": "locked diagnosis",
+                      "specimenSite": "Thyroid"
+                    }
+                    """)), 201);
+        String applicationId = created.path("id").asText();
+
+        responseData(mockMvc.perform(authorized(post("/api/v1/specimens/register"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationId": "%s",
+                      "operatorName": "nurse-lock",
+                      "items": [
+                        {
+                          "specimenNameStandardized": "甲状腺组织",
+                          "specimenType": "组织",
+                          "specimenSite": "甲状腺",
+                          "collectionMode": "SURGERY",
+                          "containerName": "Specimen Bottle",
+                          "containerCount": 1,
+                          "specimenCount": 1,
+                          "barcode": "BC-DOWNSTREAM-LOCK-001"
+                        }
+                      ]
+                    }
+                    """.formatted(applicationId))), 201);
+
+        mockMvc.perform(authorized(post("/api/v1/specimen-verifications/start"), USER_FIXATION)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "specimenBarcode": "BC-DOWNSTREAM-LOCK-001",
+                      "operatorName": "nurse-lock"
+                    }
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(post("/api/v1/specimen-verifications/complete"), USER_FIXATION)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "specimenBarcode": "BC-DOWNSTREAM-LOCK-001",
+                      "operatorName": "nurse-lock"
+                    }
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(post("/api/v1/specimen-fixations/start"), USER_FIXATION)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "specimenBarcode": "BC-DOWNSTREAM-LOCK-001",
+                      "fixationLiquidType": "FORMALIN",
+                      "operatorName": "nurse-lock"
+                    }
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(patch("/api/v1/applications/{id}", applicationId), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "APP-DOWNSTREAM-LOCK-001-R",
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-DOWNSTREAM-LOCK",
+                      "patientName": "Patient Locked",
+                      "submittingDepartmentId": "DEPT-LOCK",
+                      "submittingDepartmentName": "Lock Department",
+                      "submittingDoctorUserId": "DOC-LOCK-001",
+                      "submittingDoctorName": "Dr Lock",
+                      "clinicalDiagnosis": "locked diagnosis",
+                      "specimenSite": "Thyroid"
+                    }
+                    """))
+            .andExpect(status().isConflict());
+
+        mockMvc.perform(authorized(delete("/api/v1/applications/{id}", applicationId), USER_REGISTER))
+            .andExpect(status().isConflict());
     }
 
     @Test

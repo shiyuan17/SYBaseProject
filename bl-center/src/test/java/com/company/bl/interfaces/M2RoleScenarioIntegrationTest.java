@@ -63,7 +63,7 @@ class M2RoleScenarioIntegrationTest extends AbstractSpecimenWorkflowIntegrationT
         String barcode = registerSpecimens(
             applicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-ROLE-TRANS-001")
             .path("specimens").get(0).path("barcode").asText();
-        completeFixation(barcode);
+        prepareTransportReadySpecimen(barcode);
 
         String transportOrderId = createTransportOrder(applicationId, barcode).path("id").asText();
         postJson("/api/v1/transport-orders/%s/print".formatted(transportOrderId), USER_TRANSPORT, """
@@ -91,7 +91,7 @@ class M2RoleScenarioIntegrationTest extends AbstractSpecimenWorkflowIntegrationT
         String barcode = registerSpecimens(
             applicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-ROLE-REC-001")
             .path("specimens").get(0).path("barcode").asText();
-        completeFixation(barcode);
+        prepareTransportReadySpecimen(barcode);
         String transportOrderId = createTransportOrder(applicationId, barcode).path("id").asText();
         postJson("/api/v1/transport-orders/%s/handover".formatted(transportOrderId), USER_TRANSPORT, """
             {

@@ -38,6 +38,16 @@ public class DevDmSchemaBootstrap implements ApplicationRunner {
                 "ALTER TABLE users ADD password_algo VARCHAR(32)");
             ensureColumn(connection, "USERS", "PASSWORD_SALT",
                 "ALTER TABLE users ADD password_salt VARCHAR(64)");
+            ensureColumn(connection, "SPECIMENS", "SPECIMEN_CONFIRMED_AT",
+                "ALTER TABLE specimens ADD specimen_confirmed_at TIMESTAMP");
+            ensureColumn(connection, "SPECIMENS", "CHECK_IN_STATUS",
+                "ALTER TABLE specimens ADD check_in_status VARCHAR(32)");
+            ensureColumn(connection, "SPECIMENS", "CHECKED_IN_AT",
+                "ALTER TABLE specimens ADD checked_in_at TIMESTAMP");
+            ensureColumn(connection, "SPECIMENS", "CHECKED_IN_BY_USER_ID",
+                "ALTER TABLE specimens ADD checked_in_by_user_id VARCHAR(64)");
+            ensureColumn(connection, "SPECIMENS", "CHECKED_IN_BY_NAME",
+                "ALTER TABLE specimens ADD checked_in_by_name VARCHAR(100)");
             ensureTable(connection, "AUTH_ACCESS_TOKENS", """
                 CREATE TABLE auth_access_tokens (
                     jti VARCHAR(128) NOT NULL,

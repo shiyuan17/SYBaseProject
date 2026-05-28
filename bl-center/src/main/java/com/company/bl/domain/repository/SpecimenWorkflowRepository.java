@@ -70,11 +70,37 @@ public interface SpecimenWorkflowRepository {
                               String fixationLiquidType,
                               LocalDateTime fixationStartAt,
                               LocalDateTime fixationCompletedAt,
-                              String verifiedByUserId,
-                              String verifiedByName,
-                              LocalDateTime verifiedAt,
                               String terminalCode,
                               String remarks);
+
+    void startSpecimenVerification(String applicationId,
+                                   String specimenId,
+                                   String verifiedByUserId,
+                                   String verifiedByName,
+                                   LocalDateTime verificationStartedAt,
+                                   String terminalCode,
+                                   String remarks);
+
+    void completeSpecimenVerification(String specimenId,
+                                      String verifiedByUserId,
+                                      String verifiedByName,
+                                      LocalDateTime verificationCompletedAt,
+                                      String terminalCode,
+                                      String remarks);
+
+    void confirmSpecimen(String specimenId,
+                         LocalDateTime specimenConfirmedAt);
+
+    void checkInSpecimen(String specimenId,
+                         String checkInStatus,
+                         LocalDateTime checkedInAt,
+                         String checkedInByUserId,
+                         String checkedInByName);
+
+    void confirmSpecimenRemoval(String specimenId,
+                                LocalDateTime specimenRemovalAt,
+                                String removalOperatorUserId,
+                                String removalOperatorName);
 
     void updateSpecimenStatus(String specimenId,
                               SpecimenStatus specimenStatus,
@@ -138,7 +164,13 @@ public interface SpecimenWorkflowRepository {
 
     PagedSpecimenManagementItems findSpecimenManagementItems(SpecimenManagementListQuery query);
 
+    PagedSpecimenRemovalItems findSpecimenRemovalItems(SpecimenRemovalListQuery query);
+
     ApplicationTracking getApplicationTracking(String applicationId, com.company.bl.domain.model.Application application);
+
+    List<SpecimenVerificationRecordRow> listSpecimenVerificationRecords(String barcode);
+
+    List<SpecimenRemovalListRow> listSpecimenRemovalExportRows(SpecimenRemovalListQuery query);
 
     record PendingSpecimenQuery(
         int page,
@@ -147,6 +179,7 @@ public interface SpecimenWorkflowRepository {
         String specimenNo,
         String departmentId,
         String fixationStatus,
+        String verificationStatus,
         LocalDateTime dateFrom,
         LocalDateTime dateTo
     ) {
@@ -166,6 +199,13 @@ public interface SpecimenWorkflowRepository {
         Integer containerCount,
         String specimenStatus,
         String fixationStatus,
+        String verificationStatus,
+        LocalDateTime verificationStartedAt,
+        LocalDateTime verificationCompletedAt,
+        LocalDateTime specimenConfirmedAt,
+        String checkInStatus,
+        LocalDateTime checkedInAt,
+        String checkedInByName,
         LocalDateTime registeredAt,
         LocalDateTime latestTrackingAt,
         boolean abnormalFlag
@@ -173,6 +213,19 @@ public interface SpecimenWorkflowRepository {
     }
 
     record PagedPendingSpecimens(List<PendingSpecimenRow> items, long total) {
+    }
+
+    record SpecimenVerificationRecordRow(
+        String applicationId,
+        String specimenId,
+        String barcode,
+        String verificationType,
+        String result,
+        String operatorName,
+        String terminalCode,
+        String remarks,
+        LocalDateTime verifiedAt
+    ) {
     }
 
     record PendingTransportOrderQuery(
@@ -232,6 +285,10 @@ public interface SpecimenWorkflowRepository {
         boolean abnormalFlag,
         int registeredSpecimenCount,
         String latestLabelPrintStatus,
+        boolean editable,
+        boolean deletable,
+        boolean voided,
+        String operationDisabledReason,
         java.time.LocalDate applicationDate,
         java.time.LocalDate submissionDate,
         LocalDateTime createdAt,
@@ -289,6 +346,19 @@ public interface SpecimenWorkflowRepository {
     ) {
     }
 
+    record SpecimenRemovalListQuery(
+        int page,
+        int size,
+        String keyword,
+        String applicationNo,
+        String departmentId,
+        String specimenStatus,
+        Boolean abnormalFlag,
+        LocalDateTime dateFrom,
+        LocalDateTime dateTo
+    ) {
+    }
+
     record SpecimenManagementListRow(
         String specimenId,
         String specimenNo,
@@ -306,11 +376,54 @@ public interface SpecimenWorkflowRepository {
         Integer containerCount,
         String specimenStatus,
         String fixationStatus,
+        String verificationStatus,
+        LocalDateTime specimenConfirmedAt,
+        String checkInStatus,
+        LocalDateTime checkedInAt,
+        String checkedInByName,
         String labelPrintStatus,
         String labelPrintBatchNo,
         LocalDateTime registeredAt,
         LocalDateTime latestTrackingAt,
         boolean abnormalFlag
+    ) {
+    }
+
+    record SpecimenRemovalListRow(
+        String specimenId,
+        String specimenNo,
+        String barcode,
+        String applicationId,
+        String applicationNo,
+        String patientName,
+        String patientGender,
+        String inpatientNo,
+        String surgeryName,
+        String submittingDepartmentId,
+        String submittingDepartmentName,
+        String specimenName,
+        String specimenType,
+        Integer specimenCount,
+        String containerName,
+        Integer containerCount,
+        String specimenStatus,
+        String fixationStatus,
+        String verificationStatus,
+        LocalDateTime specimenRemovalAt,
+        String specimenRemovalOperatorName,
+        LocalDateTime registeredAt,
+        String labelPrintBatchNo,
+        String registeredByName,
+        LocalDateTime latestTrackingAt,
+        boolean abnormalFlag
+    ) {
+    }
+
+    record SpecimenRemovalSummary(
+        long totalCount,
+        long confirmedCount,
+        long pendingCount,
+        long abnormalCount
     ) {
     }
 
@@ -326,6 +439,13 @@ public interface SpecimenWorkflowRepository {
         List<SpecimenManagementListRow> items,
         long total,
         SpecimenManagementSummary summary
+    ) {
+    }
+
+    record PagedSpecimenRemovalItems(
+        List<SpecimenRemovalListRow> items,
+        long total,
+        SpecimenRemovalSummary summary
     ) {
     }
 }

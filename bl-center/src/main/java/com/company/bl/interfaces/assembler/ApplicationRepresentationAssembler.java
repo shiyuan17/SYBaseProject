@@ -1,9 +1,11 @@
 package com.company.bl.interfaces.assembler;
 
 import com.company.bl.application.command.CreateApplicationCommand;
+import com.company.bl.application.command.UpdateApplicationCommand;
 import com.company.bl.domain.model.Application;
 import com.company.bl.domain.valueobject.ApplicationId;
 import com.company.bl.interfaces.dto.CreateApplicationRequest;
+import com.company.bl.interfaces.dto.UpdateApplicationRequest;
 import com.company.bl.interfaces.vo.ApplicationDetailResponse;
 import com.company.bl.interfaces.vo.ApplicationIdResponse;
 import com.company.bl.interfaces.vo.SpecimenSummaryResponse;
@@ -24,6 +26,32 @@ public class ApplicationRepresentationAssembler {
             request.getPatientAge(),
             request.getApplicationType(),
             request.getStatus(),
+            request.getExternalOrderNo(),
+            request.getThirdPartySource(),
+            request.getSourceHospitalId(),
+            request.getSourceHospitalName(),
+            request.getSubmittingDepartmentId(),
+            request.getSubmittingDepartmentName(),
+            request.getSubmittingDoctorUserId(),
+            request.getSubmittingDoctorName(),
+            request.getClinicalDiagnosis(),
+            request.getClinicalSymptom(),
+            request.getSpecimenSite(),
+            request.getApplicationDate(),
+            request.getSubmissionDate(),
+            request.getSpecimenRemovalTime(),
+            request.getApplicationFormStatus(),
+            request.getRemarks());
+    }
+
+    public UpdateApplicationCommand toCommand(UpdateApplicationRequest request) {
+        return new UpdateApplicationCommand(
+            request.getApplicationNo(),
+            request.getPatientId(),
+            request.getPatientName(),
+            request.getPatientGender(),
+            request.getPatientAge(),
+            request.getApplicationType(),
             request.getExternalOrderNo(),
             request.getThirdPartySource(),
             request.getSourceHospitalId(),
@@ -76,6 +104,10 @@ public class ApplicationRepresentationAssembler {
             null,
             application.getStatus().name(),
             false,
+            false,
+            false,
+            application.getStatus().name().equals("VOIDED"),
+            application.getStatus().name().equals("VOIDED") ? "申请单已作废，不能再编辑或作废" : null,
             null,
             false,
             null,

@@ -30,44 +30,42 @@ import java.util.UUID;
 @Repository
 public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepository {
 
-    private static final String SPECIMEN_SELECT_COLUMNS = """
-        select
-            s.*,
-            latest_receipt.receipt_status as latest_receipt_status,
-            latest_receipt.quality_check_result as latest_quality_check_result,
-            latest_receipt.quality_issue_codes as latest_quality_issue_codes
-        from specimens s
-        left join (
-            select
-                ranked.specimen_id,
-                ranked.receipt_status,
-                ranked.quality_check_result,
-                ranked.quality_issue_codes
-            from (
-                select
-                    sr.*,
-                    row_number() over (
-                        partition by sr.specimen_id
-                        order by sr.received_at desc, sr.id desc
-                    ) as rn
-                from specimen_receipts sr
-            ) ranked
-            where ranked.rn = 1
-        ) latest_receipt on latest_receipt.specimen_id = s.id
-        """;
+    private static final String SPECIMEN_VERIFICATION_STATUS_EXPRESSION =
+        buildVerificationStatusExpression("sfr", "s");
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private volatile Boolean specimenContainerColumnsAvailable;
     private volatile Boolean collectionPrinterCodeColumnAvailable;
+    private volatile Boolean specimenRemovalColumnsAvailable;
 
     public JdbcSpecimenWorkflowRepository(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    private static String buildVerificationStatusExpression(String fixationRecordAlias, String specimenAlias) {
+        return """
+            case
+                when coalesce(%s.verification_completed_at, %s.verified_at) is not null
+                    or %s.specimen_status in ('VERIFIED', 'FIXING', 'FIXED', 'CHECKED_IN', 'IN_TRANSIT', 'RECEIVED', 'REJECTED', 'RETURNED')
+                    or coalesce(%s.fixation_status, 'PENDING') <> 'PENDING'
+                then 'VERIFIED'
+                when %s.verification_started_at is not null
+                then 'VERIFYING'
+                else 'UNVERIFIED'
+            end
+            """.formatted(
+            fixationRecordAlias,
+            fixationRecordAlias,
+            specimenAlias,
+            specimenAlias,
+            fixationRecordAlias
+        ).trim();
+    }
+
     @Override
     public Optional<Specimen> findSpecimenByBarcode(String barcode) {
         List<Specimen> rows = jdbcTemplate.query(
-            SPECIMEN_SELECT_COLUMNS + """
+            specimenSelectColumns() + """
                 where s.barcode = :barcode
                 """,
             Map.of("barcode", barcode),
@@ -78,7 +76,7 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
     @Override
     public List<Specimen> findSpecimensByApplicationId(String applicationId) {
         return jdbcTemplate.query(
-            SPECIMEN_SELECT_COLUMNS + """
+            specimenSelectColumns() + """
                 where s.application_id = :applicationId
                 order by s.registered_at asc, s.created_at asc
                 """,
@@ -265,7 +263,7 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
     @Override
     public List<Specimen> findSpecimensByLabelPrintBatchNoAndStatus(String labelPrintBatchNo, String labelPrintStatus) {
         return jdbcTemplate.query(
-            SPECIMEN_SELECT_COLUMNS + """
+            specimenSelectColumns() + """
                 where s.label_print_batch_no = :labelPrintBatchNo
                   and s.label_print_status = :labelPrintStatus
                 order by s.registered_at asc, s.id asc
@@ -279,7 +277,7 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
     @Override
     public List<Specimen> findSpecimensByLabelPrintBatchNoAndStatuses(String labelPrintBatchNo, List<String> labelPrintStatuses) {
         return jdbcTemplate.query(
-            SPECIMEN_SELECT_COLUMNS + """
+            specimenSelectColumns() + """
                 where s.label_print_batch_no = :labelPrintBatchNo
                   and s.label_print_status in (:labelPrintStatuses)
                 order by s.registered_at asc, s.id asc
@@ -371,9 +369,6 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                                      String fixationLiquidType,
                                      LocalDateTime fixationStartAt,
                                      LocalDateTime fixationCompletedAt,
-                                     String verifiedByUserId,
-                                     String verifiedByName,
-                                     LocalDateTime verifiedAt,
                                      String terminalCode,
                                      String remarks) {
         Long count = jdbcTemplate.queryForObject("""
@@ -388,9 +383,6 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                     fixation_liquid_type = :fixationLiquidType,
                     fixation_start_at = COALESCE(:fixationStartAt, fixation_start_at),
                     fixation_completed_at = :fixationCompletedAt,
-                    verified_by_user_id = :verifiedByUserId,
-                    verified_by_name = :verifiedByName,
-                    verified_at = :verifiedAt,
                     terminal_code = :terminalCode,
                     remarks = :remarks
                 where specimen_id = :specimenId
@@ -400,9 +392,6 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                 .addValue("fixationLiquidType", fixationLiquidType)
                 .addValue("fixationStartAt", fixationStartAt)
                 .addValue("fixationCompletedAt", fixationCompletedAt)
-                .addValue("verifiedByUserId", verifiedByUserId)
-                .addValue("verifiedByName", verifiedByName)
-                .addValue("verifiedAt", verifiedAt)
                 .addValue("terminalCode", terminalCode)
                 .addValue("remarks", remarks));
             return;
@@ -410,10 +399,10 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         jdbcTemplate.update("""
             insert into specimen_fixation_records
                 (id, application_id, specimen_id, fixation_status, fixation_liquid_type, fixation_start_at,
-                 fixation_completed_at, verified_by_user_id, verified_by_name, verified_at, terminal_code, remarks)
+                 fixation_completed_at, terminal_code, remarks)
             values
                 (:id, :applicationId, :specimenId, :fixationStatus, :fixationLiquidType, :fixationStartAt,
-                 :fixationCompletedAt, :verifiedByUserId, :verifiedByName, :verifiedAt, :terminalCode, :remarks)
+                 :fixationCompletedAt, :terminalCode, :remarks)
             """, new MapSqlParameterSource()
             .addValue("id", nextId("SFR"))
             .addValue("applicationId", applicationId)
@@ -422,11 +411,141 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             .addValue("fixationLiquidType", fixationLiquidType)
             .addValue("fixationStartAt", fixationStartAt)
             .addValue("fixationCompletedAt", fixationCompletedAt)
-            .addValue("verifiedByUserId", verifiedByUserId)
-            .addValue("verifiedByName", verifiedByName)
-            .addValue("verifiedAt", verifiedAt)
             .addValue("terminalCode", terminalCode)
             .addValue("remarks", remarks));
+    }
+
+    @Override
+    public void startSpecimenVerification(String applicationId,
+                                          String specimenId,
+                                          String verifiedByUserId,
+                                          String verifiedByName,
+                                          LocalDateTime verificationStartedAt,
+                                          String terminalCode,
+                                          String remarks) {
+        Long count = jdbcTemplate.queryForObject("""
+            select count(1)
+            from specimen_fixation_records
+            where specimen_id = :specimenId
+            """, Map.of("specimenId", specimenId), Long.class);
+        if (count != null && count > 0) {
+            jdbcTemplate.update("""
+                update specimen_fixation_records
+                set verification_started_at = :verificationStartedAt,
+                    verified_by_user_id = :verifiedByUserId,
+                    verified_by_name = :verifiedByName,
+                    terminal_code = :terminalCode,
+                    remarks = :remarks
+                where specimen_id = :specimenId
+                """, new MapSqlParameterSource()
+                .addValue("specimenId", specimenId)
+                .addValue("verificationStartedAt", verificationStartedAt)
+                .addValue("verifiedByUserId", verifiedByUserId)
+                .addValue("verifiedByName", verifiedByName)
+                .addValue("terminalCode", terminalCode)
+                .addValue("remarks", remarks));
+            return;
+        }
+        jdbcTemplate.update("""
+            insert into specimen_fixation_records
+                (id, application_id, specimen_id, fixation_status, verification_started_at,
+                 verified_by_user_id, verified_by_name, terminal_code, remarks)
+            values
+                (:id, :applicationId, :specimenId, :fixationStatus, :verificationStartedAt,
+                 :verifiedByUserId, :verifiedByName, :terminalCode, :remarks)
+            """, new MapSqlParameterSource()
+            .addValue("id", nextId("SFR"))
+            .addValue("applicationId", applicationId)
+            .addValue("specimenId", specimenId)
+            .addValue("fixationStatus", FixationStatus.PENDING.name())
+            .addValue("verificationStartedAt", verificationStartedAt)
+            .addValue("verifiedByUserId", verifiedByUserId)
+            .addValue("verifiedByName", verifiedByName)
+            .addValue("terminalCode", terminalCode)
+            .addValue("remarks", remarks));
+    }
+
+    @Override
+    public void completeSpecimenVerification(String specimenId,
+                                             String verifiedByUserId,
+                                             String verifiedByName,
+                                             LocalDateTime verificationCompletedAt,
+                                             String terminalCode,
+                                             String remarks) {
+        jdbcTemplate.update("""
+            update specimen_fixation_records
+            set verification_completed_at = :verificationCompletedAt,
+                verified_at = :verificationCompletedAt,
+                verified_by_user_id = :verifiedByUserId,
+                verified_by_name = :verifiedByName,
+                terminal_code = :terminalCode,
+                remarks = :remarks
+            where specimen_id = :specimenId
+            """, new MapSqlParameterSource()
+            .addValue("specimenId", specimenId)
+            .addValue("verificationCompletedAt", verificationCompletedAt)
+            .addValue("verifiedByUserId", verifiedByUserId)
+            .addValue("verifiedByName", verifiedByName)
+            .addValue("terminalCode", terminalCode)
+            .addValue("remarks", remarks));
+    }
+
+    @Override
+    public void confirmSpecimen(String specimenId, LocalDateTime specimenConfirmedAt) {
+        jdbcTemplate.update("""
+            update specimens
+            set specimen_status = 'VERIFIED',
+                specimen_confirmed_at = :specimenConfirmedAt,
+                updated_at = :updatedAt
+            where id = :specimenId
+            """, new MapSqlParameterSource()
+            .addValue("specimenId", specimenId)
+            .addValue("specimenConfirmedAt", specimenConfirmedAt)
+            .addValue("updatedAt", specimenConfirmedAt));
+    }
+
+    @Override
+    public void checkInSpecimen(String specimenId,
+                                String checkInStatus,
+                                LocalDateTime checkedInAt,
+                                String checkedInByUserId,
+                                String checkedInByName) {
+        jdbcTemplate.update("""
+            update specimens
+            set specimen_status = 'CHECKED_IN',
+                check_in_status = :checkInStatus,
+                checked_in_at = :checkedInAt,
+                checked_in_by_user_id = :checkedInByUserId,
+                checked_in_by_name = :checkedInByName,
+                updated_at = :updatedAt
+            where id = :specimenId
+            """, new MapSqlParameterSource()
+            .addValue("specimenId", specimenId)
+            .addValue("checkInStatus", checkInStatus)
+            .addValue("checkedInAt", checkedInAt)
+            .addValue("checkedInByUserId", checkedInByUserId)
+            .addValue("checkedInByName", checkedInByName)
+            .addValue("updatedAt", checkedInAt));
+    }
+
+    @Override
+    public void confirmSpecimenRemoval(String specimenId,
+                                       LocalDateTime specimenRemovalAt,
+                                       String removalOperatorUserId,
+                                       String removalOperatorName) {
+        jdbcTemplate.update("""
+            update specimens
+            set specimen_removal_at = :specimenRemovalAt,
+                specimen_removal_operator_user_id = :removalOperatorUserId,
+                specimen_removal_operator_name = :removalOperatorName,
+                updated_at = :updatedAt
+            where id = :specimenId
+            """, new MapSqlParameterSource()
+            .addValue("specimenId", specimenId)
+            .addValue("specimenRemovalAt", specimenRemovalAt)
+            .addValue("removalOperatorUserId", removalOperatorUserId)
+            .addValue("removalOperatorName", removalOperatorName)
+            .addValue("updatedAt", specimenRemovalAt));
     }
 
     @Override
@@ -718,6 +837,7 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         String whereClause = """
             from specimens s
             join applications a on a.id = s.application_id
+            left join specimen_fixation_records sfr on sfr.specimen_id = s.id
             left join (
                 select specimen_id, max(event_time) as latest_event_time
                 from workflow_events
@@ -733,7 +853,7 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                     from transport_order_items toi
                     where toi.specimen_id = s.id
                 )
-            """ + buildPendingFilters(query, "a", "s");
+            """ + buildPendingFilters(query, "a", "s", "sfr");
         long total = countPending(whereClause, query);
         List<PendingSpecimenRow> items = queryPending("""
             select
@@ -751,6 +871,15 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                 + """
                 s.specimen_status,
                 s.fixation_status,
+                """ + buildVerificationStatusExpression("sfr", "s") + """
+                 as verification_status,
+                sfr.verification_started_at as verification_started_at,
+                coalesce(sfr.verification_completed_at, sfr.verified_at) as verification_completed_at,
+            """ + specimenConfirmedAtSelect("s")
+                + checkInStatusSelect("s", "check_in_status")
+                + checkedInAtSelect("s")
+                + checkedInByNameSelect("s")
+                + """
                 s.registered_at,
                 evt.latest_event_time,
                 case
@@ -769,6 +898,7 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         String whereClause = """
             from specimens s
             join applications a on a.id = s.application_id
+            left join specimen_fixation_records sfr on sfr.specimen_id = s.id
             left join (
                 select specimen_id, max(event_time) as latest_event_time
                 from workflow_events
@@ -791,7 +921,7 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                     where sr.specimen_id = s.id
                       and sr.receipt_status = 'RECEIVED'
                 )
-            """ + buildPendingFilters(query, "a", "s");
+            """ + buildPendingFilters(query, "a", "s", "sfr");
         long total = countPending(whereClause, query);
         List<PendingSpecimenRow> items = queryPending("""
             select
@@ -817,6 +947,15 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                 + """
                 s.specimen_status,
                 s.fixation_status,
+                """ + buildVerificationStatusExpression("sfr", "s") + """
+                 as verification_status,
+                sfr.verification_started_at as verification_started_at,
+                coalesce(sfr.verification_completed_at, sfr.verified_at) as verification_completed_at,
+            """ + specimenConfirmedAtSelect("s")
+                + checkInStatusSelect("s", "check_in_status")
+                + checkedInAtSelect("s")
+                + checkedInByNameSelect("s")
+                + """
                 s.registered_at,
                 evt.latest_event_time,
                 case
@@ -873,16 +1012,19 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                 a.submitting_doctor_name,
                 a.application_type,
                 a.application_form_status,
-                coalesce(
-                    (
-                        select we.node_code
-                        from workflow_events we
-                        where we.application_id = a.id
-                        order by we.event_time desc, we.created_at desc, we.id desc
-                        fetch next 1 rows only
-                    ),
-                    a.status
-                ) as current_node,
+                case
+                    when a.status = 'VOIDED' then a.status
+                    else coalesce(
+                        (
+                            select we.node_code
+                            from workflow_events we
+                            where we.application_id = a.id
+                            order by we.event_time desc, we.created_at desc, we.id desc
+                            fetch next 1 rows only
+                        ),
+                        a.status
+                    )
+                end as current_node,
                 case
                     when exists (
                         select 1
@@ -916,8 +1058,66 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                             and latest.label_print_batch_no is not null
                           order by latest.registered_at desc, latest.created_at desc, latest.id desc
                           fetch next 1 rows only
-                      )
+                        )
                 ) as latest_label_print_status,
+                case
+                    when a.status = 'VOIDED' then 0
+                    when exists (
+                        select 1
+                        from specimens s
+                        where s.application_id = a.id
+                          and (
+                              s.fixation_status <> 'PENDING'
+                              or s.specimen_status <> 'REGISTERED'
+                          )
+                    )
+                    or exists (
+                        select 1
+                        from pathology_cases pc
+                        where pc.application_id = a.id
+                    )
+                    then 0
+                    else 1
+                end as editable,
+                case
+                    when a.status = 'VOIDED' then 0
+                    when exists (
+                        select 1
+                        from specimens s
+                        where s.application_id = a.id
+                          and (
+                              s.fixation_status <> 'PENDING'
+                              or s.specimen_status <> 'REGISTERED'
+                          )
+                    )
+                    or exists (
+                        select 1
+                        from pathology_cases pc
+                        where pc.application_id = a.id
+                    )
+                    then 0
+                    else 1
+                end as deletable,
+                case when a.status = 'VOIDED' then 1 else 0 end as voided,
+                case
+                    when a.status = 'VOIDED' then '申请单已作废，不能再编辑或作废'
+                    when exists (
+                        select 1
+                        from specimens s
+                        where s.application_id = a.id
+                          and (
+                              s.fixation_status <> 'PENDING'
+                              or s.specimen_status <> 'REGISTERED'
+                          )
+                    )
+                    or exists (
+                        select 1
+                        from pathology_cases pc
+                        where pc.application_id = a.id
+                    )
+                    then '申请单已进入下游流程，不能再编辑或作废'
+                    else null
+                end as operation_disabled_reason,
                 a.application_date,
                 a.submission_date,
                 a.created_at,
@@ -949,21 +1149,25 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                          and a.specimen_site = :specimenSite then 1
                     else 0
                 end as same_day_site_matched,
-                coalesce(
-                    (
-                        select we.node_code
-                        from workflow_events we
-                        where we.application_id = a.id
-                        order by we.event_time desc, we.created_at desc, we.id desc
-                        fetch next 1 rows only
-                    ),
-                    a.status
-                ) as current_node
+                case
+                    when a.status = 'VOIDED' then a.status
+                    else coalesce(
+                        (
+                            select we.node_code
+                            from workflow_events we
+                            where we.application_id = a.id
+                            order by we.event_time desc, we.created_at desc, we.id desc
+                            fetch next 1 rows only
+                        ),
+                        a.status
+                    )
+                end as current_node
             from applications a
             where (
                 (:patientId is not null and a.patient_id = :patientId)
                 or (:patientName is not null and a.patient_name = :patientName)
             )
+            and a.status <> 'VOIDED'
             and (
                 (:externalOrderNo is not null and a.external_order_no = :externalOrderNo)
                 or (
@@ -986,6 +1190,7 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         String whereClause = """
             from specimens s
             join applications a on a.id = s.application_id
+            left join specimen_fixation_records sfr on sfr.specimen_id = s.id
             left join (
                 select specimen_id, max(event_time) as latest_event_time
                 from workflow_events
@@ -1014,6 +1219,13 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                 + """
                 s.specimen_status,
                 s.fixation_status,
+                """ + buildVerificationStatusExpression("sfr", "s") + """
+                 as verification_status,
+            """ + specimenConfirmedAtSelect("s")
+                + checkInStatusSelect("s", "check_in_status")
+                + checkedInAtSelect("s")
+                + checkedInByNameSelect("s")
+                + """
                 s.label_print_status,
                 s.label_print_batch_no,
                 s.registered_at,
@@ -1032,6 +1244,29 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
     }
 
     @Override
+    public PagedSpecimenRemovalItems findSpecimenRemovalItems(SpecimenRemovalListQuery query) {
+        String abnormalExpression = specimenManagementAbnormalExpression("s");
+        String whereClause = specimenRemovalWhereClause(query, abnormalExpression, false);
+        long total = countSpecimenRemoval(whereClause, query);
+        List<SpecimenRemovalListRow> items = querySpecimenRemoval(
+            specimenRemovalSelectSql(whereClause, abnormalExpression, true),
+            query);
+        SpecimenRemovalSummary summary = summarizeSpecimenRemoval(whereClause, query);
+        return new PagedSpecimenRemovalItems(items, total, summary);
+    }
+
+    @Override
+    public List<SpecimenRemovalListRow> listSpecimenRemovalExportRows(SpecimenRemovalListQuery query) {
+        String abnormalExpression = specimenManagementAbnormalExpression("s");
+        String whereClause = specimenRemovalWhereClause(query, abnormalExpression, true);
+        return jdbcTemplate.query(
+            specimenRemovalSelectSql(whereClause, abnormalExpression, false)
+                + " order by coalesce(s.specimen_removal_at, s.registered_at, evt.latest_event_time) desc, s.id desc",
+            specimenRemovalParams(query),
+            this::mapSpecimenRemovalListRow);
+    }
+
+    @Override
     public ApplicationTracking getApplicationTracking(String applicationId, Application application) {
         List<Specimen> specimens = findSpecimensByApplicationId(applicationId);
         List<TrackingEvent> events = findTrackingEventsByApplicationId(applicationId);
@@ -1039,10 +1274,78 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             specimen.specimenStatus() == SpecimenStatus.REJECTED
                 || specimen.specimenStatus() == SpecimenStatus.RETURNED
                 || specimen.fixationStatus() == FixationStatus.ABNORMAL);
-        String currentNode = events.isEmpty()
+        String currentNode = application.getStatus() == com.company.bl.domain.enums.ApplicationStatus.VOIDED
             ? application.getStatus().name()
-            : events.get(events.size() - 1).nodeCode();
+            : events.isEmpty()
+                ? application.getStatus().name()
+                : events.get(events.size() - 1).nodeCode();
         return new ApplicationTracking(application, currentNode, abnormal, specimens, events);
+    }
+
+    @Override
+    public List<SpecimenVerificationRecordRow> listSpecimenVerificationRecords(String barcode) {
+        return jdbcTemplate.query("""
+            select
+                records.application_id,
+                records.specimen_id,
+                records.barcode,
+                records.verification_type,
+                records.result,
+                records.operator_name,
+                records.terminal_code,
+                records.remarks,
+                records.verified_at
+            from (
+                select
+                    we.application_id,
+                    we.specimen_id,
+                    s.barcode,
+                    case
+                        when we.node_code = 'VERIFICATION' and we.event_type = 'STARTED' then 'SPECIMEN_VERIFICATION_START'
+                        when we.node_code = 'VERIFICATION' and we.event_type = 'COMPLETED' then 'SPECIMEN_VERIFICATION_COMPLETE'
+                        when we.node_code = 'CONFIRMATION' and we.event_type = 'COMPLETED' then 'SPECIMEN_CONFIRM'
+                        when we.node_code = 'CHECK_IN' and we.event_type = 'CHECKED_IN' then 'SPECIMEN_CHECK_IN'
+                        else we.event_type
+                    end as verification_type,
+                    we.event_status as result,
+                    we.operator_name,
+                    we.source_terminal as terminal_code,
+                    we.event_content as remarks,
+                    we.event_time as verified_at
+                from workflow_events we
+                join specimens s on s.id = we.specimen_id
+                where s.barcode = :barcode
+                  and we.node_code in ('VERIFICATION', 'CONFIRMATION', 'CHECK_IN')
+
+                union all
+
+                select
+                    toi.application_id,
+                    toi.specimen_id,
+                    s.barcode,
+                    'TRANSPORT_HANDOVER_VERIFICATION' as verification_type,
+                    coalesce(toi.verification_result, toi.item_status) as result,
+                    toi.verified_by_name as operator_name,
+                    cast(null as varchar(64)) as terminal_code,
+                    toi.remarks,
+                    toi.verified_at
+                from transport_order_items toi
+                join specimens s on s.id = toi.specimen_id
+                where s.barcode = :barcode
+                  and toi.verified_at is not null
+            ) records
+            order by records.verified_at desc, records.verification_type desc
+            """, Map.of("barcode", barcode), (rs, rowNum) -> new SpecimenVerificationRecordRow(
+            rs.getString("application_id"),
+            rs.getString("specimen_id"),
+            rs.getString("barcode"),
+            rs.getString("verification_type"),
+            rs.getString("result"),
+            rs.getString("operator_name"),
+            rs.getString("terminal_code"),
+            rs.getString("remarks"),
+            rs.getTimestamp("verified_at") == null ? null : rs.getTimestamp("verified_at").toLocalDateTime()
+        ));
     }
 
     private Specimen mapSpecimen(ResultSet rs, int rowNum) throws SQLException {
@@ -1061,6 +1364,26 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             JdbcResultSetUtils.getNullableInteger(rs, "container_count"),
             SpecimenStatus.from(rs.getString("specimen_status")),
             FixationStatus.from(rs.getString("fixation_status")),
+            JdbcResultSetUtils.getNullableString(rs, "verification_status"),
+            rs.getTimestamp("verification_started_at") == null
+                ? null
+                : rs.getTimestamp("verification_started_at").toLocalDateTime(),
+            rs.getTimestamp("verification_completed_at") == null
+                ? null
+                : rs.getTimestamp("verification_completed_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_removal_at") == null
+                ? null
+                : JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_removal_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableString(rs, "specimen_removal_operator_user_id"),
+            JdbcResultSetUtils.getNullableString(rs, "specimen_removal_operator_name"),
+            JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_confirmed_at") == null
+                ? null
+                : JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_confirmed_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableString(rs, "resolved_check_in_status"),
+            JdbcResultSetUtils.getNullableTimestamp(rs, "checked_in_at") == null
+                ? null
+                : JdbcResultSetUtils.getNullableTimestamp(rs, "checked_in_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableString(rs, "checked_in_by_name"),
             rs.getInt("qualified_flag") != 0,
             rs.getString("unqualified_reason"),
             rs.getString("latest_receipt_status"),
@@ -1239,7 +1562,115 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             this::mapSpecimenManagementSummary);
     }
 
-    private String buildPendingFilters(PendingSpecimenQuery query, String applicationAlias, String specimenAlias) {
+    private long countSpecimenRemoval(String whereClause, SpecimenRemovalListQuery query) {
+        Long total = jdbcTemplate.queryForObject(
+            "select count(1) " + whereClause,
+            specimenRemovalParams(query),
+            Long.class);
+        return total == null ? 0L : total;
+    }
+
+    private List<SpecimenRemovalListRow> querySpecimenRemoval(String sql, SpecimenRemovalListQuery query) {
+        MapSqlParameterSource parameters = specimenRemovalParams(query)
+            .addValue("offset", Math.max(0, (query.page() - 1) * query.size()))
+            .addValue("size", query.size());
+        return jdbcTemplate.query(
+            sql + " order by coalesce(s.specimen_removal_at, s.registered_at, evt.latest_event_time) desc, s.id desc"
+                + " offset :offset rows fetch next :size rows only",
+            parameters,
+            this::mapSpecimenRemovalListRow);
+    }
+
+    private SpecimenRemovalSummary summarizeSpecimenRemoval(String whereClause, SpecimenRemovalListQuery query) {
+        return jdbcTemplate.queryForObject(
+            """
+            select
+                count(1) as total_count,
+                sum(case when s.specimen_removal_at is not null then 1 else 0 end) as confirmed_count,
+                sum(case when s.specimen_removal_at is null then 1 else 0 end) as pending_count,
+            """
+                + "    sum(case when (" + specimenManagementAbnormalExpression("s") + ")\n"
+                + """
+                    then 1 else 0
+                end) as abnormal_count
+            """
+                + whereClause,
+            specimenRemovalParams(query),
+            this::mapSpecimenRemovalSummary);
+    }
+
+    private String specimenRemovalWhereClause(
+        SpecimenRemovalListQuery query,
+        String abnormalExpression,
+        boolean includeRemoved
+    ) {
+        StringBuilder builder = new StringBuilder("""
+            from specimens s
+            join applications a on a.id = s.application_id
+            left join specimen_fixation_records sfr on sfr.specimen_id = s.id
+            left join application_registration_workbench w on w.application_id = a.id
+            left join (
+                select specimen_id, max(event_time) as latest_event_time
+                from workflow_events
+                group by specimen_id
+            ) evt on evt.specimen_id = s.id
+            where 1 = 1
+            """);
+        builder.append(buildSpecimenRemovalFilters(query, abnormalExpression));
+        return builder.toString();
+    }
+
+    private String specimenRemovalSelectSql(
+        String whereClause,
+        String abnormalExpression,
+        boolean paged
+    ) {
+        return """
+            select
+                s.id as specimen_id,
+                s.specimen_no,
+                s.barcode,
+                a.id as application_id,
+                a.application_no,
+                a.patient_name,
+                a.patient_gender,
+                w.inpatient_no,
+                coalesce(w.room_id, w.surgery_name) as surgery_name,
+                a.submitting_department_id,
+                a.submitting_department_name,
+                s.specimen_name_standardized as specimen_name,
+                s.specimen_type,
+                s.specimen_count,
+            """ + containerNameSelect("s")
+            + containerCountSelect("s")
+            + """
+                s.specimen_status,
+                s.fixation_status,
+                """ + buildVerificationStatusExpression("sfr", "s") + """
+                 as verification_status,
+            """ + specimenRemovalAtSelect("s")
+            + specimenRemovalOperatorNameSelect("s")
+            + """
+                s.registered_at,
+                s.label_print_batch_no,
+                s.registered_by_name,
+                evt.latest_event_time,
+            """
+            + "    case when (" + abnormalExpression + ")\n"
+            + """
+                    then 1 else 0
+                end as abnormal_flag
+            """
+            + whereClause
+            + (paged ? "" : "");
+    }
+
+    private String buildPendingFilters(
+        PendingSpecimenQuery query,
+        String applicationAlias,
+        String specimenAlias,
+        String fixationRecordAlias
+    ) {
         StringBuilder builder = new StringBuilder();
         if (query.applicationId() != null && !query.applicationId().isBlank()) {
             builder.append(" and ").append(applicationAlias).append(".id = :applicationId");
@@ -1253,6 +1684,11 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         if (query.fixationStatus() != null && !query.fixationStatus().isBlank()) {
             builder.append(" and ").append(specimenAlias).append(".fixation_status = :fixationStatus");
         }
+        if (query.verificationStatus() != null && !query.verificationStatus().isBlank()) {
+            builder.append(" and ")
+                .append(buildPendingVerificationExpression(specimenAlias, fixationRecordAlias))
+                .append(" = :verificationStatus");
+        }
         if (query.dateFrom() != null) {
             builder.append(" and ").append(specimenAlias).append(".registered_at >= :dateFrom");
         }
@@ -1260,6 +1696,10 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             builder.append(" and ").append(specimenAlias).append(".registered_at < :dateTo");
         }
         return builder.toString();
+    }
+
+    private String buildPendingVerificationExpression(String specimenAlias, String fixationRecordAlias) {
+        return buildVerificationStatusExpression(fixationRecordAlias, specimenAlias);
     }
 
     private String buildTransportPendingFilters(PendingTransportOrderQuery query) {
@@ -1295,6 +1735,9 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
 
     private String buildApplicationFilters(ApplicationListQuery query) {
         StringBuilder builder = new StringBuilder();
+        if (!"VOIDED".equalsIgnoreCase(query.applicationFormStatus())) {
+            builder.append(" and a.status <> 'VOIDED'");
+        }
         if (query.applicationNo() != null && !query.applicationNo().isBlank()) {
             builder.append(" and a.application_no like :applicationNo");
         }
@@ -1308,7 +1751,11 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             builder.append(" and a.application_type = :applicationType");
         }
         if (query.applicationFormStatus() != null && !query.applicationFormStatus().isBlank()) {
-            builder.append(" and a.application_form_status = :applicationFormStatus");
+            if ("VOIDED".equalsIgnoreCase(query.applicationFormStatus())) {
+                builder.append(" and a.status = 'VOIDED'");
+            } else {
+                builder.append(" and a.application_form_status = :applicationFormStatus");
+            }
         }
         if (query.dateFrom() != null) {
             builder.append(" and a.application_date >= :dateFrom");
@@ -1361,6 +1808,47 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         return builder.toString();
     }
 
+    private String buildSpecimenRemovalFilters(
+        SpecimenRemovalListQuery query,
+        String abnormalExpression
+    ) {
+        StringBuilder builder = new StringBuilder();
+        if (query.keyword() != null && !query.keyword().isBlank()) {
+            builder.append("""
+                 and (
+                    s.specimen_no like :keyword
+                    or s.barcode like :keyword
+                    or a.application_no like :keyword
+                    or a.patient_name like :keyword
+                    or coalesce(w.inpatient_no, '') like :keyword
+                    or coalesce(w.surgery_name, '') like :keyword
+                )
+                """);
+        }
+        if (query.applicationNo() != null && !query.applicationNo().isBlank()) {
+            builder.append(" and a.application_no like :applicationNo");
+        }
+        if (query.departmentId() != null && !query.departmentId().isBlank()) {
+            builder.append(" and a.submitting_department_id = :departmentId");
+        }
+        if (query.specimenStatus() != null && !query.specimenStatus().isBlank()) {
+            builder.append(" and s.specimen_status = :specimenStatus");
+        }
+        if (query.abnormalFlag() != null) {
+            builder.append(
+                query.abnormalFlag()
+                    ? " and (" + abnormalExpression + ")"
+                    : " and not (" + abnormalExpression + ")");
+        }
+        if (query.dateFrom() != null) {
+            builder.append(" and s.registered_at >= :dateFrom");
+        }
+        if (query.dateTo() != null) {
+            builder.append(" and s.registered_at < :dateTo");
+        }
+        return builder.toString();
+    }
+
     private String specimenManagementAbnormalExpression(String specimenAlias) {
         return specimenAlias + ".specimen_status in ('REJECTED', 'RETURNED')"
             + " or " + specimenAlias + ".fixation_status = 'ABNORMAL'"
@@ -1380,6 +1868,9 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         }
         if (query.fixationStatus() != null && !query.fixationStatus().isBlank()) {
             parameters.addValue("fixationStatus", query.fixationStatus());
+        }
+        if (query.verificationStatus() != null && !query.verificationStatus().isBlank()) {
+            parameters.addValue("verificationStatus", query.verificationStatus());
         }
         if (query.dateFrom() != null) {
             parameters.addValue("dateFrom", query.dateFrom());
@@ -1475,6 +1966,40 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         return parameters;
     }
 
+    private MapSqlParameterSource specimenRemovalParams(SpecimenRemovalListQuery query) {
+        MapSqlParameterSource parameters = new MapSqlParameterSource();
+        if (query.keyword() != null && !query.keyword().isBlank()) {
+            parameters.addValue("keyword", "%" + query.keyword() + "%");
+        }
+        if (query.applicationNo() != null && !query.applicationNo().isBlank()) {
+            parameters.addValue("applicationNo", "%" + query.applicationNo() + "%");
+        }
+        if (query.departmentId() != null && !query.departmentId().isBlank()) {
+            parameters.addValue("departmentId", query.departmentId());
+        }
+        if (query.specimenStatus() != null && !query.specimenStatus().isBlank()) {
+            parameters.addValue("specimenStatus", query.specimenStatus());
+        }
+        if (query.abnormalFlag() != null) {
+            parameters.addValue("abnormalFlag", query.abnormalFlag());
+        }
+        if (query.dateFrom() != null) {
+            parameters.addValue("dateFrom", query.dateFrom());
+        }
+        if (query.dateTo() != null) {
+            parameters.addValue("dateTo", query.dateTo());
+        }
+        return parameters;
+    }
+
+    private SpecimenRemovalSummary mapSpecimenRemovalSummary(ResultSet rs, int rowNum) throws SQLException {
+        return new SpecimenRemovalSummary(
+            rs.getLong("total_count"),
+            rs.getLong("confirmed_count"),
+            rs.getLong("pending_count"),
+            rs.getLong("abnormal_count"));
+    }
+
     private boolean hasSpecimenContainerColumns() {
         Boolean cached = specimenContainerColumnsAvailable;
         if (cached != null) {
@@ -1496,6 +2021,28 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             columnExists(connection.getMetaData(), "SPECIMEN_COLLECTION_RECORDS", "PRINTER_CODE"));
         collectionPrinterCodeColumnAvailable = Boolean.TRUE.equals(resolved);
         return collectionPrinterCodeColumnAvailable;
+    }
+
+    private boolean hasSpecimenRemovalColumns() {
+        Boolean cached = specimenRemovalColumnsAvailable;
+        if (cached != null) {
+            return cached;
+        }
+        Boolean resolved = jdbcTemplate.getJdbcOperations().execute((ConnectionCallback<Boolean>) connection ->
+            columnExists(connection.getMetaData(), "SPECIMENS", "SPECIMEN_REMOVAL_AT")
+                && columnExists(connection.getMetaData(), "SPECIMENS", "SPECIMEN_REMOVAL_OPERATOR_USER_ID")
+                && columnExists(connection.getMetaData(), "SPECIMENS", "SPECIMEN_REMOVAL_OPERATOR_NAME"));
+        specimenRemovalColumnsAvailable = Boolean.TRUE.equals(resolved);
+        return specimenRemovalColumnsAvailable;
+    }
+
+    private boolean hasSpecimenConfirmationColumns() {
+        Boolean resolved = jdbcTemplate.getJdbcOperations().execute((ConnectionCallback<Boolean>) connection ->
+            columnExists(connection.getMetaData(), "SPECIMENS", "SPECIMEN_CONFIRMED_AT")
+                && columnExists(connection.getMetaData(), "SPECIMENS", "CHECK_IN_STATUS")
+                && columnExists(connection.getMetaData(), "SPECIMENS", "CHECKED_IN_AT")
+                && columnExists(connection.getMetaData(), "SPECIMENS", "CHECKED_IN_BY_NAME"));
+        return Boolean.TRUE.equals(resolved);
     }
 
     private boolean columnExists(DatabaseMetaData metadata, String tableName, String columnName) throws SQLException {
@@ -1532,6 +2079,98 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         return "                cast(null as integer) as container_count,\n";
     }
 
+    private String specimenConfirmedAtSelect(String alias) {
+        if (hasSpecimenConfirmationColumns()) {
+            return "                " + alias + ".specimen_confirmed_at as specimen_confirmed_at,\n";
+        }
+        return "                cast(null as timestamp) as specimen_confirmed_at,\n";
+    }
+
+    private String specimenRemovalAtSelect(String alias) {
+        if (hasSpecimenRemovalColumns()) {
+            return "                " + alias + ".specimen_removal_at as specimen_removal_at,\n";
+        }
+        return "                cast(null as timestamp) as specimen_removal_at,\n";
+    }
+
+    private String specimenRemovalOperatorUserIdSelect(String alias) {
+        if (hasSpecimenRemovalColumns()) {
+            return "                " + alias + ".specimen_removal_operator_user_id as specimen_removal_operator_user_id,\n";
+        }
+        return "                cast(null as varchar(64)) as specimen_removal_operator_user_id,\n";
+    }
+
+    private String specimenRemovalOperatorNameSelect(String alias) {
+        if (hasSpecimenRemovalColumns()) {
+            return "                " + alias + ".specimen_removal_operator_name as specimen_removal_operator_name,\n";
+        }
+        return "                cast(null as varchar(100)) as specimen_removal_operator_name,\n";
+    }
+
+    private String checkInStatusSelect(String alias, String resultAlias) {
+        if (hasSpecimenConfirmationColumns()) {
+            return "                coalesce(" + alias + ".check_in_status, 'NOT_CHECKED_IN') as " + resultAlias + ",\n";
+        }
+        return "                cast('NOT_CHECKED_IN' as varchar(32)) as " + resultAlias + ",\n";
+    }
+
+    private String checkedInAtSelect(String alias) {
+        if (hasSpecimenConfirmationColumns()) {
+            return "                " + alias + ".checked_in_at as checked_in_at,\n";
+        }
+        return "                cast(null as timestamp) as checked_in_at,\n";
+    }
+
+    private String checkedInByNameSelect(String alias) {
+        if (hasSpecimenConfirmationColumns()) {
+            return "                " + alias + ".checked_in_by_name as checked_in_by_name,\n";
+        }
+        return "                cast(null as varchar(100)) as checked_in_by_name,\n";
+    }
+
+    private String specimenSelectColumns() {
+        return """
+            select
+                s.*,
+                %s as verification_status,
+            """.formatted(SPECIMEN_VERIFICATION_STATUS_EXPRESSION)
+            + checkInStatusSelect("s", "resolved_check_in_status")
+            + """
+                sfr.verification_started_at as verification_started_at,
+                coalesce(sfr.verification_completed_at, sfr.verified_at) as verification_completed_at,
+            """
+            + specimenConfirmedAtSelect("s")
+            + specimenRemovalAtSelect("s")
+            + specimenRemovalOperatorUserIdSelect("s")
+            + specimenRemovalOperatorNameSelect("s")
+            + checkedInAtSelect("s")
+            + checkedInByNameSelect("s")
+            + """
+                latest_receipt.receipt_status as latest_receipt_status,
+                latest_receipt.quality_check_result as latest_quality_check_result,
+                latest_receipt.quality_issue_codes as latest_quality_issue_codes
+            from specimens s
+            left join specimen_fixation_records sfr on sfr.specimen_id = s.id
+            left join (
+                select
+                    ranked.specimen_id,
+                    ranked.receipt_status,
+                    ranked.quality_check_result,
+                    ranked.quality_issue_codes
+                from (
+                    select
+                        sr.*,
+                        row_number() over (
+                            partition by sr.specimen_id
+                            order by sr.received_at desc, sr.id desc
+                        ) as rn
+                    from specimen_receipts sr
+                ) ranked
+                where ranked.rn = 1
+            ) latest_receipt on latest_receipt.specimen_id = s.id
+            """;
+    }
+
     private String nextId(String prefix) {
         return prefix + "-" + UUID.randomUUID();
     }
@@ -1551,6 +2190,21 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             JdbcResultSetUtils.getNullableInteger(rs, "container_count"),
             rs.getString("specimen_status"),
             rs.getString("fixation_status"),
+            JdbcResultSetUtils.getNullableString(rs, "verification_status"),
+            rs.getTimestamp("verification_started_at") == null
+                ? null
+                : rs.getTimestamp("verification_started_at").toLocalDateTime(),
+            rs.getTimestamp("verification_completed_at") == null
+                ? null
+                : rs.getTimestamp("verification_completed_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_confirmed_at") == null
+                ? null
+                : JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_confirmed_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableString(rs, "check_in_status"),
+            JdbcResultSetUtils.getNullableTimestamp(rs, "checked_in_at") == null
+                ? null
+                : JdbcResultSetUtils.getNullableTimestamp(rs, "checked_in_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableString(rs, "checked_in_by_name"),
             rs.getTimestamp("registered_at") == null ? null : rs.getTimestamp("registered_at").toLocalDateTime(),
             rs.getTimestamp("latest_event_time") == null ? null : rs.getTimestamp("latest_event_time").toLocalDateTime(),
             rs.getInt("abnormal_flag") == 1);
@@ -1586,6 +2240,10 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             rs.getInt("abnormal_flag") == 1,
             rs.getInt("registered_specimen_count"),
             rs.getString("latest_label_print_status"),
+            rs.getInt("editable") == 1,
+            rs.getInt("deletable") == 1,
+            rs.getInt("voided") == 1,
+            JdbcResultSetUtils.getNullableString(rs, "operation_disabled_reason"),
             rs.getDate("application_date") == null ? null : rs.getDate("application_date").toLocalDate(),
             rs.getDate("submission_date") == null ? null : rs.getDate("submission_date").toLocalDate(),
             rs.getTimestamp("created_at") == null ? null : rs.getTimestamp("created_at").toLocalDateTime(),
@@ -1623,9 +2281,50 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             JdbcResultSetUtils.getNullableInteger(rs, "container_count"),
             rs.getString("specimen_status"),
             rs.getString("fixation_status"),
+            rs.getString("verification_status"),
+            JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_confirmed_at") == null
+                ? null
+                : JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_confirmed_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableString(rs, "check_in_status"),
+            JdbcResultSetUtils.getNullableTimestamp(rs, "checked_in_at") == null
+                ? null
+                : JdbcResultSetUtils.getNullableTimestamp(rs, "checked_in_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableString(rs, "checked_in_by_name"),
             rs.getString("label_print_status"),
             rs.getString("label_print_batch_no"),
             rs.getTimestamp("registered_at") == null ? null : rs.getTimestamp("registered_at").toLocalDateTime(),
+            rs.getTimestamp("latest_event_time") == null ? null : rs.getTimestamp("latest_event_time").toLocalDateTime(),
+            rs.getInt("abnormal_flag") == 1);
+    }
+
+    private SpecimenRemovalListRow mapSpecimenRemovalListRow(ResultSet rs, int rowNum) throws SQLException {
+        return new SpecimenRemovalListRow(
+            rs.getString("specimen_id"),
+            rs.getString("specimen_no"),
+            rs.getString("barcode"),
+            rs.getString("application_id"),
+            rs.getString("application_no"),
+            rs.getString("patient_name"),
+            JdbcResultSetUtils.getNullableString(rs, "patient_gender"),
+            JdbcResultSetUtils.getNullableString(rs, "inpatient_no"),
+            JdbcResultSetUtils.getNullableString(rs, "surgery_name"),
+            rs.getString("submitting_department_id"),
+            rs.getString("submitting_department_name"),
+            rs.getString("specimen_name"),
+            rs.getString("specimen_type"),
+            rs.getObject("specimen_count", Integer.class),
+            JdbcResultSetUtils.getNullableString(rs, "container_name"),
+            JdbcResultSetUtils.getNullableInteger(rs, "container_count"),
+            rs.getString("specimen_status"),
+            rs.getString("fixation_status"),
+            rs.getString("verification_status"),
+            JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_removal_at") == null
+                ? null
+                : JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_removal_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableString(rs, "specimen_removal_operator_name"),
+            rs.getTimestamp("registered_at") == null ? null : rs.getTimestamp("registered_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableString(rs, "label_print_batch_no"),
+            JdbcResultSetUtils.getNullableString(rs, "registered_by_name"),
             rs.getTimestamp("latest_event_time") == null ? null : rs.getTimestamp("latest_event_time").toLocalDateTime(),
             rs.getInt("abnormal_flag") == 1);
     }

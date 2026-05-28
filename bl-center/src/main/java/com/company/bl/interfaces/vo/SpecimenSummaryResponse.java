@@ -34,10 +34,22 @@ public record SpecimenSummaryResponse(
     String fixationStatus,
     @Schema(description = "核对状态")
     String verificationStatus,
+    @Schema(description = "开始核对时间")
+    String verificationStartedAt,
+    @Schema(description = "完成核对时间")
+    String verificationCompletedAt,
     @Schema(description = "条码绑定状态")
     String barcodeBindingStatus,
     @Schema(description = "标签打印状态")
     String labelPrintStatus,
+    @Schema(description = "标本确认时间")
+    String specimenConfirmedAt,
+    @Schema(description = "入库状态")
+    String checkInStatus,
+    @Schema(description = "入库时间")
+    String checkedInAt,
+    @Schema(description = "入库操作人")
+    String checkedInByName,
     @Schema(description = "接收结果")
     String receiptStatus,
     @Schema(description = "质控结果")
