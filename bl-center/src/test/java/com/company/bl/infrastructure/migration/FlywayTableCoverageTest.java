@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class FlywayTableCoverageTest {
 
     private static final Pattern CREATE_TABLE_PATTERN =
-        Pattern.compile("(?i)CREATE\\s+TABLE\\s+\"?([A-Za-z0-9_]+)\"?");
+        Pattern.compile("(?i)CREATE\\s+TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?\"?([A-Za-z0-9_]+)\"?");
 
     private static final Pattern TABLE_NAME_PATTERN =
         Pattern.compile("@TableName\\(\"([A-Za-z0-9_]+)\"\\)");

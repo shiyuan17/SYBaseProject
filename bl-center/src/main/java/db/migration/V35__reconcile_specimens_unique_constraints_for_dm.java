@@ -19,7 +19,7 @@ import java.util.Objects;
 public class V35__reconcile_specimens_unique_constraints_for_dm extends BaseJavaMigration {
 
     private static final String TABLE_NAME = "SPECIMENS";
-    private static final String TARGET_CONSTRAINT = "UK_SPECIMENS_APPLICATION_SPECIMEN_NO";
+    private static final String TARGET_CONSTRAINT = "UK_SPECIMENS_SPECIMEN_NO";
 
     @Override
     public void migrate(Context context) throws Exception {
@@ -28,7 +28,7 @@ public class V35__reconcile_specimens_unique_constraints_for_dm extends BaseJava
             return;
         }
         dropLegacyCaseSpecimenConstraint(connection);
-        ensureApplicationSpecimenConstraint(connection);
+        ensureSpecimenNoConstraint(connection);
     }
 
     private void dropLegacyCaseSpecimenConstraint(Connection connection) throws SQLException {
@@ -39,15 +39,15 @@ public class V35__reconcile_specimens_unique_constraints_for_dm extends BaseJava
         }
     }
 
-    private void ensureApplicationSpecimenConstraint(Connection connection) throws SQLException {
+    private void ensureSpecimenNoConstraint(Connection connection) throws SQLException {
         for (UniqueConstraint constraint : findUniqueConstraints(connection, TABLE_NAME)) {
-            if (constraint.matches("APPLICATION_ID", "SPECIMEN_NO")) {
+            if (constraint.matches("SPECIMEN_NO")) {
                 return;
             }
         }
         execute(connection,
             "ALTER TABLE " + TABLE_NAME + " ADD CONSTRAINT " + TARGET_CONSTRAINT
-                + " UNIQUE (APPLICATION_ID, SPECIMEN_NO)");
+                + " UNIQUE (SPECIMEN_NO)");
     }
 
     private List<UniqueConstraint> findUniqueConstraints(Connection connection, String tableName) throws SQLException {

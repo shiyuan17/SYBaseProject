@@ -140,8 +140,6 @@ public class SaveApplicationRegistrationWorkbenchRequest {
         @NotBlank
         @Size(max = 200)
         private String specimenName;
-        @Size(max = 64)
-        private String specimenNo;
         @NotBlank
         @Size(max = 200)
         private String specimenSite;
@@ -164,6 +162,8 @@ public class SaveApplicationRegistrationWorkbenchRequest {
         private String fixationTime;
         @Size(max = 64)
         private String roomId;
+        @Size(max = 32)
+        private String specimenRemovalTime;
         @Size(max = 200)
         private String surgeryName;
     }

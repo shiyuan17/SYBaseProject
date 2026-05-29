@@ -34,6 +34,10 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
     @Autowired
     protected NamedParameterJdbcTemplate jdbcTemplate;
 
+    protected String uniqueSuffix() {
+        return Long.toString(System.nanoTime());
+    }
+
     protected String createApplication(String applicationNo) throws Exception {
         return createApplication(applicationNo, "DEPT-OR", "OR");
     }

@@ -104,6 +104,14 @@ public interface SpecimenWorkflowRepository {
                                 String removalOperatorUserId,
                                 String removalOperatorName);
 
+    void completeSpecimenVerificationFromRemoval(String applicationId,
+                                                 String specimenId,
+                                                 LocalDateTime verificationCompletedAt,
+                                                 String verifiedByUserId,
+                                                 String verifiedByName,
+                                                 String terminalCode,
+                                                 String remarks);
+
     void updateSpecimenStatus(String specimenId,
                               SpecimenStatus specimenStatus,
                               FixationStatus fixationStatus,

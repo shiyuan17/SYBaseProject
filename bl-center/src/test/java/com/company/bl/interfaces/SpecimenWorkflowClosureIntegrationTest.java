@@ -145,6 +145,35 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
                 """,
             java.util.Map.of("specimenId", specimenId),
             Long.class)).isEqualTo(1L);
+        assertThat(jdbcTemplate.queryForObject(
+            """
+                select count(1)
+                from specimen_fixation_records
+                where specimen_id = :specimenId
+                  and verification_completed_at is not null
+                  and verified_at is not null
+                """,
+            java.util.Map.of("specimenId", specimenId),
+            Long.class)).isEqualTo(1L);
+
+        mockMvc.perform(authorized(get("/api/v1/specimens"), USER_REGISTER)
+                .param("page", "1")
+                .param("size", "20")
+                .param("keyword", barcode))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.items[0].barcode").value(barcode))
+            .andExpect(jsonPath("$.data.items[0].verificationStatus").value("VERIFIED"));
+
+        postJson("/api/v1/specimen-fixations/start", USER_FIXATION, """
+            {
+              "specimenBarcode": "%s",
+              "fixationLiquidType": "FORMALIN",
+              "operatorName": "nurse-b",
+              "terminalCode": "T-FIXATION"
+            }
+            """.formatted(barcode))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.fixationStatus").value("FIXING"));
     }
 
     @Test
@@ -188,24 +217,38 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
         JsonNode registration2 = registerSpecimens(
             applicationId2, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-REMOVAL-DUP-002");
         String secondBarcode = registration2.path("specimens").get(0).path("barcode").asText();
+        String secondSpecimenNo = registration2.path("specimens").get(0).path("specimenNo").asText();
 
-        jdbcTemplate.update(
-            """
-                update specimens
-                set specimen_no = :specimenNo
-                where barcode = :barcode
-                """,
-            java.util.Map.of("specimenNo", specimenNo, "barcode", secondBarcode));
+        jdbcTemplate.getJdbcTemplate().execute("alter table specimens drop constraint uk_specimens_specimen_no");
+        try {
+            jdbcTemplate.update(
+                """
+                    update specimens
+                    set specimen_no = :specimenNo
+                    where barcode = :barcode
+                    """,
+                java.util.Map.of("specimenNo", specimenNo, "barcode", secondBarcode));
 
-        postJson("/api/v1/specimen-removals/confirm-by-identifier", USER_FIXATION, """
-            {
-              "identifierType": "SPECIMEN_NO",
-              "identifier": "%s",
-              "operatorName": "manual-name"
-            }
-            """.formatted(specimenNo))
-            .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.code").value("INVALID_ARGUMENT"));
+            postJson("/api/v1/specimen-removals/confirm-by-identifier", USER_FIXATION, """
+                {
+                  "identifierType": "SPECIMEN_NO",
+                  "identifier": "%s",
+                  "operatorName": "manual-name"
+                }
+                """.formatted(specimenNo))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_ARGUMENT"));
+        } finally {
+            jdbcTemplate.update(
+                """
+                    update specimens
+                    set specimen_no = :specimenNo
+                    where barcode = :barcode
+                    """,
+                java.util.Map.of("specimenNo", secondSpecimenNo, "barcode", secondBarcode));
+            jdbcTemplate.getJdbcTemplate()
+                .execute("alter table specimens add constraint uk_specimens_specimen_no unique (specimen_no)");
+        }
     }
 
     @Test

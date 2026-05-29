@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -46,25 +47,20 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
 
     @Test
     void shouldCreateApplicationWhenRequestIsValid() throws Exception {
+        String applicationNo = "APP-1001-" + System.nanoTime();
         mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "applicationNo": "APP-1001",
+                      "applicationNo": "%s",
                       "applicationType": "ROUTINE",
                       "patientId": "P-1001",
                       "applicationFormStatus": "PENDING",
                       "applicationDate": "2026-05-21",
                       "submissionDate": "2026-05-22",
-                      "specimenRemovalTime": "2026-05-21T09:30:00",
-                      "submittingDepartmentId": "DEPT-OR",
-                      "submittingDepartmentName": "OR",
-                      "submittingDoctorUserId": "DOC-1001",
-                      "submittingDoctorName": "Dr Test",
-                      "clinicalDiagnosis": "test diagnosis",
-                      "specimenSite": "Thyroid"
+                      "clinicalDiagnosis": "test diagnosis"
                     }
-                    """))
+                    """.formatted(applicationNo)))
             .andExpect(status().isCreated())
             .andExpect(header().exists("X-Trace-Id"))
             .andExpect(jsonPath("$.code", is("SUCCESS")))
@@ -83,8 +79,14 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                     """))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code", is("VALIDATION_ERROR")))
-            .andExpect(jsonPath("$.message", containsString("申请单号长度不能超过64个字符")))
-            .andExpect(jsonPath("$.message", containsString("申请类型不能为空")))
+            .andExpect(jsonPath("$.message", anyOf(
+                containsString("申请单号长度不能超过64个字符"),
+                containsString("Application number must not exceed 64 characters")
+            )))
+            .andExpect(jsonPath("$.message", anyOf(
+                containsString("申请类型不能为空"),
+                containsString("Application type must not be blank")
+            )))
             .andExpect(jsonPath("$.traceId", notNullValue()));
     }
 
@@ -94,10 +96,12 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code", is("VALIDATION_ERROR")))
-            .andExpect(jsonPath("$.message", is("请求体不能为空，且必须是合法的 JSON")))
+            .andExpect(jsonPath("$.message", anyOf(
+                is("请求体不能为空，且必须是合法的 JSON"),
+                is("Request body is required and must be valid JSON")
+            )))
             .andExpect(jsonPath("$.traceId", notNullValue()));
     }
-
     @Test
     void shouldReturnNotFoundWhenApplicationDoesNotExist() throws Exception {
         mockMvc.perform(authorized(get("/api/v1/applications/not-found-id"), USER_TRACKING))
@@ -180,11 +184,13 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
 
     @Test
     void shouldExposeAbnormalFlagInApplicationList() throws Exception {
+        String applicationNo = "APP-LIST-ABNORMAL-" + System.nanoTime();
+        String barcode = "BC-LIST-ABNORMAL-" + System.nanoTime();
         JsonNode application = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "applicationNo": "APP-LIST-ABNORMAL",
+                      "applicationNo": "%s",
                       "applicationType": "ROUTINE",
                       "patientId": "P-LIST-ABNORMAL",
                       "patientName": "Patient Abnormal",
@@ -195,7 +201,7 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                       "clinicalDiagnosis": "abnormal diagnosis",
                       "specimenSite": "Thyroid"
                     }
-                    """)), 201);
+                    """.formatted(applicationNo))), 201);
         String applicationId = application.path("id").asText();
 
         JsonNode registration = responseData(mockMvc.perform(authorized(post("/api/v1/specimens/register"), USER_REGISTER)
@@ -215,12 +221,12 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                           "containerName": "Specimen Bottle",
                           "containerCount": 1,
                           "specimenCount": 1,
-                          "barcode": "BC-LIST-ABNORMAL-001"
+                          "barcode": "%s"
                         }
                       ]
                     }
-                    """.formatted(applicationId))), 201);
-        String barcode = registration.path("specimens").get(0).path("barcode").asText();
+                    """.formatted(applicationId, barcode))), 201);
+        String registeredBarcode = registration.path("specimens").get(0).path("barcode").asText();
 
         mockMvc.perform(authorized(post("/api/v1/specimen-verifications/start"), USER_FIXATION)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -229,7 +235,7 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                       "specimenBarcode": "%s",
                       "operatorName": "nurse-b"
                     }
-                    """.formatted(barcode)))
+                    """.formatted(registeredBarcode)))
             .andExpect(status().isOk());
 
         mockMvc.perform(authorized(post("/api/v1/specimen-verifications/complete"), USER_FIXATION)
@@ -239,7 +245,7 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                       "specimenBarcode": "%s",
                       "operatorName": "nurse-b"
                     }
-                    """.formatted(barcode)))
+                    """.formatted(registeredBarcode)))
             .andExpect(status().isOk());
 
         mockMvc.perform(authorized(post("/api/v1/specimen-fixations/start"), USER_FIXATION)
@@ -250,7 +256,7 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                       "fixationLiquidType": "FORMALIN",
                       "operatorName": "nurse-b"
                     }
-                    """.formatted(barcode)))
+                    """.formatted(registeredBarcode)))
             .andExpect(status().isOk());
 
         mockMvc.perform(authorized(post("/api/v1/specimen-fixations/complete"), USER_FIXATION)
@@ -261,7 +267,28 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                       "fixationLiquidType": "FORMALIN",
                       "operatorName": "nurse-b"
                     }
-                    """.formatted(barcode)))
+                    """.formatted(registeredBarcode)))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(post("/api/v1/specimens/barcodes/%s/confirm".formatted(registeredBarcode)), USER_FIXATION)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "operatorName": "nurse-b",
+                      "terminalCode": "T-CONFIRM"
+                    }
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(post("/api/v1/specimens/barcodes/%s/check-in".formatted(registeredBarcode)), USER_FIXATION)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "operatorName": "nurse-b",
+                      "specimenBarcode": "%s",
+                      "terminalCode": "T-CHECK-IN"
+                    }
+                    """.formatted(registeredBarcode)))
             .andExpect(status().isOk());
 
         JsonNode transportOrder = responseData(mockMvc.perform(authorized(post("/api/v1/transport-orders"), USER_TRANSPORT)
@@ -277,7 +304,7 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                       "receiverDepartmentName": "Pathology",
                       "terminalCode": "OR-02"
                     }
-                    """.formatted(applicationId, barcode))), 201);
+                    """.formatted(applicationId, registeredBarcode))), 201);
         String transportOrderId = transportOrder.path("id").asText();
 
         mockMvc.perform(authorized(post("/api/v1/transport-orders/%s/handover".formatted(transportOrderId)), USER_TRANSPORT)
@@ -307,13 +334,13 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                         }
                       ]
                     }
-                    """.formatted(transportOrderId, barcode)))
+                    """.formatted(transportOrderId, registeredBarcode)))
             .andExpect(status().isOk());
 
         mockMvc.perform(authorized(get("/api/v1/applications"), USER_TRACKING)
                 .param("page", "1")
                 .param("size", "20")
-                .param("applicationNo", "APP-LIST-ABNORMAL"))
+                .param("applicationNo", applicationNo))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.total").value(1))
             .andExpect(jsonPath("$.data.items[0].abnormalFlag").value(true));
@@ -331,14 +358,8 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                       "patientName": "Patient Before Update",
                       "applicationDate": "2026-05-20",
                       "submissionDate": "2026-05-21",
-                      "specimenRemovalTime": "2026-05-20T08:45:00",
                       "applicationFormStatus": "PENDING",
-                      "submittingDepartmentId": "DEPT-UPDATE",
-                      "submittingDepartmentName": "Update Department",
-                      "submittingDoctorUserId": "DOC-UPDATE-001",
-                      "submittingDoctorName": "Dr Update",
-                      "clinicalDiagnosis": "before update",
-                      "specimenSite": "Stomach"
+                      "clinicalDiagnosis": "before update"
                     }
                     """)), 201);
         String applicationId = created.path("id").asText();
@@ -353,14 +374,8 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                       "patientName": "Patient After Update",
                       "applicationDate": "2026-05-22",
                       "submissionDate": "2026-05-23",
-                      "specimenRemovalTime": "2026-05-22T09:15:00",
                       "applicationFormStatus": "UPLOADED",
-                      "submittingDepartmentId": "DEPT-UPDATE",
-                      "submittingDepartmentName": "Update Department",
-                      "submittingDoctorUserId": "DOC-UPDATE-002",
-                      "submittingDoctorName": "Dr Updated",
-                      "clinicalDiagnosis": "after update",
-                      "specimenSite": "Thyroid"
+                      "clinicalDiagnosis": "after update"
                     }
                     """))
             .andExpect(status().isOk())
@@ -433,12 +448,7 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                       "applicationType": "ROUTINE",
                       "patientId": "P-DOWNSTREAM-LOCK",
                       "patientName": "Patient Locked",
-                      "submittingDepartmentId": "DEPT-LOCK",
-                      "submittingDepartmentName": "Lock Department",
-                      "submittingDoctorUserId": "DOC-LOCK-001",
-                      "submittingDoctorName": "Dr Lock",
-                      "clinicalDiagnosis": "locked diagnosis",
-                      "specimenSite": "Thyroid"
+                      "clinicalDiagnosis": "locked diagnosis"
                     }
                     """)), 201);
         String applicationId = created.path("id").asText();
@@ -531,12 +541,7 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                       "submissionDate": "2026-05-21",
                       "specimenRemovalTime": "2026-05-20T08:45:00",
                       "applicationFormStatus": "PENDING",
-                      "submittingDepartmentId": "DEPT-DETAIL",
-                      "submittingDepartmentName": "Detail Department",
-                      "submittingDoctorUserId": "DOC-DETAIL-001",
-                      "submittingDoctorName": "Dr Detail",
-                      "clinicalDiagnosis": "detail diagnosis",
-                      "specimenSite": "Stomach"
+                      "clinicalDiagnosis": "detail diagnosis"
                     }
                     """)), 201);
         String applicationId = created.path("id").asText();
@@ -653,12 +658,7 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                     {
                       "applicationType": "ROUTINE",
                       "patientId": "P-AUTO-001",
-                      "submittingDepartmentId": "DEPT-OR",
-                      "submittingDepartmentName": "OR",
-                      "submittingDoctorUserId": "DOC-AUTO-001",
-                      "submittingDoctorName": "Dr Auto",
-                      "clinicalDiagnosis": "auto no",
-                      "specimenSite": "Lung"
+                      "clinicalDiagnosis": "auto no"
                     }
                     """))
             .andExpect(status().isCreated())
@@ -675,12 +675,7 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                       "applicationNo": "APP-1002",
                       "applicationType": "ROUTINE",
                       "patientId": "P-1002",
-                      "submittingDepartmentId": "DEPT-OR",
-                      "submittingDepartmentName": "OR",
-                      "submittingDoctorUserId": "DOC-1002",
-                      "submittingDoctorName": "Dr Metrics",
-                      "clinicalDiagnosis": "metric diagnosis",
-                      "specimenSite": "Liver"
+                      "clinicalDiagnosis": "metric diagnosis"
                     }
                     """))
             .andExpect(status().isCreated());
@@ -739,12 +734,7 @@ class ApplicationControllerIntegrationTest extends AuthenticatedWebIntegrationTe
                     {
                       "applicationType": "ROUTINE",
                       "patientId": "P-FORBID-001",
-                      "submittingDepartmentId": "DEPT-OR",
-                      "submittingDepartmentName": "OR",
-                      "submittingDoctorUserId": "DOC-FORBID-001",
-                      "submittingDoctorName": "Dr Forbidden",
-                      "clinicalDiagnosis": "forbidden diagnosis",
-                      "specimenSite": "Lung"
+                      "clinicalDiagnosis": "forbidden diagnosis"
                     }
                     """))
             .andExpect(status().isForbidden())

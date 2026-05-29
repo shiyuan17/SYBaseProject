@@ -560,6 +560,60 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
     }
 
     @Override
+    public void completeSpecimenVerificationFromRemoval(String applicationId,
+                                                       String specimenId,
+                                                       LocalDateTime verificationCompletedAt,
+                                                       String verifiedByUserId,
+                                                       String verifiedByName,
+                                                       String terminalCode,
+                                                       String remarks) {
+        Long count = jdbcTemplate.queryForObject("""
+            select count(1)
+            from specimen_fixation_records
+            where specimen_id = :specimenId
+            """, Map.of("specimenId", specimenId), Long.class);
+        if (count != null && count > 0) {
+            jdbcTemplate.update("""
+                update specimen_fixation_records
+                set verification_started_at = coalesce(verification_started_at, :verificationCompletedAt),
+                    verification_completed_at = coalesce(verification_completed_at, :verificationCompletedAt),
+                    verified_at = coalesce(verified_at, :verificationCompletedAt),
+                    verified_by_user_id = coalesce(verified_by_user_id, :verifiedByUserId),
+                    verified_by_name = coalesce(verified_by_name, :verifiedByName),
+                    terminal_code = coalesce(terminal_code, :terminalCode),
+                    remarks = coalesce(remarks, :remarks)
+                where specimen_id = :specimenId
+                """, new MapSqlParameterSource()
+                .addValue("specimenId", specimenId)
+                .addValue("verificationCompletedAt", verificationCompletedAt)
+                .addValue("verifiedByUserId", verifiedByUserId)
+                .addValue("verifiedByName", verifiedByName)
+                .addValue("terminalCode", terminalCode)
+                .addValue("remarks", remarks));
+            return;
+        }
+        jdbcTemplate.update("""
+            insert into specimen_fixation_records
+                (id, application_id, specimen_id, fixation_status, verification_started_at,
+                 verification_completed_at, verified_at, verified_by_user_id, verified_by_name,
+                 terminal_code, remarks)
+            values
+                (:id, :applicationId, :specimenId, :fixationStatus, :verificationCompletedAt,
+                 :verificationCompletedAt, :verificationCompletedAt, :verifiedByUserId, :verifiedByName,
+                 :terminalCode, :remarks)
+            """, new MapSqlParameterSource()
+            .addValue("id", nextId("SFR"))
+            .addValue("applicationId", applicationId)
+            .addValue("specimenId", specimenId)
+            .addValue("fixationStatus", FixationStatus.PENDING.name())
+            .addValue("verificationCompletedAt", verificationCompletedAt)
+            .addValue("verifiedByUserId", verifiedByUserId)
+            .addValue("verifiedByName", verifiedByName)
+            .addValue("terminalCode", terminalCode)
+            .addValue("remarks", remarks));
+    }
+
+    @Override
     public void updateSpecimenStatus(String specimenId,
                                      SpecimenStatus specimenStatus,
                                      FixationStatus fixationStatus,

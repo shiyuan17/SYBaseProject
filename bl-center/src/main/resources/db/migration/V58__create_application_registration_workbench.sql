@@ -1,4 +1,4 @@
-CREATE TABLE application_registration_workbench (
+CREATE TABLE IF NOT EXISTS application_registration_workbench (
     application_id VARCHAR(64) NOT NULL,
     inpatient_no VARCHAR(64),
     bed_no VARCHAR(64),
@@ -44,5 +44,5 @@ CREATE TABLE application_registration_workbench (
     CONSTRAINT fk_application_registration_workbench_application FOREIGN KEY (application_id) REFERENCES applications (id)
 );
 
-CREATE INDEX idx_app_reg_workbench_inpatient_no
+CREATE INDEX IF NOT EXISTS idx_app_reg_workbench_inpatient_no
     ON application_registration_workbench (inpatient_no);

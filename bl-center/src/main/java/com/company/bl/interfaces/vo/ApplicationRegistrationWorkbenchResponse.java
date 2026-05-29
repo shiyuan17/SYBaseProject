@@ -93,6 +93,7 @@ public record ApplicationRegistrationWorkbenchResponse(
         String fixationPerson,
         String fixationTime,
         String roomId,
+        String specimenRemovalTime,
         String surgeryName
     ) {
     }

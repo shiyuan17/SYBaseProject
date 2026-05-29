@@ -94,11 +94,10 @@ public class ApplicationRegistrationWorkbenchController {
                     request.getPatientInfo().getRemark(),
                     request.getPatientInfo().getSpecimenType(),
                     request.getPatientInfo().getWardName()),
-                request.getSpecimenItems().stream().map(item -> new ApplicationRegistrationWorkbenchAppService.SpecimenItem(
+                request.getSpecimenItems().stream().map(item -> new ApplicationRegistrationWorkbenchAppService.SaveSpecimenItem(
                     null,
                     item.getQuantity(),
                     item.getSpecimenName(),
-                    item.getSpecimenNo(),
                     item.getSpecimenSite(),
                     item.getStatus()))
                     .toList(),
@@ -109,6 +108,7 @@ public class ApplicationRegistrationWorkbenchController {
                     request.getSurgeryInfo().getFixationPerson(),
                     request.getSurgeryInfo().getFixationTime(),
                     request.getSurgeryInfo().getRoomId(),
+                    request.getSurgeryInfo().getSpecimenRemovalTime(),
                     request.getSurgeryInfo().getSurgeryName()),
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest))));
@@ -182,6 +182,7 @@ public class ApplicationRegistrationWorkbenchController {
                 record.surgeryInfo().fixationPerson(),
                 record.surgeryInfo().fixationTime(),
                 record.surgeryInfo().roomId(),
+                record.surgeryInfo().specimenRemovalTime(),
                 record.surgeryInfo().surgeryName()));
     }
 

@@ -7,6 +7,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -201,6 +202,9 @@ class WorkflowReferenceOptionsIntegrationTest extends AbstractTechnicalWorkflowI
     void shouldProtectWorkflowReferenceCategoriesFromDeletionWhenStillPopulated() throws Exception {
         mockMvc.perform(authorized(delete("/api/v1/system-configs/categories/SCC_WORKFLOW_REFERENCE_SPECIMEN_TYPE"), USER_M1_ADMIN))
             .andExpect(status().isConflict())
-            .andExpect(jsonPath("$.message", is("Config category still has children or items")));
+            .andExpect(jsonPath("$.message", anyOf(
+                is("Config category still has children or items"),
+                is("配置分类下仍有子分类或配置项")
+            )));
     }
 }

@@ -211,6 +211,41 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
             .doesNotContain(firstSpecimenId);
     }
 
+    @Test
+    void shouldGenerateGloballyUniqueSpecimenNosAcrossApplicationsWhenWorkbenchSaved() throws Exception {
+        String firstApplicationId = createApplication("APP-WORKBENCH-GLOBAL-001");
+        String secondApplicationId = createApplication("APP-WORKBENCH-GLOBAL-002");
+
+        responseBody(
+            postJson(
+                "/api/v1/application-registration-workbench/%s/save".formatted(firstApplicationId),
+                USER_REGISTER,
+                workbenchSavePayload("ZY-WORKBENCH-GLOBAL-001", "甲状腺病灶", "甲状腺")),
+            200);
+
+        responseBody(
+            postJson(
+                "/api/v1/application-registration-workbench/%s/save".formatted(secondApplicationId),
+                USER_REGISTER,
+                workbenchSavePayload("ZY-WORKBENCH-GLOBAL-002", "淋巴结病灶", "淋巴结")),
+            200);
+
+        var specimenNos = jdbcTemplate.queryForList("""
+                select specimen_no
+                from specimens
+                where application_id in (:firstApplicationId, :secondApplicationId)
+                order by specimen_no asc
+                """, java.util.Map.of(
+                "firstApplicationId", firstApplicationId,
+                "secondApplicationId", secondApplicationId));
+
+        assertThat(specimenNos).hasSize(2);
+        assertThat(specimenNos)
+            .extracting(row -> String.valueOf(row.get("specimen_no")))
+            .doesNotHaveDuplicates()
+            .doesNotContain("");
+    }
+
     private String workbenchSavePayload(String inpatientNo, String specimenName, String specimenSite) {
         return """
             {
@@ -270,7 +305,6 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
                 {
                   "quantity": 1,
                   "specimenName": "%s",
-                  "specimenNo": "22501",
                   "specimenSite": "%s",
                   "status": "新增"
                 }
@@ -353,14 +387,12 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
                 {
                   "quantity": 1,
                   "specimenName": "%s",
-                  "specimenNo": "22501",
                   "specimenSite": "%s",
                   "status": "新增"
                 },
                 {
                   "quantity": 1,
                   "specimenName": "%s",
-                  "specimenNo": "22502",
                   "specimenSite": "%s",
                   "status": "新增"
                 }

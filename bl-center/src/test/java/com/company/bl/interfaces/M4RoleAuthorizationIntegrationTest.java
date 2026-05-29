@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.is;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -85,8 +87,9 @@ class M4RoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInteg
 
     @Test
     void shouldRejectAcceptAndStartForDiagnosisUserWhoIsNotAssignedToTask() throws Exception {
-        PendingDiagnosticContext context = preparePendingDiagnosticCase("APP-M4-AUTH-001", "BC-M4-AUTH-001");
-        String otherDiagnosisUserId = createDiagnosisUser("AUTHALT");
+        String suffix = uniqueSuffix();
+        PendingDiagnosticContext context = preparePendingDiagnosticCase("APP-M4-AUTH-" + suffix, "BC-M4-AUTH-" + suffix);
+        String otherDiagnosisUserId = createDiagnosisUser("AUTHALT" + suffix);
 
         postJson("/api/v1/diagnostic-tasks/%s/assign".formatted(context.diagnosticTaskId()), USER_M4_ASSIGN, """
             {
@@ -108,7 +111,10 @@ class M4RoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInteg
             """)
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"))
-            .andExpect(jsonPath("$.message").value("User is not assigned to diagnostic task"));
+            .andExpect(jsonPath("$.message").value(anyOf(
+                is("User is not assigned to diagnostic task"),
+                is("用户未被分配到诊断任务")
+            )));
 
         postJson("/api/v1/diagnostic-tasks/%s/start".formatted(context.diagnosticTaskId()), otherDiagnosisUserId, """
             {
@@ -117,6 +123,9 @@ class M4RoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInteg
             """)
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"))
-            .andExpect(jsonPath("$.message").value("User is not assigned to diagnostic task"));
+            .andExpect(jsonPath("$.message").value(anyOf(
+                is("User is not assigned to diagnostic task"),
+                is("用户未被分配到诊断任务")
+            )));
     }
 }

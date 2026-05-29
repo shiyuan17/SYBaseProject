@@ -34,7 +34,8 @@ class M4Batch2AuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInt
 
     @Test
     void shouldRejectCommentFromNonParticipantEvenWithCommentPermission() throws Exception {
-        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-AUTH-001", "BC-M4-AUTH-001");
+        String suffix = uniqueSuffix();
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-AUTH-" + suffix, "BC-M4-AUTH-" + suffix);
         JsonNode created = responseBody(postJson("/api/v1/consultations", USER_M4_DIAGNOSIS, """
             {
               "caseId":"%s",

@@ -64,7 +64,7 @@ public class SpecimenWorkflowAppService {
         String labelPrintBatchNo = "LP-" + UUID.randomUUID();
         List<Specimen> specimens = new ArrayList<>();
         for (SpecimenRegistrationItem item : command.items()) {
-            String specimenNo = numberingService.generateSpecimenNo(command.applicationId());
+            String specimenNo = numberingService.generateSpecimenNo(null);
             String barcode = blank(item.barcode()) ? application.getApplicationNo() + "-" + specimenNo : item.barcode().trim();
             ensureBarcodeAvailable(barcode);
             Specimen specimen = new Specimen(
@@ -892,6 +892,14 @@ public class SpecimenWorkflowAppService {
             now,
             command.operatorUserId(),
             command.operatorName());
+        specimenWorkflowRepository.completeSpecimenVerificationFromRemoval(
+            specimen.applicationId(),
+            specimen.id(),
+            now,
+            command.operatorUserId(),
+            command.operatorName(),
+            command.terminalCode(),
+            command.remarks());
         specimenWorkflowRepository.insertWorkflowEvent(new TrackingEvent(
             "EVT-" + UUID.randomUUID(),
             specimen.applicationId(),

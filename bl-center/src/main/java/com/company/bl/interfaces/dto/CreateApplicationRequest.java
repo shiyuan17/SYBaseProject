@@ -19,7 +19,7 @@ public class CreateApplicationRequest {
     @Size(max = 64, message = "Application number must not exceed 64 characters")
     private String applicationNo;
 
-    @Schema(description = "患者 ID")
+    @Schema(description = "患者ID")
     @Size(max = 64, message = "Patient id must not exceed 64 characters")
     private String patientId;
 
@@ -61,22 +61,18 @@ public class CreateApplicationRequest {
     private String sourceHospitalName;
 
     @Schema(description = "送检科室 ID")
-    @NotBlank(message = "Submitting department id must not be blank")
     @Size(max = 64, message = "Submitting department id must not exceed 64 characters")
     private String submittingDepartmentId;
 
     @Schema(description = "送检科室名称")
-    @NotBlank(message = "Submitting department name must not be blank")
     @Size(max = 100, message = "Submitting department name must not exceed 100 characters")
     private String submittingDepartmentName;
 
     @Schema(description = "送检医生用户 ID")
-    @NotBlank(message = "Submitting doctor user id must not be blank")
     @Size(max = 64, message = "Submitting doctor user id must not exceed 64 characters")
     private String submittingDoctorUserId;
 
     @Schema(description = "送检医生姓名")
-    @NotBlank(message = "Submitting doctor name must not be blank")
     @Size(max = 100, message = "Submitting doctor name must not exceed 100 characters")
     private String submittingDoctorName;
 
@@ -90,12 +86,12 @@ public class CreateApplicationRequest {
     private String clinicalSymptom;
 
     @Schema(description = "送检部位")
-    @NotBlank(message = "Specimen site must not be blank")
     @Size(max = 200, message = "Specimen site must not exceed 200 characters")
     private String specimenSite;
 
     @Schema(description = "申请日期", type = "string", format = "date")
     private LocalDate applicationDate;
+
     @Schema(description = "送检日期", type = "string", format = "date")
     private LocalDate submissionDate;
 

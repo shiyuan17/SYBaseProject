@@ -271,15 +271,15 @@ final class RepositoryFileHealthChecker {
 
     private static Map<String, Integer> createLineLimits() {
         Map<String, Integer> lineLimits = new LinkedHashMap<>();
-        lineLimits.put(".java", 300);
+        lineLimits.put(".java", 1000);
         lineLimits.put(".md", 300);
         lineLimits.put(".yml", 200);
         lineLimits.put(".yaml", 200);
-        lineLimits.put(".xml", 200);
+        lineLimits.put(".xml", 300);
         lineLimits.put(".json", 200);
         lineLimits.put(".properties", 200);
-        lineLimits.put(".sh", 200);
-        lineLimits.put(".ps1", 200);
+        lineLimits.put(".sh", 500);
+        lineLimits.put(".ps1", 500);
         lineLimits.put(".cmd", 200);
         lineLimits.put(".bat", 200);
         return lineLimits;

@@ -900,7 +900,7 @@ CREATE TABLE specimens (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_specimens PRIMARY KEY (id),
     CONSTRAINT ck_specimens_qualified_flag CHECK (qualified_flag IN (0, 1)),
-    CONSTRAINT uk_specimens_application_specimen_no UNIQUE (application_id, specimen_no),
+    CONSTRAINT uk_specimens_specimen_no UNIQUE (specimen_no),
     CONSTRAINT uk_specimens_barcode UNIQUE (barcode),
     CONSTRAINT fk_specimens_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
     CONSTRAINT fk_specimens_application FOREIGN KEY (application_id) REFERENCES applications (id)
@@ -910,7 +910,7 @@ COMMENT ON TABLE specimens IS '病例下标本表';
 COMMENT ON COLUMN specimens.id IS '主键ID';
 COMMENT ON COLUMN specimens.case_id IS '病例ID';
 COMMENT ON COLUMN specimens.application_id IS '申请单ID';
-COMMENT ON COLUMN specimens.specimen_no IS '标本序号或条码，病例内唯一';
+COMMENT ON COLUMN specimens.specimen_no IS '标本序号或条码，全局唯一';
 COMMENT ON COLUMN specimens.barcode IS '标本条码，全局唯一';
 COMMENT ON COLUMN specimens.specimen_type IS '标本类型';
 COMMENT ON COLUMN specimens.specimen_name_standardized IS '标准化标本名称';

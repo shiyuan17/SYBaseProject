@@ -7,6 +7,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -33,11 +35,17 @@ class DiagnosticQueryIdentifierIntegrationTest extends AbstractDiagnosticWorkflo
         mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/diagnostic-workbench", "BL-NOT-FOUND"), USER_M4_DIAGNOSIS))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"))
-            .andExpect(jsonPath("$.message").value("Pathology case not found"));
+            .andExpect(jsonPath("$.message").value(anyOf(
+                is("Pathology case not found"),
+                is("病例不存在")
+            )));
 
         mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/report-tracking", "BL-NOT-FOUND"), USER_M4_TRACKING))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"))
-            .andExpect(jsonPath("$.message").value("Pathology case not found"));
+            .andExpect(jsonPath("$.message").value(anyOf(
+                is("Pathology case not found"),
+                is("病例不存在")
+            )));
     }
 }

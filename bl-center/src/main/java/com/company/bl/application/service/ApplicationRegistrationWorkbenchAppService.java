@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -128,6 +129,11 @@ public class ApplicationRegistrationWorkbenchAppService {
             .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Application not found"));
         var extension = workbenchRepository.findExtensionByApplicationId(applicationId).orElse(null);
         List<Specimen> specimens = specimenWorkflowRepository.findSpecimensByApplicationId(applicationId);
+        LocalDateTime specimenRemovalTime = specimens.stream()
+            .map(Specimen::specimenRemovalAt)
+            .filter(Objects::nonNull)
+            .min(LocalDateTime::compareTo)
+            .orElse(null);
 
         return new WorkbenchRecord(
             applicationId,
@@ -194,6 +200,7 @@ public class ApplicationRegistrationWorkbenchAppService {
                 extension == null ? null : extension.fixationPerson(),
                 stringify(extension == null ? null : extension.fixationTime()),
                 extension == null ? null : extension.roomId(),
+                stringify(specimenRemovalTime),
                 extension == null ? null : extension.surgeryName()));
     }
 
@@ -230,7 +237,7 @@ public class ApplicationRegistrationWorkbenchAppService {
         ContagiousSpecimen contagiousSpecimen,
         GynecologyInfo gynecologyInfo,
         PatientInfo patientInfo,
-        List<SpecimenItem> specimenItems,
+        List<SaveSpecimenItem> specimenItems,
         SurgeryInfo surgeryInfo,
         String operatorUserId,
         String operatorName
@@ -318,6 +325,15 @@ public class ApplicationRegistrationWorkbenchAppService {
     ) {
     }
 
+    public record SaveSpecimenItem(
+        String id,
+        Integer quantity,
+        String specimenName,
+        String specimenSite,
+        String status
+    ) {
+    }
+
     public record SurgeryInfo(
         String buildingId,
         String clinicalFindings,
@@ -325,6 +341,7 @@ public class ApplicationRegistrationWorkbenchAppService {
         String fixationPerson,
         String fixationTime,
         String roomId,
+        String specimenRemovalTime,
         String surgeryName
     ) {
     }

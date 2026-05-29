@@ -1,6 +1,11 @@
 spring:
   application:
     name: auth-center
+  datasource:
+    driver-class-name: ${AUTH_CENTER_DATASOURCE_DRIVER_CLASS_NAME:dm.jdbc.driver.DmDriver}
+    url: ${AUTH_CENTER_DATASOURCE_URL:jdbc:dm://127.0.0.1:5236}
+    username: ${AUTH_CENTER_DATASOURCE_USERNAME:SYSDBA}
+    password: ${AUTH_CENTER_DATASOURCE_PASSWORD:Dm.2027.Pwd.}
 
 server:
   port: 8081
@@ -36,5 +41,5 @@ security:
       issuer: sy-base-project
       access-token-ttl: PT8H
       sm2:
-        private-key: ${SECURITY_AUTH_JWT_SM2_PRIVATE_KEY:}
-        public-key: ${SECURITY_AUTH_JWT_SM2_PUBLIC_KEY:}
+        private-key: ${SECURITY_AUTH_JWT_SM2_PRIVATE_KEY:MIGTAgEAMBMGByqGSM49AgEGCCqBHM9VAYItBHkwdwIBAQQgFRpOClbX4u9Hpc+YDvXV7ShD1lfZk4EH0oyGF59PXQGgCgYIKoEcz1UBgi2hRANCAARrIcTZ4A4T3M55LVirPjtxhusNEndt2SmwXo5DfmQ+MHysYOCcFIOqI7YXUlrJ/e3D6owhe9Fo4nF7oZFzafRg}
+        public-key: ${SECURITY_AUTH_JWT_SM2_PUBLIC_KEY:MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAEayHE2eAOE9zOeS1Yqz47cYbrDRJ3bdkpsF6OQ35kPjB8rGDgnBSDqiO2F1Jayf3tw+qMIXvRaOJxe6GRc2n0YA==}

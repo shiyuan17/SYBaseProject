@@ -59,7 +59,7 @@ CREATE TABLE specimens (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_specimens PRIMARY KEY (id),
-    CONSTRAINT uk_specimens_application_specimen_no UNIQUE (application_id, specimen_no),
+    CONSTRAINT uk_specimens_specimen_no UNIQUE (specimen_no),
     CONSTRAINT uk_specimens_barcode UNIQUE (barcode),
     CONSTRAINT fk_specimens_application FOREIGN KEY (application_id) REFERENCES applications (id),
     CONSTRAINT fk_specimens_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id)

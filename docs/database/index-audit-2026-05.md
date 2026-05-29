@@ -7,7 +7,7 @@
 - `users`: `pk_users`, `uk_users_login_name`, `uk_users_user_code`, `uk_users_job_no`, `uk_users_login_tag_code`
 - `applications`: `pk_applications`, `uk_applications_application_no`
 - `pathology_cases`: `pk_pathology_cases`, `uk_pathology_cases_application`, `uk_pathology_cases_no`
-- `specimens`: `pk_specimens`, `uk_specimens_application_specimen_no`, `uk_specimens_barcode`
+- `specimens`: `pk_specimens`, `uk_specimens_specimen_no`, `uk_specimens_barcode`
 - `diagnostic_tasks`: `idx_diagnostic_tasks_case_status`, `idx_diagnostic_tasks_pathology_status`
 - `pathology_reports`: `uk_pathology_reports_case_scope_seq`, `uk_pathology_reports_report_no`, `idx_pathology_reports_case_status`
 - `report_versions`: `uk_report_versions_report_version`, `idx_report_versions_report_id`

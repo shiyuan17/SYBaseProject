@@ -18,9 +18,10 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
 
     @Test
     void shouldAllowAdminToRunM2EndToEndWorkflow() throws Exception {
-        String applicationId = createApplication("APP-M2-ROLE-ADMIN-001");
+        String suffix = uniqueSuffix();
+        String applicationId = createApplication("APP-M2-ROLE-ADMIN-" + suffix);
         JsonNode registration = registerSpecimens(
-            applicationId, USER_ADMIN, "P-01", "/api/v1/specimens/register", "BC-ROLE-ADMIN-001");
+            applicationId, USER_ADMIN, "P-01", "/api/v1/specimens/register", "BC-ROLE-ADMIN-" + suffix);
         String barcode = registration.path("specimens").get(0).path("barcode").asText();
 
         completeFixationAsAdmin(barcode);
@@ -72,7 +73,8 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
 
     @Test
     void shouldRejectCrossRoleActionsAcrossWorkstations() throws Exception {
-        String applicationId = createApplication("APP-M2-ROLE-DENY-001");
+        String suffix = uniqueSuffix();
+        String applicationId = createApplication("APP-M2-ROLE-DENY-" + suffix);
 
         postJson("/api/v1/specimen-fixations/start", USER_REGISTER, """
             {
@@ -151,7 +153,7 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
 
     @Test
     void shouldKeepMissingHeaderAndNoPermissionBehaviorForM2ProtectedEndpoints() throws Exception {
-        String applicationId = createApplication("APP-M2-ROLE-AUTH-001");
+        String applicationId = createApplication("APP-M2-ROLE-AUTH-" + uniqueSuffix());
 
         mockMvc.perform(post("/api/v1/specimens/register")
                 .contentType(APPLICATION_JSON)
@@ -196,6 +198,23 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
               "specimenBarcode": "%s",
               "fixationLiquidType": "FORMALIN",
               "operatorName": "admin-user"
+            }
+            """.formatted(barcode))
+            .andExpect(status().isOk());
+
+        postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(barcode), USER_ADMIN, """
+            {
+              "operatorName": "admin-user",
+              "terminalCode": "ADMIN-04"
+            }
+            """)
+            .andExpect(status().isOk());
+
+        postJson("/api/v1/specimens/barcodes/%s/check-in".formatted(barcode), USER_ADMIN, """
+            {
+              "operatorName": "admin-user",
+              "specimenBarcode": "%s",
+              "terminalCode": "ADMIN-05"
             }
             """.formatted(barcode))
             .andExpect(status().isOk());

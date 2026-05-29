@@ -98,9 +98,9 @@ BEGIN
     SELECT COUNT(*) INTO v_count
     FROM USER_CONSTRAINTS
     WHERE TABLE_NAME = 'SPECIMENS'
-      AND CONSTRAINT_NAME = 'UK_SPECIMENS_APPLICATION_SPECIMEN_NO';
+      AND CONSTRAINT_NAME = 'UK_SPECIMENS_SPECIMEN_NO';
     IF v_count = 0 THEN
-        EXECUTE IMMEDIATE 'ALTER TABLE specimens ADD CONSTRAINT uk_specimens_application_specimen_no UNIQUE (application_id, specimen_no)';
+        EXECUTE IMMEDIATE 'ALTER TABLE specimens ADD CONSTRAINT uk_specimens_specimen_no UNIQUE (specimen_no)';
     END IF;
 
     EXECUTE IMMEDIATE '

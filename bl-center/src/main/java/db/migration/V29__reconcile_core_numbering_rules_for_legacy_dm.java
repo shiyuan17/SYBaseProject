@@ -16,7 +16,7 @@ public class V29__reconcile_core_numbering_rules_for_legacy_dm extends BaseJavaM
     private static final List<NumberingRuleSeed> RULES = List.of(
         new NumberingRuleSeed("NR_APPLICATION", "RULE_APPLICATION_NO", "APPLICATION_NO", "AP", "yyyyMMdd", 4, "DAILY", "GLOBAL", "Application number"),
         new NumberingRuleSeed("NR_PATHOLOGY", "RULE_PATHOLOGY_NO", "PATHOLOGY_NO", "BL", "yyyyMMdd", 4, "DAILY", "GLOBAL", "Pathology number"),
-        new NumberingRuleSeed("NR_SPECIMEN", "RULE_SPECIMEN_NO", "SPECIMEN_NO", "SP", "yyyyMMdd", 3, "DAILY", "CASE", "Specimen number"),
+        new NumberingRuleSeed("NR_SPECIMEN", "RULE_SPECIMEN_NO", "SPECIMEN_NO", "SP", "yyyyMMdd", 5, "DAILY", "GLOBAL", "Specimen number"),
         new NumberingRuleSeed("NR_BLOCK", "RULE_BLOCK_NO", "BLOCK_NO", "BK", "yyyyMMdd", 3, "DAILY", "GLOBAL", "Block number"),
         new NumberingRuleSeed("NR_SLIDE", "RULE_SLIDE_NO", "SLIDE_NO", "SL", "yyyyMMdd", 3, "DAILY", "GLOBAL", "Slide number"),
         new NumberingRuleSeed("NR_TRANSPORT", "RULE_TRANSPORT_ORDER_NO", "TRANSPORT_ORDER_NO", "TR", "yyyyMMdd", 4, "DAILY", "GLOBAL", "Transport order number"),
