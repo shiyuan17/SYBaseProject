@@ -10,6 +10,7 @@
 - [本地 GitLab 与测试流程](./guides/GITLAB_LOCAL_TEST_FLOW.md)
 - [项目健康治理规则](./rules/PROJECT_HEALTH_RULES.md)
 - [文件健康豁免清单](./file-health-exemptions.properties)
+- [代码健康度清单](./reports/code-health-checklist.md)
 
 ## 当前里程碑状态
 

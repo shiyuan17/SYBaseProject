@@ -10,6 +10,8 @@
 - `deploy-bl-center.sh`：通过 SSH 在 Docker 主机拉取镜像并执行 `docker compose up -d`
 - `deploy-gitlab-runner.sh`：通过 SSH 下发 `GitLab Runner` compose 模板并完成非交互注册
 - `run-m1-m5-api-regression.sh`：按 M1-M5 分组执行接口自动化回归，并输出中文 Markdown 报告
+- `generate-largest-files-report.sh/.ps1`：生成仓库大文件与豁免报告
+- `generate-code-health-checklist.sh/.ps1`：运行健康度门禁、热点采样并输出代码健康度清单
 
 设计要求：
 
