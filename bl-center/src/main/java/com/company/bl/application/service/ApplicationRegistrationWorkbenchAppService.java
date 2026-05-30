@@ -7,7 +7,7 @@ import com.company.bl.domain.model.Application;
 import com.company.bl.domain.model.Specimen;
 import com.company.bl.domain.repository.ApplicationRegistrationWorkbenchRepository;
 import com.company.bl.domain.repository.ApplicationRepository;
-import com.company.bl.domain.repository.SpecimenWorkflowRepository;
+import com.company.bl.domain.repository.SpecimenWorkflowQueryRepository;
 import com.company.bl.domain.valueobject.ApplicationId;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,7 +28,7 @@ public class ApplicationRegistrationWorkbenchAppService {
 
     private final ApplicationRepository applicationRepository;
     private final ApplicationRegistrationWorkbenchRepository workbenchRepository;
-    private final SpecimenWorkflowRepository specimenWorkflowRepository;
+    private final SpecimenWorkflowQueryRepository specimenWorkflowRepository;
     private final SpecimenWorkflowAppService specimenWorkflowAppService;
 
     @Transactional(readOnly = true)

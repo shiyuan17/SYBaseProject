@@ -67,18 +67,29 @@ final class RepositoryFileHealthChecker {
     private static final Set<String> TEXT_FILENAMES = Set.of("Dockerfile", "mvnw");
 
     private static final Map<String, Integer> LINE_LIMITS = createLineLimits();
+    private static final String EXEMPTION_CONFIG_PATH = "docs/file-health-exemptions.properties";
 
     private final Path repositoryRoot;
     private final FileHealthExemptionConfig exemptionConfig;
+    private final FileHealthBaselineConfig baselineConfig;
 
-    private RepositoryFileHealthChecker(Path repositoryRoot, FileHealthExemptionConfig exemptionConfig) {
+    private RepositoryFileHealthChecker(
+        Path repositoryRoot,
+        FileHealthExemptionConfig exemptionConfig,
+        FileHealthBaselineConfig baselineConfig
+    ) {
         this.repositoryRoot = repositoryRoot;
         this.exemptionConfig = exemptionConfig;
+        this.baselineConfig = baselineConfig;
     }
 
     static RepositoryFileHealthChecker forRepositoryRoot(Path repositoryRoot) throws IOException {
         Path configPath = repositoryRoot.resolve("docs").resolve("file-health-exemptions.properties");
-        return new RepositoryFileHealthChecker(repositoryRoot, FileHealthExemptionConfig.load(configPath));
+        Path baselinePath = repositoryRoot.resolve("docs").resolve("file-health-baseline.properties");
+        return new RepositoryFileHealthChecker(
+            repositoryRoot,
+            FileHealthExemptionConfig.load(configPath),
+            FileHealthBaselineConfig.load(baselinePath));
     }
 
     static Path locateRepositoryRoot(Path start) {
@@ -98,6 +109,7 @@ final class RepositoryFileHealthChecker {
 
     List<FileHealthViolation> validateRepository() throws IOException {
         List<FileHealthViolation> violations = new ArrayList<>();
+        violations.addAll(validateExemptionConfiguration());
         for (Path file : collectManagedTextFiles()) {
             violations.addAll(validateFile(file));
         }
@@ -127,6 +139,27 @@ final class RepositoryFileHealthChecker {
         return violations.stream()
             .map(violation -> violation.path() + " [" + violation.rule().name() + "] " + violation.message())
             .collect(Collectors.joining(System.lineSeparator()));
+    }
+
+    private List<FileHealthViolation> validateExemptionConfiguration() {
+        List<FileHealthViolation> violations = new ArrayList<>();
+        int exemptionCount = exemptionConfig.exemptionCount();
+        if (exemptionCount > baselineConfig.maxExemptions()) {
+            violations.add(violation(
+                Path.of(EXEMPTION_CONFIG_PATH),
+                FileHealthRule.EXEMPTION_CONFIG,
+                "Temporary exemption count " + exemptionCount
+                    + " exceeds baseline " + baselineConfig.maxExemptions()));
+        }
+        for (FileHealthExemptionConfig.Exemption exemption : exemptionConfig.exemptions()) {
+            if (exemption.reason().isBlank()) {
+                violations.add(violation(
+                    Path.of(EXEMPTION_CONFIG_PATH),
+                    FileHealthRule.EXEMPTION_CONFIG,
+                    "Exemption #" + exemption.index() + " for " + exemption.glob() + " must declare a non-blank reason"));
+            }
+        }
+        return violations;
     }
 
     private List<Path> collectManagedTextFiles() throws IOException {

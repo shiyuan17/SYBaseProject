@@ -1,0 +1,50 @@
+package_user_center:
+  stage: package
+  image: maven:3.9.9-eclipse-temurin-17
+  needs:
+    - verify_fast
+    - verify_full
+    - verify_largest_files_report
+    - verify_m1_m5_api_regression
+  script:
+    - chmod +x mvnw
+    - ./mvnw -pl user-center -am package -DskipTests
+  artifacts:
+    name: "user-center-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - user-center/target/*.jar
+    expire_in: 7 days
+
+package_auth_center:
+  stage: package
+  image: maven:3.9.9-eclipse-temurin-17
+  needs:
+    - verify_fast
+    - verify_full
+    - verify_largest_files_report
+    - verify_m1_m5_api_regression
+  script:
+    - chmod +x mvnw
+    - ./mvnw -pl auth-center -am package -DskipTests
+  artifacts:
+    name: "auth-center-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - auth-center/target/*.jar
+    expire_in: 7 days
+
+package_bl_center:
+  stage: package
+  image: maven:3.9.9-eclipse-temurin-17
+  needs:
+    - verify_fast
+    - verify_full
+    - verify_largest_files_report
+    - verify_m1_m5_api_regression
+  script:
+    - chmod +x mvnw
+    - ./mvnw -pl bl-center -am package -DskipTests
+  artifacts:
+    name: "bl-center-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - bl-center/target/*.jar
+    expire_in: 7 days

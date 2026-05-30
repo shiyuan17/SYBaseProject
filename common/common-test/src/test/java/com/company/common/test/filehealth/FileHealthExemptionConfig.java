@@ -35,9 +35,17 @@ final class FileHealthExemptionConfig {
             }
             String reason = properties.getProperty(prefix + "reason", "").trim();
             EnumSet<FileHealthRule> waivedRules = parseWaivedRules(properties.getProperty(prefix + "waive", ""));
-            exemptions.add(new Exemption(Pattern.compile(globToRegex(glob)), waivedRules, reason));
+            exemptions.add(new Exemption(index, glob, Pattern.compile(globToRegex(glob)), waivedRules, reason));
         }
         return new FileHealthExemptionConfig(exemptions);
+    }
+
+    int exemptionCount() {
+        return exemptions.size();
+    }
+
+    List<Exemption> exemptions() {
+        return exemptions;
     }
 
     EnumSet<FileHealthRule> waivedRulesFor(Path relativePath) {
@@ -98,9 +106,13 @@ final class FileHealthExemptionConfig {
         return builder.append('$').toString();
     }
 
-    private record Exemption(Pattern pattern, EnumSet<FileHealthRule> waivedRules, String reason) {
+    record Exemption(int index, String glob, Pattern pattern, EnumSet<FileHealthRule> waivedRules, String reason) {
 
-        private Exemption {
+        Exemption {
+            if (index <= 0) {
+                throw new IllegalArgumentException("index must be positive");
+            }
+            Objects.requireNonNull(glob, "glob");
             Objects.requireNonNull(pattern, "pattern");
             Objects.requireNonNull(waivedRules, "waivedRules");
             Objects.requireNonNull(reason, "reason");

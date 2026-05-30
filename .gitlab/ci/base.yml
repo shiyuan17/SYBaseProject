@@ -1,0 +1,17 @@
+stages:
+  - verify
+  - package
+  - image
+  - deploy
+
+variables:
+  MAVEN_CLI_OPTS: "-B -ntp"
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  AUTH_CENTER_IMAGE_REPO: "$CI_REGISTRY_IMAGE/auth-center"
+  BL_CENTER_IMAGE_REPO: "$CI_REGISTRY_IMAGE/bl-center"
+  USER_CENTER_IMAGE_REPO: "$CI_REGISTRY_IMAGE/user-center"
+
+cache:
+  key: "$CI_PROJECT_ID-maven"
+  paths:
+    - .m2/repository

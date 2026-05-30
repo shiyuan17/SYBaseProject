@@ -1,0 +1,66 @@
+package com.company.bl.application.service;
+
+import com.company.bl.domain.enums.FixationStatus;
+import com.company.bl.domain.enums.SpecimenStatus;
+import com.company.bl.domain.exception.BlBusinessException;
+import com.company.bl.domain.repository.ApplicationRepository;
+import com.company.bl.domain.repository.SpecimenWorkflowCommandRepository;
+import com.company.bl.domain.repository.SpecimenWorkflowQueryRepository;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Optional;
+
+import static com.company.bl.application.service.SpecimenWorkflowModels.FixationCommand;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class SpecimenFixationServiceTest {
+
+    @Mock
+    private SpecimenWorkflowCommandRepository commandRepository;
+
+    @Mock
+    private SpecimenWorkflowQueryRepository queryRepository;
+
+    @Mock
+    private ApplicationRepository applicationRepository;
+
+    @Test
+    void fixationShouldRejectUnverifiedSpecimen() {
+        SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
+        when(queryRepository.findSpecimenByBarcode("BC-1"))
+            .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.specimen("APP-1", "SP-1", "BC-1")));
+        SpecimenFixationService service = new SpecimenFixationService(commandRepository, support);
+
+        assertThatThrownBy(() -> service.startFixation(
+            new FixationCommand("BC-1", "FORMALIN", "u1", "Operator", "TERM-1", "remark")))
+            .isInstanceOf(BlBusinessException.class)
+            .hasMessageContaining("must be verified before fixation");
+    }
+
+    @Test
+    void fixationCompletionShouldRejectAlreadyCompletedSpecimen() {
+        SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
+        when(queryRepository.findSpecimenByBarcode("BC-1"))
+            .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.specimen(
+                "APP-1",
+                "SP-1",
+                "BC-1",
+                SpecimenStatus.FIXED,
+                FixationStatus.COMPLETED,
+                "VERIFIED",
+                null,
+                null,
+                null)));
+        SpecimenFixationService service = new SpecimenFixationService(commandRepository, support);
+
+        assertThatThrownBy(() -> service.completeFixation(
+            new FixationCommand("BC-1", "FORMALIN", "u1", "Operator", "TERM-1", "remark")))
+            .isInstanceOf(BlBusinessException.class)
+            .hasMessageContaining("already completed");
+    }
+}

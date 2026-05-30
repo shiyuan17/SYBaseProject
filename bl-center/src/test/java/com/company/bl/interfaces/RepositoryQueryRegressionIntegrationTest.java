@@ -7,6 +7,8 @@ import com.company.bl.domain.repository.SpecimenWorkflowRepository;
 import com.company.bl.domain.repository.TechnicalWorkflowRepository;
 import com.company.bl.notification.infrastructure.NotificationCenterJdbcRepository;
 import com.company.bl.system.infrastructure.SystemJdbcRepository;
+import com.company.bl.system.infrastructure.SystemRoleJdbcRepository;
+import com.company.bl.system.infrastructure.SystemUserJdbcRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -24,7 +26,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class RepositoryQueryRegressionIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTest {
 
     @Autowired
-    private SystemJdbcRepository systemJdbcRepository;
+    private SystemRoleJdbcRepository systemRoleJdbcRepository;
+
+    @Autowired
+    private SystemUserJdbcRepository systemUserJdbcRepository;
 
     @Autowired
     private NotificationCenterJdbcRepository notificationCenterJdbcRepository;
@@ -41,7 +46,7 @@ class RepositoryQueryRegressionIntegrationTest extends AbstractDiagnosticWorkflo
     @Test
     void shouldQueryUserLoginLogsAndRoleAuthorizationsThroughRepositories() {
         LocalDateTime now = LocalDateTime.now();
-        systemJdbcRepository.insertUserLoginLog(new SystemJdbcRepository.CreateUserLoginLogRow(
+        systemUserJdbcRepository.insertUserLoginLog(new SystemJdbcRepository.CreateUserLoginLogRow(
             "ULL-REPO-001-" + System.nanoTime(),
             USER_M1_ADMIN,
             userLoginName(USER_M1_ADMIN),
@@ -52,7 +57,7 @@ class RepositoryQueryRegressionIntegrationTest extends AbstractDiagnosticWorkflo
             null,
             null,
             "older"));
-        systemJdbcRepository.insertUserLoginLog(new SystemJdbcRepository.CreateUserLoginLogRow(
+        systemUserJdbcRepository.insertUserLoginLog(new SystemJdbcRepository.CreateUserLoginLogRow(
             "ULL-REPO-002-" + System.nanoTime(),
             USER_M1_ADMIN,
             userLoginName(USER_M1_ADMIN),
@@ -64,27 +69,27 @@ class RepositoryQueryRegressionIntegrationTest extends AbstractDiagnosticWorkflo
             null,
             "newer"));
 
-        SystemJdbcRepository.PagedUserLoginLogs pagedLogs = systemJdbcRepository.findUserLoginLogs(USER_M1_ADMIN, 1, 2);
+        SystemJdbcRepository.PagedUserLoginLogs pagedLogs = systemUserJdbcRepository.findUserLoginLogs(USER_M1_ADMIN, 1, 2);
         assertThat(pagedLogs.total()).isGreaterThanOrEqualTo(2);
         assertThat(pagedLogs.logs()).hasSize(2);
         assertThat(pagedLogs.logs().get(0).loginAt()).isAfterOrEqualTo(pagedLogs.logs().get(1).loginAt());
 
-        long assignmentCount = systemJdbcRepository.countRoleAssignments("ROLE_PATHOLOGY_ADMIN");
+        long assignmentCount = systemRoleJdbcRepository.countRoleAssignments("ROLE_PATHOLOGY_ADMIN");
         assertThat(assignmentCount).isGreaterThan(0);
 
-        List<SystemJdbcRepository.RoleAssignmentRow> roleAssignments =
-            systemJdbcRepository.findRoleAssignments("ROLE_PATHOLOGY_ADMIN");
+        List<SystemRoleJdbcRepository.RoleAssignmentRow> roleAssignments =
+            systemRoleJdbcRepository.findRoleAssignments("ROLE_PATHOLOGY_ADMIN");
         assertThat(roleAssignments).isNotEmpty();
         assertThat(roleAssignments).anyMatch(item -> USER_M1_ADMIN.equals(item.userId()));
 
-        SystemJdbcRepository.RoleAuthorizationRow authorization =
-            systemJdbcRepository.findRoleAuthorization("ROLE_PATHOLOGY_ADMIN");
+        SystemRoleJdbcRepository.RoleAuthorizationRow authorization =
+            systemRoleJdbcRepository.findRoleAuthorization("ROLE_PATHOLOGY_ADMIN");
         assertThat(authorization.menuIds()).isNotEmpty();
         assertThat(authorization.permissionIds()).isNotEmpty();
         assertThat(authorization.topicIds()).isNotEmpty();
         assertThat(authorization.statScopes()).isNotEmpty();
 
-        assertThat(systemJdbcRepository.findUserRoleAssignments(List.of(USER_M1_ADMIN)))
+        assertThat(systemUserJdbcRepository.findUserRoleAssignments(List.of(USER_M1_ADMIN)))
             .containsKey(USER_M1_ADMIN);
     }
 

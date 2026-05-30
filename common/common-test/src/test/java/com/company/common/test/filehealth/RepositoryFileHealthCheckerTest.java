@@ -88,6 +88,45 @@ class RepositoryFileHealthCheckerTest {
             FileHealthRule.UTF_8_DECODE));
     }
 
+    @Test
+    void shouldRejectExemptionCountGrowthBeyondBaseline() throws IOException {
+        Path repositoryRoot = createRepositoryRoot();
+        Files.writeString(
+            repositoryRoot.resolve("docs").resolve("file-health-exemptions.properties"),
+            """
+            version=1
+            exemption.1.glob=docs/database/*.sql
+            exemption.1.waive=MAX_LINES,MAX_SIZE
+            exemption.1.reason=test sql exemption
+            exemption.2.glob=docs/plans/*.md
+            exemption.2.waive=MAX_LINES
+            exemption.2.reason=test plan exemption
+            """,
+            StandardCharsets.UTF_8);
+
+        List<FileHealthViolation> violations = createChecker(repositoryRoot).validateRepository();
+
+        assertContainsRule(violations, FileHealthRule.EXEMPTION_CONFIG);
+    }
+
+    @Test
+    void shouldRejectExemptionWithoutReason() throws IOException {
+        Path repositoryRoot = createRepositoryRoot();
+        Files.writeString(
+            repositoryRoot.resolve("docs").resolve("file-health-exemptions.properties"),
+            """
+            version=1
+            exemption.1.glob=docs/database/*.sql
+            exemption.1.waive=MAX_LINES,MAX_SIZE
+            exemption.1.reason=
+            """,
+            StandardCharsets.UTF_8);
+
+        List<FileHealthViolation> violations = createChecker(repositoryRoot).validateRepository();
+
+        assertContainsRule(violations, FileHealthRule.EXEMPTION_CONFIG);
+    }
+
     private RepositoryFileHealthChecker createChecker(Path repositoryRoot) throws IOException {
         return RepositoryFileHealthChecker.forRepositoryRoot(repositoryRoot);
     }
@@ -105,6 +144,13 @@ class RepositoryFileHealthCheckerTest {
             exemption.1.glob=docs/database/*.sql
             exemption.1.waive=MAX_LINES,MAX_SIZE
             exemption.1.reason=test sql exemption
+            """,
+            StandardCharsets.UTF_8);
+        Files.writeString(
+            tempDir.resolve("docs").resolve("file-health-baseline.properties"),
+            """
+            version=1
+            file.health.max-exemptions=1
             """,
             StandardCharsets.UTF_8);
         return tempDir;

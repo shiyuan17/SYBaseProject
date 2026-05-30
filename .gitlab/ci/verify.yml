@@ -1,0 +1,51 @@
+verify_fast:
+  stage: verify
+  image: maven:3.9.9-eclipse-temurin-17
+  script:
+    - chmod +x mvnw
+    - ./mvnw -B -ntp clean test "-Dsurefire.excludedGroups=slow"
+
+verify_full:
+  stage: verify
+  image: maven:3.9.9-eclipse-temurin-17
+  script:
+    - chmod +x mvnw
+    - ./mvnw -B -ntp clean verify
+
+verify_largest_files_report:
+  stage: verify
+  image: alpine:3.20
+  script:
+    - apk add --no-cache bash coreutils findutils
+    - chmod +x scripts/ci/generate-largest-files-report.sh
+    - sh scripts/ci/generate-largest-files-report.sh
+  artifacts:
+    when: always
+    name: "largest-files-report-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - docs/reports/largest-files-report.md
+    expire_in: 14 days
+
+verify_m1_m5_api_regression:
+  stage: verify
+  image: maven:3.9.9-eclipse-temurin-17
+  variables:
+    TZ: Asia/Shanghai
+  script:
+    - chmod +x mvnw
+    - chmod +x scripts/ci/run-m1-m5-api-regression.sh
+    - bash scripts/ci/run-m1-m5-api-regression.sh
+  artifacts:
+    when: always
+    name: "m1-m5-api-regression-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - docs/reports/m1-m5-api-test-report-*.md
+      - auth-center/target/surefire-reports/
+      - user-center/target/surefire-reports/
+      - bl-center/target/surefire-reports/
+    reports:
+      junit:
+        - auth-center/target/surefire-reports/TEST-*.xml
+        - user-center/target/surefire-reports/TEST-*.xml
+        - bl-center/target/surefire-reports/TEST-*.xml
+    expire_in: 14 days

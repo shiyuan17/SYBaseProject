@@ -1,0 +1,71 @@
+image_user_center:
+  stage: image
+  image: docker:27.0.3-cli
+  needs:
+    - package_user_center
+  services:
+    - name: docker:27.0.3-dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    IMAGE_REPO: "$USER_CENTER_IMAGE_REPO"
+    IMAGE_TAG: "$CI_COMMIT_SHA"
+    EXTRA_IMAGE_TAGS: "$CI_COMMIT_REF_SLUG $CI_COMMIT_TAG"
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" --username "$CI_REGISTRY_USER" --password-stdin
+    - chmod +x scripts/ci/build-user-center-image.sh
+  script:
+    - sh scripts/ci/build-user-center-image.sh
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH =~ /^release\/.+$/'
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/'
+
+image_auth_center:
+  stage: image
+  image: docker:27.0.3-cli
+  needs:
+    - package_auth_center
+  services:
+    - name: docker:27.0.3-dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    IMAGE_REPO: "$AUTH_CENTER_IMAGE_REPO"
+    IMAGE_TAG: "$CI_COMMIT_SHA"
+    EXTRA_IMAGE_TAGS: "$CI_COMMIT_REF_SLUG $CI_COMMIT_TAG"
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" --username "$CI_REGISTRY_USER" --password-stdin
+    - chmod +x scripts/ci/build-auth-center-image.sh
+  script:
+    - sh scripts/ci/build-auth-center-image.sh
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH =~ /^release\/.+$/'
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/'
+
+image_bl_center:
+  stage: image
+  image: docker:27.0.3-cli
+  needs:
+    - package_bl_center
+  services:
+    - name: docker:27.0.3-dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    IMAGE_REPO: "$BL_CENTER_IMAGE_REPO"
+    IMAGE_TAG: "$CI_COMMIT_SHA"
+    EXTRA_IMAGE_TAGS: "$CI_COMMIT_REF_SLUG $CI_COMMIT_TAG"
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" --username "$CI_REGISTRY_USER" --password-stdin
+    - chmod +x scripts/ci/build-bl-center-image.sh
+  script:
+    - sh scripts/ci/build-bl-center-image.sh
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH =~ /^release\/.+$/'
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/'

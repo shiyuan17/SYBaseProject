@@ -4,7 +4,7 @@ import com.company.bl.application.command.CreateApplicationCommand;
 import com.company.bl.application.gateway.ClinicalApplicationGateway;
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
-import com.company.bl.domain.repository.SpecimenWorkflowRepository;
+import com.company.bl.domain.repository.SpecimenWorkflowQueryRepository;
 import com.company.bl.domain.valueobject.ApplicationId;
 import com.company.bl.integration.application.IntegrationManagementService;
 import com.company.common.web.observability.ObservedOperation;
@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ClinicalApplicationImportAppService {
 
     private final ClinicalApplicationGateway clinicalApplicationGateway;
-    private final SpecimenWorkflowRepository specimenWorkflowRepository;
+    private final SpecimenWorkflowQueryRepository specimenWorkflowRepository;
     private final CreateApplicationAppService createApplicationAppService;
     private final NumberingService numberingService;
     private final IntegrationManagementService integrationManagementService;
