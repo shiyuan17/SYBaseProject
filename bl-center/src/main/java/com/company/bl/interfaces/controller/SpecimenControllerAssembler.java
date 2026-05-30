@@ -30,6 +30,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.company.bl.application.service.SpecimenWorkflowModels.*;
+import static com.company.bl.application.service.SpecimenWorkflowQueryModels.*;
 
 @Component
 class SpecimenControllerAssembler {

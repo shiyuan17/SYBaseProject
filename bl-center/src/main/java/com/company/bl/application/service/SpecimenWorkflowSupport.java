@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.company.bl.application.service.SpecimenWorkflowModels.*;
+import static com.company.bl.application.service.SpecimenWorkflowQueryModels.*;
 
 @Component
 class SpecimenWorkflowSupport {

@@ -4,7 +4,9 @@ import com.company.bl.application.gateway.BillingGateway;
 import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.infrastructure.config.ObservabilityConfiguration;
+import com.company.bl.integration.infrastructure.M6BillingRows;
 import com.company.bl.integration.infrastructure.M6JdbcRepository;
+import com.company.bl.integration.infrastructure.M6IntegrationTaskRows;
 import com.company.common.web.observability.ObservedOperation;
 import com.company.bl.support.application.OperationAuditService;
 import io.micrometer.core.instrument.Counter;
@@ -105,9 +107,9 @@ public class BillingManagementService {
     public BillingRecordView receiveBillingReceipt(String id, String externalBillNo, String billingStatus,
                                                    String operatorUserId, String operatorName, String remarks) {
         return operationAuditService.audit("M6", "BILLING", "billing_receipt", () -> {
-            M6JdbcRepository.BillingRecordRow current = requireBillingRecord(id);
+            M6BillingRows.BillingRecordRow current = requireBillingRecord(id);
             LocalDateTime now = LocalDateTime.now();
-            repository.updateBillingRecord(new M6JdbcRepository.BillingRecordRow(
+            repository.updateBillingRecord(new M6BillingRows.BillingRecordRow(
                 current.id(), current.caseId(), current.orderId(), current.billingNo(), current.billingStage(), current.itemType(), current.itemName(),
                 current.quantity(), current.amount(), billingStatus, now, operatorUserId, operatorName,
                 externalBillNo, current.externalSystem(), remarks, current.createdAt(), now));
@@ -129,8 +131,8 @@ public class BillingManagementService {
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
             return operationAuditService.audit("M6", "BILLING", "billing_retry", () -> {
-                M6JdbcRepository.BillingRecordRow current = requireBillingRecord(id);
-                M6JdbcRepository.IntegrationTaskRow task = repository.findLatestIntegrationTask(BUSINESS_TYPE_BILLING_RECORD, current.id(), current.billingStage());
+                M6BillingRows.BillingRecordRow current = requireBillingRecord(id);
+                M6IntegrationTaskRows.IntegrationTaskRow task = repository.findLatestIntegrationTask(BUSINESS_TYPE_BILLING_RECORD, current.id(), current.billingStage());
                 if (task == null) {
                     throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Integration task not found for billing record");
                 }
@@ -139,7 +141,7 @@ public class BillingManagementService {
                 BillingGateway.BillingSubmitResult result = billingGateway.submit(request);
                 LocalDateTime now = LocalDateTime.now();
                 if (result.success()) {
-                    repository.updateBillingRecord(new M6JdbcRepository.BillingRecordRow(
+                    repository.updateBillingRecord(new M6BillingRows.BillingRecordRow(
                         current.id(), current.caseId(), current.orderId(), current.billingNo(), current.billingStage(), current.itemType(), current.itemName(),
                         current.quantity(), current.amount(), "SUCCESS", now, operatorUserId, operatorName,
                         result.externalBillNo(), EXTERNAL_SYSTEM, result.message(), current.createdAt(), now));
@@ -149,7 +151,7 @@ public class BillingManagementService {
                     incrementCounter("billing_retry_total", "billing_retry");
                     integrationManagementService.markSuccess(task.id(), "{\"retry\":true,\"message\":\"" + safe(result.message()) + "\"}");
                 } else {
-                    repository.updateBillingRecord(new M6JdbcRepository.BillingRecordRow(
+                    repository.updateBillingRecord(new M6BillingRows.BillingRecordRow(
                         current.id(), current.caseId(), current.orderId(), current.billingNo(), current.billingStage(), current.itemType(), current.itemName(),
                         current.quantity(), current.amount(), "FAILED", current.billedAt(), operatorUserId, operatorName,
                         current.externalBillNo(), EXTERNAL_SYSTEM, result.message(), current.createdAt(), now));
@@ -178,12 +180,12 @@ public class BillingManagementService {
     @Transactional
     public ReconciliationResult reconcile(LocalDateTime from, LocalDateTime to, String operatorUserId, String operatorName) {
         return operationAuditService.audit("M6", "BILLING", "billing_reconcile", () -> {
-            List<M6JdbcRepository.BillingRecordRow> rows = repository.findBillingRecords(null, null, null, null, null, from, to);
+            List<M6BillingRows.BillingRecordRow> rows = repository.findBillingRecords(null, null, null, null, null, from, to);
             billingGateway.reconcile(new BillingGateway.ReconciliationRequest(from, to));
             int matched = 0;
             int discrepancy = 0;
-            for (M6JdbcRepository.BillingRecordRow row : rows) {
-                M6JdbcRepository.IntegrationTaskRow task =
+            for (M6BillingRows.BillingRecordRow row : rows) {
+                M6IntegrationTaskRows.IntegrationTaskRow task =
                     repository.findLatestIntegrationTask(BUSINESS_TYPE_BILLING_RECORD, row.id(), row.billingStage());
                 if ("SUCCESS".equals(row.billingStatus()) && row.externalBillNo() != null && !row.externalBillNo().isBlank()) {
                     matched++;
@@ -221,7 +223,7 @@ public class BillingManagementService {
         try {
             String recordId = "BR-" + UUID.randomUUID();
             String billingNo = "BL-" + UUID.randomUUID();
-            repository.insertBillingRecord(new M6JdbcRepository.CreateBillingRecordRow(
+            repository.insertBillingRecord(new M6BillingRows.CreateBillingRecordRow(
                 recordId,
                 command.caseId(),
                 command.orderId(),
@@ -259,7 +261,7 @@ public class BillingManagementService {
                 command.operatorUserId(),
                 command.operatorName()));
             if (result.success()) {
-                repository.updateBillingRecord(new M6JdbcRepository.BillingRecordRow(
+                repository.updateBillingRecord(new M6BillingRows.BillingRecordRow(
                     recordId, command.caseId(), command.orderId(), billingNo, command.billingStage(), command.itemType(), command.itemName(),
                     command.quantity(), command.amount(), "SUCCESS", now, command.operatorUserId(), command.operatorName(),
                     result.externalBillNo(), EXTERNAL_SYSTEM, result.message(), now, now));
@@ -269,7 +271,7 @@ public class BillingManagementService {
                 incrementCounter("billing_submit_total", "billing_submit");
                 integrationManagementService.markSuccess(taskId, "{\"message\":\"" + safe(result.message()) + "\"}");
             } else {
-                repository.updateBillingRecord(new M6JdbcRepository.BillingRecordRow(
+                repository.updateBillingRecord(new M6BillingRows.BillingRecordRow(
                     recordId, command.caseId(), command.orderId(), billingNo, command.billingStage(), command.itemType(), command.itemName(),
                     command.quantity(), command.amount(), "FAILED", null, command.operatorUserId(), command.operatorName(),
                     null, EXTERNAL_SYSTEM, result.message(), now, now));
@@ -288,7 +290,7 @@ public class BillingManagementService {
         }
     }
 
-    private BillingGateway.BillingSubmitRequest toGatewayRequest(M6JdbcRepository.BillingRecordRow row,
+    private BillingGateway.BillingSubmitRequest toGatewayRequest(M6BillingRows.BillingRecordRow row,
                                                                  String operatorUserId,
                                                                  String operatorName) {
         return new BillingGateway.BillingSubmitRequest(
@@ -304,15 +306,15 @@ public class BillingManagementService {
             operatorName);
     }
 
-    private M6JdbcRepository.BillingRecordRow requireBillingRecord(String id) {
-        M6JdbcRepository.BillingRecordRow row = repository.findBillingRecordById(id);
+    private M6BillingRows.BillingRecordRow requireBillingRecord(String id) {
+        M6BillingRows.BillingRecordRow row = repository.findBillingRecordById(id);
         if (row == null) {
             throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Billing record not found");
         }
         return row;
     }
 
-    private BillingRecordView toView(M6JdbcRepository.BillingRecordRow row) {
+    private BillingRecordView toView(M6BillingRows.BillingRecordRow row) {
         IntegrationManagementService.IntegrationTaskView task =
             integrationManagementService.findLatestTask(BUSINESS_TYPE_BILLING_RECORD, row.id(), row.billingStage());
         return new BillingRecordView(

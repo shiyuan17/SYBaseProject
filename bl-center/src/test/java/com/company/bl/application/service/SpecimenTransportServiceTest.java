@@ -22,8 +22,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import static com.company.bl.application.service.SpecimenWorkflowModels.CreateTransportOrderCommand;
-import static com.company.bl.application.service.SpecimenWorkflowModels.HandoverTransportOrderCommand;
+import static com.company.bl.application.service.SpecimenWorkflowTransportModels.CreateTransportOrderCommand;
+import static com.company.bl.application.service.SpecimenWorkflowTransportModels.HandoverTransportOrderCommand;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;

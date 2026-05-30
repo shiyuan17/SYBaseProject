@@ -1,6 +1,7 @@
 package com.company.bl.integration.application;
 
 import com.company.bl.integration.infrastructure.M6JdbcRepository;
+import com.company.bl.integration.infrastructure.M6StatisticsRows;
 import com.company.common.web.observability.ObservedOperation;
 import com.company.bl.support.application.OperationAuditService;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -59,9 +60,9 @@ public class StatisticsService {
     public StatReportResult queryReport(QueryStatReportCommand command) {
         String category = resolveCategory(command);
         StatFilter filter = StatFilter.from(command);
-        List<M6JdbcRepository.StatIndicatorDefinitionRow> indicators = selectIndicators(command, category);
+        List<M6StatisticsRows.StatIndicatorDefinitionRow> indicators = selectIndicators(command, category);
         List<StatRowView> rows = new ArrayList<>();
-        for (M6JdbcRepository.StatIndicatorDefinitionRow indicator : indicators) {
+        for (M6StatisticsRows.StatIndicatorDefinitionRow indicator : indicators) {
             MetricValue metric = computeMetric(indicator.indicatorCode(), filter);
             rows.add(new StatRowView(indicator.indicatorCode(), indicator.indicatorName(), metric.value(), metric.unit()));
         }
@@ -84,9 +85,9 @@ public class StatisticsService {
             String exportId = "SEJ-" + UUID.randomUUID();
             String exportNo = "STAT-" + UUID.randomUUID();
             String fileName = (command.templateCode() == null ? "stat-report" : command.templateCode()) + ".csv";
-            repository.insertStatExportJob(new M6JdbcRepository.CreateStatExportJobRow(
+            repository.insertStatExportJob(new M6StatisticsRows.CreateStatExportJobRow(
                 exportId, exportNo, resolveTemplateId(command.templateCode()), command.indicatorCode(),
-                "RUNNING", command.toString(), fileName, "text/csv;charset=UTF-8", command.operatorUserId(), command.operatorName(),
+                "RUNNING", command.toString(), fileName, "text/csv;charset=UTF-8", command.requestedByUserId(), command.requestedByName(),
                 null, now, null));
             try {
                 StringBuilder builder = new StringBuilder();
@@ -101,12 +102,12 @@ public class StatisticsService {
                 repository.completeStatExportJob(exportId, "FAILED", exception.getMessage(), LocalDateTime.now());
                 throw exception;
             }
-        }, bytes -> "stat-export", () -> "stat-export", command.operatorUserId(), command.operatorName(), () -> "stat export");
+        }, bytes -> "stat-export", () -> "stat-export", () -> "stat export");
     }
 
-    private List<M6JdbcRepository.StatIndicatorDefinitionRow> selectIndicators(QueryStatReportCommand command, String category) {
+    private List<M6StatisticsRows.StatIndicatorDefinitionRow> selectIndicators(QueryStatReportCommand command, String category) {
         if (command.indicatorCode() != null && !command.indicatorCode().isBlank()) {
-            M6JdbcRepository.StatIndicatorDefinitionRow row = repository.findStatIndicatorDefinitionByCode(command.indicatorCode());
+            M6StatisticsRows.StatIndicatorDefinitionRow row = repository.findStatIndicatorDefinitionByCode(command.indicatorCode());
             return row == null ? List.of() : List.of(row);
         }
         return repository.findStatIndicatorDefinitions(category);
@@ -117,7 +118,7 @@ public class StatisticsService {
             return command.category();
         }
         if (command.templateCode() != null && !command.templateCode().isBlank()) {
-            M6JdbcRepository.StatReportTemplateRow template = repository.findStatReportTemplateByCode(command.templateCode());
+            M6StatisticsRows.StatReportTemplateRow template = repository.findStatReportTemplateByCode(command.templateCode());
             return template == null ? "QUALITY" : template.templateType();
         }
         return "QUALITY";
@@ -127,7 +128,7 @@ public class StatisticsService {
         if (templateCode == null || templateCode.isBlank()) {
             return null;
         }
-        M6JdbcRepository.StatReportTemplateRow template = repository.findStatReportTemplateByCode(templateCode);
+        M6StatisticsRows.StatReportTemplateRow template = repository.findStatReportTemplateByCode(templateCode);
         return template == null ? null : template.id();
     }
 
@@ -262,7 +263,7 @@ public class StatisticsService {
             where (:fromTime is null or dt.created_at >= :fromTime)
               and (:toTime is null or dt.created_at <= :toTime)
               and (:departmentId is null or a.submitting_department_id = :departmentId)
-              and (:operatorUserId is null or dt.primary_doctor_user_id = :operatorUserId)
+              and (:workloadUserId is null or dt.primary_doctor_user_id = :workloadUserId)
               and (:roleId is null or exists (
                     select 1
                     from user_roles ur
@@ -281,7 +282,7 @@ public class StatisticsService {
             where (:fromTime is null or coalesce(mo.completed_at, mo.created_at) >= :fromTime)
               and (:toTime is null or coalesce(mo.completed_at, mo.created_at) <= :toTime)
               and (:departmentId is null or a.submitting_department_id = :departmentId)
-              and (:operatorUserId is null or coalesce(mo.executor_user_id, mo.doctor_user_id) = :operatorUserId)
+              and (:workloadUserId is null or coalesce(mo.executor_user_id, mo.doctor_user_id) = :workloadUserId)
               and (:roleId is null or exists (
                     select 1
                     from user_roles ur
@@ -307,7 +308,7 @@ public class StatisticsService {
             .addValue("toTime", filter.to())
             .addValue("departmentId", filter.departmentId())
             .addValue("roleId", filter.roleId())
-            .addValue("operatorUserId", filter.operatorUserId());
+            .addValue("workloadUserId", filter.workloadUserId());
     }
 
     private MetricValue countMetric(long count) {
@@ -380,8 +381,9 @@ public class StatisticsService {
         LocalDateTime to,
         String departmentId,
         String roleId,
-        String operatorUserId,
-        String operatorName
+        String workloadUserId,
+        String requestedByUserId,
+        String requestedByName
     ) {
     }
 
@@ -405,7 +407,7 @@ public class StatisticsService {
         LocalDateTime to,
         String departmentId,
         String roleId,
-        String operatorUserId
+        String workloadUserId
     ) {
 
         private static StatFilter from(QueryStatReportCommand command) {
@@ -414,7 +416,7 @@ public class StatisticsService {
                 command.to(),
                 normalize(command.departmentId()),
                 normalize(command.roleId()),
-                normalize(command.operatorUserId()));
+                normalize(command.workloadUserId()));
         }
 
         private StatFilter forCaseScopedMetrics() {

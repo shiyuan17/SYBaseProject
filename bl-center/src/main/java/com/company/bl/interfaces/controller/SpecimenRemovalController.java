@@ -2,6 +2,7 @@ package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.SpecimenWorkflowAppService;
 import com.company.bl.application.service.SpecimenWorkflowModels;
+import com.company.bl.application.service.SpecimenWorkflowQueryModels;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.SpecimenRemovalConfirmRequest;
@@ -51,9 +52,9 @@ public class SpecimenRemovalController {
         @RequestParam(required = false) String dateFrom,
         @RequestParam(required = false) String dateTo
     ) {
-        SpecimenWorkflowModels.SpecimenRemovalListPage result =
+        SpecimenWorkflowQueryModels.SpecimenRemovalListPage result =
             specimenWorkflowAppService.listSpecimenRemovalItems(
-                new SpecimenWorkflowModels.SpecimenRemovalQuery(
+                new SpecimenWorkflowQueryModels.SpecimenRemovalQuery(
                     page,
                     size,
                     keyword,
@@ -133,7 +134,7 @@ public class SpecimenRemovalController {
         @RequestParam(required = false) String dateTo
     ) {
         byte[] content = specimenWorkflowAppService.exportSpecimenRemovalItems(
-            new SpecimenWorkflowModels.SpecimenRemovalQuery(
+            new SpecimenWorkflowQueryModels.SpecimenRemovalQuery(
                 page,
                 size,
                 keyword,
@@ -149,7 +150,7 @@ public class SpecimenRemovalController {
             .body(content);
     }
 
-    private SpecimenRemovalItemResponse toRow(SpecimenWorkflowModels.SpecimenRemovalListItem item) {
+    private SpecimenRemovalItemResponse toRow(SpecimenWorkflowQueryModels.SpecimenRemovalListItem item) {
         return new SpecimenRemovalItemResponse(
             item.specimenId(),
             item.barcode(),

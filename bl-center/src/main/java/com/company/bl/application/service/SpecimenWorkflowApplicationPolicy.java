@@ -6,7 +6,7 @@ import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.domain.model.Application;
 import com.company.bl.domain.repository.ApplicationRegistrationWorkbenchRepository;
 
-import static com.company.bl.application.service.SpecimenWorkflowModels.ApplicationOperationState;
+import static com.company.bl.application.service.SpecimenWorkflowQueryModels.ApplicationOperationState;
 
 class SpecimenWorkflowApplicationPolicy {
 

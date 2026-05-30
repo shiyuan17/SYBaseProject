@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 import static com.company.bl.application.service.SpecimenWorkflowModels.*;
+import static com.company.bl.application.service.SpecimenWorkflowQueryModels.*;
+import static com.company.bl.application.service.SpecimenWorkflowTransportModels.*;
 
 @Service
 @RequiredArgsConstructor

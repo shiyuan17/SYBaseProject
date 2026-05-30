@@ -2,6 +2,7 @@ package com.company.bl.masterdata.interfaces;
 
 import com.company.bl.interfaces.auth.M1PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
+import com.company.bl.masterdata.application.SamplingModels;
 import com.company.bl.masterdata.application.SamplingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -36,31 +37,31 @@ public class SamplingController {
     @Operation(summary = "查询取材模板树", description = "查询取材模板分类树及模板摘要。")
     @RequirePermission(M1PermissionCodes.TEMPLATE_QUERY)
     @GetMapping("/sampling-templates")
-    public List<SamplingService.TemplateCategoryNode> listSamplingTemplates() {
+    public List<SamplingModels.TemplateCategoryNode> listSamplingTemplates() {
         return samplingService.listSamplingTemplates();
     }
 
     @Operation(summary = "查询取材模板详情", description = "按模板 ID 查询取材模板详情。")
     @RequirePermission(M1PermissionCodes.TEMPLATE_QUERY)
     @GetMapping("/sampling-templates/{id}")
-    public SamplingService.TemplateDetailView getSamplingTemplateDetail(@Parameter(description = "模板 ID") @PathVariable("id") String id) {
+    public SamplingModels.TemplateDetailView getSamplingTemplateDetail(@Parameter(description = "模板 ID") @PathVariable("id") String id) {
         return samplingService.getSamplingTemplateDetail(id);
     }
 
     @Operation(summary = "新增取材模板分类", description = "新增取材模板分类节点。")
     @RequirePermission(M1PermissionCodes.TEMPLATE_CREATE)
     @PostMapping("/sampling-templates/categories")
-    public SamplingService.TemplateCategoryNode createTemplateCategory(@Valid @RequestBody CreateTemplateCategoryRequest request) {
-        return samplingService.createSamplingTemplateCategory(new SamplingService.CreateTemplateCategoryCommand(
+    public SamplingModels.TemplateCategoryNode createTemplateCategory(@Valid @RequestBody CreateTemplateCategoryRequest request) {
+        return samplingService.createSamplingTemplateCategory(new SamplingModels.CreateTemplateCategoryCommand(
             request.parentId(), request.categoryCode(), request.categoryName(), request.sortOrder(), request.enabled()));
     }
 
     @Operation(summary = "更新取材模板分类", description = "更新取材模板分类节点。")
     @RequirePermission(M1PermissionCodes.TEMPLATE_CREATE)
     @PatchMapping("/sampling-templates/categories/{id}")
-    public SamplingService.TemplateCategoryNode updateTemplateCategory(@Parameter(description = "分类 ID") @PathVariable("id") String id,
-                                                                       @Valid @RequestBody UpdateTemplateCategoryRequest request) {
-        return samplingService.updateSamplingTemplateCategory(id, new SamplingService.UpdateTemplateCategoryCommand(
+    public SamplingModels.TemplateCategoryNode updateTemplateCategory(@Parameter(description = "分类 ID") @PathVariable("id") String id,
+                                                                      @Valid @RequestBody UpdateTemplateCategoryRequest request) {
+        return samplingService.updateSamplingTemplateCategory(id, new SamplingModels.UpdateTemplateCategoryCommand(
             request.parentId(), request.categoryCode(), request.categoryName(), request.sortOrder(), request.enabled()));
     }
 
@@ -74,8 +75,8 @@ public class SamplingController {
     @Operation(summary = "新增取材模板", description = "新增取材模板。")
     @RequirePermission(M1PermissionCodes.TEMPLATE_CREATE)
     @PostMapping("/sampling-templates")
-    public SamplingService.TemplateDetailView createTemplate(@Valid @RequestBody CreateTemplateRequest request) {
-        return samplingService.createSamplingTemplate(new SamplingService.CreateTemplateCommand(
+    public SamplingModels.TemplateDetailView createTemplate(@Valid @RequestBody CreateTemplateRequest request) {
+        return samplingService.createSamplingTemplate(new SamplingModels.CreateTemplateCommand(
             request.categoryId(), request.templateCode(), request.templateName(), request.templateContent(),
             request.splitPartCount(), request.applicableSpecimenType(), request.enabled(), request.bodyPartIds()));
     }
@@ -83,9 +84,9 @@ public class SamplingController {
     @Operation(summary = "更新取材模板", description = "更新取材模板。")
     @RequirePermission(M1PermissionCodes.TEMPLATE_CREATE)
     @PatchMapping("/sampling-templates/{id}")
-    public SamplingService.TemplateDetailView updateTemplate(@Parameter(description = "模板 ID") @PathVariable("id") String id,
-                                                             @Valid @RequestBody UpdateTemplateRequest request) {
-        return samplingService.updateSamplingTemplate(id, new SamplingService.UpdateTemplateCommand(
+    public SamplingModels.TemplateDetailView updateTemplate(@Parameter(description = "模板 ID") @PathVariable("id") String id,
+                                                            @Valid @RequestBody UpdateTemplateRequest request) {
+        return samplingService.updateSamplingTemplate(id, new SamplingModels.UpdateTemplateCommand(
             request.categoryId(), request.templateCode(), request.templateName(), request.templateContent(),
             request.splitPartCount(), request.applicableSpecimenType(), request.enabled(), request.bodyPartIds()));
     }
@@ -93,8 +94,8 @@ public class SamplingController {
     @Operation(summary = "更新取材模板启用状态", description = "更新指定取材模板的启停状态。")
     @RequirePermission(M1PermissionCodes.TEMPLATE_CREATE)
     @PatchMapping("/sampling-templates/{id}/enabled")
-    public SamplingService.TemplateDetailView updateTemplateEnabled(@Parameter(description = "模板 ID") @PathVariable("id") String id,
-                                                                    @Valid @RequestBody UpdateEnabledRequest request) {
+    public SamplingModels.TemplateDetailView updateTemplateEnabled(@Parameter(description = "模板 ID") @PathVariable("id") String id,
+                                                                   @Valid @RequestBody UpdateEnabledRequest request) {
         return samplingService.updateSamplingTemplateEnabled(id, request.enabled());
     }
 
@@ -108,31 +109,31 @@ public class SamplingController {
     @Operation(summary = "查询取材规范树", description = "查询取材规范分类树及规范摘要。")
     @RequirePermission(M1PermissionCodes.GUIDELINE_QUERY)
     @GetMapping("/sampling-guidelines")
-    public List<SamplingService.GuidelineCategoryNode> listSamplingGuidelines() {
+    public List<SamplingModels.GuidelineCategoryNode> listSamplingGuidelines() {
         return samplingService.listSamplingGuidelines();
     }
 
     @Operation(summary = "查询取材规范详情", description = "按规范 ID 查询取材规范详情。")
     @RequirePermission(M1PermissionCodes.GUIDELINE_QUERY)
     @GetMapping("/sampling-guidelines/{id}")
-    public SamplingService.GuidelineDetailView getSamplingGuidelineDetail(@Parameter(description = "规范 ID") @PathVariable("id") String id) {
+    public SamplingModels.GuidelineDetailView getSamplingGuidelineDetail(@Parameter(description = "规范 ID") @PathVariable("id") String id) {
         return samplingService.getSamplingGuidelineDetail(id);
     }
 
     @Operation(summary = "新增取材规范分类", description = "新增取材规范分类节点。")
     @RequirePermission(M1PermissionCodes.GUIDELINE_CREATE)
     @PostMapping("/sampling-guidelines/categories")
-    public SamplingService.GuidelineCategoryNode createGuidelineCategory(@Valid @RequestBody CreateGuidelineCategoryRequest request) {
-        return samplingService.createGuidelineCategory(new SamplingService.CreateGuidelineCategoryCommand(
+    public SamplingModels.GuidelineCategoryNode createGuidelineCategory(@Valid @RequestBody CreateGuidelineCategoryRequest request) {
+        return samplingService.createGuidelineCategory(new SamplingModels.CreateGuidelineCategoryCommand(
             request.parentId(), request.categoryCode(), request.categoryName(), request.sortOrder(), request.enabled()));
     }
 
     @Operation(summary = "更新取材规范分类", description = "更新取材规范分类节点。")
     @RequirePermission(M1PermissionCodes.GUIDELINE_CREATE)
     @PatchMapping("/sampling-guidelines/categories/{id}")
-    public SamplingService.GuidelineCategoryNode updateGuidelineCategory(@Parameter(description = "分类 ID") @PathVariable("id") String id,
-                                                                         @Valid @RequestBody UpdateGuidelineCategoryRequest request) {
-        return samplingService.updateGuidelineCategory(id, new SamplingService.UpdateGuidelineCategoryCommand(
+    public SamplingModels.GuidelineCategoryNode updateGuidelineCategory(@Parameter(description = "分类 ID") @PathVariable("id") String id,
+                                                                        @Valid @RequestBody UpdateGuidelineCategoryRequest request) {
+        return samplingService.updateGuidelineCategory(id, new SamplingModels.UpdateGuidelineCategoryCommand(
             request.parentId(), request.categoryCode(), request.categoryName(), request.sortOrder(), request.enabled()));
     }
 
@@ -146,8 +147,8 @@ public class SamplingController {
     @Operation(summary = "新增取材规范", description = "新增取材规范。")
     @RequirePermission(M1PermissionCodes.GUIDELINE_CREATE)
     @PostMapping("/sampling-guidelines")
-    public SamplingService.GuidelineDetailView createGuideline(@Valid @RequestBody CreateGuidelineRequest request) {
-        return samplingService.createGuideline(new SamplingService.CreateGuidelineCommand(
+    public SamplingModels.GuidelineDetailView createGuideline(@Valid @RequestBody CreateGuidelineRequest request) {
+        return samplingService.createGuideline(new SamplingModels.CreateGuidelineCommand(
             request.categoryId(), request.guidelineCode(), request.guidelineName(), request.guidelineContent(),
             request.versionNo(), request.enabled()));
     }
@@ -155,9 +156,9 @@ public class SamplingController {
     @Operation(summary = "更新取材规范", description = "更新取材规范。")
     @RequirePermission(M1PermissionCodes.GUIDELINE_CREATE)
     @PatchMapping("/sampling-guidelines/{id}")
-    public SamplingService.GuidelineDetailView updateGuideline(@Parameter(description = "规范 ID") @PathVariable("id") String id,
-                                                               @Valid @RequestBody UpdateGuidelineRequest request) {
-        return samplingService.updateGuideline(id, new SamplingService.UpdateGuidelineCommand(
+    public SamplingModels.GuidelineDetailView updateGuideline(@Parameter(description = "规范 ID") @PathVariable("id") String id,
+                                                              @Valid @RequestBody UpdateGuidelineRequest request) {
+        return samplingService.updateGuideline(id, new SamplingModels.UpdateGuidelineCommand(
             request.categoryId(), request.guidelineCode(), request.guidelineName(), request.guidelineContent(),
             request.versionNo(), request.enabled()));
     }
@@ -165,8 +166,8 @@ public class SamplingController {
     @Operation(summary = "更新取材规范启用状态", description = "更新指定取材规范的启停状态。")
     @RequirePermission(M1PermissionCodes.GUIDELINE_CREATE)
     @PatchMapping("/sampling-guidelines/{id}/enabled")
-    public SamplingService.GuidelineDetailView updateGuidelineEnabled(@Parameter(description = "规范 ID") @PathVariable("id") String id,
-                                                                      @Valid @RequestBody UpdateEnabledRequest request) {
+    public SamplingModels.GuidelineDetailView updateGuidelineEnabled(@Parameter(description = "规范 ID") @PathVariable("id") String id,
+                                                                     @Valid @RequestBody UpdateEnabledRequest request) {
         return samplingService.updateGuidelineEnabled(id, request.enabled());
     }
 

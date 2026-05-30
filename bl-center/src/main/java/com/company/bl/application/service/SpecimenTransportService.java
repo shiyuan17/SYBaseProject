@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static com.company.bl.application.service.SpecimenWorkflowModels.*;
+import static com.company.bl.application.service.SpecimenWorkflowTransportModels.*;
 
 @Service
 class SpecimenTransportService {

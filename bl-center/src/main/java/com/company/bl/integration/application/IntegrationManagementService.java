@@ -1,6 +1,7 @@
 package com.company.bl.integration.application;
 
 import com.company.bl.integration.infrastructure.M6JdbcRepository;
+import com.company.bl.integration.infrastructure.M6IntegrationTaskRows;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -21,7 +22,7 @@ public class IntegrationManagementService {
     public String openTask(CreateIntegrationTaskCommand command) {
         LocalDateTime now = LocalDateTime.now();
         String taskId = "IT-" + UUID.randomUUID();
-        repository.insertIntegrationTask(new M6JdbcRepository.CreateIntegrationTaskRow(
+        repository.insertIntegrationTask(new M6IntegrationTaskRows.CreateIntegrationTaskRow(
             taskId,
             command.taskType(),
             command.businessType(),
@@ -46,11 +47,11 @@ public class IntegrationManagementService {
     }
 
     public void markSuccess(String taskId, String responsePayload) {
-        M6JdbcRepository.IntegrationTaskRow current = requireTask(taskId);
+        M6IntegrationTaskRows.IntegrationTaskRow current = requireTask(taskId);
         String compensationStatus = current.retryCount() > 0 || !"NONE".equals(current.compensationStatus())
             ? "RESOLVED"
             : current.compensationStatus();
-        repository.updateIntegrationTask(new M6JdbcRepository.IntegrationTaskRow(
+        repository.updateIntegrationTask(new M6IntegrationTaskRows.IntegrationTaskRow(
             current.id(),
             current.taskType(),
             current.businessType(),
@@ -74,10 +75,10 @@ public class IntegrationManagementService {
     }
 
     public void markFailure(String taskId, String errorCode, String errorMessage, String responsePayload, boolean retryable) {
-        M6JdbcRepository.IntegrationTaskRow current = requireTask(taskId);
+        M6IntegrationTaskRows.IntegrationTaskRow current = requireTask(taskId);
         int nextRetryCount = current.retryCount() + 1;
         boolean exhausted = !retryable || nextRetryCount >= current.maxRetryCount();
-        repository.updateIntegrationTask(new M6JdbcRepository.IntegrationTaskRow(
+        repository.updateIntegrationTask(new M6IntegrationTaskRows.IntegrationTaskRow(
             current.id(),
             current.taskType(),
             current.businessType(),
@@ -101,8 +102,8 @@ public class IntegrationManagementService {
     }
 
     public void markRetryStarted(String taskId, String requestPayload) {
-        M6JdbcRepository.IntegrationTaskRow current = requireTask(taskId);
-        repository.updateIntegrationTask(new M6JdbcRepository.IntegrationTaskRow(
+        M6IntegrationTaskRows.IntegrationTaskRow current = requireTask(taskId);
+        repository.updateIntegrationTask(new M6IntegrationTaskRows.IntegrationTaskRow(
             current.id(),
             current.taskType(),
             current.businessType(),
@@ -126,8 +127,8 @@ public class IntegrationManagementService {
     }
 
     public void markReconciled(String taskId, String reconciliationStatus) {
-        M6JdbcRepository.IntegrationTaskRow current = requireTask(taskId);
-        repository.updateIntegrationTask(new M6JdbcRepository.IntegrationTaskRow(
+        M6IntegrationTaskRows.IntegrationTaskRow current = requireTask(taskId);
+        repository.updateIntegrationTask(new M6IntegrationTaskRows.IntegrationTaskRow(
             current.id(),
             current.taskType(),
             current.businessType(),
@@ -165,19 +166,19 @@ public class IntegrationManagementService {
     }
 
     public IntegrationTaskView findLatestTask(String businessType, String businessId, String stageCode) {
-        M6JdbcRepository.IntegrationTaskRow row = repository.findLatestIntegrationTask(businessType, businessId, stageCode);
+        M6IntegrationTaskRows.IntegrationTaskRow row = repository.findLatestIntegrationTask(businessType, businessId, stageCode);
         return row == null ? null : toView(row);
     }
 
-    public M6JdbcRepository.IntegrationTaskRow requireTask(String taskId) {
-        M6JdbcRepository.IntegrationTaskRow task = repository.findIntegrationTaskById(taskId);
+    public M6IntegrationTaskRows.IntegrationTaskRow requireTask(String taskId) {
+        M6IntegrationTaskRows.IntegrationTaskRow task = repository.findIntegrationTaskById(taskId);
         if (task == null) {
             throw new IllegalArgumentException("Integration task not found: " + taskId);
         }
         return task;
     }
 
-    private IntegrationTaskView toView(M6JdbcRepository.IntegrationTaskRow row) {
+    private IntegrationTaskView toView(M6IntegrationTaskRows.IntegrationTaskRow row) {
         return new IntegrationTaskView(
             row.id(),
             row.taskType(),

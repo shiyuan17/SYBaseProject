@@ -6,7 +6,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.util.Map;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -61,11 +64,13 @@ class M6BillingIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTest
         assertThat(retryPendingTask.path("responsePayload").asText()).contains("one-time failure");
 
         JsonNode retried = responseBody(postJson("/api/v1/billing-records/%s/retry".formatted(failedRecord.path("id").asText()), USER_M1_ADMIN, """
-            {"operatorUserId":"USER_M1_ADMIN","operatorName":"admin-user"}
+            {}
             """), 200);
         assertThat(retried.path("billingStatus").asText()).isEqualTo("SUCCESS");
         assertThat(retried.path("compensationStatus").asText()).isEqualTo("RESOLVED");
         assertThat(retried.path("resolvedAt").asText()).isNotBlank();
+        assertThat(retried.path("operatorUserId").asText()).isEqualTo(USER_M1_ADMIN);
+        assertThat(retried.path("operatorName").asText()).isEqualTo(userDisplayName(USER_M1_ADMIN));
 
         JsonNode tasks = responseBody(mockMvc.perform(authorized(get("/api/v1/integration-tasks"), USER_M1_ADMIN)
             .param("businessType", "BILLING_RECORD")), 200);
@@ -85,14 +90,47 @@ class M6BillingIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTest
             {
               "externalBillNo":"EXT-RECEIPT-001",
               "billingStatus":"SUCCESS",
-              "operatorUserId":"USER_M1_ADMIN",
-              "operatorName":"admin-user",
               "remarks":"receipt confirmed"
             }
             """), 200);
         assertThat(receipt.path("externalBillNo").asText()).isEqualTo("EXT-RECEIPT-001");
         assertThat(receipt.path("integrationTaskId").asText()).isNotBlank();
         assertThat(receipt.path("reconciliationStatus").asText()).isEqualTo("MATCHED");
+        assertThat(receipt.path("operatorUserId").asText()).isEqualTo(USER_M1_ADMIN);
+        assertThat(receipt.path("operatorName").asText()).isEqualTo(userDisplayName(USER_M1_ADMIN));
+    }
+
+    @Test
+    void shouldRejectLegacyOperatorFieldsOnBillingRetry() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M6-BILL-003", "BC-M6-BILL-003");
+
+        JsonNode created = responseBody(postJson("/api/v1/medical-orders", USER_M4_DIAGNOSIS, """
+            {
+              "caseId":"%s",
+              "orderType":"RE_STAIN",
+              "orderContent":"FAIL_ONCE reject legacy operator",
+              "terminalCode":"M6-B-11"
+            }
+            """.formatted(context.caseId())), 200);
+        String orderId = created.path("orderId").asText();
+
+        postJson("/api/v1/medical-orders/%s/accept".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M6-B-12"}
+            """).andExpect(status().isOk());
+        postJson("/api/v1/medical-orders/%s/complete".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M6-B-13"}
+            """).andExpect(status().isOk());
+
+        JsonNode failedRecords = responseBody(mockMvc.perform(authorized(get("/api/v1/billing-records"), USER_M1_ADMIN)
+            .param("billingStage", "SPECIAL_ORDER")
+            .param("orderId", orderId)), 200);
+        String failedBillingId = findByField(failedRecords, "orderId", orderId).path("id").asText();
+
+        postJson("/api/v1/billing-records/%s/retry".formatted(failedBillingId), USER_M1_ADMIN, """
+            {"operatorUserId":"FORGED-USER","operatorName":"forged-user"}
+            """)
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message", containsString("operatorUserId")));
     }
 
     private JsonNode findByField(JsonNode items, String fieldName, String expectedValue) {
@@ -111,5 +149,13 @@ class M6BillingIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTest
             }
         }
         throw new AssertionError("Unable to find item with " + fieldName + " containing " + expectedValue + " in " + items);
+    }
+
+    private String userDisplayName(String userId) {
+        return jdbcTemplate.queryForObject("""
+            select name
+            from users
+            where id = :userId
+            """, Map.of("userId", userId), String.class);
     }
 }

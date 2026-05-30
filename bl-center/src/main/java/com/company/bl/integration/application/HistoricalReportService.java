@@ -3,6 +3,7 @@ package com.company.bl.integration.application;
 import com.company.bl.application.gateway.HistoricalReportGateway;
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
+import com.company.bl.integration.infrastructure.M6HistoricalReportRows;
 import com.company.bl.integration.infrastructure.M6JdbcRepository;
 import com.company.common.web.observability.ObservedOperation;
 import com.company.bl.support.application.OperationAuditService;
@@ -47,7 +48,7 @@ public class HistoricalReportService {
             String sourceSystem = command.sourceSystem() == null || command.sourceSystem().isBlank()
                 ? EXTERNAL_SYSTEM_DEFAULT
                 : command.sourceSystem();
-            repository.insertHistoricalImportJob(new M6JdbcRepository.CreateHistoricalImportJobRow(
+            repository.insertHistoricalImportJob(new M6HistoricalReportRows.CreateHistoricalImportJobRow(
                 jobId, sourceSystem, command.patientId(), command.pathologyNo(), command.applicationNo(),
                 "RUNNING", command.operatorUserId(), command.operatorName(), 0, 0, 0, now, null, null,
                 command.remarks(), now, now));
@@ -62,14 +63,14 @@ public class HistoricalReportService {
                     upsertHistoricalReport(jobId, report);
                     successCount++;
                 }
-                repository.updateHistoricalImportJob(new M6JdbcRepository.HistoricalImportJobRow(
+                repository.updateHistoricalImportJob(new M6HistoricalReportRows.HistoricalImportJobRow(
                     jobId, sourceSystem, command.patientId(), command.pathologyNo(), command.applicationNo(), "COMPLETED",
                     command.operatorUserId(), command.operatorName(), reports.size(), successCount, reports.size() - successCount,
                     now, LocalDateTime.now(), null, command.remarks(), now, LocalDateTime.now()));
                 integrationManagementService.markSuccess(taskId, "{\"count\":" + reports.size() + "}");
                 return toJobView(repository.findHistoricalImportJobById(jobId));
             } catch (RuntimeException exception) {
-                repository.updateHistoricalImportJob(new M6JdbcRepository.HistoricalImportJobRow(
+                repository.updateHistoricalImportJob(new M6HistoricalReportRows.HistoricalImportJobRow(
                     jobId, sourceSystem, command.patientId(), command.pathologyNo(), command.applicationNo(), "FAILED",
                     command.operatorUserId(), command.operatorName(), 0, 0, 0, now, LocalDateTime.now(),
                     exception.getMessage(), command.remarks(), now, LocalDateTime.now()));
@@ -106,16 +107,16 @@ public class HistoricalReportService {
 
     private void upsertHistoricalReport(String jobId, HistoricalReportGateway.ImportedHistoricalReport report) {
         LocalDateTime now = LocalDateTime.now();
-        M6JdbcRepository.HistoricalReportRow existing =
+        M6HistoricalReportRows.HistoricalReportRow existing =
             repository.findHistoricalReportBySourceAndExternalNo(report.sourceSystem(), report.externalReportNo());
         String historicalReportId = existing == null ? "HR-" + UUID.randomUUID() : existing.id();
         if (existing == null) {
-            repository.insertHistoricalReport(new M6JdbcRepository.CreateHistoricalReportRow(
+            repository.insertHistoricalReport(new M6HistoricalReportRows.CreateHistoricalReportRow(
                 historicalReportId, jobId, report.sourceSystem(), report.externalReportNo(), report.patientId(), report.patientName(),
                 report.pathologyNo(), report.applicationNo(), report.reportDate(), report.finalDiagnosis(), report.reportSummary(),
                 report.rawPayload(), report.sourceDepartmentName(), report.sourceDoctorName(), report.attachmentUrl(), now, now));
         } else {
-            repository.updateHistoricalReport(new M6JdbcRepository.HistoricalReportRow(
+            repository.updateHistoricalReport(new M6HistoricalReportRows.HistoricalReportRow(
                 historicalReportId, jobId, report.sourceSystem(), report.externalReportNo(), report.patientId(), report.patientName(),
                 report.pathologyNo(), report.applicationNo(), report.reportDate(), report.finalDiagnosis(), report.reportSummary(),
                 report.rawPayload(), report.sourceDepartmentName(), report.sourceDoctorName(), report.attachmentUrl(), existing.createdAt(), now));
@@ -124,18 +125,18 @@ public class HistoricalReportService {
         int versionNo = 1;
         List<HistoricalReportGateway.ImportedHistoricalReportVersion> versions = report.versions();
         if (versions == null || versions.isEmpty()) {
-            repository.insertHistoricalReportVersion(new M6JdbcRepository.CreateHistoricalReportVersionRow(
+            repository.insertHistoricalReportVersion(new M6HistoricalReportRows.CreateHistoricalReportVersionRow(
                 "HRV-" + UUID.randomUUID(), historicalReportId, versionNo, report.finalDiagnosis(), report.reportSummary(), report.rawPayload(), now, now));
         } else {
             for (HistoricalReportGateway.ImportedHistoricalReportVersion version : versions) {
-                repository.insertHistoricalReportVersion(new M6JdbcRepository.CreateHistoricalReportVersionRow(
+                repository.insertHistoricalReportVersion(new M6HistoricalReportRows.CreateHistoricalReportVersionRow(
                     "HRV-" + UUID.randomUUID(), historicalReportId, version.versionNo(), version.finalDiagnosis(),
                     version.reportSummary(), version.rawPayload(), now, now));
             }
         }
     }
 
-    private HistoricalImportJobView toJobView(M6JdbcRepository.HistoricalImportJobRow row) {
+    private HistoricalImportJobView toJobView(M6HistoricalReportRows.HistoricalImportJobRow row) {
         if (row == null) {
             throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Historical import job not found");
         }
@@ -166,7 +167,7 @@ public class HistoricalReportService {
             task == null ? null : task.reconciliationStatus());
     }
 
-    private HistoricalReportView toHistoricalView(M6JdbcRepository.HistoricalReportRow row) {
+    private HistoricalReportView toHistoricalView(M6HistoricalReportRows.HistoricalReportRow row) {
         List<HistoricalReportVersionView> versions = repository.findHistoricalReportVersions(row.id()).stream()
             .map(item -> new HistoricalReportVersionView(
                 item.id(), item.versionNo(), item.finalDiagnosis(), item.reportSummary(), item.createdAt() == null ? null : item.createdAt().toString()))

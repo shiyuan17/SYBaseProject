@@ -52,7 +52,7 @@ class M6ObservabilityIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
             .param("orderId", orderId)), 200);
         String failedBillingId = failedRecords.get(0).path("id").asText();
         postJson("/api/v1/billing-records/%s/retry".formatted(failedBillingId), USER_M1_ADMIN, """
-            {"operatorUserId":"USER_M1_ADMIN","operatorName":"admin-user"}
+            {}
             """).andExpect(status().isOk());
 
         PublishedReportContext publishedContext = preparePublishedReportContext("APP-M6-OBS-002", "BC-M6-OBS-002");
@@ -63,8 +63,6 @@ class M6ObservabilityIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
             {
               "externalBillNo":"EXT-OBS-001",
               "billingStatus":"SUCCESS",
-              "operatorUserId":"USER_M1_ADMIN",
-              "operatorName":"admin-user",
               "remarks":"receipt confirmed"
             }
             """).andExpect(status().isOk());
@@ -72,8 +70,6 @@ class M6ObservabilityIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
         postJson("/api/v1/historical-report-import-jobs", USER_M1_ARCHIVE, """
             {
               "sourceSystem":"MOCK_HIS",
-              "operatorUserId":"USER_M1_ARCHIVE",
-              "operatorName":"archive-user",
               "remarks":"metrics import"
             }
             """).andExpect(status().isOk());
@@ -84,9 +80,7 @@ class M6ObservabilityIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
                     {
                       "category":"QUALITY",
                       "from":"2026-05-01T00:00:00",
-                      "to":"2026-05-31T23:59:59",
-                      "operatorUserId":"USER_M1_QUALITY",
-                      "operatorName":"quality-user"
+                      "to":"2026-05-31T23:59:59"
                     }
                     """))
             .andExpect(status().isOk());
@@ -97,9 +91,7 @@ class M6ObservabilityIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
                     {
                       "category":"OPERATION",
                       "from":"2026-05-01T00:00:00",
-                      "to":"2026-05-31T23:59:59",
-                      "operatorUserId":"USER_M1_QUALITY",
-                      "operatorName":"quality-user"
+                      "to":"2026-05-31T23:59:59"
                     }
                     """))
             .andExpect(status().isOk());

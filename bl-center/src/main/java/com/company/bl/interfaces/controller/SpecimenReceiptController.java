@@ -2,6 +2,7 @@ package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.SpecimenWorkflowAppService;
 import com.company.bl.application.service.SpecimenWorkflowModels;
+import com.company.bl.application.service.SpecimenWorkflowQueryModels;
 import com.company.bl.domain.enums.ReceiptStatus;
 import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
@@ -100,8 +101,8 @@ public class SpecimenReceiptController {
                                                    @Parameter(description = "送检科室 ID") @RequestParam(required = false) String departmentId,
                                                    @Parameter(description = "开始日期") @RequestParam(required = false) String dateFrom,
                                                    @Parameter(description = "结束日期") @RequestParam(required = false) String dateTo) {
-        SpecimenWorkflowModels.PendingSpecimenPage result = specimenWorkflowAppService.listPendingReceipts(
-            new SpecimenWorkflowModels.PendingSpecimenQuery(
+        SpecimenWorkflowQueryModels.PendingSpecimenPage result = specimenWorkflowAppService.listPendingReceipts(
+            new SpecimenWorkflowQueryModels.PendingSpecimenQuery(
                 page,
                 size,
                 applicationId,
@@ -118,7 +119,7 @@ public class SpecimenReceiptController {
             result.total());
     }
 
-    private PendingSpecimenItemResponse toPendingItem(SpecimenWorkflowModels.PendingSpecimenItem item) {
+    private PendingSpecimenItemResponse toPendingItem(SpecimenWorkflowQueryModels.PendingSpecimenItem item) {
         return new PendingSpecimenItemResponse(
             item.applicationId(),
             item.applicationNo(),

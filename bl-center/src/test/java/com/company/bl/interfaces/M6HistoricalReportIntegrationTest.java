@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.util.Map;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
@@ -20,13 +22,13 @@ class M6HistoricalReportIntegrationTest extends AbstractSpecimenWorkflowIntegrat
         JsonNode firstJob = responseBody(postJson("/api/v1/historical-report-import-jobs", USER_M1_ARCHIVE, """
             {
               "sourceSystem":"MOCK_HIS",
-              "operatorUserId":"USER_M1_ARCHIVE",
-              "operatorName":"archive-user",
               "remarks":"first import"
             }
             """), 200);
         assertThat(firstJob.path("importStatus").asText()).isEqualTo("COMPLETED");
         assertThat(firstJob.path("totalCount").asInt()).isEqualTo(2);
+        assertThat(firstJob.path("requestedByUserId").asText()).isEqualTo(USER_M1_ARCHIVE);
+        assertThat(firstJob.path("requestedByName").asText()).isEqualTo(userDisplayName(USER_M1_ARCHIVE));
 
         JsonNode historicalReports = responseBody(mockMvc.perform(authorized(get("/api/v1/historical-reports"), USER_M1_ARCHIVE)
             .param("sourceSystem", "MOCK_HIS")), 200);
@@ -35,8 +37,6 @@ class M6HistoricalReportIntegrationTest extends AbstractSpecimenWorkflowIntegrat
         responseBody(postJson("/api/v1/historical-report-import-jobs", USER_M1_ARCHIVE, """
             {
               "sourceSystem":"MOCK_HIS",
-              "operatorUserId":"USER_M1_ARCHIVE",
-              "operatorName":"archive-user",
               "remarks":"second import"
             }
             """), 200);
@@ -51,5 +51,13 @@ class M6HistoricalReportIntegrationTest extends AbstractSpecimenWorkflowIntegrat
         assertThat(importJobs.size()).isGreaterThanOrEqualTo(2);
         assertThat(importJobs.get(0).path("integrationTaskId").asText()).isNotBlank();
         assertThat(importJobs.get(0).path("compensationStatus").asText()).isIn("NONE", "RESOLVED");
+    }
+
+    private String userDisplayName(String userId) {
+        return jdbcTemplate.queryForObject("""
+            select name
+            from users
+            where id = :userId
+            """, Map.of("userId", userId), String.class);
     }
 }

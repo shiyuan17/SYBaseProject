@@ -1,7 +1,6 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.ApplicationRegistrationWorkbenchAppService;
-import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.SaveApplicationRegistrationWorkbenchRequest;
@@ -187,12 +186,10 @@ public class ApplicationRegistrationWorkbenchController {
     }
 
     private String resolveUserId(HttpServletRequest request) {
-        Object currentUserId = request.getAttribute(ApiPermissionContext.CURRENT_USER_ID);
-        return currentUserId == null ? null : currentUserId.toString();
+        return RequestOperatorContext.currentUserId(request);
     }
 
     private String resolveOperatorName(HttpServletRequest request) {
-        Object currentLoginName = request.getAttribute(ApiPermissionContext.CURRENT_LOGIN_NAME);
-        return currentLoginName == null ? null : currentLoginName.toString();
+        return RequestOperatorContext.currentOperatorName(request);
     }
 }

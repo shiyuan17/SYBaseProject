@@ -9,6 +9,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -39,9 +40,7 @@ class M6AuthorizationIntegrationTest extends AuthenticatedWebIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "sourceSystem":"MOCK_HIS",
-                      "operatorUserId":"USER_M1_ARCHIVE",
-                      "operatorName":"archive-user"
+                      "sourceSystem":"MOCK_HIS"
                     }
                     """))
             .andExpect(status().isOk());
@@ -50,11 +49,36 @@ class M6AuthorizationIntegrationTest extends AuthenticatedWebIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "category":"QUALITY",
-                      "operatorUserId":"USER_M1_QUALITY",
-                      "operatorName":"quality-user"
+                      "category":"QUALITY"
                     }
                     """))
             .andExpect(status().isOk());
+    }
+
+    @Test
+    void shouldRejectLegacyOperatorFieldsOnM6Requests() throws Exception {
+        mockMvc.perform(authorized(post("/api/v1/historical-report-import-jobs"), USER_M1_ARCHIVE)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "sourceSystem":"MOCK_HIS",
+                      "operatorUserId":"FORGED-USER",
+                      "operatorName":"forged-user"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message", containsString("operatorUserId")));
+
+        mockMvc.perform(authorized(post("/api/v1/stat-reports/query"), USER_M1_QUALITY)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "category":"QUALITY",
+                      "operatorUserId":"FORGED-USER",
+                      "operatorName":"forged-user"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message", containsString("operatorUserId")));
     }
 }

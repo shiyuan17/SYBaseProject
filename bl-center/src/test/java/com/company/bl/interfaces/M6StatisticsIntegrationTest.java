@@ -44,9 +44,7 @@ class M6StatisticsIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
                     {
                       "category":"OPERATION",
                       "from":"2026-05-01T00:00:00",
-                      "to":"2026-05-31T23:59:59",
-                      "operatorUserId":"USER_M1_QUALITY",
-                      "operatorName":"quality-user"
+                      "to":"2026-05-31T23:59:59"
                     }
                     """)), 200);
         assertThat(report.path("rows").size()).isGreaterThanOrEqualTo(4);
@@ -58,9 +56,7 @@ class M6StatisticsIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
                     {
                       "category":"QUALITY",
                       "from":"2026-05-01T00:00:00",
-                      "to":"2026-05-31T23:59:59",
-                      "operatorUserId":"USER_M1_QUALITY",
-                      "operatorName":"quality-user"
+                      "to":"2026-05-31T23:59:59"
                     }
                     """))
             .andExpect(status().isOk())
@@ -90,9 +86,7 @@ class M6StatisticsIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
               "category":"OPERATION",
               "from":"2026-05-01T00:00:00",
               "to":"2026-05-31T23:59:59",
-              "departmentId":"DEPT-M6-STAT-OR",
-              "operatorUserId":"USER_M1_QUALITY",
-              "operatorName":"quality-user"
+              "departmentId":"DEPT-M6-STAT-OR"
             }
             """);
         assertThat(findMetricValue(caseVolumeReport, "OP_CASE_VOLUME")).isEqualTo("1");
@@ -104,9 +98,7 @@ class M6StatisticsIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
               "from":"2026-05-01T00:00:00",
               "to":"2026-05-31T23:59:59",
               "departmentId":"DEPT-M6-STAT-OR",
-              "roleId":"ROLE_PATHOLOGY_ADMIN",
-              "operatorUserId":"USER_M1_ADMIN",
-              "operatorName":"quality-user"
+              "roleId":"ROLE_PATHOLOGY_ADMIN"
             }
             """);
         assertThat(findMetricValue(qualityReport, "QC_GROSSING_QUALITY_COUNT")).isEqualTo("1");
@@ -119,8 +111,7 @@ class M6StatisticsIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
               "to":"2026-05-31T23:59:59",
               "departmentId":"DEPT-M6-STAT-OR",
               "roleId":"ROLE_M4_DIAGNOSIS",
-              "operatorUserId":"USER_M4_DIAGNOSIS",
-              "operatorName":"quality-user"
+              "workloadUserId":"USER_M4_DIAGNOSIS"
             }
             """);
         assertThat(findMetricValue(diagnosticWorkloadReport, "WL_DIAGNOSTIC_TASK_COUNT")).isEqualTo("1");
@@ -133,8 +124,7 @@ class M6StatisticsIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
               "to":"2026-05-31T23:59:59",
               "departmentId":"DEPT-M6-STAT-OR",
               "roleId":"ROLE_M4_DIAGNOSIS",
-              "operatorUserId":"USER_M4_DIAGNOSIS",
-              "operatorName":"quality-user"
+              "workloadUserId":"USER_M4_DIAGNOSIS"
             }
             """);
         assertThat(findMetricValue(medicalOrderWorkloadReport, "WL_MEDICAL_ORDER_COUNT")).isEqualTo("1");
@@ -147,8 +137,7 @@ class M6StatisticsIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
               "to":"2026-05-31T23:59:59",
               "departmentId":"DEPT-M6-STAT-OR",
               "roleId":"ROLE_M4_DIAGNOSIS",
-              "operatorUserId":"USER_M4_DIAGNOSIS",
-              "operatorName":"quality-user"
+              "workloadUserId":"USER_M4_DIAGNOSIS"
             }
             """);
         assertThat(findMetricValue(performanceWorkloadReport, "OP_PERFORMANCE_WORKLOAD")).isEqualTo("2");
@@ -161,8 +150,7 @@ class M6StatisticsIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
               "to":"2026-05-31T23:59:59",
               "departmentId":"DEPT-M6-STAT-OR",
               "roleId":"ROLE_M4_DIAGNOSIS",
-              "operatorUserId":"USER_M4_DIAGNOSIS",
-              "operatorName":"quality-user"
+              "workloadUserId":"USER_M4_DIAGNOSIS"
             }
             """);
         assertThat(workloadCsv).contains("OP_PERFORMANCE_WORKLOAD");
@@ -173,9 +161,7 @@ class M6StatisticsIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
               "indicatorCode":"OP_REAGENT_STOCK_ALERT",
               "category":"OPERATION",
               "from":"2026-05-01T00:00:00",
-              "to":"2026-05-31T23:59:59",
-              "operatorUserId":"USER_M1_QUALITY",
-              "operatorName":"quality-user"
+              "to":"2026-05-31T23:59:59"
             }
             """);
         JsonNode reagentAlertFiltered = queryStatReport("""
@@ -186,8 +172,7 @@ class M6StatisticsIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
               "to":"2026-05-31T23:59:59",
               "departmentId":"DEPT-M6-STAT-OR",
               "roleId":"ROLE_M4_DIAGNOSIS",
-              "operatorUserId":"USER_M4_DIAGNOSIS",
-              "operatorName":"quality-user"
+              "workloadUserId":"USER_M4_DIAGNOSIS"
             }
             """);
         assertThat(findMetricValue(reagentAlertFiltered, "OP_REAGENT_STOCK_ALERT"))

@@ -1,0 +1,65 @@
+package db.migration;
+
+import java.util.List;
+
+final class V44WorkflowReferenceSeedData {
+
+    static final String MENU_ID = "MENU_CONFIGS";
+    static final String LEGACY_MENU_ID = "MENU_SYS_CONFIG";
+    static final String PERMISSION_ID = "PERM_WORKFLOW_REFERENCE_QUERY";
+    static final String ACTION_KEY = "WORKFLOW_REFERENCE_QUERY";
+
+    static final String ROOT_CATEGORY_ID = "SCC_WORKFLOW_REFERENCE";
+    static final String ROOT_CATEGORY_CODE = "WORKFLOW_REFERENCE";
+
+    static final String SPECIMEN_TYPE_CATEGORY_ID = "SCC_WORKFLOW_REFERENCE_SPECIMEN_TYPE";
+    static final String COLLECTION_MODE_CATEGORY_ID = "SCC_WORKFLOW_REFERENCE_COLLECTION_MODE";
+    static final String CLINICAL_SYMPTOM_CATEGORY_ID = "SCC_WORKFLOW_REFERENCE_CLINICAL_SYMPTOM";
+    static final String FIXATION_LIQUID_TYPE_CATEGORY_ID = "SCC_WORKFLOW_REFERENCE_FIXATION";
+
+    static final List<String> ROLE_IDS = List.of(
+        "ROLE_PATHOLOGY_ADMIN",
+        "ROLE_M2_CLINICAL_REGISTER",
+        "ROLE_M2_FIXATION_VERIFY",
+        "ROLE_M3_GROSSING"
+    );
+
+    static final List<ConfigItemSeed> SPECIMEN_TYPE_ITEMS = List.of(
+        new ConfigItemSeed("SCI_WORKFLOW_SPECIMEN_TYPE_ROUTINE", "WORKFLOW_REFERENCE.SPECIMEN_TYPE.ROUTINE", "Routine", "ROUTINE", 10),
+        new ConfigItemSeed("SCI_WORKFLOW_SPECIMEN_TYPE_FROZEN", "WORKFLOW_REFERENCE.SPECIMEN_TYPE.FROZEN", "Frozen", "FROZEN", 20),
+        new ConfigItemSeed("SCI_WORKFLOW_SPECIMEN_TYPE_BIOPSY", "WORKFLOW_REFERENCE.SPECIMEN_TYPE.BIOPSY", "Biopsy", "BIOPSY", 30),
+        new ConfigItemSeed("SCI_WORKFLOW_SPECIMEN_TYPE_CYTOLOGY", "WORKFLOW_REFERENCE.SPECIMEN_TYPE.CYTOLOGY", "Cytology", "CYTOLOGY", 40)
+    );
+
+    static final List<ConfigItemSeed> COLLECTION_MODE_ITEMS = List.of(
+        new ConfigItemSeed("SCI_WORKFLOW_COLLECTION_MODE_SURGERY", "WORKFLOW_REFERENCE.COLLECTION_MODE.SURGERY", "Surgery", "SURGERY", 10),
+        new ConfigItemSeed("SCI_WORKFLOW_COLLECTION_MODE_BIOPSY", "WORKFLOW_REFERENCE.COLLECTION_MODE.BIOPSY", "Biopsy", "BIOPSY", 20),
+        new ConfigItemSeed("SCI_WORKFLOW_COLLECTION_MODE_PUNCTURE", "WORKFLOW_REFERENCE.COLLECTION_MODE.PUNCTURE", "Puncture", "PUNCTURE", 30),
+        new ConfigItemSeed("SCI_WORKFLOW_COLLECTION_MODE_CYTOLOGY", "WORKFLOW_REFERENCE.COLLECTION_MODE.CYTOLOGY", "Cytology", "CYTOLOGY", 40)
+    );
+
+    static final List<ConfigItemSeed> CLINICAL_SYMPTOM_ITEMS = List.of(
+        new ConfigItemSeed("SCI_WORKFLOW_CLINICAL_SYMPTOM_MASS", "WORKFLOW_REFERENCE.CLINICAL_SYMPTOM.MASS", "Mass", null, 10),
+        new ConfigItemSeed("SCI_WORKFLOW_CLINICAL_SYMPTOM_PAIN", "WORKFLOW_REFERENCE.CLINICAL_SYMPTOM.PAIN", "Pain", null, 20),
+        new ConfigItemSeed("SCI_WORKFLOW_CLINICAL_SYMPTOM_BLEEDING", "WORKFLOW_REFERENCE.CLINICAL_SYMPTOM.BLEEDING", "Bleeding", null, 30),
+        new ConfigItemSeed("SCI_WORKFLOW_CLINICAL_SYMPTOM_FEVER", "WORKFLOW_REFERENCE.CLINICAL_SYMPTOM.FEVER", "Fever", null, 40)
+    );
+
+    static final List<ConfigItemSeed> FIXATION_ITEMS = List.of(
+        new ConfigItemSeed("SCI_WORKFLOW_FIXATION_FORMALIN", "WORKFLOW_REFERENCE.FIXATION_LIQUID_TYPE.FORMALIN", "10% Neutral Buffered Formalin", "FORMALIN", 10),
+        new ConfigItemSeed("SCI_WORKFLOW_FIXATION_ETHANOL", "WORKFLOW_REFERENCE.FIXATION_LIQUID_TYPE.ETHANOL", "Ethanol", "ETHANOL", 20),
+        new ConfigItemSeed("SCI_WORKFLOW_FIXATION_SALINE", "WORKFLOW_REFERENCE.FIXATION_LIQUID_TYPE.SALINE", "Saline", "SALINE", 30)
+    );
+
+    private V44WorkflowReferenceSeedData() {
+    }
+}
+
+record ConfigItemSeed(
+    String id,
+    String configKey,
+    String configName,
+    String configValue,
+    int sortOrder
+) {
+}

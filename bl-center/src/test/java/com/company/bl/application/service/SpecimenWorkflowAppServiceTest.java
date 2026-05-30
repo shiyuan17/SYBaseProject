@@ -11,7 +11,7 @@ import java.util.List;
 import static com.company.bl.application.service.SpecimenWorkflowModels.ConfirmSpecimenCommand;
 import static com.company.bl.application.service.SpecimenWorkflowModels.FixationCommand;
 import static com.company.bl.application.service.SpecimenWorkflowModels.RegisterSpecimensCommand;
-import static com.company.bl.application.service.SpecimenWorkflowModels.CreateTransportOrderCommand;
+import static com.company.bl.application.service.SpecimenWorkflowTransportModels.CreateTransportOrderCommand;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;

@@ -5,6 +5,7 @@ import com.company.bl.domain.model.Specimen;
 import com.company.bl.domain.repository.SpecimenWorkflowRepository;
 
 import static com.company.bl.application.service.SpecimenWorkflowModels.*;
+import static com.company.bl.application.service.SpecimenWorkflowQueryModels.*;
 
 class SpecimenWorkflowModelAssembler {
 

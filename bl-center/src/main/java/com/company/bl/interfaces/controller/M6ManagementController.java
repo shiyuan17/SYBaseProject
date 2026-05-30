@@ -5,9 +5,11 @@ import com.company.bl.integration.application.HistoricalReportService;
 import com.company.bl.integration.application.IntegrationManagementService;
 import com.company.bl.integration.application.StatisticsService;
 import com.company.bl.interfaces.auth.M6PermissionCodes;
+import com.company.bl.interfaces.auth.RejectLegacyOperatorFields;
 import com.company.bl.interfaces.auth.RequirePermission;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.servlet.http.HttpServletRequest;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
@@ -80,34 +82,50 @@ public class M6ManagementController {
     @RequirePermission(M6PermissionCodes.BILLING_RECEIPT)
     @PostMapping("/billing-records/{id}/receipt")
     public BillingManagementService.BillingRecordView receiveReceipt(@PathVariable("id") String id,
-                                                                     @Valid @RequestBody BillingReceiptRequest request) {
+                                                                     @Valid @RequestBody BillingReceiptRequest request,
+                                                                     HttpServletRequest httpServletRequest) {
         return billingManagementService.receiveBillingReceipt(
-            id, request.externalBillNo(), request.billingStatus(), request.operatorUserId(), request.operatorName(), request.remarks());
+            id,
+            request.externalBillNo(),
+            request.billingStatus(),
+            currentUserId(httpServletRequest),
+            currentOperatorName(httpServletRequest),
+            request.remarks());
     }
 
     @Operation(summary = "Retry billing", description = "Retry a failed billing submission.")
     @RequirePermission(M6PermissionCodes.BILLING_RETRY)
     @PostMapping("/billing-records/{id}/retry")
     public BillingManagementService.BillingRecordView retryBilling(@PathVariable("id") String id,
-                                                                   @Valid @RequestBody OperatorRequest request) {
-        return billingManagementService.retryBilling(id, request.operatorUserId(), request.operatorName());
+                                                                   @Valid @RequestBody OperatorRequest request,
+                                                                   HttpServletRequest httpServletRequest) {
+        return billingManagementService.retryBilling(id, currentUserId(httpServletRequest), currentOperatorName(httpServletRequest));
     }
 
     @Operation(summary = "Reconcile billing", description = "Run billing reconciliation in a time window.")
     @RequirePermission(M6PermissionCodes.BILLING_RECONCILE)
     @PostMapping("/billing-records/reconcile")
-    public BillingManagementService.ReconciliationResult reconcile(@Valid @RequestBody ReconcileBillingRequest request) {
-        return billingManagementService.reconcile(parseDateTime(request.from()), parseDateTime(request.to()),
-            request.operatorUserId(), request.operatorName());
+    public BillingManagementService.ReconciliationResult reconcile(@Valid @RequestBody ReconcileBillingRequest request,
+                                                                   HttpServletRequest httpServletRequest) {
+        return billingManagementService.reconcile(
+            parseDateTime(request.from()),
+            parseDateTime(request.to()),
+            currentUserId(httpServletRequest),
+            currentOperatorName(httpServletRequest));
     }
 
     @Operation(summary = "Import historical reports", description = "Create a historical report import job.")
     @RequirePermission(M6PermissionCodes.HISTORY_IMPORT)
     @PostMapping("/historical-report-import-jobs")
-    public HistoricalReportService.HistoricalImportJobView importHistoricalReports(@Valid @RequestBody ImportHistoricalReportsRequest request) {
+    public HistoricalReportService.HistoricalImportJobView importHistoricalReports(@Valid @RequestBody ImportHistoricalReportsRequest request,
+                                                                                   HttpServletRequest httpServletRequest) {
         return historicalReportService.importReports(new HistoricalReportService.ImportHistoricalReportsCommand(
             request.sourceSystem(), request.patientId(), request.pathologyNo(), request.applicationNo(),
-            parseDateTime(request.from()), parseDateTime(request.to()), request.operatorUserId(), request.operatorName(), request.remarks()));
+            parseDateTime(request.from()),
+            parseDateTime(request.to()),
+            currentUserId(httpServletRequest),
+            currentOperatorName(httpServletRequest),
+            request.remarks()));
     }
 
     @Operation(summary = "List historical import jobs", description = "Query historical report import jobs.")
@@ -156,19 +174,29 @@ public class M6ManagementController {
     @Operation(summary = "Query stat report", description = "Query statistic reports with time, department, role, and operator filters.")
     @RequirePermission(M6PermissionCodes.STAT_REPORT_QUERY)
     @PostMapping("/stat-reports/query")
-    public StatisticsService.StatReportResult queryReport(@Valid @RequestBody QueryStatReportRequest request) {
+    public StatisticsService.StatReportResult queryReport(@Valid @RequestBody QueryStatReportRequest request,
+                                                          HttpServletRequest httpServletRequest) {
         return statisticsService.queryReport(new StatisticsService.QueryStatReportCommand(
             request.templateCode(), request.indicatorCode(), request.category(), parseDateTime(request.from()), parseDateTime(request.to()),
-            request.departmentId(), request.roleId(), request.operatorUserId(), request.operatorName()));
+            request.departmentId(),
+            request.roleId(),
+            request.workloadUserId(),
+            currentUserId(httpServletRequest),
+            currentOperatorName(httpServletRequest)));
     }
 
     @Operation(summary = "Export stat report", description = "Export statistic reports as UTF-8 BOM CSV.")
     @RequirePermission(M6PermissionCodes.STAT_REPORT_EXPORT)
     @PostMapping("/stat-reports/export")
-    public ResponseEntity<byte[]> exportReport(@Valid @RequestBody QueryStatReportRequest request) {
+    public ResponseEntity<byte[]> exportReport(@Valid @RequestBody QueryStatReportRequest request,
+                                               HttpServletRequest httpServletRequest) {
         byte[] content = statisticsService.exportReport(new StatisticsService.QueryStatReportCommand(
             request.templateCode(), request.indicatorCode(), request.category(), parseDateTime(request.from()), parseDateTime(request.to()),
-            request.departmentId(), request.roleId(), request.operatorUserId(), request.operatorName()));
+            request.departmentId(),
+            request.roleId(),
+            request.workloadUserId(),
+            currentUserId(httpServletRequest),
+            currentOperatorName(httpServletRequest)));
         String fileName = (request.templateCode() == null || request.templateCode().isBlank() ? "stat-report" : request.templateCode()) + ".csv";
         return ResponseEntity.ok()
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName)
@@ -183,33 +211,39 @@ public class M6ManagementController {
         return LocalDateTime.parse(value);
     }
 
+    private String currentUserId(HttpServletRequest request) {
+        return RequestOperatorContext.currentUserId(request);
+    }
+
+    private String currentOperatorName(HttpServletRequest request) {
+        return RequestOperatorContext.currentOperatorName(request);
+    }
+
     @Schema(name = "M6OperatorRequest", description = "Operator request")
+    @RejectLegacyOperatorFields
     public record OperatorRequest(
-        @Schema(description = "Operator user id") @Size(max = 64) String operatorUserId,
-        @Schema(description = "Operator name") @Size(max = 100) String operatorName
     ) {
     }
 
     @Schema(name = "M6BillingReceiptRequest", description = "Billing receipt request")
+    @RejectLegacyOperatorFields
     public record BillingReceiptRequest(
         @Schema(description = "External bill no") @Size(max = 64) String externalBillNo,
         @Schema(description = "Billing status") @Size(max = 32) String billingStatus,
-        @Schema(description = "Operator user id") @Size(max = 64) String operatorUserId,
-        @Schema(description = "Operator name") @Size(max = 100) String operatorName,
         @Schema(description = "Remarks") @Size(max = 500) String remarks
     ) {
     }
 
     @Schema(name = "M6ReconcileBillingRequest", description = "Billing reconcile request")
+    @RejectLegacyOperatorFields
     public record ReconcileBillingRequest(
         @Schema(description = "Start time") String from,
-        @Schema(description = "End time") String to,
-        @Schema(description = "Operator user id") @Size(max = 64) String operatorUserId,
-        @Schema(description = "Operator name") @Size(max = 100) String operatorName
+        @Schema(description = "End time") String to
     ) {
     }
 
     @Schema(name = "M6ImportHistoricalReportsRequest", description = "Historical report import request")
+    @RejectLegacyOperatorFields
     public record ImportHistoricalReportsRequest(
         @Schema(description = "Source system") @Size(max = 64) String sourceSystem,
         @Schema(description = "Patient id") @Size(max = 64) String patientId,
@@ -217,13 +251,12 @@ public class M6ManagementController {
         @Schema(description = "Application no") @Size(max = 64) String applicationNo,
         @Schema(description = "Start time") String from,
         @Schema(description = "End time") String to,
-        @Schema(description = "Operator user id") @Size(max = 64) String operatorUserId,
-        @Schema(description = "Operator name") @Size(max = 100) String operatorName,
         @Schema(description = "Remarks") @Size(max = 500) String remarks
     ) {
     }
 
     @Schema(name = "M6QueryStatReportRequest", description = "Stat report query request")
+    @RejectLegacyOperatorFields
     public record QueryStatReportRequest(
         @Schema(description = "Template code") @Size(max = 64) String templateCode,
         @Schema(description = "Indicator code") @Size(max = 64) String indicatorCode,
@@ -232,8 +265,7 @@ public class M6ManagementController {
         @Schema(description = "End time") String to,
         @Schema(description = "Submitting department id") @Size(max = 64) String departmentId,
         @Schema(description = "Role id") @Size(max = 64) String roleId,
-        @Schema(description = "Operator user id") @Size(max = 64) String operatorUserId,
-        @Schema(description = "Operator name") @Size(max = 100) String operatorName
+        @Schema(description = "Workload user id filter") @Size(max = 64) String workloadUserId
     ) {
     }
 }

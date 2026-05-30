@@ -1,9 +1,8 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.SpecimenWorkflowAppService;
-import com.company.bl.application.service.SpecimenWorkflowModels;
+import com.company.bl.application.service.SpecimenWorkflowTransportModels;
 import com.company.bl.domain.model.TransportOrder;
-import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.CreateTransportOrderRequest;
@@ -58,9 +57,9 @@ public class TransportOrderController {
         @Parameter(description = "Transport order status")
         @RequestParam(required = false) String status
     ) {
-        SpecimenWorkflowModels.PendingTransportOrderPage result =
+        SpecimenWorkflowTransportModels.PendingTransportOrderPage result =
             specimenWorkflowAppService.listPendingTransportOrders(
-                new SpecimenWorkflowModels.PendingTransportOrderQuery(
+                new SpecimenWorkflowTransportModels.PendingTransportOrderQuery(
                     page,
                     size,
                     applicationId,
@@ -83,10 +82,10 @@ public class TransportOrderController {
     public ResponseEntity<TransportOrderResponse> create(@Valid @RequestBody CreateTransportOrderRequest request,
                                                          HttpServletRequest httpServletRequest) {
         return ResponseEntity.status(201).body(toResponse(specimenWorkflowAppService.createTransportOrder(
-            new SpecimenWorkflowModels.CreateTransportOrderCommand(
+            new SpecimenWorkflowTransportModels.CreateTransportOrderCommand(
                 request.getApplicationId(),
                 request.getSpecimenBarcodes(),
-                resolveUserId(request.getHandoverUserId(), httpServletRequest),
+                resolveUserId(httpServletRequest),
                 request.getHandoverUserName(),
                 request.getHandoverDepartmentId(),
                 request.getHandoverDepartmentName(),
@@ -104,9 +103,9 @@ public class TransportOrderController {
                                         HttpServletRequest httpServletRequest) {
         return toResponse(specimenWorkflowAppService.printTransportOrder(
             id,
-            new SpecimenWorkflowModels.OperatorCommand(
-                resolveUserId(null, httpServletRequest),
-                resolveOperatorName(null, httpServletRequest),
+            new SpecimenWorkflowTransportModels.OperatorCommand(
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode())));
     }
 
@@ -118,8 +117,8 @@ public class TransportOrderController {
                                            HttpServletRequest httpServletRequest) {
         return toResponse(specimenWorkflowAppService.handoverTransportOrder(
             id,
-            new SpecimenWorkflowModels.HandoverTransportOrderCommand(
-                resolveUserId(request.getReceiverUserId(), httpServletRequest),
+            new SpecimenWorkflowTransportModels.HandoverTransportOrderCommand(
+                resolveUserId(httpServletRequest),
                 request.getReceiverUserName(),
                 request.getTerminalCode(),
                 request.getRemarks())));
@@ -138,7 +137,7 @@ public class TransportOrderController {
     }
 
     private PendingTransportOrderResponse toPendingResponse(
-        SpecimenWorkflowModels.PendingTransportOrderItem item) {
+        SpecimenWorkflowTransportModels.PendingTransportOrderItem item) {
         return new PendingTransportOrderResponse(
             item.id(),
             item.transportOrderNo(),
@@ -160,12 +159,11 @@ public class TransportOrderController {
         return value == null ? null : value.toString();
     }
 
-    private String resolveUserId(String bodyUserId, HttpServletRequest request) {
-        Object currentUserId = request.getAttribute(ApiPermissionContext.CURRENT_USER_ID);
-        return currentUserId == null ? null : currentUserId.toString();
+    private String resolveUserId(HttpServletRequest request) {
+        return RequestOperatorContext.currentUserId(request);
     }
 
-    private String resolveOperatorName(String bodyOperatorName, HttpServletRequest request) {
+    private String resolveOperatorName(HttpServletRequest request) {
         return RequestOperatorContext.currentOperatorName(request);
     }
 }
