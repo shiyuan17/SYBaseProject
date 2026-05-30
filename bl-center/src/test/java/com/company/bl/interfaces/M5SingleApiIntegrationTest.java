@@ -32,7 +32,6 @@ class M5SingleApiIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTe
               "cabinetType":"STANDARD",
               "layerCount":1,
               "slotCountPerLayer":2,
-              "operatorName":"archive-user",
               "terminalCode":"M5-SINGLE-01",
               "locationDescription":"Room-A"
             }
@@ -48,7 +47,6 @@ class M5SingleApiIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTe
                     {
                       "cabinetName":"Single Api Cabinet Updated",
                       "cabinetStatus":"DISABLED",
-                      "operatorName":"archive-user",
                       "terminalCode":"M5-SINGLE-02",
                       "locationDescription":"Room-B",
                       "remarks":"updated by integration test"
@@ -76,7 +74,6 @@ class M5SingleApiIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTe
               "defaultLowStockThreshold":8,
               "defaultNearExpiryDays":20,
               "enabled":true,
-              "operatorName":"reagent-user",
               "remarks":"created"
             }
             """.formatted(System.nanoTime())), 200);
@@ -98,7 +95,6 @@ class M5SingleApiIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTe
                       "defaultLowStockThreshold":6,
                       "defaultNearExpiryDays":15,
                       "enabled":false,
-                      "operatorName":"reagent-user",
                       "remarks":"updated"
                     }
                     """))
@@ -117,7 +113,6 @@ class M5SingleApiIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTe
               "locationDescription":"Lab-A",
               "enabledAt":"%s",
               "nextMaintenanceAt":"%s",
-              "operatorName":"reagent-user",
               "remarks":"created"
             }
             """.formatted(System.nanoTime(),
@@ -141,7 +136,6 @@ class M5SingleApiIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTe
                       "locationDescription":"Lab-B",
                       "enabledAt":"%s",
                       "nextMaintenanceAt":"%s",
-                      "operatorName":"reagent-user",
                       "remarks":"updated"
                     }
                     """.formatted(LocalDateTime.now().minusDays(3).withNano(0),
@@ -158,8 +152,7 @@ class M5SingleApiIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTe
               "stockQuantity":3,
               "stockStatus":"ACTIVE",
               "expiryDate":"%s",
-              "storageLocation":"Shelf-Z",
-              "operatorName":"reagent-user"
+              "storageLocation":"Shelf-Z"
             }
             """.formatted(reagentId, System.nanoTime(), LocalDate.now().plusDays(2))), 200);
 

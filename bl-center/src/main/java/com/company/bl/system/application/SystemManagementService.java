@@ -330,7 +330,11 @@ public class SystemManagementService {
     }
 
     @Schema(name = "SystemImportResult")
-    public record ImportResult(int successCount, int failureCount) {
+    public record ImportResult(int successCount, int failureCount, List<ImportError> errors) {
+    }
+
+    @Schema(name = "SystemImportError")
+    public record ImportError(int rowNumber, String field, String rejectedValue, String message) {
     }
 
     @Schema(name = "PrintLoginTagView")

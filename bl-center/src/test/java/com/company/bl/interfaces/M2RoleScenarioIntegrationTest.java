@@ -25,7 +25,7 @@ class M2RoleScenarioIntegrationTest extends AbstractSpecimenWorkflowIntegrationT
 
         postJson("/api/v1/specimens/label-batches/%s/retry".formatted(batchNo), USER_REGISTER, """
             {
-              "operatorName": "register-user",
+              
               "printerCode": "P-01",
               "terminalCode": "OR-REG-01"
             }
@@ -68,7 +68,7 @@ class M2RoleScenarioIntegrationTest extends AbstractSpecimenWorkflowIntegrationT
         String transportOrderId = createTransportOrder(applicationId, barcode).path("id").asText();
         postJson("/api/v1/transport-orders/%s/print".formatted(transportOrderId), USER_TRANSPORT, """
             {
-              "operatorName": "transport-print",
+              
               "terminalCode": "T-PRINT"
             }
             """)

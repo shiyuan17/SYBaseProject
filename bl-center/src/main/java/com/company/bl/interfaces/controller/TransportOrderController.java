@@ -105,8 +105,8 @@ public class TransportOrderController {
         return toResponse(specimenWorkflowAppService.printTransportOrder(
             id,
             new SpecimenWorkflowModels.OperatorCommand(
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(null, httpServletRequest),
+                resolveOperatorName(null, httpServletRequest),
                 request.getTerminalCode())));
     }
 
@@ -163,5 +163,9 @@ public class TransportOrderController {
     private String resolveUserId(String bodyUserId, HttpServletRequest request) {
         Object currentUserId = request.getAttribute(ApiPermissionContext.CURRENT_USER_ID);
         return currentUserId == null ? null : currentUserId.toString();
+    }
+
+    private String resolveOperatorName(String bodyOperatorName, HttpServletRequest request) {
+        return RequestOperatorContext.currentOperatorName(request);
     }
 }

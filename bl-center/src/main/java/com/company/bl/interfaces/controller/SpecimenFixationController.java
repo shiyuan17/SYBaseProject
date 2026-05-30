@@ -96,8 +96,8 @@ public class SpecimenFixationController {
         return new SpecimenWorkflowModels.FixationCommand(
             request.getSpecimenBarcode(),
             request.getFixationLiquidType(),
-            resolveUserId(request.getOperatorUserId(), httpServletRequest),
-            request.getOperatorName(),
+            resolveUserId(null, httpServletRequest),
+            resolveOperatorName(null, httpServletRequest),
             request.getTerminalCode(),
             request.getRemarks());
     }
@@ -154,8 +154,11 @@ public class SpecimenFixationController {
     }
 
     private String resolveUserId(String bodyUserId, HttpServletRequest request) {
-        Object currentUserId = request.getAttribute(ApiPermissionContext.CURRENT_USER_ID);
-        return currentUserId == null ? bodyUserId : currentUserId.toString();
+        return RequestOperatorContext.currentUserId(request);
+    }
+
+    private String resolveOperatorName(String bodyOperatorName, HttpServletRequest request) {
+        return RequestOperatorContext.currentOperatorName(request);
     }
 
     private String resolveAbnormalType(String specimenStatus, String fixationStatus, boolean abnormalFlag) {

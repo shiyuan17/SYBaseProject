@@ -24,7 +24,7 @@ class M3RoleAuthorizationMatrixIntegrationTest extends AbstractTechnicalWorkflow
         postJson("/api/v1/grossings/start", USER_M3_TRACKING, """
             {
               "taskId": "%s",
-              "operatorName": "tracking-user",
+              
               "terminalCode": "M3-AUTH-01"
             }
             """.formatted(context.grossingTaskId()))
@@ -34,7 +34,7 @@ class M3RoleAuthorizationMatrixIntegrationTest extends AbstractTechnicalWorkflow
         postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
             {
               "taskId": "%s",
-              "operatorName": "grossing-user",
+              
               "terminalCode": "M3-AUTH-02"
             }
             """.formatted(context.grossingTaskId()))
@@ -44,7 +44,7 @@ class M3RoleAuthorizationMatrixIntegrationTest extends AbstractTechnicalWorkflow
             {
               "taskId": "%s",
               "caseId": "%s",
-              "operatorName": "tracking-user",
+              
               "terminalCode": "M3-AUTH-03",
               "specimens": [
                 {
@@ -68,7 +68,7 @@ class M3RoleAuthorizationMatrixIntegrationTest extends AbstractTechnicalWorkflow
             {
               "taskId": "%s",
               "caseId": "%s",
-              "operatorName": "grossing-user",
+              
               "terminalCode": "M3-AUTH-04",
               "specimens": [
                 {
@@ -96,7 +96,7 @@ class M3RoleAuthorizationMatrixIntegrationTest extends AbstractTechnicalWorkflow
               "caseId": "%s",
               "basketNo": "AUTH-BASKET-01",
               "deviceNo": "AUTH-DEV-01",
-              "operatorName": "embedding-user",
+              
               "terminalCode": "M3-AUTH-05",
               "samplingBlockIds": ["%s"]
             }
@@ -109,7 +109,7 @@ class M3RoleAuthorizationMatrixIntegrationTest extends AbstractTechnicalWorkflow
               "caseId": "%s",
               "basketNo": "AUTH-BASKET-02",
               "deviceNo": "AUTH-DEV-02",
-              "operatorName": "dehydration-user",
+              
               "terminalCode": "M3-AUTH-06",
               "samplingBlockIds": ["%s"]
             }
@@ -117,7 +117,7 @@ class M3RoleAuthorizationMatrixIntegrationTest extends AbstractTechnicalWorkflow
 
         postJson("/api/v1/dehydration-batches/%s/start".formatted(batch.path("batchId").asText()), USER_M3_SLICING, """
             {
-              "operatorName": "slicing-user",
+              
               "terminalCode": "M3-AUTH-07"
             }
             """)
@@ -148,9 +148,7 @@ class M3RoleAuthorizationMatrixIntegrationTest extends AbstractTechnicalWorkflow
                 .contentType(APPLICATION_JSON)
                 .content("""
                     {
-                      "taskId": "%s",
-                      "operatorName": "anonymous-user"
-                    }
+                      "taskId": "%s"}
                     """.formatted(context.grossingTaskId())))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));

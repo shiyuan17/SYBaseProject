@@ -49,7 +49,7 @@ public class DiagnosticTaskController extends TechnicalControllerSupport {
                 taskType,
                 taskStatus,
                 pathologyNo,
-                resolveUserId(null, httpServletRequest),
+                resolveUserId(httpServletRequest),
                 resolveRoleCode(httpServletRequest)));
         return new PendingDiagnosticTaskPageResponse(
             result.items().stream().map(this::toResponse).toList(),
@@ -73,8 +73,8 @@ public class DiagnosticTaskController extends TechnicalControllerSupport {
                 request.getPrimaryDoctorName(),
                 request.getReviewerUserId(),
                 request.getReviewerName(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new DiagnosticTaskOperationResponse(result.taskId(), result.caseId(), result.caseStatus(), result.taskStatus());
@@ -89,8 +89,8 @@ public class DiagnosticTaskController extends TechnicalControllerSupport {
         DiagnosticReportModels.DiagnosticTaskResult result = diagnosticReportAppService.acceptTask(
             new DiagnosticReportModels.TaskActionCommand(
                 taskId,
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new DiagnosticTaskOperationResponse(result.taskId(), result.caseId(), result.caseStatus(), result.taskStatus());
@@ -105,8 +105,8 @@ public class DiagnosticTaskController extends TechnicalControllerSupport {
         DiagnosticReportModels.DiagnosticTaskResult result = diagnosticReportAppService.startTask(
             new DiagnosticReportModels.TaskActionCommand(
                 taskId,
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new DiagnosticTaskOperationResponse(result.taskId(), result.caseId(), result.caseStatus(), result.taskStatus());

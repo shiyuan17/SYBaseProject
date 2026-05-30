@@ -33,7 +33,6 @@ class OperationSupportIntegrationTest extends AbstractDiagnosticWorkflowIntegrat
               "defaultLowStockThreshold":10,
               "defaultNearExpiryDays":30,
               "enabled":true,
-              "operatorName":"reagent-user",
               "remarks":"initial create"
             }
             """), 200);
@@ -46,8 +45,7 @@ class OperationSupportIntegrationTest extends AbstractDiagnosticWorkflowIntegrat
               "stockQuantity":5,
               "stockStatus":"ACTIVE",
               "expiryDate":"%s",
-              "storageLocation":"Shelf-A",
-              "operatorName":"reagent-user"
+              "storageLocation":"Shelf-A"
             }
             """.formatted(reagentId, LocalDate.now().plusDays(180))), 200);
 
@@ -58,8 +56,7 @@ class OperationSupportIntegrationTest extends AbstractDiagnosticWorkflowIntegrat
               "stockQuantity":50,
               "stockStatus":"ACTIVE",
               "expiryDate":"%s",
-              "storageLocation":"Shelf-B",
-              "operatorName":"reagent-user"
+              "storageLocation":"Shelf-B"
             }
             """.formatted(reagentId, LocalDate.now().plusDays(5))), 200);
 
@@ -79,8 +76,7 @@ class OperationSupportIntegrationTest extends AbstractDiagnosticWorkflowIntegrat
                   "stockStatus":"ACTIVE",
                   "expiryDate":"%s",
                   "storageLocation":"Shelf-C",
-                  "nearExpiryDays":3,
-                  "operatorName":"reagent-user"
+                  "nearExpiryDays":3
                 }
                 """.formatted(LocalDate.now().plusDays(10)))), 200);
 
@@ -104,8 +100,7 @@ class OperationSupportIntegrationTest extends AbstractDiagnosticWorkflowIntegrat
               "equipmentStatus":"ACTIVE",
               "locationDescription":"Lab-1",
               "enabledAt":"%s",
-              "nextMaintenanceAt":"%s",
-              "operatorName":"reagent-user"
+              "nextMaintenanceAt":"%s"
             }
             """.formatted(LocalDateTime.now().minusDays(30).withNano(0), dueSoon)), 200);
         String equipmentId = dueSoonEquipment.path("id").asText();
@@ -119,8 +114,7 @@ class OperationSupportIntegrationTest extends AbstractDiagnosticWorkflowIntegrat
               "equipmentStatus":"ACTIVE",
               "locationDescription":"Lab-2",
               "enabledAt":"%s",
-              "nextMaintenanceAt":"%s",
-              "operatorName":"reagent-user"
+              "nextMaintenanceAt":"%s"
             }
             """.formatted(LocalDateTime.now().minusDays(60).withNano(0), overdue)), 200);
 
@@ -134,7 +128,6 @@ class OperationSupportIntegrationTest extends AbstractDiagnosticWorkflowIntegrat
               "maintenanceStatus":"COMPLETED",
               "performedAt":"%s",
               "nextMaintenanceAt":"%s",
-              "operatorName":"reagent-user",
               "description":"routine maintenance"
             }
             """.formatted(LocalDateTime.now().withNano(0), nextMaintenance)), 200);

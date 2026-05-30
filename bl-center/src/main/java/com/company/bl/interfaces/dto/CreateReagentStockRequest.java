@@ -1,5 +1,6 @@
 package com.company.bl.interfaces.dto;
 
+import com.company.bl.interfaces.auth.RejectLegacyOperatorFields;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -10,6 +11,7 @@ import java.time.LocalDate;
 
 @Getter
 @Setter
+@RejectLegacyOperatorFields
 public class CreateReagentStockRequest {
 
     @NotBlank
@@ -34,13 +36,6 @@ public class CreateReagentStockRequest {
     private BigDecimal lowStockThreshold;
 
     private Integer nearExpiryDays;
-
-    @Size(max = 64)
-    private String operatorUserId;
-
-    @NotBlank
-    @Size(max = 100)
-    private String operatorName;
 
     @Size(max = 500)
     private String remarks;

@@ -2,7 +2,6 @@ package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.SpecimenWorkflowAppService;
 import com.company.bl.application.service.SpecimenWorkflowModels;
-import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.SpecimenRemovalConfirmRequest;
@@ -86,8 +85,8 @@ public class SpecimenRemovalController {
         SpecimenWorkflowModels.SpecimenRemovalResult result = specimenWorkflowAppService.confirmSpecimenRemoval(
             new SpecimenWorkflowModels.SpecimenRemovalCommand(
                 request.getSpecimenBarcode(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                resolveOperatorName(request.getOperatorName(), httpServletRequest),
+                resolveUserId(null, httpServletRequest),
+                resolveOperatorName(null, httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new SpecimenRemovalConfirmResponse(
@@ -108,8 +107,8 @@ public class SpecimenRemovalController {
             new SpecimenWorkflowModels.SpecimenRemovalQuickConfirmCommand(
                 request.getIdentifierType(),
                 request.getIdentifier(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                resolveOperatorName(request.getOperatorName(), httpServletRequest),
+                resolveUserId(null, httpServletRequest),
+                resolveOperatorName(null, httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new SpecimenRemovalConfirmResponse(
@@ -177,15 +176,10 @@ public class SpecimenRemovalController {
     }
 
     private String resolveUserId(String bodyUserId, HttpServletRequest request) {
-        Object currentUserId = request.getAttribute(ApiPermissionContext.CURRENT_USER_ID);
-        return currentUserId == null ? null : currentUserId.toString();
+        return RequestOperatorContext.currentUserId(request);
     }
 
     private String resolveOperatorName(String bodyOperatorName, HttpServletRequest request) {
-        Object currentLoginName = request.getAttribute(ApiPermissionContext.CURRENT_LOGIN_NAME);
-        if (currentLoginName instanceof String loginName && !loginName.isBlank()) {
-            return loginName.trim();
-        }
-        return bodyOperatorName == null ? null : bodyOperatorName.trim();
+        return RequestOperatorContext.currentOperatorName(request);
     }
 }

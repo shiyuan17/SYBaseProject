@@ -37,8 +37,8 @@ public class ReportRevisionRequestController extends TechnicalControllerSupport 
             new DiagnosticReportModels.CreateReportRevisionRequestCommand(
                 request.getReportId(),
                 request.getRequestReason(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new ReportRevisionOperationResponse(
@@ -58,8 +58,8 @@ public class ReportRevisionRequestController extends TechnicalControllerSupport 
         DiagnosticReportModels.ReportRevisionResult result = diagnosticReportAppService.approveRevisionRequest(
             new DiagnosticReportModels.ReviewReportRevisionCommand(
                 requestId,
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks(),
                 request.getRejectReason()));
@@ -80,8 +80,8 @@ public class ReportRevisionRequestController extends TechnicalControllerSupport 
         DiagnosticReportModels.ReportRevisionResult result = diagnosticReportAppService.rejectRevisionRequest(
             new DiagnosticReportModels.ReviewReportRevisionCommand(
                 requestId,
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks(),
                 request.getRejectReason()));

@@ -39,8 +39,8 @@ public class ArchiveRecordController extends TechnicalControllerSupport {
         return archiveWorkflowService.archiveApplicationForm(new ArchiveModels.ArchiveObjectCommand(
             request.getCaseId(),
             request.getArchivePositionId(),
-            resolveUserId(request.getOperatorUserId(), httpServletRequest),
-            request.getOperatorName(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
             request.getTerminalCode(),
             request.getFileUrl(),
             request.getFileName(),
@@ -54,8 +54,8 @@ public class ArchiveRecordController extends TechnicalControllerSupport {
         return archiveWorkflowService.archiveEmbeddingBox(new ArchiveModels.ArchiveObjectCommand(
             request.getEmbeddingBoxId(),
             request.getArchivePositionId(),
-            resolveUserId(request.getOperatorUserId(), httpServletRequest),
-            request.getOperatorName(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
             request.getTerminalCode(),
             null,
             null,
@@ -69,8 +69,8 @@ public class ArchiveRecordController extends TechnicalControllerSupport {
         return archiveWorkflowService.archiveSlide(new ArchiveModels.ArchiveObjectCommand(
             request.getSlideId(),
             request.getArchivePositionId(),
-            resolveUserId(request.getOperatorUserId(), httpServletRequest),
-            request.getOperatorName(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
             request.getTerminalCode(),
             null,
             null,

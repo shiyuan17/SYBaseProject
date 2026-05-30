@@ -1,5 +1,7 @@
 package com.company.bl.interfaces.dto;
 
+import com.company.bl.interfaces.auth.RejectLegacyOperatorFields;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -10,6 +12,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Schema(name = "SpecimenRemovalQuickConfirmRequest", description = "按标识快捷离体确认请求")
+@RejectLegacyOperatorFields
 public class SpecimenRemovalQuickConfirmRequest {
 
     @Schema(description = "标识类型：BARCODE 或 SPECIMEN_NO", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -22,14 +25,7 @@ public class SpecimenRemovalQuickConfirmRequest {
     @Size(max = 64)
     private String identifier;
 
-    @Schema(description = "操作人用户 ID")
-    @Size(max = 64)
-    private String operatorUserId;
 
-    @Schema(description = "操作人姓名", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotBlank
-    @Size(max = 100)
-    private String operatorName;
 
     @Schema(description = "终端编码")
     @Size(max = 64)

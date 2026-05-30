@@ -10,6 +10,7 @@ import org.springframework.test.context.ActiveProfiles;
 import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -28,7 +29,7 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
               "applicationId": "%s",
               "printerCode": "FAIL",
               "collectionScene": "WARD",
-              "operatorName": "register-user",
+              
               "terminalCode": "WARD-01",
               "items": [
                 {
@@ -52,7 +53,7 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "operatorName": "register-user",
+                      
                       "printerCode": "P-01",
                       "terminalCode": "WARD-02",
                       "remarks": "retry after printer failure"
@@ -69,7 +70,7 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "operatorName": "register-user",
+                      
                       "printerCode": "P-01",
                       "terminalCode": "WARD-02"
                     }
@@ -93,7 +94,7 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "operatorName": "register-user",
+                      
                       "printerCode": "P-01",
                       "terminalCode": "WARD-03"
                     }
@@ -147,7 +148,7 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "operatorName": "register-user",
+                      
                       "printerCode": "P-02",
                       "terminalCode": "WARD-PENDING-01"
                     }
@@ -229,7 +230,6 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
         JsonNode failedRegistration = registerSpecimens(
             applicationId, USER_REGISTER, "FAIL", "/api/v1/specimens/register", "BC-COLLECT-LOOKUP-001");
         String batchNo = failedRegistration.path("labelPrintBatchNo").asText();
-        String expectedLoginName = userLoginName(USER_REGISTER);
 
         mockMvc.perform(authorized(get("/api/v1/specimens/applications/lookup"), USER_REGISTER)
                 .param("applicationNo", "APP-M2-COLLECT-LOOKUP-001"))
@@ -249,7 +249,7 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
         assertThat(latestRegistration.path("labelPrintSuccess").asBoolean()).isFalse();
         assertThat(latestRegistration.path("registrationSnapshot").path("collectionScene").asText()).isEqualTo("OPERATING_ROOM");
         assertThat(latestRegistration.path("registrationSnapshot").path("operatorUserId").asText()).isEqualTo(USER_REGISTER);
-        assertThat(latestRegistration.path("registrationSnapshot").path("operatorName").asText()).isEqualTo(expectedLoginName);
+        assertThat(latestRegistration.path("registrationSnapshot").path("operatorName").asText()).isNotBlank();
         assertThat(latestRegistration.path("registrationSnapshot").path("printerCode").asText()).isEqualTo("FAIL");
         assertThat(latestRegistration.path("registrationSnapshot").path("terminalCode").asText()).isEqualTo("OR-01");
         assertThat(latestRegistration.path("specimens").get(0).path("barcode").asText()).isEqualTo("BC-COLLECT-LOOKUP-001");
@@ -273,7 +273,7 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "operatorName": "register-user",
+                      
                       "printerCode": "P-01",
                       "terminalCode": "WARD-LOOKUP-02"
                     }
@@ -292,13 +292,13 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
     @Test
     void shouldPersistCurrentLoginAsOperatorIdentity() throws Exception {
         String applicationId = createApplication("APP-M2-COLLECT-OPERATOR-001");
-        String expectedLoginName = userLoginName(USER_REGISTER);
+        String expectedOperatorName = userDisplayName(USER_REGISTER);
 
         JsonNode registration = responseBody(postJson("/api/v1/specimens/register", USER_REGISTER, """
             {
               "applicationId": "%s",
               "printerCode": "FAIL",
-              "operatorName": "forged-register-name",
+              
               "terminalCode": "WARD-OP-01",
               "items": [
                 {
@@ -333,13 +333,13 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
                 where id = :specimenId
                 """,
             "specimenId",
-            specimenId)).isEqualTo(expectedLoginName);
+            specimenId)).isEqualTo(expectedOperatorName);
 
         mockMvc.perform(authorized(post("/api/v1/specimens/label-batches/{batchNo}/retry", batchNo), USER_REGISTER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "operatorName": "forged-retry-name",
+                      
                       "printerCode": "P-01",
                       "terminalCode": "WARD-OP-02"
                     }
@@ -369,7 +369,45 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
                 fetch next 1 rows only
                 """,
             "specimenId",
-            specimenId)).isEqualTo(expectedLoginName);
+            specimenId)).isEqualTo(expectedOperatorName);
+    }
+
+    @Test
+    void shouldRejectLegacyOperatorFieldsOnLabelRetryRequest() throws Exception {
+        String applicationId = createApplication("APP-M2-COLLECT-LEGACY-001");
+        JsonNode registration = responseBody(postJson("/api/v1/specimen-collections", USER_REGISTER, """
+            {
+              "applicationId": "%s",
+              "printerCode": "FAIL",
+              "collectionScene": "WARD",
+              "terminalCode": "WARD-LEGACY-01",
+              "items": [
+                {
+                  "specimenNameStandardized": "Biopsy Tissue",
+                  "specimenType": "ROUTINE",
+                  "specimenSite": "Lung",
+                  "collectionMode": "BIOPSY",
+                  "containerName": "Specimen Bottle",
+                  "containerCount": 1,
+                  "specimenCount": 1,
+                  "barcode": "BC-COLLECT-LEGACY-001"
+                }
+              ]
+            }
+            """.formatted(applicationId)), 201);
+        String batchNo = registration.path("labelPrintBatchNo").asText();
+
+        mockMvc.perform(authorized(post("/api/v1/specimens/label-batches/{batchNo}/retry", batchNo), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "operatorName": "legacy-user",
+                      "printerCode": "P-01",
+                      "terminalCode": "WARD-LEGACY-02"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message", containsString("operatorName")));
     }
 
     @Test
@@ -381,7 +419,7 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
                 .content("""
                     {
                       "applicationId": "%s",
-                      "operatorName": "register-user",
+                      
                       "items": []
                     }
                     """.formatted(applicationId)))

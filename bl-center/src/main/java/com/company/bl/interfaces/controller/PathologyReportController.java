@@ -44,8 +44,8 @@ public class PathologyReportController extends TechnicalControllerSupport {
                 request.getMicroscopicExam(),
                 request.getFinalDiagnosis(),
                 request.getRichTextContent(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new PathologyReportOperationResponse(
@@ -66,8 +66,8 @@ public class PathologyReportController extends TechnicalControllerSupport {
                 request.getMicroscopicExam(),
                 request.getFinalDiagnosis(),
                 request.getRichTextContent(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new PathologyReportOperationResponse(
@@ -83,8 +83,8 @@ public class PathologyReportController extends TechnicalControllerSupport {
         DiagnosticReportModels.PathologyReportResult result = diagnosticReportAppService.submitReport(
             new DiagnosticReportModels.ReportActionCommand(
                 reportId,
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new PathologyReportOperationResponse(
@@ -100,8 +100,8 @@ public class PathologyReportController extends TechnicalControllerSupport {
         DiagnosticReportModels.PathologyReportResult result = diagnosticReportAppService.reviewReport(
             new DiagnosticReportModels.ReportActionCommand(
                 reportId,
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new PathologyReportOperationResponse(
@@ -117,8 +117,8 @@ public class PathologyReportController extends TechnicalControllerSupport {
         DiagnosticReportModels.PathologyReportResult result = diagnosticReportAppService.rejectReport(
             new DiagnosticReportModels.RejectReportCommand(
                 reportId,
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRejectReason()));
         return new PathologyReportOperationResponse(
@@ -134,8 +134,8 @@ public class PathologyReportController extends TechnicalControllerSupport {
         DiagnosticReportModels.PathologyReportResult result = diagnosticReportAppService.signReport(
             new DiagnosticReportModels.ReportActionCommand(
                 reportId,
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new PathologyReportOperationResponse(
@@ -151,8 +151,8 @@ public class PathologyReportController extends TechnicalControllerSupport {
         DiagnosticReportModels.PathologyReportResult result = diagnosticReportAppService.publishReport(
             new DiagnosticReportModels.ReportActionCommand(
                 reportId,
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new PathologyReportOperationResponse(

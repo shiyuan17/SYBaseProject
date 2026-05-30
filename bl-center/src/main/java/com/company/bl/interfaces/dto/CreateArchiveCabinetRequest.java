@@ -1,5 +1,6 @@
 package com.company.bl.interfaces.dto;
 
+import com.company.bl.interfaces.auth.RejectLegacyOperatorFields;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -10,6 +11,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Schema(name = "CreateArchiveCabinetRequest", description = "Create archive cabinet request")
+@RejectLegacyOperatorFields
 public class CreateArchiveCabinetRequest {
 
     @NotBlank
@@ -29,13 +31,6 @@ public class CreateArchiveCabinetRequest {
 
     @Min(1)
     private int slotCountPerLayer;
-
-    @Size(max = 64)
-    private String operatorUserId;
-
-    @NotBlank
-    @Size(max = 100)
-    private String operatorName;
 
     @Size(max = 64)
     private String terminalCode;

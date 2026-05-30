@@ -1,5 +1,6 @@
 package com.company.bl.interfaces.dto;
 
+import com.company.bl.interfaces.auth.RejectLegacyOperatorFields;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -9,6 +10,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Schema(name = "CreateMedicalOrderRequest", description = "Create medical order request")
+@RejectLegacyOperatorFields
 public class CreateMedicalOrderRequest {
 
     @Schema(description = "Case ID", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -25,15 +27,6 @@ public class CreateMedicalOrderRequest {
     @NotBlank
     @Size(max = 1000)
     private String orderContent;
-
-    @Schema(description = "Operator user ID")
-    @Size(max = 64)
-    private String operatorUserId;
-
-    @Schema(description = "Operator name", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotBlank
-    @Size(max = 100)
-    private String operatorName;
 
     @Schema(description = "Terminal code")
     @Size(max = 64)

@@ -364,6 +364,24 @@ class MasterDataControllerIntegrationTest extends AuthenticatedWebIntegrationTes
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.successCount", is(1)));
 
+        MockMultipartFile invalidChargeFile = new MockMultipartFile(
+            "file",
+            "charges-invalid.csv",
+            "text/csv",
+            """
+                orderDictItemId,chargeItemCode,chargeItemName,specification,unit,price,sortOrder,enabled
+                ODI_HE,IMPORT_CHARGE_OK,导入收费,支,次,15.5,1,true
+                ODI_HE,IMPORT_CHARGE_BAD,非法收费,支,次,invalid-price,2,true
+                """.getBytes());
+        mockMvc.perform(asAdmin(multipart("/api/v1/medical-order-charge-items/import").file(invalidChargeFile)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount", is(1)))
+            .andExpect(jsonPath("$.data.failureCount", is(1)))
+            .andExpect(jsonPath("$.data.errors[0].rowNumber", is(3)))
+            .andExpect(jsonPath("$.data.errors[0].field", is("price")))
+            .andExpect(jsonPath("$.data.errors[0].rejectedValue", is("invalid-price")))
+            .andExpect(jsonPath("$.data.errors[0].message", containsString("valid decimal number")));
+
         MvcResult packageResult = mockMvc.perform(asAdmin(post("/api/v1/medical-order-packages"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""

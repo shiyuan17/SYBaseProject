@@ -49,8 +49,8 @@ public class ArchiveCabinetController extends TechnicalControllerSupport {
             request.getCabinetType(),
             request.getLayerCount(),
             request.getSlotCountPerLayer(),
-            resolveUserId(request.getOperatorUserId(), httpServletRequest),
-            request.getOperatorName(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
             request.getTerminalCode(),
             request.getLocationDescription(),
             request.getRemarks()));
@@ -66,8 +66,8 @@ public class ArchiveCabinetController extends TechnicalControllerSupport {
             request.getCabinetName(),
             request.getCabinetStatus(),
             request.getLocationDescription(),
-            resolveUserId(request.getOperatorUserId(), httpServletRequest),
-            request.getOperatorName(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
             request.getTerminalCode(),
             request.getRemarks()));
     }

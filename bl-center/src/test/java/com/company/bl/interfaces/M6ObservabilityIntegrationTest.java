@@ -36,16 +36,15 @@ class M6ObservabilityIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
               "caseId":"%s",
               "orderType":"RE_STAIN",
               "orderContent":"FAIL_ONCE observability billing",
-              "operatorName":"diag-user",
               "terminalCode":"M6-O-01"
             }
             """.formatted(startedContext.caseId())), 200);
         String orderId = order.path("orderId").asText();
         postJson("/api/v1/medical-orders/%s/accept".formatted(orderId), USER_M4_ORDER_EXECUTE, """
-            {"operatorName":"order-exec","terminalCode":"M6-O-02"}
+            {"terminalCode":"M6-O-02"}
             """).andExpect(status().isOk());
         postJson("/api/v1/medical-orders/%s/complete".formatted(orderId), USER_M4_ORDER_EXECUTE, """
-            {"operatorName":"order-exec","terminalCode":"M6-O-03"}
+            {"terminalCode":"M6-O-03"}
             """).andExpect(status().isOk());
 
         JsonNode failedRecords = responseBody(mockMvc.perform(authorized(get("/api/v1/billing-records"), USER_M1_ADMIN)

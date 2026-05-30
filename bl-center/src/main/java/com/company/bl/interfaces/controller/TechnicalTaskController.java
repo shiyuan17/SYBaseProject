@@ -84,8 +84,8 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
                 request.getAssignedToName(),
                 request.getExpectedCompletedAt(),
                 request.getProductionRemarks(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode())));
     }
 
@@ -102,8 +102,8 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
                 request.getAssignedToName(),
                 request.getStationCode(),
                 request.getStationName(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks())));
     }
@@ -117,8 +117,8 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
         return toResponse(technicalWorkflowAppService.releaseTechnicalTask(
             new TechnicalWorkflowModels.TechnicalTaskReleaseCommand(
                 id,
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks())));
     }
@@ -134,8 +134,8 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
                 id,
                 request.getPriority(),
                 request.getProductionRemarks(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode())));
     }
 

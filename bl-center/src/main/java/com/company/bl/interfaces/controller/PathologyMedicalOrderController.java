@@ -44,8 +44,8 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
                 request.getCaseId(),
                 request.getOrderType(),
                 request.getOrderContent(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new MedicalOrderOperationResponse(result.orderId(), result.caseId(), result.orderNumber(), result.status());
@@ -76,8 +76,8 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
         DiagnosticReportModels.MedicalOrderResult result = diagnosticReportAppService.acceptMedicalOrder(
             new DiagnosticReportModels.MedicalOrderActionCommand(
                 orderId,
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new MedicalOrderOperationResponse(result.orderId(), result.caseId(), result.orderNumber(), result.status());
@@ -92,8 +92,8 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
         DiagnosticReportModels.MedicalOrderResult result = diagnosticReportAppService.completeMedicalOrder(
             new DiagnosticReportModels.MedicalOrderActionCommand(
                 orderId,
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new MedicalOrderOperationResponse(result.orderId(), result.caseId(), result.orderNumber(), result.status());
@@ -108,8 +108,8 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
         DiagnosticReportModels.MedicalOrderResult result = diagnosticReportAppService.cancelMedicalOrder(
             new DiagnosticReportModels.MedicalOrderActionCommand(
                 orderId,
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new MedicalOrderOperationResponse(result.orderId(), result.caseId(), result.orderNumber(), result.status());

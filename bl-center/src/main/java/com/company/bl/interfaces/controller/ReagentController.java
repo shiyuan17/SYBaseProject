@@ -51,8 +51,8 @@ public class ReagentController extends TechnicalControllerSupport {
             request.getDefaultLowStockThreshold(),
             request.getDefaultNearExpiryDays(),
             request.isEnabled(),
-            resolveUserId(request.getOperatorUserId(), httpServletRequest),
-            request.getOperatorName(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
             request.getRemarks()));
     }
 
@@ -70,8 +70,8 @@ public class ReagentController extends TechnicalControllerSupport {
             request.getDefaultLowStockThreshold(),
             request.getDefaultNearExpiryDays(),
             request.isEnabled(),
-            resolveUserId(request.getOperatorUserId(), httpServletRequest),
-            request.getOperatorName(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
             request.getRemarks()));
     }
 
@@ -95,8 +95,8 @@ public class ReagentController extends TechnicalControllerSupport {
             request.getStorageLocation(),
             request.getLowStockThreshold(),
             request.getNearExpiryDays(),
-            resolveUserId(request.getOperatorUserId(), httpServletRequest),
-            request.getOperatorName(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
             request.getRemarks()));
     }
 
@@ -113,8 +113,8 @@ public class ReagentController extends TechnicalControllerSupport {
             request.getStorageLocation(),
             request.getLowStockThreshold(),
             request.getNearExpiryDays(),
-            resolveUserId(request.getOperatorUserId(), httpServletRequest),
-            request.getOperatorName(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
             request.getRemarks()));
     }
 

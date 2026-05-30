@@ -33,7 +33,7 @@ class SpecimenWorkflowEndToEndIntegrationTest extends AbstractSpecimenWorkflowIn
 
         postJson("/api/v1/transport-orders/%s/print".formatted(transportOrderId), USER_TRANSPORT, """
             {
-              "operatorName": "print-user",
+              
               "terminalCode": "T-01"
             }
             """)

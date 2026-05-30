@@ -26,8 +26,7 @@ class ArchiveRoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflow
               "cabinetName":"Archive Auth Cabinet",
               "cabinetType":"STANDARD",
               "layerCount":1,
-              "slotCountPerLayer":2,
-              "operatorName":"archive-user"
+              "slotCountPerLayer":2
             }
             """), 200);
 
@@ -40,8 +39,7 @@ class ArchiveRoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflow
               "manufacturer":"Path Lab",
               "defaultLowStockThreshold":10,
               "defaultNearExpiryDays":30,
-              "enabled":true,
-              "operatorName":"reagent-user"
+              "enabled":true
             }
             """), 200);
         assertThat(reagent.path("reagentCode").asText()).isEqualTo("RG-M5-AUTH-1");
@@ -50,8 +48,7 @@ class ArchiveRoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflow
             {
               "reagentCode":"RG-M5-AUTH-2",
               "reagentName":"Unauthorized Reagent",
-              "enabled":true,
-              "operatorName":"archive-user"
+              "enabled":true
             }
             """)
             .andExpect(status().isForbidden())
@@ -63,8 +60,7 @@ class ArchiveRoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflow
               "cabinetName":"Reagent Should Not Archive",
               "cabinetType":"STANDARD",
               "layerCount":1,
-              "slotCountPerLayer":1,
-              "operatorName":"reagent-user"
+              "slotCountPerLayer":1
             }
             """)
             .andExpect(status().isForbidden())
@@ -87,8 +83,7 @@ class ArchiveRoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflow
               "cabinetName":"M4 Diagnosis Forbidden",
               "cabinetType":"STANDARD",
               "layerCount":1,
-              "slotCountPerLayer":1,
-              "operatorName":"diag-user"
+              "slotCountPerLayer":1
             }
             """)
             .andExpect(status().isForbidden())

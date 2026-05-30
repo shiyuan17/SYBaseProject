@@ -49,8 +49,8 @@ public class MaterialLoanController extends TechnicalControllerSupport {
             request.getBorrowedByUserId(),
             request.getBorrowedByName(),
             request.getBorrowPurpose(),
-            resolveUserId(request.getOperatorUserId(), httpServletRequest),
-            request.getOperatorName(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
             request.getTerminalCode(),
             request.getRemarks()));
     }
@@ -63,8 +63,8 @@ public class MaterialLoanController extends TechnicalControllerSupport {
         return archiveWorkflowService.returnMaterialLoan(new ArchiveModels.ReturnMaterialLoanCommand(
             loanId,
             request.getArchivePositionId(),
-            resolveUserId(request.getOperatorUserId(), httpServletRequest),
-            request.getOperatorName(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
             request.getTerminalCode(),
             request.getRemarks()));
     }

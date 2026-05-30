@@ -126,7 +126,7 @@ class ApplicationQueryAndDetailIntegrationTest extends AbstractApplicationContro
                     {
                       "applicationId": "%s",
                       "printerCode": "P-01",
-                      "operatorName": "nurse-a",
+                      
                       "terminalCode": "OR-01",
                       "items": [
                         {
@@ -148,9 +148,7 @@ class ApplicationQueryAndDetailIntegrationTest extends AbstractApplicationContro
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "specimenBarcode": "%s",
-                      "operatorName": "nurse-b"
-                    }
+                      "specimenBarcode": "%s"}
                     """.formatted(registeredBarcode)))
             .andExpect(status().isOk());
 
@@ -158,9 +156,7 @@ class ApplicationQueryAndDetailIntegrationTest extends AbstractApplicationContro
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "specimenBarcode": "%s",
-                      "operatorName": "nurse-b"
-                    }
+                      "specimenBarcode": "%s"}
                     """.formatted(registeredBarcode)))
             .andExpect(status().isOk());
 
@@ -169,9 +165,7 @@ class ApplicationQueryAndDetailIntegrationTest extends AbstractApplicationContro
                 .content("""
                     {
                       "specimenBarcode": "%s",
-                      "fixationLiquidType": "FORMALIN",
-                      "operatorName": "nurse-b"
-                    }
+                      "fixationLiquidType": "FORMALIN"}
                     """.formatted(registeredBarcode)))
             .andExpect(status().isOk());
 
@@ -180,9 +174,7 @@ class ApplicationQueryAndDetailIntegrationTest extends AbstractApplicationContro
                 .content("""
                     {
                       "specimenBarcode": "%s",
-                      "fixationLiquidType": "FORMALIN",
-                      "operatorName": "nurse-b"
-                    }
+                      "fixationLiquidType": "FORMALIN"}
                     """.formatted(registeredBarcode)))
             .andExpect(status().isOk());
 
@@ -190,7 +182,7 @@ class ApplicationQueryAndDetailIntegrationTest extends AbstractApplicationContro
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "operatorName": "nurse-b",
+                      
                       "terminalCode": "T-CONFIRM"
                     }
                     """))
@@ -200,7 +192,7 @@ class ApplicationQueryAndDetailIntegrationTest extends AbstractApplicationContro
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "operatorName": "nurse-b",
+                      
                       "specimenBarcode": "%s",
                       "terminalCode": "T-CHECK-IN"
                     }
@@ -315,7 +307,7 @@ class ApplicationQueryAndDetailIntegrationTest extends AbstractApplicationContro
                 .content("""
                     {
                       "applicationId": "%s",
-                      "operatorName": "nurse-detail",
+                      
                       "items": [
                         {
                           "specimenNameStandardized": "Gastric tissue",

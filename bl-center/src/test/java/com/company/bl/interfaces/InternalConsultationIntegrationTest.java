@@ -26,7 +26,6 @@ class InternalConsultationIntegrationTest extends AbstractDiagnosticWorkflowInte
               "participants":[
                 {"participantUserId":"USER_M4_SIGN","participantName":"M4 Sign","participantRole":"EXPERT"}
               ],
-              "operatorName":"diag-user",
               "terminalCode":"M4-CONS-01"
             }
             """.formatted(context.caseId())), 200);
@@ -44,7 +43,6 @@ class InternalConsultationIntegrationTest extends AbstractDiagnosticWorkflowInte
         postJson("/api/v1/consultations/%s/participants/%s/comment".formatted(consultationId, signParticipantId), USER_M4_SIGN, """
             {
               "opinion":"need more correlation",
-              "operatorName":"sign-user",
               "terminalCode":"M4-CONS-02"
             }
             """)
@@ -55,7 +53,6 @@ class InternalConsultationIntegrationTest extends AbstractDiagnosticWorkflowInte
         postJson("/api/v1/consultations/%s/complete".formatted(consultationId), USER_M4_DIAGNOSIS, """
             {
               "opinion":"internal consultation completed",
-              "operatorName":"diag-user",
               "terminalCode":"M4-CONS-03"
             }
             """)
@@ -80,7 +77,6 @@ class InternalConsultationIntegrationTest extends AbstractDiagnosticWorkflowInte
               "participants":[
                 {"participantUserId":"USER_M4_SIGN","participantName":"M4 Sign","participantRole":"EXPERT"}
               ],
-              "operatorName":"diag-user",
               "terminalCode":"M4-CONS-11"
             }
             """.formatted(context.caseId())), 200);
@@ -95,7 +91,6 @@ class InternalConsultationIntegrationTest extends AbstractDiagnosticWorkflowInte
         postJson("/api/v1/consultations/%s/participants/%s/comment".formatted(consultationId, signParticipantId), USER_M4_REVIEW, """
             {
               "opinion":"unauthorized comment",
-              "operatorName":"review-user",
               "terminalCode":"M4-CONS-12"
             }
             """)

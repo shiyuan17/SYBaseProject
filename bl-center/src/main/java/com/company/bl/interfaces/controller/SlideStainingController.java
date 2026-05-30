@@ -36,8 +36,8 @@ public class SlideStainingController extends TechnicalControllerSupport {
         TechnicalWorkflowModels.TaskStartResult result = technicalWorkflowAppService.startSlideStaining(
             new TechnicalWorkflowModels.TaskStartCommand(
                 request.getTaskId(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new TaskOperationResponse(result.taskId(), result.caseId(), result.caseStatus(), result.taskStatus());
@@ -54,8 +54,8 @@ public class SlideStainingController extends TechnicalControllerSupport {
                 request.getSlideId(),
                 request.getStainingType(),
                 request.getQualityIssue(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new SlideStainingResponse(result.taskId(), result.slideId(), result.caseStatus());

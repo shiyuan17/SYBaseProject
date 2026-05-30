@@ -101,24 +101,20 @@ class SpecimenWorkflowQueueAndVerificationIntegrationTest extends AbstractSpecim
         postJson("/api/v1/specimen-fixations/start", USER_FIXATION, """
             {
               "specimenBarcode": "%s",
-              "fixationLiquidType": "FORMALIN",
-              "operatorName": "nurse-b"
-            }
+              "fixationLiquidType": "FORMALIN"}
             """.formatted(barcode))
             .andExpect(status().isOk());
 
         postJson("/api/v1/specimen-fixations/complete", USER_FIXATION, """
             {
               "specimenBarcode": "%s",
-              "fixationLiquidType": "FORMALIN",
-              "operatorName": "nurse-b"
-            }
+              "fixationLiquidType": "FORMALIN"}
             """.formatted(barcode))
             .andExpect(status().isOk());
 
         postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(barcode), USER_FIXATION, """
             {
-              "operatorName": "nurse-b",
+              
               "terminalCode": "T-CONFIRM"
             }
             """)
@@ -128,7 +124,7 @@ class SpecimenWorkflowQueueAndVerificationIntegrationTest extends AbstractSpecim
 
         postJson("/api/v1/specimens/barcodes/%s/check-in".formatted(barcode), USER_FIXATION, """
             {
-              "operatorName": "nurse-b",
+              
               "specimenBarcode": "%s",
               "terminalCode": "T-CHECK-IN"
             }
@@ -235,17 +231,13 @@ class SpecimenWorkflowQueueAndVerificationIntegrationTest extends AbstractSpecim
 
         postJson("/api/v1/specimen-verifications/complete", USER_FIXATION, """
             {
-              "specimenBarcode": "%s",
-              "operatorName": "nurse-b"
-            }
+              "specimenBarcode": "%s"}
             """.formatted(barcode))
             .andExpect(status().isConflict());
 
         postJson("/api/v1/specimen-verifications/start", USER_FIXATION, """
             {
-              "specimenBarcode": "%s",
-              "operatorName": "nurse-b"
-            }
+              "specimenBarcode": "%s"}
             """.formatted(barcode))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.verificationStatus").value("VERIFYING"))
@@ -254,17 +246,13 @@ class SpecimenWorkflowQueueAndVerificationIntegrationTest extends AbstractSpecim
 
         postJson("/api/v1/specimen-verifications/start", USER_FIXATION, """
             {
-              "specimenBarcode": "%s",
-              "operatorName": "nurse-b"
-            }
+              "specimenBarcode": "%s"}
             """.formatted(barcode))
             .andExpect(status().isConflict());
 
         postJson("/api/v1/specimen-verifications/complete", USER_FIXATION, """
             {
-              "specimenBarcode": "%s",
-              "operatorName": "nurse-b"
-            }
+              "specimenBarcode": "%s"}
             """.formatted(barcode))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.verificationStatus").value("VERIFIED"))
@@ -273,18 +261,14 @@ class SpecimenWorkflowQueueAndVerificationIntegrationTest extends AbstractSpecim
 
         postJson("/api/v1/specimen-verifications/complete", USER_FIXATION, """
             {
-              "specimenBarcode": "%s",
-              "operatorName": "nurse-b"
-            }
+              "specimenBarcode": "%s"}
             """.formatted(barcode))
             .andExpect(status().isConflict());
 
         postJson("/api/v1/specimen-fixations/start", USER_FIXATION, """
             {
               "specimenBarcode": "%s",
-              "fixationLiquidType": "FORMALIN",
-              "operatorName": "nurse-b"
-            }
+              "fixationLiquidType": "FORMALIN"}
             """.formatted(barcode))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.fixationStatus").value("FIXING"));
@@ -298,17 +282,13 @@ class SpecimenWorkflowQueueAndVerificationIntegrationTest extends AbstractSpecim
 
         postJson("/api/v1/specimen-verifications/complete", USER_FIXATION, """
             {
-              "specimenBarcode": "%s",
-              "operatorName": "nurse-b"
-            }
+              "specimenBarcode": "%s"}
             """.formatted(barcode))
             .andExpect(status().isConflict());
 
         postJson("/api/v1/specimen-verifications/start", USER_FIXATION, """
             {
-              "specimenBarcode": "%s",
-              "operatorName": "nurse-b"
-            }
+              "specimenBarcode": "%s"}
             """.formatted(barcode))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.verificationStatus").value("VERIFYING"))
@@ -317,17 +297,13 @@ class SpecimenWorkflowQueueAndVerificationIntegrationTest extends AbstractSpecim
 
         postJson("/api/v1/specimen-verifications/start", USER_FIXATION, """
             {
-              "specimenBarcode": "%s",
-              "operatorName": "nurse-b"
-            }
+              "specimenBarcode": "%s"}
             """.formatted(barcode))
             .andExpect(status().isConflict());
 
         postJson("/api/v1/specimen-verifications/complete", USER_FIXATION, """
             {
-              "specimenBarcode": "%s",
-              "operatorName": "nurse-b"
-            }
+              "specimenBarcode": "%s"}
             """.formatted(barcode))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.verificationStatus").value("VERIFIED"))
@@ -335,9 +311,7 @@ class SpecimenWorkflowQueueAndVerificationIntegrationTest extends AbstractSpecim
 
         postJson("/api/v1/specimen-verifications/complete", USER_FIXATION, """
             {
-              "specimenBarcode": "%s",
-              "operatorName": "nurse-b"
-            }
+              "specimenBarcode": "%s"}
             """.formatted(barcode))
             .andExpect(status().isConflict());
 
@@ -349,25 +323,20 @@ class SpecimenWorkflowQueueAndVerificationIntegrationTest extends AbstractSpecim
         postJson("/api/v1/specimen-fixations/start", USER_FIXATION, """
             {
               "specimenBarcode": "%s",
-              "fixationLiquidType": "FORMALIN",
-              "operatorName": "nurse-b"
-            }
+              "fixationLiquidType": "FORMALIN"}
             """.formatted(barcode))
             .andExpect(status().isOk());
 
         postJson("/api/v1/specimen-fixations/complete", USER_FIXATION, """
             {
               "specimenBarcode": "%s",
-              "fixationLiquidType": "FORMALIN",
-              "operatorName": "nurse-b"
-            }
+              "fixationLiquidType": "FORMALIN"}
             """.formatted(barcode))
             .andExpect(status().isOk());
 
         postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(barcode), USER_FIXATION, """
             {
-              "operatorName": "nurse-b"
-            }
+              }
             """)
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.specimenConfirmedAt").isNotEmpty())
@@ -375,7 +344,7 @@ class SpecimenWorkflowQueueAndVerificationIntegrationTest extends AbstractSpecim
 
         postJson("/api/v1/specimens/barcodes/%s/check-in".formatted(barcode), USER_FIXATION, """
             {
-              "operatorName": "nurse-b",
+              
               "specimenBarcode": "%s"
             }
             """.formatted(barcode))

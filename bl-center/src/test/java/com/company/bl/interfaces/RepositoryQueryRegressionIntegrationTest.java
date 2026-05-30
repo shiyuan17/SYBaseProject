@@ -194,18 +194,14 @@ class RepositoryQueryRegressionIntegrationTest extends AbstractDiagnosticWorkflo
         postJson("/api/v1/specimen-fixations/start", USER_FIXATION, """
             {
               "specimenBarcode": "%s",
-              "fixationLiquidType": "FORMALIN",
-              "operatorName": "nurse-b"
-            }
+              "fixationLiquidType": "FORMALIN"}
             """.formatted(barcode))
             .andExpect(status().isOk());
 
         postJson("/api/v1/specimen-fixations/complete", USER_FIXATION, """
             {
               "specimenBarcode": "%s",
-              "fixationLiquidType": "FORMALIN",
-              "operatorName": "nurse-b"
-            }
+              "fixationLiquidType": "FORMALIN"}
             """.formatted(barcode))
             .andExpect(status().isOk());
 

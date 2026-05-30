@@ -59,9 +59,7 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
     protected void startVerification(String barcode) throws Exception {
         postJson("/api/v1/specimen-verifications/start", USER_FIXATION, """
             {
-              "specimenBarcode": "%s",
-              "operatorName": "nurse-b"
-            }
+              "specimenBarcode": "%s"}
             """.formatted(barcode))
             .andExpect(status().isOk());
     }
@@ -69,9 +67,7 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
     protected void completeVerification(String barcode) throws Exception {
         postJson("/api/v1/specimen-verifications/complete", USER_FIXATION, """
             {
-              "specimenBarcode": "%s",
-              "operatorName": "nurse-b"
-            }
+              "specimenBarcode": "%s"}
             """.formatted(barcode))
             .andExpect(status().isOk());
     }
@@ -83,18 +79,14 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
         postJson("/api/v1/specimen-fixations/start", USER_FIXATION, """
             {
               "specimenBarcode": "%s",
-              "fixationLiquidType": "FORMALIN",
-              "operatorName": "nurse-b"
-            }
+              "fixationLiquidType": "FORMALIN"}
             """.formatted(barcode))
             .andExpect(status().isOk());
 
         postJson("/api/v1/specimen-fixations/complete", USER_FIXATION, """
             {
               "specimenBarcode": "%s",
-              "fixationLiquidType": "FORMALIN",
-              "operatorName": "nurse-b"
-            }
+              "fixationLiquidType": "FORMALIN"}
             """.formatted(barcode))
             .andExpect(status().isOk());
     }
@@ -102,7 +94,7 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
     protected void confirmSpecimen(String barcode) throws Exception {
         postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(barcode), USER_FIXATION, """
             {
-              "operatorName": "nurse-b",
+              
               "terminalCode": "T-CONFIRM"
             }
             """)
@@ -112,7 +104,7 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
     protected void checkInSpecimen(String barcode) throws Exception {
         postJson("/api/v1/specimens/barcodes/%s/check-in".formatted(barcode), USER_FIXATION, """
             {
-              "operatorName": "nurse-b",
+              
               "specimenBarcode": "%s",
               "terminalCode": "T-CHECK-IN"
             }
@@ -165,7 +157,7 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
             {
               "applicationId": "%s",
               "printerCode": "%s",
-              "operatorName": "nurse-a",
+              
               "terminalCode": "OR-01",
               "items": [%s]
             }
@@ -189,6 +181,17 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
         return querySingleString(
             """
                 select login_name
+                from users
+                where id = :userId
+                """,
+            "userId",
+            userId);
+    }
+
+    protected String userDisplayName(String userId) {
+        return querySingleString(
+            """
+                select name
                 from users
                 where id = :userId
                 """,

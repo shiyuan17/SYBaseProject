@@ -41,7 +41,6 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
             {
               "caseId":"%s",
               "archivePositionId":"%s",
-              "operatorName":"archive-user",
               "terminalCode":"M5-ARCH-APP-01",
               "fileUrl":"https://example.test/archive/app-form-001.jpg",
               "fileName":"app-form-001.jpg",
@@ -53,7 +52,6 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
             {
               "embeddingBoxId":"%s",
               "archivePositionId":"%s",
-              "operatorName":"archive-user",
               "terminalCode":"M5-ARCH-BOX-01",
               "remarks":"embedding box archived"
             }
@@ -63,7 +61,6 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
             {
               "slideId":"%s",
               "archivePositionId":"%s",
-              "operatorName":"archive-user",
               "terminalCode":"M5-ARCH-SLIDE-01",
               "remarks":"slide archived"
             }
@@ -113,7 +110,6 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
             {
               "slideId":"%s",
               "archivePositionId":"%s",
-              "operatorName":"archive-user",
               "terminalCode":"M5-ARCH-SLIDE-02"
             }
             """.formatted(slide.get("id"), slidePositionId)), 200);
@@ -125,7 +121,6 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
               "borrowedByUserId":"DOC-BORROW-01",
               "borrowedByName":"Borrow Doctor",
               "borrowPurpose":"case review",
-              "operatorName":"archive-user",
               "terminalCode":"M5-LOAN-01"
             }
             """.formatted(slide.get("id"))), 200);
@@ -143,7 +138,6 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
 
         responseBody(postJson("/api/v1/material-loans/%s/return".formatted(loanId), USER_M1_ARCHIVE, """
             {
-              "operatorName":"archive-user",
               "terminalCode":"M5-LOAN-02",
               "remarks":"returned to archive"
             }
@@ -176,7 +170,6 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
             {
               "embeddingBoxId":"%s",
               "archivePositionId":"%s",
-              "operatorName":"archive-user",
               "terminalCode":"M5-ARCH-BOX-03"
             }
             """.formatted(embeddingBox.get("id"), sharedPositionId)), 200);
@@ -185,7 +178,6 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
             {
               "slideId":"%s",
               "archivePositionId":"%s",
-              "operatorName":"archive-user",
               "terminalCode":"M5-ARCH-SLIDE-03"
             }
             """.formatted(slide.get("id"), sharedPositionId))
@@ -199,7 +191,6 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
               "borrowedByUserId":"DOC-BORROW-02",
               "borrowedByName":"Borrow Doctor",
               "borrowPurpose":"peer review",
-              "operatorName":"archive-user",
               "terminalCode":"M5-LOAN-03"
             }
             """.formatted(embeddingBox.get("id"))), 200);
@@ -212,7 +203,6 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
               "borrowedByUserId":"DOC-BORROW-03",
               "borrowedByName":"Borrow Doctor 2",
               "borrowPurpose":"double-loan",
-              "operatorName":"archive-user",
               "terminalCode":"M5-LOAN-04"
             }
             """.formatted(embeddingBox.get("id")))
@@ -221,14 +211,12 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
 
         responseBody(postJson("/api/v1/material-loans/%s/return".formatted(loanId), USER_M1_ARCHIVE, """
             {
-              "operatorName":"archive-user",
               "terminalCode":"M5-LOAN-05"
             }
             """), 200);
 
         postJson("/api/v1/material-loans/%s/return".formatted(loanId), USER_M1_ARCHIVE, """
             {
-              "operatorName":"archive-user",
               "terminalCode":"M5-LOAN-06"
             }
             """)
@@ -244,7 +232,6 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
               "cabinetType":"STANDARD",
               "layerCount":1,
               "slotCountPerLayer":3,
-              "operatorName":"archive-user",
               "terminalCode":"M5-CAB-01",
               "locationDescription":"Room A"
             }

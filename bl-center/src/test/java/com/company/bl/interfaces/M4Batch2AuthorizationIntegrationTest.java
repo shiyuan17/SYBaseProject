@@ -20,13 +20,13 @@ class M4Batch2AuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInt
     @Test
     void shouldRejectCrossRoleActionsForBatch2ProtectedEndpoints() throws Exception {
         postJson("/api/v1/report-revision-requests/RR-X/approve", USER_M4_DIAGNOSIS, """
-            {"operatorName":"diag-user","terminalCode":"M4-AUTH-01"}
+            {"terminalCode":"M4-AUTH-01"}
             """)
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
 
         postJson("/api/v1/medical-orders/MO-X/accept", USER_M4_SIGN, """
-            {"operatorName":"sign-user","terminalCode":"M4-AUTH-02"}
+            {"terminalCode":"M4-AUTH-02"}
             """)
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
@@ -42,7 +42,6 @@ class M4Batch2AuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInt
               "participants":[
                 {"participantUserId":"USER_M4_SIGN","participantName":"M4 Sign","participantRole":"EXPERT"}
               ],
-              "operatorName":"diag-user",
               "terminalCode":"M4-AUTH-03"
             }
             """.formatted(context.caseId())), 200);
@@ -57,7 +56,6 @@ class M4Batch2AuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInt
         postJson("/api/v1/consultations/%s/participants/%s/comment".formatted(consultationId, signParticipantId), USER_M4_REVIEW, """
             {
               "opinion":"should fail",
-              "operatorName":"review-user",
               "terminalCode":"M4-AUTH-04"
             }
             """)
@@ -74,7 +72,7 @@ class M4Batch2AuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInt
                       "caseId":"CASE-X",
                       "orderType":"RECUT",
                       "orderContent":"need recut",
-                      "operatorName":"diag-user"
+                      "terminalCode":"M4-AUTH-05"
                     }
                     """))
             .andExpect(status().isUnauthorized())
@@ -84,7 +82,7 @@ class M4Batch2AuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInt
             {
               "reportId":"RPT-X",
               "requestReason":"revise",
-              "operatorName":"diag-user"
+              "terminalCode":"M4-AUTH-06"
             }
             """)
             .andExpect(status().isForbidden())

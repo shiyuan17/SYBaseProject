@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -21,7 +22,9 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -144,6 +147,92 @@ class SystemManagementUserIntegrationTest extends AbstractSystemManagementIntegr
             .andExpect(jsonPath("$.code", is("SUCCESS")))
             .andExpect(jsonPath("$.data.total", greaterThanOrEqualTo(1)))
             .andExpect(jsonPath("$.data.items[0].loginName", is(loginName)));
+    }
+
+    @Test
+    void shouldReturnRowLevelErrorsForSystemUserImport() throws Exception {
+        String successLoginName = "import-ok-" + System.nanoTime();
+        MockMultipartFile importFile = new MockMultipartFile(
+            "file",
+            "system-users-invalid.csv",
+            "text/csv",
+            ("""
+                userCode,loginName,name,enabled
+                ,%s,Imported User,true
+                ,,Missing Login,true
+                """.formatted(successLoginName)).getBytes(StandardCharsets.UTF_8));
+
+        mockMvc.perform(asAdmin(multipart("/api/v1/system-users/import").file(importFile)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount", is(1)))
+            .andExpect(jsonPath("$.data.failureCount", is(1)))
+            .andExpect(jsonPath("$.data.errors[0].rowNumber", is(3)))
+            .andExpect(jsonPath("$.data.errors[0].field", is("loginName")))
+            .andExpect(jsonPath("$.data.errors[0].message", containsString("must not be blank")));
+    }
+
+    @Test
+    void shouldAuditAuthenticatedOperatorAndFallbackToSystemForNonWebCalls() throws Exception {
+        String webLoginName = "audit-web-" + System.nanoTime();
+        MvcResult webCreateResult = mockMvc.perform(asAdmin(post("/api/v1/system-users"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "loginName": "%s",
+                      "name": "Audit Web User",
+                      "password": "123456",
+                      "enabled": true
+                    }
+                    """.formatted(webLoginName)))
+            .andExpect(status().isOk())
+            .andReturn();
+        String webUserId = objectMapper.readTree(webCreateResult.getResponse().getContentAsString())
+            .path("data").path("id").asText();
+
+        Map<String, Object> webAudit = jdbcTemplate.queryForMap("""
+            select operator_user_id, operator_name
+            from operation_logs
+            where module_code = 'SYSTEM'
+              and operation_name = 'create_user'
+              and business_id = :businessId
+            order by operation_at desc
+            limit 1
+            """, Map.of("businessId", webUserId));
+        String expectedAdminName = jdbcTemplate.queryForObject("""
+            select name
+            from users
+            where id = :userId
+            """, Map.of("userId", USER_M1_ADMIN), String.class);
+        assertEquals(USER_M1_ADMIN, webAudit.get("operator_user_id"));
+        assertEquals(expectedAdminName, webAudit.get("operator_name"));
+
+        String systemLoginName = "audit-system-" + System.nanoTime();
+        String systemUserId = systemManagementService.createUser(new SystemManagementService.CreateUserCommand(
+            null,
+            systemLoginName,
+            "Audit System User",
+            "123456",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            true)).id();
+
+        Map<String, Object> systemAudit = jdbcTemplate.queryForMap("""
+            select operator_user_id, operator_name
+            from operation_logs
+            where module_code = 'SYSTEM'
+              and operation_name = 'create_user'
+              and business_id = :businessId
+            order by operation_at desc
+            limit 1
+            """, Map.of("businessId", systemUserId));
+        assertNull(systemAudit.get("operator_user_id"));
+        assertEquals("system", systemAudit.get("operator_name"));
     }
 
     @Test

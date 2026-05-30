@@ -26,21 +26,19 @@ class M4RoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInteg
               "primaryDoctorUserId":"USER_M4_DIAGNOSIS",
               "primaryDoctorName":"M4 Diagnosis",
               "reviewerUserId":"USER_M4_REVIEW",
-              "reviewerName":"M4 Review",
-              "operatorName":"diag-user"
-            }
+              "reviewerName":"M4 Review"}
             """)
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
 
         postJson("/api/v1/pathology-reports/RPT-X/review", USER_M4_DIAGNOSIS, """
-            {"operatorName":"diag-user"}
+            {}
             """)
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
 
         postJson("/api/v1/pathology-reports/RPT-X/sign", USER_M4_REVIEW, """
-            {"operatorName":"review-user"}
+            {}
             """)
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
@@ -62,9 +60,7 @@ class M4RoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInteg
                       "grossExam":"g",
                       "microscopicExam":"m",
                       "finalDiagnosis":"f",
-                      "richTextContent":"<p>x</p>",
-                      "operatorName":"diag-user"
-                    }
+                      "richTextContent":"<p>x</p>"}
                     """))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
@@ -77,9 +73,7 @@ class M4RoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInteg
               "grossExam":"g",
               "microscopicExam":"m",
               "finalDiagnosis":"f",
-              "richTextContent":"<p>x</p>",
-              "operatorName":"diag-user"
-            }
+              "richTextContent":"<p>x</p>"}
             """)
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
@@ -98,16 +92,13 @@ class M4RoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInteg
               "primaryDoctorUserId":"USER_M4_DIAGNOSIS",
               "primaryDoctorName":"M4 Diagnosis",
               "reviewerUserId":"USER_M4_REVIEW",
-              "reviewerName":"M4 Review",
-              "operatorName":"assign-user"
-            }
+              "reviewerName":"M4 Review"}
             """)
             .andExpect(status().isOk());
 
         postJson("/api/v1/diagnostic-tasks/%s/accept".formatted(context.diagnosticTaskId()), otherDiagnosisUserId, """
             {
-              "operatorName":"other-diagnosis-user"
-            }
+              }
             """)
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"))
@@ -118,8 +109,7 @@ class M4RoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInteg
 
         postJson("/api/v1/diagnostic-tasks/%s/start".formatted(context.diagnosticTaskId()), otherDiagnosisUserId, """
             {
-              "operatorName":"other-diagnosis-user"
-            }
+              }
             """)
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"))

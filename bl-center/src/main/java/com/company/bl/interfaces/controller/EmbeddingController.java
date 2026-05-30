@@ -36,8 +36,8 @@ public class EmbeddingController extends TechnicalControllerSupport {
         TechnicalWorkflowModels.TaskStartResult result = technicalWorkflowAppService.startEmbedding(
             new TechnicalWorkflowModels.TaskStartCommand(
                 request.getTaskId(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new TaskOperationResponse(result.taskId(), result.caseId(), result.caseStatus(), result.taskStatus());
@@ -58,8 +58,8 @@ public class EmbeddingController extends TechnicalControllerSupport {
                 request.getEvaluationLevel(),
                 request.getSamplingEvaluation(),
                 request.getDeviceCode(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new EmbeddingResponse(

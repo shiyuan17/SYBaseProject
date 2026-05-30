@@ -220,18 +220,57 @@ public class SystemUserManagementService {
         List<Map<String, String>> rows = parseCsv(content);
         int successCount = 0;
         int failureCount = 0;
-        for (Map<String, String> row : rows) {
+        List<SystemManagementService.ImportError> errors = new java.util.ArrayList<>();
+        for (int index = 0; index < rows.size(); index++) {
+            Map<String, String> row = rows.get(index);
+            int rowNumber = index + 2;
             String loginName = trimToNull(row.get("loginName"));
             String name = trimToNull(row.get("name"));
-            if (loginName == null || name == null) {
+            if (loginName == null) {
                 failureCount++;
+                errors.add(new SystemManagementService.ImportError(
+                    rowNumber,
+                    "loginName",
+                    row.get("loginName"),
+                    "Login name must not be blank"));
+                continue;
+            }
+            if (name == null) {
+                failureCount++;
+                errors.add(new SystemManagementService.ImportError(
+                    rowNumber,
+                    "name",
+                    row.get("name"),
+                    "User name must not be blank"));
                 continue;
             }
             try {
+                String requestedUserCode = trimToNull(row.get("userCode"));
+                String requestedLoginTagCode = trimToNull(row.get("loginTagCode"));
                 SystemJdbcRepository.UserRow existing = systemUserJdbcRepository.findUserByLoginName(loginName);
+                if (existing != null) {
+                    if (requestedUserCode != null && !requestedUserCode.equals(existing.userCode())) {
+                        failureCount++;
+                        errors.add(new SystemManagementService.ImportError(
+                            rowNumber,
+                            "userCode",
+                            row.get("userCode"),
+                            "User code cannot be changed once created"));
+                        continue;
+                    }
+                    if (requestedLoginTagCode != null && !requestedLoginTagCode.equals(existing.loginTagCode())) {
+                        failureCount++;
+                        errors.add(new SystemManagementService.ImportError(
+                            rowNumber,
+                            "loginTagCode",
+                            row.get("loginTagCode"),
+                            "Login tag code cannot be changed once created"));
+                        continue;
+                    }
+                }
                 if (existing == null) {
                     createUser(new SystemManagementService.CreateUserCommand(
-                        trimToNull(row.get("userCode")),
+                        requestedUserCode,
                         loginName,
                         name,
                         trimToNull(row.get("password")),
@@ -242,11 +281,11 @@ public class SystemUserManagementService {
                         trimToNull(row.get("phone")),
                         trimToNull(row.get("email")),
                         trimToNull(row.get("avatar")),
-                        trimToNull(row.get("loginTagCode")),
+                        requestedLoginTagCode,
                         parseBoolean(row.get("enabled"), true)));
                 } else {
                     updateUser(existing.id(), new SystemManagementService.UpdateUserCommand(
-                        trimToNull(row.get("userCode")),
+                        requestedUserCode,
                         name,
                         trimToNull(row.get("jobNo")),
                         trimToNull(row.get("titleName")),
@@ -255,15 +294,27 @@ public class SystemUserManagementService {
                         trimToNull(row.get("phone")),
                         trimToNull(row.get("email")),
                         trimToNull(row.get("avatar")),
-                        trimToNull(row.get("loginTagCode")),
+                        requestedLoginTagCode,
                         parseBoolean(row.get("enabled"), existing.enabled())));
                 }
                 successCount++;
+            } catch (BlBusinessException exception) {
+                failureCount++;
+                errors.add(new SystemManagementService.ImportError(
+                    rowNumber,
+                    "loginName",
+                    row.get("loginName"),
+                    exception.getMessage()));
             } catch (RuntimeException exception) {
                 failureCount++;
+                errors.add(new SystemManagementService.ImportError(
+                    rowNumber,
+                    "loginName",
+                    row.get("loginName"),
+                    exception.getMessage() == null ? "User import failed" : exception.getMessage()));
             }
         }
-        return new SystemManagementService.ImportResult(successCount, failureCount);
+        return new SystemManagementService.ImportResult(successCount, failureCount, errors);
     }
 
     @Transactional(readOnly = true)

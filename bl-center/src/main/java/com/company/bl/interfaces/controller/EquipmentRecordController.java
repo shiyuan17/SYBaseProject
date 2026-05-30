@@ -50,8 +50,8 @@ public class EquipmentRecordController extends TechnicalControllerSupport {
             request.getLocationDescription(),
             request.getEnabledAt(),
             request.getNextMaintenanceAt(),
-            resolveUserId(request.getOperatorUserId(), httpServletRequest),
-            request.getOperatorName(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
             request.getRemarks()));
     }
 
@@ -69,8 +69,8 @@ public class EquipmentRecordController extends TechnicalControllerSupport {
             request.getLocationDescription(),
             request.getEnabledAt(),
             request.getNextMaintenanceAt(),
-            resolveUserId(request.getOperatorUserId(), httpServletRequest),
-            request.getOperatorName(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
             request.getRemarks()));
     }
 
@@ -91,8 +91,8 @@ public class EquipmentRecordController extends TechnicalControllerSupport {
             request.getMaintenanceStatus(),
             request.getPerformedAt(),
             request.getNextMaintenanceAt(),
-            resolveUserId(request.getOperatorUserId(), httpServletRequest),
-            request.getOperatorName(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
             request.getDescription(),
             request.getRemarks()));
     }

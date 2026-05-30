@@ -59,7 +59,7 @@ class TechnicalWorkflowAutomationAndGovernanceIntegrationTest extends AbstractTe
         postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
             {
               "taskId": "%s",
-              "operatorName": "grossing-user",
+              
               "terminalCode": "TG-21"
             }
             """.formatted(context.grossingTaskId()))
@@ -69,7 +69,7 @@ class TechnicalWorkflowAutomationAndGovernanceIntegrationTest extends AbstractTe
             {
               "taskId": "%s",
               "caseId": "%s",
-              "operatorName": "grossing-user",
+              
               "terminalCode": "TG-22",
               "specimens": [
                 {
@@ -100,7 +100,7 @@ class TechnicalWorkflowAutomationAndGovernanceIntegrationTest extends AbstractTe
               "stationName": "Grossing Station",
               "assignedToUserId": "%s",
               "assignedToName": "M3 Grossing",
-              "operatorName": "dehydration-user",
+              
               "terminalCode": "M3-N-01"
             }
             """.formatted(USER_M3_GROSSING))
@@ -111,7 +111,7 @@ class TechnicalWorkflowAutomationAndGovernanceIntegrationTest extends AbstractTe
             {
               "priority": "STAT",
               "productionRemarks": "expedite",
-              "operatorName": "dehydration-user",
+              
               "terminalCode": "M3-N-02"
             }
             """)
@@ -120,7 +120,7 @@ class TechnicalWorkflowAutomationAndGovernanceIntegrationTest extends AbstractTe
 
         postJson("/api/v1/technical-tasks/%s/release".formatted(context.grossingTaskId()), USER_M3_DEHYDRATION, """
             {
-              "operatorName": "dehydration-user",
+              
               "terminalCode": "M3-N-03",
               "remarks": "re-balance"
             }

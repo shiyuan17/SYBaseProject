@@ -36,8 +36,8 @@ public class GrossingController extends TechnicalControllerSupport {
         TechnicalWorkflowModels.TaskStartResult result = technicalWorkflowAppService.startGrossing(
             new TechnicalWorkflowModels.TaskStartCommand(
                 request.getTaskId(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new TaskOperationResponse(result.taskId(), result.caseId(), result.caseStatus(), result.taskStatus());
@@ -52,8 +52,8 @@ public class GrossingController extends TechnicalControllerSupport {
             new TechnicalWorkflowModels.GrossingCompleteCommand(
                 request.getTaskId(),
                 request.getCaseId(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks(),
                 request.getSpecimens().stream().map(item -> new TechnicalWorkflowModels.GrossingSpecimenItem(

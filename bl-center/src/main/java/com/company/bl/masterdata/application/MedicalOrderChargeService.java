@@ -162,18 +162,53 @@ public class MedicalOrderChargeService {
         List<Map<String, String>> rows = parseCsv(content);
         int successCount = 0;
         int failureCount = 0;
-        for (Map<String, String> row : rows) {
+        List<MedicalOrderService.ImportError> errors = new ArrayList<>();
+        for (int index = 0; index < rows.size(); index++) {
+            Map<String, String> row = rows.get(index);
+            int rowNumber = index + 2;
             String chargeItemCode = trimToNull(row.get("chargeItemCode"));
             String chargeItemName = trimToNull(row.get("chargeItemName"));
             String orderDictItemId = trimToNull(row.get("orderDictItemId"));
-            if (chargeItemName == null || orderDictItemId == null) {
+            if (orderDictItemId == null) {
                 failureCount++;
+                errors.add(new MedicalOrderService.ImportError(
+                    rowNumber,
+                    "orderDictItemId",
+                    row.get("orderDictItemId"),
+                    "Order dict item id must not be blank"));
+                continue;
+            }
+            if (chargeItemName == null) {
+                failureCount++;
+                errors.add(new MedicalOrderService.ImportError(
+                    rowNumber,
+                    "chargeItemName",
+                    row.get("chargeItemName"),
+                    "Charge item name must not be blank"));
                 continue;
             }
             try {
                 MedicalOrderChargeJdbcRepository.ChargeItemRow existing = repository.findChargeItemByCode(chargeItemCode);
-                BigDecimal price = parseDecimal(row.get("price"));
-                int sortOrder = parseInteger(row.get("sortOrder"), 0);
+                if (existing != null && chargeItemCode != null && !chargeItemCode.equals(existing.chargeItemCode())) {
+                    failureCount++;
+                    errors.add(new MedicalOrderService.ImportError(
+                        rowNumber,
+                        "chargeItemCode",
+                        row.get("chargeItemCode"),
+                        "Charge item code cannot be changed once created"));
+                    continue;
+                }
+                DecimalParseResult priceResult = parseDecimal(row.get("price"), rowNumber, errors);
+                if (!priceResult.valid()) {
+                    failureCount++;
+                    continue;
+                }
+                BigDecimal price = priceResult.value();
+                Integer sortOrder = parseInteger(row.get("sortOrder"), 0, rowNumber, errors);
+                if (sortOrder == null) {
+                    failureCount++;
+                    continue;
+                }
                 boolean enabled = parseBoolean(row.get("enabled"), true);
                 if (existing == null) {
                     createChargeItem(new MedicalOrderService.CreateChargeItemCommand(
@@ -197,11 +232,23 @@ public class MedicalOrderChargeService {
                         enabled));
                 }
                 successCount++;
+            } catch (BlBusinessException exception) {
+                failureCount++;
+                errors.add(new MedicalOrderService.ImportError(
+                    rowNumber,
+                    "chargeItemCode",
+                    row.get("chargeItemCode"),
+                    exception.getMessage()));
             } catch (RuntimeException exception) {
                 failureCount++;
+                errors.add(new MedicalOrderService.ImportError(
+                    rowNumber,
+                    "chargeItemCode",
+                    row.get("chargeItemCode"),
+                    exception.getMessage() == null ? "Charge item import failed" : exception.getMessage()));
             }
         }
-        return new MedicalOrderService.ImportResult(successCount, failureCount);
+        return new MedicalOrderService.ImportResult(successCount, failureCount, errors);
     }
 
     private MedicalOrderService.ChargeItemView toChargeItemView(MedicalOrderChargeJdbcRepository.ChargeItemRow row) {
@@ -317,17 +364,43 @@ public class MedicalOrderChargeService {
         return "1".equals(normalized) || "true".equalsIgnoreCase(normalized) || "yes".equalsIgnoreCase(normalized);
     }
 
-    private int parseInteger(String value, int defaultValue) {
+    private Integer parseInteger(String value,
+                                 int defaultValue,
+                                 int rowNumber,
+                                 List<MedicalOrderService.ImportError> errors) {
         String normalized = trimToNull(value);
         if (normalized == null) {
             return defaultValue;
         }
-        return Integer.parseInt(normalized);
+        try {
+            return Integer.parseInt(normalized);
+        } catch (NumberFormatException exception) {
+            errors.add(new MedicalOrderService.ImportError(
+                rowNumber,
+                "sortOrder",
+                value,
+                "Sort order must be a valid integer"));
+            return null;
+        }
     }
 
-    private BigDecimal parseDecimal(String value) {
+    private DecimalParseResult parseDecimal(String value,
+                                            int rowNumber,
+                                            List<MedicalOrderService.ImportError> errors) {
         String normalized = trimToNull(value);
-        return normalized == null ? null : new BigDecimal(normalized);
+        if (normalized == null) {
+            return new DecimalParseResult(null, true);
+        }
+        try {
+            return new DecimalParseResult(new BigDecimal(normalized), true);
+        } catch (NumberFormatException exception) {
+            errors.add(new MedicalOrderService.ImportError(
+                rowNumber,
+                "price",
+                value,
+                "Price must be a valid decimal number"));
+            return new DecimalParseResult(null, false);
+        }
     }
 
     private String resolveCreateCode(String requestedCode, Supplier<String> generator) {
@@ -341,5 +414,8 @@ public class MedicalOrderChargeService {
             return existingCode;
         }
         throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, fieldLabel + " cannot be changed once created");
+    }
+
+    private record DecimalParseResult(BigDecimal value, boolean valid) {
     }
 }

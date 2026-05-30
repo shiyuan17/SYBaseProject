@@ -44,8 +44,8 @@ public class ReworkOrderController extends TechnicalControllerSupport {
                 request.getReworkType(),
                 request.getReason(),
                 request.getQcType(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new ReworkOrderResponse(result.caseId(), result.reworkType(), result.status());
@@ -60,8 +60,8 @@ public class ReworkOrderController extends TechnicalControllerSupport {
         TechnicalWorkflowModels.ReworkOrderResult result = technicalWorkflowAppService.executeReworkOrder(
             new TechnicalWorkflowModels.ExecuteReworkOrderCommand(
                 id,
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new ReworkOrderResponse(result.caseId(), result.reworkType(), result.status());

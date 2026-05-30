@@ -109,13 +109,13 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             applicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-REMOVAL-BARCODE-001");
         String barcode = registration.path("specimens").get(0).path("barcode").asText();
         String specimenId = registration.path("specimens").get(0).path("id").asText();
-        String loginName = userLoginName(USER_FIXATION);
+        String operatorName = userDisplayName(USER_FIXATION);
 
         postJson("/api/v1/specimen-removals/confirm-by-identifier", USER_FIXATION, """
             {
               "identifierType": "BARCODE",
               "identifier": "%s",
-              "operatorName": "manual-name",
+              
               "terminalCode": "T-REMOVAL-BARCODE",
               "remarks": "离体确认"
             }
@@ -123,7 +123,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.specimenId").value(specimenId))
             .andExpect(jsonPath("$.data.barcode").value(barcode))
-            .andExpect(jsonPath("$.data.operatorName").value(loginName))
+            .andExpect(jsonPath("$.data.operatorName").value(operatorName))
             .andExpect(jsonPath("$.data.specimenRemovalAt").isNotEmpty());
 
         assertThat(querySingleString(
@@ -133,7 +133,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
                 where id = :specimenId
                 """,
             "specimenId",
-            specimenId)).isEqualTo(loginName);
+            specimenId)).isEqualTo(operatorName);
         assertThat(jdbcTemplate.queryForObject(
             """
                 select count(1)
@@ -168,7 +168,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             {
               "specimenBarcode": "%s",
               "fixationLiquidType": "FORMALIN",
-              "operatorName": "nurse-b",
+              
               "terminalCode": "T-FIXATION"
             }
             """.formatted(barcode))
@@ -196,7 +196,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             {
               "identifierType": "SPECIMEN_NO",
               "identifier": "%s",
-              "operatorName": "manual-name",
+              
               "terminalCode": "T-REMOVAL-NO",
               "remarks": "离体确认"
             }
@@ -232,9 +232,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             postJson("/api/v1/specimen-removals/confirm-by-identifier", USER_FIXATION, """
                 {
                   "identifierType": "SPECIMEN_NO",
-                  "identifier": "%s",
-                  "operatorName": "manual-name"
-                }
+                  "identifier": "%s"}
                 """.formatted(specimenNo))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_ARGUMENT"));
@@ -261,18 +259,14 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
         postJson("/api/v1/specimen-removals/confirm-by-identifier", USER_FIXATION, """
             {
               "identifierType": "BARCODE",
-              "identifier": "%s",
-              "operatorName": "manual-name"
-            }
+              "identifier": "%s"}
             """.formatted(barcode))
             .andExpect(status().isOk());
 
         postJson("/api/v1/specimen-removals/confirm-by-identifier", USER_FIXATION, """
             {
               "identifierType": "BARCODE",
-              "identifier": "%s",
-              "operatorName": "manual-name"
-            }
+              "identifier": "%s"}
             """.formatted(barcode))
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.code").value("RESOURCE_CONFLICT"));
@@ -283,9 +277,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
         postJson("/api/v1/specimen-removals/confirm-by-identifier", USER_FIXATION, """
             {
               "identifierType": "BARCODE",
-              "identifier": "BC-NOT-FOUND",
-              "operatorName": "manual-name"
-            }
+              "identifier": "BC-NOT-FOUND"}
             """)
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
@@ -302,7 +294,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
 
         postJson("/api/v1/specimens/label-batches/%s/retry".formatted(batchNo), USER_REGISTER, """
             {
-              "operatorName": "retry-user",
+              
               "printerCode": "P-01",
               "terminalCode": "OR-RETRY"
             }

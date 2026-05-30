@@ -20,14 +20,14 @@ class DiagnosticWorkflowAssignmentIntegrationTest extends AbstractDiagnosticWork
         TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M4-LIST-001", "BC-M4-LIST-001");
 
         postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
-            {"taskId":"%s","operatorName":"grossing-user"}
+            {"taskId":"%s"}
             """.formatted(context.grossingTaskId()))
             .andExpect(status().isOk());
         postJson("/api/v1/grossings/complete", USER_M3_GROSSING, """
             {
               "taskId":"%s",
               "caseId":"%s",
-              "operatorName":"grossing-user",
+              
               "specimens":[{"specimenId":"%s","specimenType":"ROUTINE","grossDescription":"gd","blocks":[{"blockSite":"A","blockDescription":"B"}]}]
             }
             """.formatted(context.grossingTaskId(), context.caseId(), context.specimenId()))
@@ -36,40 +36,40 @@ class DiagnosticWorkflowAssignmentIntegrationTest extends AbstractDiagnosticWork
         String samplingBlockId = listPendingTasks("DEHYDRATION", context.pathologyNo(), USER_M3_DEHYDRATION)
             .path("items").get(0).path("objectId").asText();
         String batchId = responseBody(postJson("/api/v1/dehydration-batches", USER_M3_DEHYDRATION, """
-            {"caseId":"%s","basketNo":"B1","deviceNo":"D1","operatorName":"dehydration-user","samplingBlockIds":["%s"]}
+            {"caseId":"%s","basketNo":"B1","deviceNo":"D1","samplingBlockIds":["%s"]}
             """.formatted(context.caseId(), samplingBlockId)), 201).path("batchId").asText();
         postJson("/api/v1/dehydration-batches/%s/start".formatted(batchId), USER_M3_DEHYDRATION, """
-            {"operatorName":"dehydration-user"}
+            {}
             """).andExpect(status().isOk());
         postJson("/api/v1/dehydration-batches/%s/complete".formatted(batchId), USER_M3_DEHYDRATION, """
-            {"operatorName":"dehydration-user"}
+            {}
             """).andExpect(status().isOk());
 
         String embeddingTaskId = listPendingTasks("EMBEDDING", context.pathologyNo(), USER_M3_EMBEDDING)
             .path("items").get(0).path("id").asText();
         postJson("/api/v1/embeddings/start", USER_M3_EMBEDDING, """
-            {"taskId":"%s","operatorName":"embedding-user"}
+            {"taskId":"%s"}
             """.formatted(embeddingTaskId)).andExpect(status().isOk());
         String embeddingBoxId = responseBody(postJson("/api/v1/embeddings/complete", USER_M3_EMBEDDING, """
-            {"taskId":"%s","samplingBlockId":"%s","blockCount":1,"sliceNotice":"n","operatorName":"embedding-user"}
+            {"taskId":"%s","samplingBlockId":"%s","blockCount":1,"sliceNotice":"n"}
             """.formatted(embeddingTaskId, samplingBlockId)), 200).path("embeddingBoxId").asText();
 
         String slicingTaskId = listPendingTasks("SLICING", context.pathologyNo(), USER_M3_SLICING)
             .path("items").get(0).path("id").asText();
         postJson("/api/v1/slicings/start", USER_M3_SLICING, """
-            {"taskId":"%s","operatorName":"slicing-user"}
+            {"taskId":"%s"}
             """.formatted(slicingTaskId)).andExpect(status().isOk());
         String slideId = responseBody(postJson("/api/v1/slicings/complete", USER_M3_SLICING, """
-            {"taskId":"%s","embeddingBoxId":"%s","slideCount":1,"operatorName":"slicing-user"}
+            {"taskId":"%s","embeddingBoxId":"%s","slideCount":1}
             """.formatted(slicingTaskId, embeddingBoxId)), 200).path("slideIds").get(0).asText();
 
         String stainingTaskId = listPendingTasks("STAINING", context.pathologyNo(), USER_M3_STAINING)
             .path("items").get(0).path("id").asText();
         postJson("/api/v1/slide-stainings/start", USER_M3_STAINING, """
-            {"taskId":"%s","operatorName":"staining-user"}
+            {"taskId":"%s"}
             """.formatted(stainingTaskId)).andExpect(status().isOk());
         postJson("/api/v1/slide-stainings/complete", USER_M3_STAINING, """
-            {"taskId":"%s","slideId":"%s","stainingType":"HE","operatorName":"staining-user"}
+            {"taskId":"%s","slideId":"%s","stainingType":"HE"}
             """.formatted(stainingTaskId, slideId)).andExpect(status().isOk());
 
         String diagnosticTaskId = listPendingDiagnosticTasks(context.pathologyNo(), USER_M4_ASSIGN)
@@ -81,9 +81,7 @@ class DiagnosticWorkflowAssignmentIntegrationTest extends AbstractDiagnosticWork
               "primaryDoctorUserId":"%s",
               "primaryDoctorName":"Alt Diagnosis",
               "reviewerUserId":"USER_M4_REVIEW",
-              "reviewerName":"M4 Review",
-              "operatorName":"assign-user"
-            }
+              "reviewerName":"M4 Review"}
             """.formatted(otherDiagnosisUserId, otherDiagnosisUserId))
             .andExpect(status().isOk());
 
@@ -111,7 +109,7 @@ class DiagnosticWorkflowAssignmentIntegrationTest extends AbstractDiagnosticWork
               "primaryDoctorName":"M4 Diagnosis",
               "reviewerUserId":"USER_M4_REVIEW",
               "reviewerName":"M4 Review",
-              "operatorName":"assign-user",
+              
               "terminalCode":"M4-A-01"
             }
             """)
@@ -126,7 +124,7 @@ class DiagnosticWorkflowAssignmentIntegrationTest extends AbstractDiagnosticWork
               "primaryDoctorName":"M4 Diagnosis REASSIGN",
               "reviewerUserId":"USER_M4_REVIEW",
               "reviewerName":"M4 Review",
-              "operatorName":"assign-user",
+              
               "terminalCode":"M4-A-02",
               "remarks":"reassign task"
             }
@@ -167,14 +165,14 @@ class DiagnosticWorkflowAssignmentIntegrationTest extends AbstractDiagnosticWork
               "primaryDoctorName":"M4 Diagnosis",
               "reviewerUserId":"USER_M4_REVIEW",
               "reviewerName":"M4 Review",
-              "operatorName":"assign-user",
+              
               "terminalCode":"M4-A-01"
             }
             """).andExpect(status().isOk());
 
         postJson("/api/v1/diagnostic-tasks/%s/accept".formatted(context.diagnosticTaskId()), USER_M4_DIAGNOSIS, """
             {
-              "operatorName":"diag-user",
+              
               "terminalCode":"M4-A-02"
             }
             """).andExpect(status().isOk());
@@ -187,7 +185,7 @@ class DiagnosticWorkflowAssignmentIntegrationTest extends AbstractDiagnosticWork
               "primaryDoctorName":"M4 Diagnosis ACCEPTED",
               "reviewerUserId":"USER_M4_REVIEW",
               "reviewerName":"M4 Review",
-              "operatorName":"assign-user",
+              
               "terminalCode":"M4-A-03"
             }
             """.formatted(reassignedDiagnosisUserId, reassignedDiagnosisUserId))
@@ -208,7 +206,7 @@ class DiagnosticWorkflowAssignmentIntegrationTest extends AbstractDiagnosticWork
               "primaryDoctorName":"M4 Diagnosis STARTED",
               "reviewerUserId":"USER_M4_REVIEW",
               "reviewerName":"M4 Review",
-              "operatorName":"assign-user",
+              
               "terminalCode":"M4-A-04"
             }
             """.formatted(reassignedDiagnosisUserId, reassignedDiagnosisUserId))
@@ -229,7 +227,7 @@ class DiagnosticWorkflowAssignmentIntegrationTest extends AbstractDiagnosticWork
               "primaryDoctorName":"Notify Diagnosis",
               "reviewerUserId":"USER_M4_REVIEW",
               "reviewerName":"M4 Review",
-              "operatorName":"assign-user",
+              
               "terminalCode":"M4-N-01"
             }
             """.formatted(sameDoctorId, sameDoctorId))

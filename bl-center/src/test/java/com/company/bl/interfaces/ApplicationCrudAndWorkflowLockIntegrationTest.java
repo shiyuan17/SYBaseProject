@@ -193,7 +193,7 @@ class ApplicationCrudAndWorkflowLockIntegrationTest extends AbstractApplicationC
                 .content("""
                     {
                       "applicationId": "%s",
-                      "operatorName": "nurse-lock",
+                      
                       "items": [
                         {
                           "specimenNameStandardized": "Thyroid tissue",
@@ -213,9 +213,7 @@ class ApplicationCrudAndWorkflowLockIntegrationTest extends AbstractApplicationC
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "specimenBarcode": "BC-DOWNSTREAM-LOCK-001",
-                      "operatorName": "nurse-lock"
-                    }
+                      "specimenBarcode": "BC-DOWNSTREAM-LOCK-001"}
                     """))
             .andExpect(status().isOk());
 
@@ -223,9 +221,7 @@ class ApplicationCrudAndWorkflowLockIntegrationTest extends AbstractApplicationC
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "specimenBarcode": "BC-DOWNSTREAM-LOCK-001",
-                      "operatorName": "nurse-lock"
-                    }
+                      "specimenBarcode": "BC-DOWNSTREAM-LOCK-001"}
                     """))
             .andExpect(status().isOk());
 
@@ -234,9 +230,7 @@ class ApplicationCrudAndWorkflowLockIntegrationTest extends AbstractApplicationC
                 .content("""
                     {
                       "specimenBarcode": "BC-DOWNSTREAM-LOCK-001",
-                      "fixationLiquidType": "FORMALIN",
-                      "operatorName": "nurse-lock"
-                    }
+                      "fixationLiquidType": "FORMALIN"}
                     """))
             .andExpect(status().isOk());
 

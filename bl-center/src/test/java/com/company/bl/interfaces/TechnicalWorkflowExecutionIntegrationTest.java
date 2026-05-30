@@ -22,7 +22,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
         postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
             {
               "taskId": "%s",
-              "operatorName": "grossing-user",
+              
               "terminalCode": "TG-01"
             }
             """.formatted(context.grossingTaskId()))
@@ -33,7 +33,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
             {
               "taskId": "%s",
               "caseId": "%s",
-              "operatorName": "grossing-user",
+              
               "terminalCode": "TG-01",
               "specimens": [
                 {
@@ -62,7 +62,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
               "caseId": "%s",
               "basketNo": "BASKET-001",
               "deviceNo": "DEV-001",
-              "operatorName": "dehydration-user",
+              
               "terminalCode": "TD-01",
               "samplingBlockIds": ["%s"]
             }
@@ -71,7 +71,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
 
         postJson("/api/v1/dehydration-batches/%s/start".formatted(batchId), USER_M3_DEHYDRATION, """
             {
-              "operatorName": "dehydration-user",
+              
               "terminalCode": "TD-02"
             }
             """)
@@ -80,7 +80,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
 
         postJson("/api/v1/dehydration-batches/%s/complete".formatted(batchId), USER_M3_DEHYDRATION, """
             {
-              "operatorName": "dehydration-user",
+              
               "terminalCode": "TD-03",
               "mediaAssets": [
                 {
@@ -99,7 +99,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
         postJson("/api/v1/embeddings/start", USER_M3_EMBEDDING, """
             {
               "taskId": "%s",
-              "operatorName": "embedding-user",
+              
               "terminalCode": "TE-01"
             }
             """.formatted(embeddingTaskId))
@@ -112,7 +112,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
               "samplingBlockId": "%s",
               "blockCount": 1,
               "sliceNotice": "careful",
-              "operatorName": "embedding-user",
+              
               "terminalCode": "TE-02"
             }
             """.formatted(embeddingTaskId, samplingBlockId)), 200);
@@ -124,7 +124,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
         postJson("/api/v1/slicings/start", USER_M3_SLICING, """
             {
               "taskId": "%s",
-              "operatorName": "slicing-user",
+              
               "terminalCode": "TS-01"
             }
             """.formatted(slicingTaskId))
@@ -136,7 +136,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
               "embeddingBoxId": "%s",
               "slideCount": 1,
               "deviceCode": "FAIL",
-              "operatorName": "slicing-user",
+              
               "terminalCode": "TS-02"
             }
             """.formatted(slicingTaskId, embeddingBoxId)), 200);
@@ -148,7 +148,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
         postJson("/api/v1/slide-stainings/start", USER_M3_STAINING, """
             {
               "taskId": "%s",
-              "operatorName": "staining-user",
+              
               "terminalCode": "TT-01"
             }
             """.formatted(stainingTaskId))
@@ -159,7 +159,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
               "taskId": "%s",
               "slideId": "%s",
               "stainingType": "HE",
-              "operatorName": "staining-user",
+              
               "terminalCode": "TT-02"
             }
             """.formatted(stainingTaskId, slideId))
@@ -181,7 +181,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
         postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
             {
               "taskId": "%s",
-              "operatorName": "grossing-user",
+              
               "terminalCode": "TG-11"
             }
             """.formatted(context.grossingTaskId()))
@@ -191,7 +191,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
             {
               "taskId": "%s",
               "caseId": "%s",
-              "operatorName": "grossing-user",
+              
               "terminalCode": "TG-12",
               "specimens": [
                 {
@@ -225,9 +225,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
 
         postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
             {
-              "taskId": "%s",
-              "operatorName": "grossing-user"
-            }
+              "taskId": "%s"}
             """.formatted(context.grossingTaskId()))
             .andExpect(status().isOk());
 
@@ -235,7 +233,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
             {
               "taskId": "%s",
               "caseId": "%s",
-              "operatorName": "grossing-user",
+              
               "specimens": [
                 {
                   "specimenId": "%s",
@@ -255,55 +253,45 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
             {
               "caseId": "%s",
               "basketNo": "BASKET-RW",
-              "operatorName": "dehydration-user",
+              
               "samplingBlockIds": ["%s"]
             }
             """.formatted(context.caseId(), blockId)), 201).path("batchId").asText();
         postJson("/api/v1/dehydration-batches/%s/start".formatted(batchId), USER_M3_DEHYDRATION, """
             {
-              "operatorName": "dehydration-user"
-            }
+              }
             """)
             .andExpect(status().isOk());
         postJson("/api/v1/dehydration-batches/%s/complete".formatted(batchId), USER_M3_DEHYDRATION, """
             {
-              "operatorName": "dehydration-user"
-            }
+              }
             """)
             .andExpect(status().isOk());
 
         String embeddingTaskId = listPendingTasks("EMBEDDING", context.pathologyNo(), USER_M3_EMBEDDING).path("items").get(0).path("id").asText();
         postJson("/api/v1/embeddings/start", USER_M3_EMBEDDING, """
             {
-              "taskId": "%s",
-              "operatorName": "embedding-user"
-            }
+              "taskId": "%s"}
             """.formatted(embeddingTaskId))
             .andExpect(status().isOk());
         String embeddingBoxId = responseBody(postJson("/api/v1/embeddings/complete", USER_M3_EMBEDDING, """
             {
               "taskId": "%s",
               "samplingBlockId": "%s",
-              "blockCount": 1,
-              "operatorName": "embedding-user"
-            }
+              "blockCount": 1}
             """.formatted(embeddingTaskId, blockId)), 200).path("embeddingBoxId").asText();
 
         String slicingTaskId = listPendingTasks("SLICING", context.pathologyNo(), USER_M3_SLICING).path("items").get(0).path("id").asText();
         postJson("/api/v1/slicings/start", USER_M3_SLICING, """
             {
-              "taskId": "%s",
-              "operatorName": "slicing-user"
-            }
+              "taskId": "%s"}
             """.formatted(slicingTaskId))
             .andExpect(status().isOk());
         String slideId = responseBody(postJson("/api/v1/slicings/complete", USER_M3_SLICING, """
             {
               "taskId": "%s",
               "embeddingBoxId": "%s",
-              "slideCount": 1,
-              "operatorName": "slicing-user"
-            }
+              "slideCount": 1}
             """.formatted(slicingTaskId, embeddingBoxId)), 200).path("slideIds").get(0).asText();
 
         postJson("/api/v1/rework-orders", USER_M3_REWORK, """
@@ -312,9 +300,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
               "specimenId": "%s",
               "slideId": "%s",
               "reworkType": "RESTAIN",
-              "reason": "color-faded",
-              "operatorName": "rework-user"
-            }
+              "reason": "color-faded"}
             """.formatted(context.caseId(), context.specimenId(), slideId))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("PENDING"));
@@ -329,8 +315,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
 
         postJson("/api/v1/rework-orders/%s/execute".formatted(reworkOrderId), USER_M3_REWORK, """
             {
-              "operatorName": "rework-user"
-            }
+              }
             """)
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("COMPLETED"));

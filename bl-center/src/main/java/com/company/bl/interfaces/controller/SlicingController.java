@@ -36,8 +36,8 @@ public class SlicingController extends TechnicalControllerSupport {
         TechnicalWorkflowModels.TaskStartResult result = technicalWorkflowAppService.startSlicing(
             new TechnicalWorkflowModels.TaskStartCommand(
                 request.getTaskId(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new TaskOperationResponse(result.taskId(), result.caseId(), result.caseStatus(), result.taskStatus());
@@ -57,8 +57,8 @@ public class SlicingController extends TechnicalControllerSupport {
                 request.getSliceThickness(),
                 request.getQualityIssue(),
                 request.getDeviceCode(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new SlicingResponse(result.taskId(), result.slicingId(), result.slideIds(), result.caseStatus());

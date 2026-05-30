@@ -1,5 +1,7 @@
 package com.company.bl.interfaces.dto;
 
+import com.company.bl.interfaces.auth.RejectLegacyOperatorFields;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -12,6 +14,7 @@ import java.util.List;
 @Getter
 @Setter
 @Schema(name = "CreateDehydrationBatchRequest", description = "脱水批次创建请求")
+@RejectLegacyOperatorFields
 public class CreateDehydrationBatchRequest {
 
     @Schema(description = "病例 ID", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -28,14 +31,7 @@ public class CreateDehydrationBatchRequest {
     @Size(max = 64)
     private String deviceNo;
 
-    @Schema(description = "操作人用户 ID")
-    @Size(max = 64)
-    private String operatorUserId;
 
-    @Schema(description = "操作人姓名", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotBlank
-    @Size(max = 100)
-    private String operatorName;
 
     @Schema(description = "终端编码")
     @Size(max = 64)

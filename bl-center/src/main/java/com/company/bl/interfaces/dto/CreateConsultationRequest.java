@@ -1,5 +1,6 @@
 package com.company.bl.interfaces.dto;
 
+import com.company.bl.interfaces.auth.RejectLegacyOperatorFields;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -13,6 +14,7 @@ import java.util.List;
 @Getter
 @Setter
 @Schema(name = "CreateConsultationRequest", description = "Create internal consultation request")
+@RejectLegacyOperatorFields
 public class CreateConsultationRequest {
 
     @Schema(description = "Case ID", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -24,15 +26,6 @@ public class CreateConsultationRequest {
     @NotEmpty
     @Schema(description = "Participants", requiredMode = Schema.RequiredMode.REQUIRED)
     private List<ParticipantItem> participants;
-
-    @Schema(description = "Operator user ID")
-    @Size(max = 64)
-    private String operatorUserId;
-
-    @Schema(description = "Operator name", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotBlank
-    @Size(max = 100)
-    private String operatorName;
 
     @Schema(description = "Terminal code")
     @Size(max = 64)

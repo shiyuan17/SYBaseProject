@@ -226,17 +226,16 @@ class M6StatisticsIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
               "caseId":"%s",
               "orderType":"RE_STAIN",
               "orderContent":"%s",
-              "operatorName":"diag-user",
               "terminalCode":"M6-S-01"
             }
             """.formatted(caseId, orderContent)), 200);
         String orderId = created.path("orderId").asText();
 
         postJson("/api/v1/medical-orders/%s/accept".formatted(orderId), executorUserId, """
-            {"operatorName":"order-exec","terminalCode":"M6-S-02"}
+            {"terminalCode":"M6-S-02"}
             """).andExpect(status().isOk());
         postJson("/api/v1/medical-orders/%s/complete".formatted(orderId), executorUserId, """
-            {"operatorName":"order-exec","terminalCode":"M6-S-03"}
+            {"terminalCode":"M6-S-03"}
             """).andExpect(status().isOk());
     }
 

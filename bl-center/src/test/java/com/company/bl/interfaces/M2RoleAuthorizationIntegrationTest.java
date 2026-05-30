@@ -79,9 +79,7 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
         postJson("/api/v1/specimen-fixations/start", USER_REGISTER, """
             {
               "specimenBarcode": "BC-DENY-001",
-              "fixationLiquidType": "FORMALIN",
-              "operatorName": "bad-role"
-            }
+              "fixationLiquidType": "FORMALIN"}
             """)
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
@@ -119,7 +117,7 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
             {
               "applicationId": "%s",
               "printerCode": "P-01",
-              "operatorName": "bad-role",
+              
               "items": [
                 {
                   "specimenNameStandardized": "Thyroid Tissue",
@@ -170,41 +168,33 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
     private void completeFixationAsAdmin(String barcode) throws Exception {
         postJson("/api/v1/specimen-verifications/start", USER_ADMIN, """
             {
-              "specimenBarcode": "%s",
-              "operatorName": "admin-user"
-            }
+              "specimenBarcode": "%s"}
             """.formatted(barcode))
             .andExpect(status().isOk());
 
         postJson("/api/v1/specimen-verifications/complete", USER_ADMIN, """
             {
-              "specimenBarcode": "%s",
-              "operatorName": "admin-user"
-            }
+              "specimenBarcode": "%s"}
             """.formatted(barcode))
             .andExpect(status().isOk());
 
         postJson("/api/v1/specimen-fixations/start", USER_ADMIN, """
             {
               "specimenBarcode": "%s",
-              "fixationLiquidType": "FORMALIN",
-              "operatorName": "admin-user"
-            }
+              "fixationLiquidType": "FORMALIN"}
             """.formatted(barcode))
             .andExpect(status().isOk());
 
         postJson("/api/v1/specimen-fixations/complete", USER_ADMIN, """
             {
               "specimenBarcode": "%s",
-              "fixationLiquidType": "FORMALIN",
-              "operatorName": "admin-user"
-            }
+              "fixationLiquidType": "FORMALIN"}
             """.formatted(barcode))
             .andExpect(status().isOk());
 
         postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(barcode), USER_ADMIN, """
             {
-              "operatorName": "admin-user",
+              
               "terminalCode": "ADMIN-04"
             }
             """)
@@ -212,7 +202,7 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
 
         postJson("/api/v1/specimens/barcodes/%s/check-in".formatted(barcode), USER_ADMIN, """
             {
-              "operatorName": "admin-user",
+              
               "specimenBarcode": "%s",
               "terminalCode": "ADMIN-05"
             }

@@ -21,7 +21,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
         postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
             {
               "taskId": "%s",
-              "operatorName": "grossing-user",
+              
               "terminalCode": "M4-G-01"
             }
             """.formatted(context.grossingTaskId()))
@@ -31,7 +31,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
             {
               "taskId": "%s",
               "caseId": "%s",
-              "operatorName": "grossing-user",
+              
               "terminalCode": "M4-G-02",
               "specimens": [
                 {
@@ -58,7 +58,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
               "caseId": "%s",
               "basketNo": "M4-BASKET-1",
               "deviceNo": "M4-DEV-1",
-              "operatorName": "dehydration-user",
+              
               "terminalCode": "M4-D-01",
               "samplingBlockIds": ["%s"]
             }
@@ -67,7 +67,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
 
         postJson("/api/v1/dehydration-batches/%s/start".formatted(batchId), USER_M3_DEHYDRATION, """
             {
-              "operatorName": "dehydration-user",
+              
               "terminalCode": "M4-D-02"
             }
             """)
@@ -75,7 +75,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
 
         postJson("/api/v1/dehydration-batches/%s/complete".formatted(batchId), USER_M3_DEHYDRATION, """
             {
-              "operatorName": "dehydration-user",
+              
               "terminalCode": "M4-D-03"
             }
             """)
@@ -87,7 +87,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
         postJson("/api/v1/embeddings/start", USER_M3_EMBEDDING, """
             {
               "taskId": "%s",
-              "operatorName": "embedding-user",
+              
               "terminalCode": "M4-E-01"
             }
             """.formatted(embeddingTaskId))
@@ -99,7 +99,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
               "samplingBlockId": "%s",
               "blockCount": 1,
               "sliceNotice": "notice",
-              "operatorName": "embedding-user",
+              
               "terminalCode": "M4-E-02"
             }
             """.formatted(embeddingTaskId, samplingBlockId)), 200);
@@ -111,7 +111,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
         postJson("/api/v1/slicings/start", USER_M3_SLICING, """
             {
               "taskId": "%s",
-              "operatorName": "slicing-user",
+              
               "terminalCode": "M4-S-01"
             }
             """.formatted(slicingTaskId))
@@ -122,7 +122,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
               "taskId": "%s",
               "embeddingBoxId": "%s",
               "slideCount": 1,
-              "operatorName": "slicing-user",
+              
               "terminalCode": "M4-S-02"
             }
             """.formatted(slicingTaskId, embeddingBoxId)), 200);
@@ -134,7 +134,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
         postJson("/api/v1/slide-stainings/start", USER_M3_STAINING, """
             {
               "taskId": "%s",
-              "operatorName": "staining-user",
+              
               "terminalCode": "M4-T-01"
             }
             """.formatted(stainingTaskId))
@@ -145,7 +145,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
               "taskId": "%s",
               "slideId": "%s",
               "stainingType": "HE",
-              "operatorName": "staining-user",
+              
               "terminalCode": "M4-T-02"
             }
             """.formatted(stainingTaskId, slideId))
@@ -164,7 +164,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
               "primaryDoctorName": "M4 Diagnosis",
               "reviewerUserId": "USER_M4_REVIEW",
               "reviewerName": "M4 Review",
-              "operatorName": "assign-user",
+              
               "terminalCode": "M4-A-01"
             }
             """)
@@ -173,7 +173,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
 
         postJson("/api/v1/diagnostic-tasks/%s/accept".formatted(diagnosticTaskId), USER_M4_DIAGNOSIS, """
             {
-              "operatorName": "diag-user",
+              
               "terminalCode": "M4-A-02"
             }
             """)
@@ -182,7 +182,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
 
         postJson("/api/v1/diagnostic-tasks/%s/start".formatted(diagnosticTaskId), USER_M4_DIAGNOSIS, """
             {
-              "operatorName": "diag-user",
+              
               "terminalCode": "M4-A-03"
             }
             """)
@@ -198,7 +198,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
               "microscopicExam": "micro a",
               "finalDiagnosis": "final a",
               "richTextContent": "<p>report a</p>",
-              "operatorName": "diag-user",
+              
               "terminalCode": "M4-R-01"
             }
             """.formatted(context.caseId(), diagnosticTaskId)), 200);
@@ -213,7 +213,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
               "microscopicExam": "micro b",
               "finalDiagnosis": "final b",
               "richTextContent": "<p>report b</p>",
-              "operatorName": "diag-user",
+              
               "terminalCode": "M4-R-02"
             }
             """)
@@ -222,7 +222,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
 
         postJson("/api/v1/pathology-reports/%s/submit".formatted(reportId), USER_M4_DIAGNOSIS, """
             {
-              "operatorName": "diag-user",
+              
               "terminalCode": "M4-R-03"
             }
             """)
@@ -231,7 +231,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
 
         postJson("/api/v1/pathology-reports/%s/review".formatted(reportId), USER_M4_REVIEW, """
             {
-              "operatorName": "review-user",
+              
               "terminalCode": "M4-R-04"
             }
             """)
@@ -240,7 +240,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
 
         postJson("/api/v1/pathology-reports/%s/sign".formatted(reportId), USER_M4_SIGN, """
             {
-              "operatorName": "sign-user",
+              
               "terminalCode": "M4-R-05"
             }
             """)
@@ -250,7 +250,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
 
         postJson("/api/v1/pathology-reports/%s/publish".formatted(reportId), USER_M4_SIGN, """
             {
-              "operatorName": "sign-user",
+              
               "terminalCode": "M4-R-06"
             }
             """)
@@ -273,14 +273,14 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
         TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M4-REJECT-001", "BC-M4-REJECT-001");
 
         postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
-            {"taskId":"%s","operatorName":"grossing-user"}
+            {"taskId":"%s"}
             """.formatted(context.grossingTaskId()))
             .andExpect(status().isOk());
         postJson("/api/v1/grossings/complete", USER_M3_GROSSING, """
             {
               "taskId":"%s",
               "caseId":"%s",
-              "operatorName":"grossing-user",
+              
               "specimens":[{"specimenId":"%s","specimenType":"ROUTINE","grossDescription":"gd","blocks":[{"blockSite":"A","blockDescription":"B"}]}]
             }
             """.formatted(context.grossingTaskId(), context.caseId(), context.specimenId()))
@@ -289,35 +289,35 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
         JsonNode dehydrationTasks = listPendingTasks("DEHYDRATION", context.pathologyNo(), USER_M3_DEHYDRATION);
         String samplingBlockId = dehydrationTasks.path("items").get(0).path("objectId").asText();
         JsonNode batch = responseBody(postJson("/api/v1/dehydration-batches", USER_M3_DEHYDRATION, """
-            {"caseId":"%s","basketNo":"B1","deviceNo":"D1","operatorName":"dehydration-user","samplingBlockIds":["%s"]}
+            {"caseId":"%s","basketNo":"B1","deviceNo":"D1","samplingBlockIds":["%s"]}
             """.formatted(context.caseId(), samplingBlockId)), 201);
         String batchId = batch.path("batchId").asText();
         postJson("/api/v1/dehydration-batches/%s/start".formatted(batchId), USER_M3_DEHYDRATION, """
-            {"operatorName":"dehydration-user"}
+            {}
             """).andExpect(status().isOk());
         postJson("/api/v1/dehydration-batches/%s/complete".formatted(batchId), USER_M3_DEHYDRATION, """
-            {"operatorName":"dehydration-user"}
+            {}
             """).andExpect(status().isOk());
         String embeddingTaskId = listPendingTasks("EMBEDDING", context.pathologyNo(), USER_M3_EMBEDDING).path("items").get(0).path("id").asText();
         postJson("/api/v1/embeddings/start", USER_M3_EMBEDDING, """
-            {"taskId":"%s","operatorName":"embedding-user"}
+            {"taskId":"%s"}
             """.formatted(embeddingTaskId)).andExpect(status().isOk());
         String embeddingBoxId = responseBody(postJson("/api/v1/embeddings/complete", USER_M3_EMBEDDING, """
-            {"taskId":"%s","samplingBlockId":"%s","blockCount":1,"sliceNotice":"n","operatorName":"embedding-user"}
+            {"taskId":"%s","samplingBlockId":"%s","blockCount":1,"sliceNotice":"n"}
             """.formatted(embeddingTaskId, samplingBlockId)), 200).path("embeddingBoxId").asText();
         String slicingTaskId = listPendingTasks("SLICING", context.pathologyNo(), USER_M3_SLICING).path("items").get(0).path("id").asText();
         postJson("/api/v1/slicings/start", USER_M3_SLICING, """
-            {"taskId":"%s","operatorName":"slicing-user"}
+            {"taskId":"%s"}
             """.formatted(slicingTaskId)).andExpect(status().isOk());
         String slideId = responseBody(postJson("/api/v1/slicings/complete", USER_M3_SLICING, """
-            {"taskId":"%s","embeddingBoxId":"%s","slideCount":1,"operatorName":"slicing-user"}
+            {"taskId":"%s","embeddingBoxId":"%s","slideCount":1}
             """.formatted(slicingTaskId, embeddingBoxId)), 200).path("slideIds").get(0).asText();
         String stainingTaskId = listPendingTasks("STAINING", context.pathologyNo(), USER_M3_STAINING).path("items").get(0).path("id").asText();
         postJson("/api/v1/slide-stainings/start", USER_M3_STAINING, """
-            {"taskId":"%s","operatorName":"staining-user"}
+            {"taskId":"%s"}
             """.formatted(stainingTaskId)).andExpect(status().isOk());
         postJson("/api/v1/slide-stainings/complete", USER_M3_STAINING, """
-            {"taskId":"%s","slideId":"%s","stainingType":"HE","operatorName":"staining-user"}
+            {"taskId":"%s","slideId":"%s","stainingType":"HE"}
             """.formatted(stainingTaskId, slideId)).andExpect(status().isOk());
 
         String diagnosticTaskId = listPendingDiagnosticTasks(context.pathologyNo(), USER_M4_ASSIGN).path("items").get(0).path("id").asText();
@@ -328,15 +328,13 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
               "primaryDoctorUserId":"USER_M4_DIAGNOSIS",
               "primaryDoctorName":"M4 Diagnosis",
               "reviewerUserId":"USER_M4_REVIEW",
-              "reviewerName":"M4 Review",
-              "operatorName":"assign-user"
-            }
+              "reviewerName":"M4 Review"}
             """).andExpect(status().isOk());
         postJson("/api/v1/diagnostic-tasks/%s/accept".formatted(diagnosticTaskId), USER_M4_DIAGNOSIS, """
-            {"operatorName":"diag-user"}
+            {}
             """).andExpect(status().isOk());
         postJson("/api/v1/diagnostic-tasks/%s/start".formatted(diagnosticTaskId), USER_M4_DIAGNOSIS, """
-            {"operatorName":"diag-user"}
+            {}
             """).andExpect(status().isOk());
 
         String reportId = responseBody(postJson("/api/v1/pathology-reports", USER_M4_DIAGNOSIS, """
@@ -347,15 +345,13 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
               "grossExam":"g1",
               "microscopicExam":"m1",
               "finalDiagnosis":"f1",
-              "richTextContent":"<p>r1</p>",
-              "operatorName":"diag-user"
-            }
+              "richTextContent":"<p>r1</p>"}
             """.formatted(context.caseId(), diagnosticTaskId)), 200).path("reportId").asText();
         postJson("/api/v1/pathology-reports/%s/submit".formatted(reportId), USER_M4_DIAGNOSIS, """
-            {"operatorName":"diag-user"}
+            {}
             """).andExpect(status().isOk());
         postJson("/api/v1/pathology-reports/%s/reject".formatted(reportId), USER_M4_REVIEW, """
-            {"operatorName":"review-user","rejectReason":"need revise"}
+            {"rejectReason":"need revise"}
             """).andExpect(status().isOk())
             .andExpect(jsonPath("$.data.reportStatus").value("DRAFT"));
         postJson("/api/v1/pathology-reports/%s/save-draft".formatted(reportId), USER_M4_DIAGNOSIS, """
@@ -364,12 +360,10 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
               "grossExam":"g2",
               "microscopicExam":"m2",
               "finalDiagnosis":"f2",
-              "richTextContent":"<p>r2</p>",
-              "operatorName":"diag-user"
-            }
+              "richTextContent":"<p>r2</p>"}
             """).andExpect(status().isOk());
         postJson("/api/v1/pathology-reports/%s/submit".formatted(reportId), USER_M4_DIAGNOSIS, """
-            {"operatorName":"diag-user"}
+            {}
             """).andExpect(status().isOk())
             .andExpect(jsonPath("$.data.reportStatus").value("SUBMITTED"));
     }

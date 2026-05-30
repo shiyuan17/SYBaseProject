@@ -7,6 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -24,7 +25,6 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
               "caseId":"%s",
               "orderType":"RE_STAIN",
               "orderContent":"restain with HE",
-              "operatorName":"diag-user",
               "terminalCode":"M4-ORD-01"
             }
             """.formatted(context.caseId())), 200);
@@ -39,7 +39,7 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
         assertThat(pending.path("total").asInt()).isEqualTo(1);
 
         postJson("/api/v1/medical-orders/%s/accept".formatted(orderId), USER_M4_ORDER_EXECUTE, """
-            {"operatorName":"order-exec","terminalCode":"M4-ORD-02"}
+            {"terminalCode":"M4-ORD-02"}
             """)
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("IN_PROGRESS"));
@@ -48,7 +48,7 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
         assertThat(workbenchAfterAccept.path("medicalOrders").get(0).path("status").asText()).isEqualTo("IN_PROGRESS");
 
         postJson("/api/v1/medical-orders/%s/complete".formatted(orderId), USER_M4_ORDER_EXECUTE, """
-            {"operatorName":"order-exec","terminalCode":"M4-ORD-03","remarks":"done"}
+            {"terminalCode":"M4-ORD-03","remarks":"done"}
             """)
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("COMPLETED"));
@@ -67,19 +67,36 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
               "caseId":"%s",
               "orderType":"DEEP_CUT",
               "orderContent":"deep cut required",
-              "operatorName":"diag-user",
               "terminalCode":"M4-ORD-11"
             }
             """.formatted(context.caseId())), 200);
         String orderId = created.path("orderId").asText();
 
         postJson("/api/v1/medical-orders/%s/cancel".formatted(orderId), USER_M4_DIAGNOSIS, """
-            {"operatorName":"diag-user","terminalCode":"M4-ORD-12","remarks":"not needed"}
+            {"terminalCode":"M4-ORD-12","remarks":"not needed"}
             """)
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("CANCELLED"));
 
         JsonNode tracking = reportTracking(context.caseId(), USER_M4_TRACKING);
         assertThat(tracking.path("medicalOrders").get(0).path("status").asText()).isEqualTo("CANCELLED");
+    }
+
+    @Test
+    void shouldRejectLegacyOperatorFieldsOnMedicalOrderRequests() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-003", "BC-M4-ORDER-003");
+
+        postJson("/api/v1/medical-orders", USER_M4_DIAGNOSIS, """
+            {
+              "caseId":"%s",
+              "orderType":"RE_STAIN",
+              "orderContent":"legacy operator fields should fail",
+              "operatorUserId":"FORGED-USER",
+              "operatorName":"forged-user",
+              "terminalCode":"M4-ORD-21"
+            }
+            """.formatted(context.caseId()))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message", containsString("operatorUserId")));
     }
 }

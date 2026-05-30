@@ -481,6 +481,10 @@ public class MedicalOrderService {
     }
 
     @Schema(name = "MedicalOrderImportResult")
-    public record ImportResult(int successCount, int failureCount) {
+    public record ImportResult(int successCount, int failureCount, List<ImportError> errors) {
+    }
+
+    @Schema(name = "MedicalOrderImportError")
+    public record ImportError(int rowNumber, String field, String rejectedValue, String message) {
     }
 }

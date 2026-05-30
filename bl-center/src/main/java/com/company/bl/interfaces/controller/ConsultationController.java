@@ -41,8 +41,8 @@ public class ConsultationController extends TechnicalControllerSupport {
                     item.getParticipantUserId(),
                     item.getParticipantName(),
                     item.getParticipantRole())).toList(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new ConsultationOperationResponse(result.consultationId(), result.caseId(), result.status());
@@ -60,8 +60,8 @@ public class ConsultationController extends TechnicalControllerSupport {
                 consultationId,
                 participantId,
                 request.getOpinion(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new ConsultationOperationResponse(result.consultationId(), result.caseId(), result.status());
@@ -77,8 +77,8 @@ public class ConsultationController extends TechnicalControllerSupport {
             new DiagnosticReportModels.CompleteConsultationCommand(
                 consultationId,
                 request.getOpinion(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new ConsultationOperationResponse(result.consultationId(), result.caseId(), result.status());

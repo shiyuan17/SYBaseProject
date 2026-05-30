@@ -44,8 +44,8 @@ public class DehydrationBatchController extends TechnicalControllerSupport {
                 request.getCaseId(),
                 request.getBasketNo(),
                 request.getDeviceNo(),
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks(),
                 request.getSamplingBlockIds()));
@@ -62,8 +62,8 @@ public class DehydrationBatchController extends TechnicalControllerSupport {
         TechnicalWorkflowModels.DehydrationBatchResult result = technicalWorkflowAppService.startDehydrationBatch(
             new TechnicalWorkflowModels.BatchOperatorCommand(
                 id,
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new DehydrationBatchResponse(result.batchId(), result.batchNo(), result.batchStatus(), result.taskCount());
@@ -78,8 +78,8 @@ public class DehydrationBatchController extends TechnicalControllerSupport {
         TechnicalWorkflowModels.DehydrationBatchResult result = technicalWorkflowAppService.completeDehydrationBatch(
             new TechnicalWorkflowModels.CompleteDehydrationBatchCommand(
                 id,
-                resolveUserId(request.getOperatorUserId(), httpServletRequest),
-                request.getOperatorName(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks(),
                 request.getMediaAssets() == null ? java.util.List.of() : request.getMediaAssets().stream()

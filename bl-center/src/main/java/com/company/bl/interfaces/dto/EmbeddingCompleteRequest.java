@@ -1,5 +1,7 @@
 package com.company.bl.interfaces.dto;
 
+import com.company.bl.interfaces.auth.RejectLegacyOperatorFields;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -10,6 +12,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Schema(name = "EmbeddingCompleteRequest", description = "包埋完成请求")
+@RejectLegacyOperatorFields
 public class EmbeddingCompleteRequest {
 
     @Schema(description = "技术任务 ID", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -46,14 +49,7 @@ public class EmbeddingCompleteRequest {
     @Size(max = 64)
     private String deviceCode;
 
-    @Schema(description = "操作人用户 ID")
-    @Size(max = 64)
-    private String operatorUserId;
 
-    @Schema(description = "操作人姓名", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotBlank
-    @Size(max = 100)
-    private String operatorName;
 
     @Schema(description = "终端编码")
     @Size(max = 64)

@@ -26,17 +26,16 @@ class M6BillingIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTest
               "caseId":"%s",
               "orderType":"RE_STAIN",
               "orderContent":"FAIL_ONCE special billing",
-              "operatorName":"diag-user",
               "terminalCode":"M6-B-01"
             }
             """.formatted(context.caseId())), 200);
         String orderId = created.path("orderId").asText();
 
         postJson("/api/v1/medical-orders/%s/accept".formatted(orderId), USER_M4_ORDER_EXECUTE, """
-            {"operatorName":"order-exec","terminalCode":"M6-B-02"}
+            {"terminalCode":"M6-B-02"}
             """).andExpect(status().isOk());
         postJson("/api/v1/medical-orders/%s/complete".formatted(orderId), USER_M4_ORDER_EXECUTE, """
-            {"operatorName":"order-exec","terminalCode":"M6-B-03"}
+            {"terminalCode":"M6-B-03"}
             """).andExpect(status().isOk());
 
         JsonNode failedRecords = responseBody(mockMvc.perform(authorized(get("/api/v1/billing-records"), USER_M1_ADMIN)

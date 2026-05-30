@@ -22,7 +22,6 @@ class DiagnosticRevisionIntegrationTest extends AbstractDiagnosticWorkflowIntegr
             {
               "reportId":"%s",
               "requestReason":"correct final diagnosis",
-              "operatorName":"diag-user",
               "terminalCode":"M4-REV-01"
             }
             """.formatted(context.reportId())), 200);
@@ -36,7 +35,6 @@ class DiagnosticRevisionIntegrationTest extends AbstractDiagnosticWorkflowIntegr
 
         postJson("/api/v1/report-revision-requests/%s/approve".formatted(requestId), USER_M4_SIGN, """
             {
-              "operatorName":"sign-user",
               "terminalCode":"M4-REV-02",
               "remarks":"approved"
             }
@@ -60,21 +58,21 @@ class DiagnosticRevisionIntegrationTest extends AbstractDiagnosticWorkflowIntegr
               "microscopicExam":"micro revised",
               "finalDiagnosis":"final revised",
               "richTextContent":"<p>report revised</p>",
-              "operatorName":"diag-user",
+              
               "terminalCode":"M4-REV-03"
             }
             """).andExpect(status().isOk());
         postJson("/api/v1/pathology-reports/%s/submit".formatted(context.reportId()), USER_M4_DIAGNOSIS, """
-            {"operatorName":"diag-user","terminalCode":"M4-REV-04"}
+            {"terminalCode":"M4-REV-04"}
             """).andExpect(status().isOk());
         postJson("/api/v1/pathology-reports/%s/review".formatted(context.reportId()), USER_M4_REVIEW, """
-            {"operatorName":"review-user","terminalCode":"M4-REV-05"}
+            {"terminalCode":"M4-REV-05"}
             """).andExpect(status().isOk());
         postJson("/api/v1/pathology-reports/%s/sign".formatted(context.reportId()), USER_M4_SIGN, """
-            {"operatorName":"sign-user","terminalCode":"M4-REV-06"}
+            {"terminalCode":"M4-REV-06"}
             """).andExpect(status().isOk());
         postJson("/api/v1/pathology-reports/%s/publish".formatted(context.reportId()), USER_M4_SIGN, """
-            {"operatorName":"sign-user","terminalCode":"M4-REV-07"}
+            {"terminalCode":"M4-REV-07"}
             """).andExpect(status().isOk());
 
         JsonNode trackingAfterRepublish = reportTracking(context.caseId(), USER_M4_TRACKING);
@@ -93,7 +91,6 @@ class DiagnosticRevisionIntegrationTest extends AbstractDiagnosticWorkflowIntegr
             {
               "reportId":"%s",
               "requestReason":"double-check wording",
-              "operatorName":"diag-user",
               "terminalCode":"M4-REV-11"
             }
             """.formatted(context.reportId())), 200);
@@ -101,7 +98,6 @@ class DiagnosticRevisionIntegrationTest extends AbstractDiagnosticWorkflowIntegr
 
         postJson("/api/v1/report-revision-requests/%s/reject".formatted(requestId), USER_M4_SIGN, """
             {
-              "operatorName":"sign-user",
               "terminalCode":"M4-REV-12",
               "rejectReason":"no change needed"
             }
