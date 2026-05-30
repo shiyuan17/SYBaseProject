@@ -36,7 +36,7 @@ function Test-IncludedPath {
 function Get-LineCount {
     param([string]$Path)
 
-    return (Get-Content $Path | Measure-Object -Line).Lines
+    return @(Get-Content $Path).Count
 }
 
 function Get-ManagedFiles {
@@ -166,10 +166,10 @@ if (Test-Path $baselineConfigPath) {
     }
 }
 
-$over300 = $javaCounts | Where-Object { $_.Lines -gt 300 } | Sort-Object Lines -Descending
-$over500 = $javaCounts | Where-Object { $_.Lines -gt 500 } | Sort-Object Lines -Descending
-$top20 = $javaCounts | Sort-Object Lines -Descending | Select-Object -First 20
-$violationsSorted = $textViolations | Sort-Object Lines -Descending
+$over300 = @($javaCounts | Where-Object { $_.Lines -gt 300 } | Sort-Object Lines -Descending)
+$over500 = @($javaCounts | Where-Object { $_.Lines -gt 500 } | Sort-Object Lines -Descending)
+$top20 = @($javaCounts | Sort-Object Lines -Descending | Select-Object -First 20)
+$violationsSorted = @($textViolations | Sort-Object Lines -Descending)
 
 $reportLines = [System.Collections.Generic.List[string]]::new()
 $reportLines.Add("# Largest Files Report")

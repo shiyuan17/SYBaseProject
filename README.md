@@ -1,50 +1,37 @@
 # SY Base Project
 
-`SYBaseProject` 是一个基于 `Java 17 + Spring Boot 3 + Maven Wrapper` 的多模块病理业务工程。当前仓库已经不再只是 DDD 脚手架示例，`bl-center`、`auth-center`、公共基础模块、Flyway 迁移和多条 M1-M4 业务链路都已落地。
+`SYBaseProject` 鏄竴涓熀浜?`Java 17 + Spring Boot 3 + Maven Wrapper` 鐨勫妯″潡鐥呯悊涓氬姟宸ョ▼銆傚綋鍓嶄粨搴撳凡缁忎笉鍐嶅彧鏄?DDD 鑴氭墜鏋剁ず渚嬶紝`bl-center`銆乣auth-center`銆佸叕鍏卞熀纭€妯″潡銆丗lyway 杩佺Щ鍜屽鏉?M1-M4 涓氬姟閾捐矾閮藉凡钀藉湴銆?
+## 褰撳墠妯″潡
 
-## 当前模块
+- `bl-center`锛氱梾鐞嗕笟鍔′富妯″潡锛屽凡瑕嗙洊 M1-M4 澶氶樁娈佃兘鍔?- `auth-center`锛氳璇侀壌鏉冧笌鐧诲綍鏀寔妯″潡
+- `common/common-core`锛氶€氱敤閿欒鐮併€佸紓甯稿拰鍊煎璞＄害瀹?- `common/common-security`锛氶壌鏉冦€佸畨鍏ㄤ笌瀵嗙爜鑳藉姏
+- `common/common-web`锛氱粺涓€鍝嶅簲銆佸紓甯稿鐞嗐€乄eb 鏀拺
+- `common/common-test`锛氭祴璇曞熀绫汇€佷粨搴撴不鐞嗘牎楠屼笌闆嗘垚娴嬭瘯鏀拺
+- `user-center`锛氫繚鐣欑殑鍒嗗眰缁撴瀯绀轰緥妯″潡
+- `tools/app-cli`锛氬懡浠よ宸ュ叿绀轰緥妯″潡
 
-- `bl-center`：病理业务主模块，已覆盖 M1-M4 多阶段能力
-- `auth-center`：认证鉴权与登录支持模块
-- `common/common-core`：通用错误码、异常和值对象约定
-- `common/common-security`：鉴权、安全与密码能力
-- `common/common-web`：统一响应、异常处理、Web 支撑
-- `common/common-test`：测试基类、仓库治理校验与集成测试支撑
-- `user-center`：保留的分层结构示例模块
-- `tools/app-cli`：命令行工具示例模块
+## 褰撳墠鐘舵€?
+- M1锛氱郴缁熺鐞嗐€佽彍鍗曟潈闄愩€佺郴缁熼厤缃€佺紪鍙疯鍒欏凡鍙繍琛?- M2锛氱敵璇峰崟銆佹爣鏈櫥璁般€佸浐瀹氥€佹帴鏀躲€佽繍閫佷富娴佺▼宸茶惤鍦?- M3锛氭妧鏈祦绋嬩富閾捐矾宸茶惤鍦帮紝鏀寔寰呭姙鏌ヨ銆佹妧鏈拷韪€佽繑宸ヤ笌 QC 鍘嗗彶鍙鍖?- M4锛氳瘖鏂姤鍛娿€佷慨璁€佸尰鍢便€佷細璇婄瓑璇婃柇闂幆鑳藉姏宸叉帴鍏?
+璇︾粏鐩綍璇存槑瑙?[docs/guides/PROJECT_DIRECTORY.md](./docs/guides/PROJECT_DIRECTORY.md)锛屾枃妗ｅ鑸 [docs/README.md](./docs/README.md)銆?
+## 鍚姩鏂瑰紡
 
-## 当前状态
-
-- M1：系统管理、菜单权限、系统配置、编号规则已可运行
-- M2：申请单、标本登记、固定、接收、运送主流程已落地
-- M3：技术流程主链路已落地，支持待办查询、技术追踪、返工与 QC 历史可视化
-- M4：诊断报告、修订、医嘱、会诊等诊断闭环能力已接入
-
-详细目录说明见 [docs/guides/PROJECT_DIRECTORY.md](./docs/guides/PROJECT_DIRECTORY.md)，文档导航见 [docs/README.md](./docs/README.md)。
-
-## 启动方式
-
-前置条件：
-
+鍓嶇疆鏉′欢锛?
 - `JDK 17`
-- `JAVA_HOME` 指向 JDK 17，或本机 `java` 默认就是 JDK 17
+- `JAVA_HOME` 鎸囧悜 JDK 17锛屾垨鏈満 `java` 榛樿灏辨槸 JDK 17
 
-建议优先使用 Maven Wrapper，避免本机 Maven/JDK 版本漂移。
-
-校验构建环境：
-
+寤鸿浼樺厛浣跨敤 Maven Wrapper锛岄伩鍏嶆湰鏈?Maven/JDK 鐗堟湰婕傜Щ銆?
+鏍￠獙鏋勫缓鐜锛?
 ```bash
 ./mvnw -version
 ```
 
-首次克隆后安装依赖到仓库内本地缓存：
+棣栨鍏嬮殕鍚庡畨瑁呬緷璧栧埌浠撳簱鍐呮湰鍦扮紦瀛橈細
 
 ```bash
 ./mvnw -B -ntp -Dmaven.repo.local=.m2/repository install -DskipTests
 ```
 
-运行全部测试：
-
+杩愯鍏ㄩ儴娴嬭瘯锛?
 ```bash
 ./mvnw test
 ```
@@ -79,16 +66,12 @@ If you hit `ClassNotFoundException: com.company.auth.AuthCenterApplication`, reb
 .\mvnw.cmd -pl auth-center -am compile -DskipTests
 ```
 
-## 目录与治理说明
+## 鐩綍涓庢不鐞嗚鏄?
+- `scripts/dev/`锛氭湰鍦板惎鍔ㄨ剼鏈?- `scripts/migration/`锛欶lyway 涓庤縼绉昏緟鍔╄剼鏈?- `docs/`锛氬崗浣滆鑼冦€佸伐绋嬭鏄庛€佽鍒掍笌娌荤悊鏂囨。
+- `deploy/`锛氭湰鍦?GitLab 涓庨儴缃茬浉鍏虫牱渚?- `gateway/`銆乣order-center/`銆乣ai-center/`銆乣admin-web/`锛氬綋鍓嶄粛涓洪鐣欐墿灞曚綅
+- 椤跺眰 `infrastructure/`锛氬钩鍙扮骇娌夋穩棰勭暀鐩綍锛屽皻鏈綔涓虹嫭绔嬪彲杩愯妯″潡浜や粯
 
-- `scripts/dev/`：本地启动脚本
-- `scripts/migration/`：Flyway 与迁移辅助脚本
-- `docs/`：协作规范、工程说明、计划与治理文档
-- `deploy/`：本地 GitLab 与部署相关样例
-- `gateway/`、`order-center/`、`ai-center/`、`admin-web/`：当前仍为预留扩展位
-- 顶层 `infrastructure/`：平台级沉淀预留目录，尚未作为独立可运行模块交付
-
-## 示例接口
+## 绀轰緥鎺ュ彛
 
 - `POST /api/v1/applications`
 - `POST /api/v1/specimens/register`
@@ -96,4 +79,10 @@ If you hit `ClassNotFoundException: com.company.auth.AuthCenterApplication`, reb
 - `GET /api/v1/pathology-cases/{id}/technical-tracking`
 - `GET /api/v1/pathology-cases/{id}/diagnostic-workbench`
 
-业务接口默认会自动包装为统一返回体；如需返回原始内容，可使用 `@IgnoreApiResponseWrap` 跳过包装。
+涓氬姟鎺ュ彛榛樿浼氳嚜鍔ㄥ寘瑁呬负缁熶竴杩斿洖浣擄紱濡傞渶杩斿洖鍘熷鍐呭锛屽彲浣跨敤 `@IgnoreApiResponseWrap` 璺宠繃鍖呰銆?
+
+## Frontend Ownership
+
+- `admin-web/` in this repository remains a placeholder only.
+- The active front-end workspace, page flows, SOP assets, and M7 trial materials live in `D:\Github\JW\SYBaseProjectWeb`.
+- This repository remains the source of truth for backend APIs, security rules, integration tests, and milestone gates.

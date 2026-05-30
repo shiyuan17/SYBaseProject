@@ -82,3 +82,8 @@ user-center/src/main/java/com/company/user
 - 只有目录存在但未纳入构建，不应被描述为“已完成模块”
 - 公共能力只有在被至少两个模块稳定复用后，才考虑抽到 `common/*` 或顶层 `infrastructure/*`
 - 文档、脚本、运行配置的存在不等于业务边界已经实现
+## Frontend Delivery Note
+
+- `admin-web/` under this repository is still a placeholder directory.
+- The live front-end delivery repo is `D:\Github\JW\SYBaseProjectWeb`.
+- Backend contract ownership stays here; front-end implementation and trial-facing operating material stay in the external repo.

@@ -1,59 +1,65 @@
-# 项目健康治理规则
+# Project Health Rules
 
-## 目标
+## Purpose
 
-本规则定义当前项目的健康治理基线，优先服务于“稳定化优先”的迭代目标。默认要求是：先守住模块边界、测试反馈速度和统一质量门禁，再继续放大业务能力。
+These rules keep structural debt visible while the repository is still evolving.
+They are intentionally lighter than the hard coding rules: the goal is to steer refactors and CI reporting without blocking delivery for every large historical file.
 
-## 当前事实
+## Architecture Expectations
 
-- `bl-center` 是当前复杂度最高的模块，后续拆分优先围绕业务闭环推进。
-- 外部 HTTP API、URL、返回契约和既有数据库行为默认保持不变。
-- 根工程负责统一测试分层与质量门禁，模块只补充本模块特有约束。
+- `bl-center` should keep controllers thin and push orchestration into application services.
+- Large application services should be split by query, write, import/export, or subdomain responsibility instead of growing generic helper classes.
+- Large repositories should follow the same rule: separate read, write, and specialty persistence flows behind a thin facade when the public Spring bean should stay stable.
+- Transport and response models should move into dedicated domain-named model files when they are the main reason a service crosses the hotspot threshold.
+- For read-heavy persistence code, separate query entrypoints from schema-probing and row-mapping responsibilities when those concerns become the main source of file growth.
+- DTO/VO mapping belongs in explicit assemblers or mappers, not mixed into routing controllers.
 
-## 模块边界
+## Shared Module Boundaries
 
-- `bl-center` 的工作流 application service 按业务闭环拆分，不按技术层机械拆分。
-- `SpecimenWorkflowAppService` 可作为 facade 保留现有入口；查询职责优先下沉到更小的 query service。
-- repository port 默认区分命令与查询职责，避免单个 interface 同时承载状态迁移、列表查询和导出。
-- controller 若出现过量 DTO/VO 映射，可增加 assembler/mapper，但不得借机改变接口语义。
+- Shared web infrastructure belongs in `common/common-web`.
+- Shared testing infrastructure belongs in `common/common-test`.
+- Do not let `common` absorb domain-specific logic from `bl-center`; prefer extracting small stable contracts or utilities only when they are truly cross-module.
 
-## 公共能力归属
+## Test Shapes
 
-- 观测能力统一放在 `common/common-web`，模块只保留少量配置注入点。
-- 测试基类与测试支撑能力统一放在 `common/common-test`。
-- 只有跨模块、稳定复用的能力才能进入 `common`；任何 `bl-center` 领域概念不得伪装成平台能力上提。
+- `BaseWebIntegrationTest` remains the default slow web/database integration base and stays tagged with `@Tag("slow")`.
+- `BaseJdbcWebIntegrationTest` is for JDBC-backed web flows that still need the full web stack.
+- `BaseMockMvcIntegrationTest` is for MVC/API behavior that does not need the full JDBC runtime.
+- Domain and application services should prefer focused unit or slice tests before adding more slow end-to-end coverage.
 
-## 测试分层
+## Verification Commands
 
-- 继承 `BaseWebIntegrationTest` 的测试默认标记为 `@Tag("slow")`。
-- `BaseJdbcWebIntegrationTest` 用于需要数据库初始化的 Web 集成测试。
-- `BaseMockMvcIntegrationTest` 用于不依赖数据库装配的 Web/MVC 测试。
-- 新拆出的规则、状态转换和用例编排优先补 service/domain 级测试，不再只依赖重集成回归。
+- Fast feedback: `./mvnw test "-Dsurefire.excludedGroups=slow"`
+- Full verification: `./mvnw verify`
+- Repository file-health reporting: refresh `docs/reports/largest-files-report.md` from the current working tree whenever a hotspot split materially changes the shape of the top files.
 
-## 质量门禁
+## CI Modes
 
-- 根 `pom.xml` 统一维护 Surefire 的 `groups` 与 `excludedGroups` 配置。
-- 本地快速反馈默认使用 `./mvnw test "-Dsurefire.excludedGroups=slow"`。
-- 全量回归默认使用 `./mvnw verify`。
-- `common-test` 中的仓库文件健康测试属于基础静态门禁，用于守住 UTF-8、行数和文件健康规则。
+- `verify_fast` should run the fast feedback command above and exclude `slow`.
+- `verify_full` should run full `verify`.
+- API regression and domain regression suites can be grouped separately, but the repository should keep one easy fast path for day-to-day feedback.
+- File-health reporting is an alert/report step; the hard blockers remain the file-health gate, coverage baseline, and existing fast-feedback path.
 
-## CI 约定
+## Reporting Rules
 
-- `verify_fast` 负责快速反馈，默认排除 `slow` 测试。
-- `verify_full` 负责全量 `verify`，保留覆盖率等完整构建行为。
-- API regression 脚本属于增强校验，不替代统一质量门禁。
-- 打包、镜像和部署阶段必须建立在统一门禁通过之后。
+- Any new file-health exemption must update `docs/file-health-exemptions.properties` and include a rationale in `docs/reports/largest-files-report.md`.
+- Use `docs/reports/code-health-trend-20260530.md` to explain why a split increased the number of support files even when it reduced concentrated hotspots.
+- Use `docs/reports/code-health-checklist.md` to summarize the current health snapshot for reviewers.
+- Treat `docs/reports/largest-files-report.md` as the source of truth for current line-count hotspots.
 
-## 文档协作
+## Current Hotspot Targets
 
-- 涉及模块边界、公共能力归属、测试分层、质量门禁的规则更新，优先同步本文件。
-- 文本文档默认使用 UTF-8 编码；Java、YAML、XML 等源代码与配置默认使用 LF。
-- 如需新增治理例外，必须同时更新 `docs/file-health-exemptions.properties` 并说明原因。
+- This list supersedes older service-first target lists when they differ.
+- `SamplingJdbcRepository`
+- `JdbcSpecimenWorkflowSpecimenMutationSupport`
+- `StatisticsService`
+- `SpecimenControllerAssembler`
+- `JdbcOperationSupportRepository`
+- `ArchiveWorkflowService`
 
-## 持续健康趋势
+## Practical Guidance
 
-- 每轮结构性治理完成后，刷新 `docs/reports/largest-files-report.md`，并在 `docs/reports/` 下补充对应趋势报告。
-- 趋势报告至少记录超长文件数量、测试数量、JaCoCo line/branch baseline、热点模块列表和下一批治理目标。
-- CI 初期只把趋势报告作为报告/告警产物；除现有 file-health gate、JaCoCo baseline 和 fast feedback 外，不因为趋势波动立即阻断发布。
-- 新增治理例外必须先写入 `docs/file-health-exemptions.properties`，并说明例外原因、退出条件和责任模块。
-- 下一批优先治理目标为 `SamplingService`、`MedicalOrderService`、`SystemUserManagementService`、`StatisticsService`、`BillingManagementService`。
+- Prefer many small, domain-named files over one oversized service or repository.
+- Keep facades stable when external Spring wiring should not change.
+- When a split only shifts lines around, document the tradeoff clearly in the trend report.
+- Do not add generic names such as `Utils`, `Helper`, or `CommonService` just to move code out of a hotspot.

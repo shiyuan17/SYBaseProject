@@ -35,3 +35,8 @@
 - 新增操作手册、环境说明优先放入 `guides/`
 - 新增里程碑计划、收口记录优先放入 `plans/`
 - 结构性治理例外必须同步更新 `file-health-exemptions.properties`
+## Frontend Ownership
+
+- The active front-end workspace is `D:\Github\JW\SYBaseProjectWeb`, not this repository.
+- Use the external repo for page flows, SOP assets, and M7 trial acceptance materials.
+- Keep this repository as the backend contract source of truth for APIs, auth, and service-side gates.
