@@ -36,6 +36,16 @@ public record SpecimenManagementItemResponse(
     String specimenStatus,
     @Schema(description = "Fixation status")
     String fixationStatus,
+    @Schema(description = "Fixation start at")
+    String fixationStartedAt,
+    @Schema(description = "Fixation completed at")
+    String fixationCompletedAt,
+    @Schema(description = "Fixation liquid type")
+    String fixationLiquidType,
+    @Schema(description = "Fixation operator user id")
+    String fixationOperatorUserId,
+    @Schema(description = "Fixation operator name")
+    String fixationOperatorName,
     @Schema(description = "Verification status")
     String verificationStatus,
     @Schema(description = "Specimen confirmed at")

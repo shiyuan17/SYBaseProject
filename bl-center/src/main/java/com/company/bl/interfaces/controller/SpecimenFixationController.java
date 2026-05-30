@@ -36,7 +36,7 @@ public class SpecimenFixationController {
                                   HttpServletRequest httpServletRequest) {
         SpecimenWorkflowAppService.FixationResult result = specimenWorkflowAppService.startFixation(
             toCommand(request, httpServletRequest));
-        return new FixationResponse(result.specimenId(), result.barcode(), result.fixationStatus());
+        return toFixationResponse(result);
     }
 
     @Operation(summary = "Complete fixation", description = "Advance specimen into fixation completed status.")
@@ -46,7 +46,7 @@ public class SpecimenFixationController {
                                      HttpServletRequest httpServletRequest) {
         SpecimenWorkflowAppService.FixationResult result = specimenWorkflowAppService.completeFixation(
             toCommand(request, httpServletRequest));
-        return new FixationResponse(result.specimenId(), result.barcode(), result.fixationStatus());
+        return toFixationResponse(result);
     }
 
     @Operation(summary = "List pending fixations", description = "Query pending fixation specimens with paging.")
@@ -101,6 +101,17 @@ public class SpecimenFixationController {
             request.getRemarks());
     }
 
+    private FixationResponse toFixationResponse(SpecimenWorkflowAppService.FixationResult result) {
+        return new FixationResponse(
+            result.specimenId(),
+            result.barcode(),
+            result.fixationStatus(),
+            stringify(result.fixationCompletedAt()),
+            result.operatorUserId(),
+            result.operatorName(),
+            result.fixationLiquidType());
+    }
+
     private PendingSpecimenItemResponse toPendingItem(SpecimenWorkflowAppService.PendingSpecimenItem item) {
         return new PendingSpecimenItemResponse(
             item.applicationId(),
@@ -116,6 +127,11 @@ public class SpecimenFixationController {
             item.containerCount(),
             item.specimenStatus(),
             item.fixationStatus(),
+            stringify(item.fixationStartedAt()),
+            stringify(item.fixationCompletedAt()),
+            item.fixationLiquidType(),
+            item.fixationOperatorUserId(),
+            item.fixationOperatorName(),
             item.verificationStatus(),
             stringify(item.verificationStartedAt()),
             stringify(item.verificationCompletedAt()),
@@ -138,7 +154,7 @@ public class SpecimenFixationController {
 
     private String resolveUserId(String bodyUserId, HttpServletRequest request) {
         Object currentUserId = request.getAttribute(ApiPermissionContext.CURRENT_USER_ID);
-        return currentUserId == null ? null : currentUserId.toString();
+        return currentUserId == null ? bodyUserId : currentUserId.toString();
     }
 
     private String resolveAbnormalType(String specimenStatus, String fixationStatus, boolean abnormalFlag) {

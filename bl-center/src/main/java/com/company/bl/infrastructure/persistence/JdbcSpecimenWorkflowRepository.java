@@ -380,6 +380,9 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                                      String fixationLiquidType,
                                      LocalDateTime fixationStartAt,
                                      LocalDateTime fixationCompletedAt,
+                                     String verifiedByUserId,
+                                     String verifiedByName,
+                                     LocalDateTime verifiedAt,
                                      String terminalCode,
                                      String remarks) {
         Long count = jdbcTemplate.queryForObject("""
@@ -391,9 +394,12 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             jdbcTemplate.update("""
                 update specimen_fixation_records
                 set fixation_status = :fixationStatus,
-                    fixation_liquid_type = :fixationLiquidType,
+                    fixation_liquid_type = COALESCE(:fixationLiquidType, fixation_liquid_type),
                     fixation_start_at = COALESCE(:fixationStartAt, fixation_start_at),
                     fixation_completed_at = :fixationCompletedAt,
+                    verified_by_user_id = COALESCE(:verifiedByUserId, verified_by_user_id),
+                    verified_by_name = COALESCE(:verifiedByName, verified_by_name),
+                    verified_at = COALESCE(:verifiedAt, verified_at),
                     terminal_code = :terminalCode,
                     remarks = :remarks
                 where specimen_id = :specimenId
@@ -403,6 +409,9 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                 .addValue("fixationLiquidType", fixationLiquidType)
                 .addValue("fixationStartAt", fixationStartAt)
                 .addValue("fixationCompletedAt", fixationCompletedAt)
+                .addValue("verifiedByUserId", verifiedByUserId)
+                .addValue("verifiedByName", verifiedByName)
+                .addValue("verifiedAt", verifiedAt)
                 .addValue("terminalCode", terminalCode)
                 .addValue("remarks", remarks));
             return;
@@ -410,10 +419,10 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
         jdbcTemplate.update("""
             insert into specimen_fixation_records
                 (id, application_id, specimen_id, fixation_status, fixation_liquid_type, fixation_start_at,
-                 fixation_completed_at, terminal_code, remarks)
+                 fixation_completed_at, verified_by_user_id, verified_by_name, verified_at, terminal_code, remarks)
             values
                 (:id, :applicationId, :specimenId, :fixationStatus, :fixationLiquidType, :fixationStartAt,
-                 :fixationCompletedAt, :terminalCode, :remarks)
+                 :fixationCompletedAt, :verifiedByUserId, :verifiedByName, :verifiedAt, :terminalCode, :remarks)
             """, new MapSqlParameterSource()
             .addValue("id", nextId("SFR"))
             .addValue("applicationId", applicationId)
@@ -422,6 +431,9 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             .addValue("fixationLiquidType", fixationLiquidType)
             .addValue("fixationStartAt", fixationStartAt)
             .addValue("fixationCompletedAt", fixationCompletedAt)
+            .addValue("verifiedByUserId", verifiedByUserId)
+            .addValue("verifiedByName", verifiedByName)
+            .addValue("verifiedAt", verifiedAt)
             .addValue("terminalCode", terminalCode)
             .addValue("remarks", remarks));
     }
@@ -936,6 +948,11 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                 + """
                 s.specimen_status,
                 s.fixation_status,
+                sfr.fixation_start_at as fixation_started_at,
+                sfr.fixation_completed_at as fixation_completed_at,
+                sfr.fixation_liquid_type as fixation_liquid_type,
+                sfr.verified_by_user_id as fixation_operator_user_id,
+                sfr.verified_by_name as fixation_operator_name,
                 """ + buildVerificationStatusExpression("sfr", "s") + """
                  as verification_status,
                 sfr.verification_started_at as verification_started_at,
@@ -1012,6 +1029,11 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                 + """
                 s.specimen_status,
                 s.fixation_status,
+                sfr.fixation_start_at as fixation_started_at,
+                sfr.fixation_completed_at as fixation_completed_at,
+                sfr.fixation_liquid_type as fixation_liquid_type,
+                sfr.verified_by_user_id as fixation_operator_user_id,
+                sfr.verified_by_name as fixation_operator_name,
                 """ + buildVerificationStatusExpression("sfr", "s") + """
                  as verification_status,
                 sfr.verification_started_at as verification_started_at,
@@ -1284,6 +1306,11 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
                 + """
                 s.specimen_status,
                 s.fixation_status,
+                sfr.fixation_start_at as fixation_started_at,
+                sfr.fixation_completed_at as fixation_completed_at,
+                sfr.fixation_liquid_type as fixation_liquid_type,
+                sfr.verified_by_user_id as fixation_operator_user_id,
+                sfr.verified_by_name as fixation_operator_name,
                 """ + buildVerificationStatusExpression("sfr", "s") + """
                  as verification_status,
             """ + specimenConfirmedAtSelect("s")
@@ -2263,6 +2290,15 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             JdbcResultSetUtils.getNullableInteger(rs, "container_count"),
             rs.getString("specimen_status"),
             rs.getString("fixation_status"),
+            JdbcResultSetUtils.getNullableTimestamp(rs, "fixation_started_at") == null
+                ? null
+                : JdbcResultSetUtils.getNullableTimestamp(rs, "fixation_started_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableTimestamp(rs, "fixation_completed_at") == null
+                ? null
+                : JdbcResultSetUtils.getNullableTimestamp(rs, "fixation_completed_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableString(rs, "fixation_liquid_type"),
+            JdbcResultSetUtils.getNullableString(rs, "fixation_operator_user_id"),
+            JdbcResultSetUtils.getNullableString(rs, "fixation_operator_name"),
             JdbcResultSetUtils.getNullableString(rs, "verification_status"),
             rs.getTimestamp("verification_started_at") == null
                 ? null
@@ -2354,6 +2390,15 @@ public class JdbcSpecimenWorkflowRepository implements SpecimenWorkflowRepositor
             JdbcResultSetUtils.getNullableInteger(rs, "container_count"),
             rs.getString("specimen_status"),
             rs.getString("fixation_status"),
+            JdbcResultSetUtils.getNullableTimestamp(rs, "fixation_started_at") == null
+                ? null
+                : JdbcResultSetUtils.getNullableTimestamp(rs, "fixation_started_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableTimestamp(rs, "fixation_completed_at") == null
+                ? null
+                : JdbcResultSetUtils.getNullableTimestamp(rs, "fixation_completed_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableString(rs, "fixation_liquid_type"),
+            JdbcResultSetUtils.getNullableString(rs, "fixation_operator_user_id"),
+            JdbcResultSetUtils.getNullableString(rs, "fixation_operator_name"),
             rs.getString("verification_status"),
             JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_confirmed_at") == null
                 ? null

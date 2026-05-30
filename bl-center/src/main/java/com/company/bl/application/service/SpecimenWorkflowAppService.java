@@ -174,6 +174,9 @@ public class SpecimenWorkflowAppService {
     @Transactional
     public FixationResult startFixation(FixationCommand command) {
         Specimen specimen = getSpecimen(command.specimenBarcode());
+        if (isReceiptTerminalStatus(specimen.specimenStatus())) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen already reached receipt terminal status");
+        }
         if (!"VERIFIED".equals(specimen.verificationStatus())) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must be verified before fixation");
         }
@@ -184,6 +187,9 @@ public class SpecimenWorkflowAppService {
             FixationStatus.FIXING,
             command.fixationLiquidType(),
             now,
+            null,
+            null,
+            null,
             null,
             command.terminalCode(),
             command.remarks());
@@ -202,19 +208,41 @@ public class SpecimenWorkflowAppService {
             command.operatorName(),
             command.terminalCode(),
             "Fixation started"));
-        return new FixationResult(specimen.id(), specimen.barcode(), FixationStatus.FIXING.name());
+        return new FixationResult(
+            specimen.id(),
+            specimen.barcode(),
+            FixationStatus.FIXING.name(),
+            null,
+            command.operatorUserId(),
+            command.operatorName(),
+            command.fixationLiquidType());
     }
 
     @Transactional
     public FixationResult completeFixation(FixationCommand command) {
         Specimen specimen = getSpecimen(command.specimenBarcode());
+        if (isReceiptTerminalStatus(specimen.specimenStatus())) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen already reached receipt terminal status");
+        }
+        if (!"VERIFIED".equals(specimen.verificationStatus())) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must be verified before fixation");
+        }
+        if (specimen.fixationStatus() == FixationStatus.COMPLETED) {
+            throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Specimen fixation already completed");
+        }
+        if (specimen.fixationStatus() != FixationStatus.PENDING && specimen.fixationStatus() != FixationStatus.FIXING) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen current status does not allow fixation completion");
+        }
         LocalDateTime now = LocalDateTime.now();
         specimenWorkflowRepository.upsertFixationRecord(
             specimen.applicationId(),
             specimen.id(),
             FixationStatus.COMPLETED,
             command.fixationLiquidType(),
-            null,
+            specimen.fixationStatus() == FixationStatus.FIXING ? null : now,
+            now,
+            command.operatorUserId(),
+            command.operatorName(),
             now,
             command.terminalCode(),
             command.remarks());
@@ -233,7 +261,14 @@ public class SpecimenWorkflowAppService {
             command.operatorName(),
             command.terminalCode(),
             "Fixation completed"));
-        return new FixationResult(specimen.id(), specimen.barcode(), FixationStatus.COMPLETED.name());
+        return new FixationResult(
+            specimen.id(),
+            specimen.barcode(),
+            FixationStatus.COMPLETED.name(),
+            now,
+            command.operatorUserId(),
+            command.operatorName(),
+            command.fixationLiquidType());
     }
 
     @Transactional
@@ -804,6 +839,11 @@ public class SpecimenWorkflowAppService {
                 item.containerCount(),
                 item.specimenStatus(),
                 item.fixationStatus(),
+                item.fixationStartedAt(),
+                item.fixationCompletedAt(),
+                item.fixationLiquidType(),
+                item.fixationOperatorUserId(),
+                item.fixationOperatorName(),
                 item.verificationStatus(),
                 item.specimenConfirmedAt(),
                 item.checkInStatus(),
@@ -1535,6 +1575,11 @@ public class SpecimenWorkflowAppService {
             row.containerCount(),
             row.specimenStatus(),
             row.fixationStatus(),
+            row.fixationStartedAt(),
+            row.fixationCompletedAt(),
+            row.fixationLiquidType(),
+            row.fixationOperatorUserId(),
+            row.fixationOperatorName(),
             row.verificationStatus(),
             row.verificationStartedAt(),
             row.verificationCompletedAt(),
@@ -1749,7 +1794,15 @@ public class SpecimenWorkflowAppService {
     ) {
     }
 
-    public record FixationResult(String specimenId, String barcode, String fixationStatus) {
+    public record FixationResult(
+        String specimenId,
+        String barcode,
+        String fixationStatus,
+        LocalDateTime fixationCompletedAt,
+        String operatorUserId,
+        String operatorName,
+        String fixationLiquidType
+    ) {
     }
 
     public record SpecimenVerificationCommand(
@@ -1932,6 +1985,11 @@ public class SpecimenWorkflowAppService {
         Integer containerCount,
         String specimenStatus,
         String fixationStatus,
+        LocalDateTime fixationStartedAt,
+        LocalDateTime fixationCompletedAt,
+        String fixationLiquidType,
+        String fixationOperatorUserId,
+        String fixationOperatorName,
         String verificationStatus,
         LocalDateTime verificationStartedAt,
         LocalDateTime verificationCompletedAt,
@@ -2103,6 +2161,11 @@ public class SpecimenWorkflowAppService {
         Integer containerCount,
         String specimenStatus,
         String fixationStatus,
+        LocalDateTime fixationStartedAt,
+        LocalDateTime fixationCompletedAt,
+        String fixationLiquidType,
+        String fixationOperatorUserId,
+        String fixationOperatorName,
         String verificationStatus,
         LocalDateTime specimenConfirmedAt,
         String checkInStatus,

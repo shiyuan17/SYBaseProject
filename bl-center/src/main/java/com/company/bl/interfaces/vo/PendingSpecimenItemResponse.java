@@ -30,6 +30,16 @@ public record PendingSpecimenItemResponse(
     String specimenStatus,
     @Schema(description = "固定状态")
     String fixationStatus,
+    @Schema(description = "固定开始时间")
+    String fixationStartedAt,
+    @Schema(description = "固定完成时间")
+    String fixationCompletedAt,
+    @Schema(description = "固定液类型")
+    String fixationLiquidType,
+    @Schema(description = "固定核对人用户 ID")
+    String fixationOperatorUserId,
+    @Schema(description = "固定核对人姓名")
+    String fixationOperatorName,
     @Schema(description = "核对状态")
     String verificationStatus,
     @Schema(description = "开始核对时间")
