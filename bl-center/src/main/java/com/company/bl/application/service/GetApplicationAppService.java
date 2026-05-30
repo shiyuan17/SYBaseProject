@@ -6,7 +6,7 @@ import com.company.bl.domain.exception.ApplicationDomainException;
 import com.company.bl.domain.model.Application;
 import com.company.bl.domain.repository.ApplicationRepository;
 import com.company.bl.domain.valueobject.ApplicationId;
-import com.company.bl.infrastructure.observability.ObservedOperation;
+import com.company.common.web.observability.ObservedOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

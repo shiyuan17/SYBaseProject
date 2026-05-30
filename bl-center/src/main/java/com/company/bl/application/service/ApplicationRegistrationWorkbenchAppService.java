@@ -101,7 +101,7 @@ public class ApplicationRegistrationWorkbenchAppService {
 
         workbenchRepository.clearPreDownstreamRegistrationData(applicationId);
 
-        specimenWorkflowAppService.registerSpecimens(new SpecimenWorkflowAppService.RegisterSpecimensCommand(
+        specimenWorkflowAppService.registerSpecimens(new SpecimenWorkflowModels.RegisterSpecimensCommand(
             applicationId,
             null,
             DEFAULT_COLLECTION_SCENE,
@@ -109,7 +109,7 @@ public class ApplicationRegistrationWorkbenchAppService {
             trim(command.operatorName()),
             null,
             trim(command.patientInfo().remark()),
-            command.specimenItems().stream().map(item -> new SpecimenWorkflowAppService.SpecimenRegistrationItem(
+            command.specimenItems().stream().map(item -> new SpecimenWorkflowModels.SpecimenRegistrationItem(
                 trim(item.specimenName()),
                 trim(command.patientInfo().specimenType()),
                 trim(item.specimenSite()),

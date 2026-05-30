@@ -1,4 +1,4 @@
-package com.company.bl.infrastructure.observability;
+package com.company.common.web.observability;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

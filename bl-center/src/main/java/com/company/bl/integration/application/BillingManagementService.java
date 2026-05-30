@@ -5,7 +5,7 @@ import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.infrastructure.config.ObservabilityConfiguration;
 import com.company.bl.integration.infrastructure.M6JdbcRepository;
-import com.company.bl.infrastructure.observability.ObservedOperation;
+import com.company.common.web.observability.ObservedOperation;
 import com.company.bl.support.application.OperationAuditService;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;

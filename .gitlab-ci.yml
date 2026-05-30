@@ -22,12 +22,19 @@ cache:
   paths:
     - .m2/repository
 
-verify:
+verify_fast:
   stage: verify
   image: maven:3.9.9-eclipse-temurin-17
   script:
     - chmod +x mvnw
-    - ./mvnw -B -ntp clean test
+    - ./mvnw -B -ntp clean test "-Dsurefire.excludedGroups=slow"
+
+verify_full:
+  stage: verify
+  image: maven:3.9.9-eclipse-temurin-17
+  script:
+    - chmod +x mvnw
+    - ./mvnw -B -ntp clean verify
 
 verify_m1_m5_api_regression:
   stage: verify
@@ -57,7 +64,8 @@ package_user_center:
   stage: package
   image: maven:3.9.9-eclipse-temurin-17
   needs:
-    - verify
+    - verify_fast
+    - verify_full
     - verify_m1_m5_api_regression
   script:
     - chmod +x mvnw
@@ -72,7 +80,8 @@ package_auth_center:
   stage: package
   image: maven:3.9.9-eclipse-temurin-17
   needs:
-    - verify
+    - verify_fast
+    - verify_full
     - verify_m1_m5_api_regression
   script:
     - chmod +x mvnw
@@ -87,7 +96,8 @@ package_bl_center:
   stage: package
   image: maven:3.9.9-eclipse-temurin-17
   needs:
-    - verify
+    - verify_fast
+    - verify_full
     - verify_m1_m5_api_regression
   script:
     - chmod +x mvnw

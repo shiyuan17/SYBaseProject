@@ -1,11 +1,7 @@
 package com.company.bl.interfaces;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.util.Map;
@@ -24,15 +20,6 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
     protected static final String USER_TRACKING = "USER_M2_TRACKING";
     protected static final String USER_IMPORT = "USER_M2_IMPORT";
     protected static final String USER_NO_PERMISSION = "USER_M2_NO_PERMISSION";
-
-    @Autowired
-    protected MockMvc mockMvc;
-
-    @Autowired
-    protected ObjectMapper objectMapper;
-
-    @Autowired
-    protected NamedParameterJdbcTemplate jdbcTemplate;
 
     protected String uniqueSuffix() {
         return Long.toString(System.nanoTime());

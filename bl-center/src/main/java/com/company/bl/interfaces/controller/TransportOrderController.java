@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.SpecimenWorkflowAppService;
+import com.company.bl.application.service.SpecimenWorkflowModels;
 import com.company.bl.domain.model.TransportOrder;
 import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
@@ -57,9 +58,9 @@ public class TransportOrderController {
         @Parameter(description = "Transport order status")
         @RequestParam(required = false) String status
     ) {
-        SpecimenWorkflowAppService.PendingTransportOrderPage result =
+        SpecimenWorkflowModels.PendingTransportOrderPage result =
             specimenWorkflowAppService.listPendingTransportOrders(
-                new SpecimenWorkflowAppService.PendingTransportOrderQuery(
+                new SpecimenWorkflowModels.PendingTransportOrderQuery(
                     page,
                     size,
                     applicationId,
@@ -82,7 +83,7 @@ public class TransportOrderController {
     public ResponseEntity<TransportOrderResponse> create(@Valid @RequestBody CreateTransportOrderRequest request,
                                                          HttpServletRequest httpServletRequest) {
         return ResponseEntity.status(201).body(toResponse(specimenWorkflowAppService.createTransportOrder(
-            new SpecimenWorkflowAppService.CreateTransportOrderCommand(
+            new SpecimenWorkflowModels.CreateTransportOrderCommand(
                 request.getApplicationId(),
                 request.getSpecimenBarcodes(),
                 resolveUserId(request.getHandoverUserId(), httpServletRequest),
@@ -103,7 +104,7 @@ public class TransportOrderController {
                                         HttpServletRequest httpServletRequest) {
         return toResponse(specimenWorkflowAppService.printTransportOrder(
             id,
-            new SpecimenWorkflowAppService.OperatorCommand(
+            new SpecimenWorkflowModels.OperatorCommand(
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 request.getOperatorName(),
                 request.getTerminalCode())));
@@ -117,7 +118,7 @@ public class TransportOrderController {
                                            HttpServletRequest httpServletRequest) {
         return toResponse(specimenWorkflowAppService.handoverTransportOrder(
             id,
-            new SpecimenWorkflowAppService.HandoverTransportOrderCommand(
+            new SpecimenWorkflowModels.HandoverTransportOrderCommand(
                 resolveUserId(request.getReceiverUserId(), httpServletRequest),
                 request.getReceiverUserName(),
                 request.getTerminalCode(),
@@ -137,7 +138,7 @@ public class TransportOrderController {
     }
 
     private PendingTransportOrderResponse toPendingResponse(
-        SpecimenWorkflowAppService.PendingTransportOrderItem item) {
+        SpecimenWorkflowModels.PendingTransportOrderItem item) {
         return new PendingTransportOrderResponse(
             item.id(),
             item.transportOrderNo(),

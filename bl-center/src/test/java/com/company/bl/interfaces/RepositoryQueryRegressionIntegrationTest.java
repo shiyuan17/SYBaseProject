@@ -1,6 +1,7 @@
 package com.company.bl.interfaces;
 
 import com.company.bl.domain.model.TrackingEvent;
+import com.company.bl.domain.repository.SpecimenWorkflowQueryRepository;
 import com.company.bl.domain.repository.DiagnosticReportRepository;
 import com.company.bl.domain.repository.SpecimenWorkflowRepository;
 import com.company.bl.domain.repository.TechnicalWorkflowRepository;
@@ -29,7 +30,7 @@ class RepositoryQueryRegressionIntegrationTest extends AbstractDiagnosticWorkflo
     private NotificationCenterJdbcRepository notificationCenterJdbcRepository;
 
     @Autowired
-    private SpecimenWorkflowRepository specimenWorkflowRepository;
+    private SpecimenWorkflowQueryRepository specimenWorkflowRepository;
 
     @Autowired
     private TechnicalWorkflowRepository technicalWorkflowRepository;

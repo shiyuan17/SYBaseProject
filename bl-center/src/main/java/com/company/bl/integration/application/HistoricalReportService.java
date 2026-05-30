@@ -4,7 +4,7 @@ import com.company.bl.application.gateway.HistoricalReportGateway;
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.integration.infrastructure.M6JdbcRepository;
-import com.company.bl.infrastructure.observability.ObservedOperation;
+import com.company.common.web.observability.ObservedOperation;
 import com.company.bl.support.application.OperationAuditService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

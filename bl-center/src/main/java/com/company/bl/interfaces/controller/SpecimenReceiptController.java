@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.SpecimenWorkflowAppService;
+import com.company.bl.application.service.SpecimenWorkflowModels;
 import com.company.bl.domain.enums.ReceiptStatus;
 import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
@@ -36,13 +37,13 @@ public class SpecimenReceiptController {
     @PostMapping
     public SpecimenReceiptResponse receive(@Valid @RequestBody ReceiveSpecimensRequest request,
                                           HttpServletRequest httpServletRequest) {
-        SpecimenWorkflowAppService.ReceiptResult result = specimenWorkflowAppService.receiveSpecimens(
-            new SpecimenWorkflowAppService.ReceiveSpecimensCommand(
+        SpecimenWorkflowModels.ReceiptResult result = specimenWorkflowAppService.receiveSpecimens(
+            new SpecimenWorkflowModels.ReceiveSpecimensCommand(
                 request.getTransportOrderId(),
                 resolveUserId(request.getReceivedByUserId(), httpServletRequest),
                 request.getReceivedByName(),
                 request.getTerminalCode(),
-                request.getItems().stream().map(item -> new SpecimenWorkflowAppService.ReceiptItem(
+                request.getItems().stream().map(item -> new SpecimenWorkflowModels.ReceiptItem(
                     item.getSpecimenBarcode(),
                     ReceiptStatus.from(item.getReceiptStatus()),
                     item.getContainerCount(),
@@ -66,12 +67,12 @@ public class SpecimenReceiptController {
     @PostMapping("/by-barcodes")
     public SpecimenReceiptResponse receiveByBarcodes(@Valid @RequestBody DirectReceiveSpecimensRequest request,
                                                      HttpServletRequest httpServletRequest) {
-        SpecimenWorkflowAppService.ReceiptResult result = specimenWorkflowAppService.receiveSpecimensByBarcodes(
-            new SpecimenWorkflowAppService.DirectReceiveSpecimensCommand(
+        SpecimenWorkflowModels.ReceiptResult result = specimenWorkflowAppService.receiveSpecimensByBarcodes(
+            new SpecimenWorkflowModels.DirectReceiveSpecimensCommand(
                 resolveUserId(request.getReceivedByUserId(), httpServletRequest),
                 request.getReceivedByName(),
                 request.getTerminalCode(),
-                request.getItems().stream().map(item -> new SpecimenWorkflowAppService.ReceiptItem(
+                request.getItems().stream().map(item -> new SpecimenWorkflowModels.ReceiptItem(
                     item.getSpecimenBarcode(),
                     ReceiptStatus.from(item.getReceiptStatus()),
                     item.getContainerCount(),
@@ -99,8 +100,8 @@ public class SpecimenReceiptController {
                                                    @Parameter(description = "送检科室 ID") @RequestParam(required = false) String departmentId,
                                                    @Parameter(description = "开始日期") @RequestParam(required = false) String dateFrom,
                                                    @Parameter(description = "结束日期") @RequestParam(required = false) String dateTo) {
-        SpecimenWorkflowAppService.PendingSpecimenPage result = specimenWorkflowAppService.listPendingReceipts(
-            new SpecimenWorkflowAppService.PendingSpecimenQuery(
+        SpecimenWorkflowModels.PendingSpecimenPage result = specimenWorkflowAppService.listPendingReceipts(
+            new SpecimenWorkflowModels.PendingSpecimenQuery(
                 page,
                 size,
                 applicationId,
@@ -117,7 +118,7 @@ public class SpecimenReceiptController {
             result.total());
     }
 
-    private PendingSpecimenItemResponse toPendingItem(SpecimenWorkflowAppService.PendingSpecimenItem item) {
+    private PendingSpecimenItemResponse toPendingItem(SpecimenWorkflowModels.PendingSpecimenItem item) {
         return new PendingSpecimenItemResponse(
             item.applicationId(),
             item.applicationNo(),

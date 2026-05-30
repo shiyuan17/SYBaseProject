@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.SpecimenWorkflowAppService;
+import com.company.bl.application.service.SpecimenWorkflowModels;
 import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
@@ -31,7 +32,7 @@ public class SpecimenVerificationController {
     @PostMapping("/start")
     public SpecimenSummaryResponse start(@Valid @RequestBody SpecimenVerificationRequest request,
                                          HttpServletRequest httpServletRequest) {
-        SpecimenWorkflowAppService.SpecimenVerificationResult result =
+        SpecimenWorkflowModels.SpecimenVerificationResult result =
             specimenWorkflowAppService.startSpecimenVerification(toCommand(request, httpServletRequest));
         return toResponse(result);
     }
@@ -41,16 +42,16 @@ public class SpecimenVerificationController {
     @PostMapping("/complete")
     public SpecimenSummaryResponse complete(@Valid @RequestBody SpecimenVerificationRequest request,
                                             HttpServletRequest httpServletRequest) {
-        SpecimenWorkflowAppService.SpecimenVerificationResult result =
+        SpecimenWorkflowModels.SpecimenVerificationResult result =
             specimenWorkflowAppService.completeSpecimenVerification(toCommand(request, httpServletRequest));
         return toResponse(result);
     }
 
-    private SpecimenWorkflowAppService.SpecimenVerificationCommand toCommand(
+    private SpecimenWorkflowModels.SpecimenVerificationCommand toCommand(
         SpecimenVerificationRequest request,
         HttpServletRequest httpServletRequest
     ) {
-        return new SpecimenWorkflowAppService.SpecimenVerificationCommand(
+        return new SpecimenWorkflowModels.SpecimenVerificationCommand(
             request.getSpecimenBarcode(),
             resolveUserId(httpServletRequest),
             resolveOperatorName(request.getOperatorName(), httpServletRequest),
@@ -59,7 +60,7 @@ public class SpecimenVerificationController {
         );
     }
 
-    private SpecimenSummaryResponse toResponse(SpecimenWorkflowAppService.SpecimenVerificationResult result) {
+    private SpecimenSummaryResponse toResponse(SpecimenWorkflowModels.SpecimenVerificationResult result) {
         return new SpecimenSummaryResponse(
             result.id(),
             result.specimenNo(),

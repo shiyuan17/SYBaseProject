@@ -1,18 +1,15 @@
 package com.company.auth.interfaces;
 
 import com.company.auth.AuthCenterApplication;
+import com.company.common.test.BaseJdbcWebIntegrationTest;
 import com.company.common.security.jwt.JwtAccessTokenClaims;
 import com.company.common.security.jwt.Sm2JwtTokenService;
-import com.company.common.test.BaseWebIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.time.Instant;
@@ -28,16 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @ActiveProfiles("test")
 @SpringBootTest(classes = AuthCenterApplication.class)
-class AuthControllerIntegrationTest extends BaseWebIntegrationTest {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private NamedParameterJdbcTemplate jdbcTemplate;
+class AuthControllerIntegrationTest extends BaseJdbcWebIntegrationTest {
 
     @Autowired
     private Sm2JwtTokenService tokenService;

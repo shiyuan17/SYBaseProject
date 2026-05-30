@@ -1,7 +1,7 @@
 package com.company.bl.integration.application;
 
 import com.company.bl.integration.infrastructure.M6JdbcRepository;
-import com.company.bl.infrastructure.observability.ObservedOperation;
+import com.company.common.web.observability.ObservedOperation;
 import com.company.bl.support.application.OperationAuditService;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;

@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.SpecimenWorkflowAppService;
+import com.company.bl.application.service.SpecimenWorkflowModels;
 import com.company.bl.domain.model.ApplicationTracking;
 import com.company.bl.domain.model.Specimen;
 import com.company.bl.interfaces.auth.ApiPermissionContext;
@@ -59,8 +60,8 @@ public class SpecimenController {
     @PostMapping("/register")
     public ResponseEntity<SpecimenRegistrationResponse> register(@Valid @RequestBody RegisterSpecimensRequest request,
                                                                 HttpServletRequest httpServletRequest) {
-        SpecimenWorkflowAppService.SpecimenRegistrationResult result = specimenWorkflowAppService.registerSpecimens(
-            new SpecimenWorkflowAppService.RegisterSpecimensCommand(
+        SpecimenWorkflowModels.SpecimenRegistrationResult result = specimenWorkflowAppService.registerSpecimens(
+            new SpecimenWorkflowModels.RegisterSpecimensCommand(
                 request.getApplicationId(),
                 request.getPrinterCode(),
                 request.getCollectionScene(),
@@ -68,7 +69,7 @@ public class SpecimenController {
                 resolveOperatorName(request.getOperatorName(), httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks(),
-                request.getItems().stream().map(item -> new SpecimenWorkflowAppService.SpecimenRegistrationItem(
+                request.getItems().stream().map(item -> new SpecimenWorkflowModels.SpecimenRegistrationItem(
                     item.getSpecimenNameStandardized(),
                     item.getSpecimenType(),
                     item.getSpecimenSite(),
@@ -94,8 +95,8 @@ public class SpecimenController {
         @Valid @RequestBody RetryLabelPrintRequest request,
         HttpServletRequest httpServletRequest
     ) {
-        SpecimenWorkflowAppService.LabelPrintRetryResult result = specimenWorkflowAppService.retryLabelPrint(
-            new SpecimenWorkflowAppService.RetryLabelPrintCommand(
+        SpecimenWorkflowModels.LabelPrintRetryResult result = specimenWorkflowAppService.retryLabelPrint(
+            new SpecimenWorkflowModels.RetryLabelPrintCommand(
                 batchNo,
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 resolveOperatorName(request.getOperatorName(), httpServletRequest),
@@ -126,9 +127,9 @@ public class SpecimenController {
         @RequestParam(value = "dateFrom", required = false) String dateFrom,
         @RequestParam(value = "dateTo", required = false) String dateTo
     ) {
-        SpecimenWorkflowAppService.SpecimenManagementListPage result =
+        SpecimenWorkflowModels.SpecimenManagementListPage result =
             specimenWorkflowAppService.listSpecimenManagementItems(
-                new SpecimenWorkflowAppService.SpecimenManagementListQuery(
+                new SpecimenWorkflowModels.SpecimenManagementListQuery(
                     page,
                     size,
                     keyword,
@@ -166,7 +167,7 @@ public class SpecimenController {
     public LatestSpecimenRegistrationResponse getLatestRegistration(
         @Parameter(description = "Application id") @PathVariable("applicationId") String applicationId
     ) {
-        SpecimenWorkflowAppService.LatestSpecimenRegistrationResult result =
+        SpecimenWorkflowModels.LatestSpecimenRegistrationResult result =
             specimenWorkflowAppService.getLatestRegistrationResult(applicationId);
         return new LatestSpecimenRegistrationResponse(
             result.applicationId(),
@@ -215,7 +216,7 @@ public class SpecimenController {
         HttpServletRequest httpServletRequest
     ) {
         Specimen specimen = specimenWorkflowAppService.confirmSpecimen(
-            new SpecimenWorkflowAppService.ConfirmSpecimenCommand(
+            new SpecimenWorkflowModels.ConfirmSpecimenCommand(
                 barcode,
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 resolveOperatorName(request.getOperatorName(), httpServletRequest),
@@ -233,7 +234,7 @@ public class SpecimenController {
         HttpServletRequest httpServletRequest
     ) {
         Specimen specimen = specimenWorkflowAppService.checkInSpecimen(
-            new SpecimenWorkflowAppService.CheckInSpecimenCommand(
+            new SpecimenWorkflowModels.CheckInSpecimenCommand(
                 barcode,
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 resolveOperatorName(request.getOperatorName(), httpServletRequest),
@@ -246,7 +247,7 @@ public class SpecimenController {
         List<SpecimenSummaryResponse> specimenSummaries = tracking.specimens().stream().map(this::toSpecimenSummary).toList();
         Map<String, SpecimenSummaryResponse> specimenMap = specimenSummaries.stream()
             .collect(Collectors.toMap(SpecimenSummaryResponse::id, Function.identity()));
-        SpecimenWorkflowAppService.ApplicationOperationState operationState =
+        SpecimenWorkflowModels.ApplicationOperationState operationState =
             specimenWorkflowAppService.resolveApplicationOperationState(tracking.application());
         return new ApplicationDetailResponse(
             tracking.application().getId().value(),
@@ -342,7 +343,7 @@ public class SpecimenController {
     }
 
     private RegistrationSnapshotResponse toRegistrationSnapshot(
-        SpecimenWorkflowAppService.RegistrationSnapshot snapshot
+        SpecimenWorkflowModels.RegistrationSnapshot snapshot
     ) {
         if (snapshot == null) {
             return null;
@@ -367,7 +368,7 @@ public class SpecimenController {
     }
 
     private SpecimenManagementItemResponse toSpecimenManagementItem(
-        SpecimenWorkflowAppService.SpecimenManagementListItem item
+        SpecimenWorkflowModels.SpecimenManagementListItem item
     ) {
         return new SpecimenManagementItemResponse(
             item.specimenId(),
@@ -407,7 +408,7 @@ public class SpecimenController {
     }
 
     private ApplicationListItemResponse toApplicationListItem(
-        SpecimenWorkflowAppService.ApplicationListItem item
+        SpecimenWorkflowModels.ApplicationListItem item
     ) {
         return new ApplicationListItemResponse(
             item.id(),

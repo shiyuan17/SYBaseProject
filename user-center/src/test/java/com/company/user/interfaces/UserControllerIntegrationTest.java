@@ -1,12 +1,10 @@
 package com.company.user.interfaces;
 
-import com.company.common.test.BaseWebIntegrationTest;
+import com.company.common.test.BaseMockMvcIntegrationTest;
 import com.company.user.UserCenterApplication;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.containsString;
@@ -23,10 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(classes = UserCenterApplication.class)
-class UserControllerIntegrationTest extends BaseWebIntegrationTest {
-
-    @Autowired
-    private MockMvc mockMvc;
+class UserControllerIntegrationTest extends BaseMockMvcIntegrationTest {
 
     @Test
     void shouldCreateUserWhenRequestIsValid() throws Exception {

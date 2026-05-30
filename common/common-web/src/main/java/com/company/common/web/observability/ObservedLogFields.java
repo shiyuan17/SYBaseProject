@@ -1,4 +1,4 @@
-package com.company.user.infrastructure.observability;
+package com.company.common.web.observability;
 
 public final class ObservedLogFields {
 

@@ -2,10 +2,9 @@ package com.company.bl.interfaces;
 
 import com.company.common.security.jwt.JwtAccessTokenClaims;
 import com.company.common.security.jwt.Sm2JwtTokenService;
-import com.company.common.test.BaseWebIntegrationTest;
+import com.company.common.test.BaseJdbcWebIntegrationTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.time.Instant;
@@ -14,10 +13,7 @@ import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.UUID;
 
-abstract class AuthenticatedWebIntegrationTest extends BaseWebIntegrationTest {
-
-    @Autowired
-    private NamedParameterJdbcTemplate jdbcTemplate;
+abstract class AuthenticatedWebIntegrationTest extends BaseJdbcWebIntegrationTest {
 
     @Autowired
     private Sm2JwtTokenService tokenService;

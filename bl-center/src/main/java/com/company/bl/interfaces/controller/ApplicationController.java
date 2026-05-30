@@ -2,6 +2,7 @@ package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.CreateApplicationAppService;
 import com.company.bl.application.service.SpecimenWorkflowAppService;
+import com.company.bl.application.service.SpecimenWorkflowModels;
 import com.company.bl.application.service.UpdateApplicationAppService;
 import com.company.bl.domain.model.ApplicationTracking;
 import com.company.bl.domain.model.Specimen;
@@ -99,9 +100,9 @@ public class ApplicationController {
         @Parameter(description = "申请开始日期") @RequestParam(required = false) String dateFrom,
         @Parameter(description = "申请结束日期") @RequestParam(required = false) String dateTo
     ) {
-        SpecimenWorkflowAppService.ApplicationPage result =
+        SpecimenWorkflowModels.ApplicationPage result =
             specimenWorkflowAppService.listApplications(
-                new SpecimenWorkflowAppService.ApplicationListQuery(
+                new SpecimenWorkflowModels.ApplicationListQuery(
                     page,
                     size,
                     applicationNo,
@@ -129,8 +130,8 @@ public class ApplicationController {
         @Parameter(description = "申请类型") @RequestParam(required = false) String applicationType,
         @Parameter(description = "送检部位") @RequestParam(required = false) String specimenSite
     ) {
-        SpecimenWorkflowAppService.DuplicateCheckResult result = specimenWorkflowAppService.checkApplicationDuplicate(
-            new SpecimenWorkflowAppService.DuplicateCheckCommand(
+        SpecimenWorkflowModels.DuplicateCheckResult result = specimenWorkflowAppService.checkApplicationDuplicate(
+            new SpecimenWorkflowModels.DuplicateCheckCommand(
                 patientId,
                 patientName,
                 externalOrderNo,
@@ -170,7 +171,7 @@ public class ApplicationController {
         List<SpecimenSummaryResponse> specimenSummaries = tracking.specimens().stream().map(this::toSpecimenSummary).toList();
         Map<String, SpecimenSummaryResponse> specimenMap = specimenSummaries.stream()
             .collect(Collectors.toMap(SpecimenSummaryResponse::id, Function.identity()));
-        SpecimenWorkflowAppService.ApplicationOperationState operationState =
+        SpecimenWorkflowModels.ApplicationOperationState operationState =
             specimenWorkflowAppService.resolveApplicationOperationState(tracking.application());
         return new ApplicationDetailResponse(
             tracking.application().getId().value(),
@@ -265,7 +266,7 @@ public class ApplicationController {
             specimen.unqualifiedReason());
     }
 
-    private ApplicationListItemResponse toListItemResponse(SpecimenWorkflowAppService.ApplicationListItem item) {
+    private ApplicationListItemResponse toListItemResponse(SpecimenWorkflowModels.ApplicationListItem item) {
         return new ApplicationListItemResponse(
             item.id(),
             item.applicationNo(),

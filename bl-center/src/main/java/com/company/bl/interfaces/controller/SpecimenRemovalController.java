@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.SpecimenWorkflowAppService;
+import com.company.bl.application.service.SpecimenWorkflowModels;
 import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
@@ -51,9 +52,9 @@ public class SpecimenRemovalController {
         @RequestParam(required = false) String dateFrom,
         @RequestParam(required = false) String dateTo
     ) {
-        SpecimenWorkflowAppService.SpecimenRemovalListPage result =
+        SpecimenWorkflowModels.SpecimenRemovalListPage result =
             specimenWorkflowAppService.listSpecimenRemovalItems(
-                new SpecimenWorkflowAppService.SpecimenRemovalQuery(
+                new SpecimenWorkflowModels.SpecimenRemovalQuery(
                     page,
                     size,
                     keyword,
@@ -82,8 +83,8 @@ public class SpecimenRemovalController {
         @Valid @RequestBody SpecimenRemovalConfirmRequest request,
         HttpServletRequest httpServletRequest
     ) {
-        SpecimenWorkflowAppService.SpecimenRemovalResult result = specimenWorkflowAppService.confirmSpecimenRemoval(
-            new SpecimenWorkflowAppService.SpecimenRemovalCommand(
+        SpecimenWorkflowModels.SpecimenRemovalResult result = specimenWorkflowAppService.confirmSpecimenRemoval(
+            new SpecimenWorkflowModels.SpecimenRemovalCommand(
                 request.getSpecimenBarcode(),
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
                 resolveOperatorName(request.getOperatorName(), httpServletRequest),
@@ -103,8 +104,8 @@ public class SpecimenRemovalController {
         @Valid @RequestBody SpecimenRemovalQuickConfirmRequest request,
         HttpServletRequest httpServletRequest
     ) {
-        SpecimenWorkflowAppService.SpecimenRemovalResult result = specimenWorkflowAppService.quickConfirmSpecimenRemoval(
-            new SpecimenWorkflowAppService.SpecimenRemovalQuickConfirmCommand(
+        SpecimenWorkflowModels.SpecimenRemovalResult result = specimenWorkflowAppService.quickConfirmSpecimenRemoval(
+            new SpecimenWorkflowModels.SpecimenRemovalQuickConfirmCommand(
                 request.getIdentifierType(),
                 request.getIdentifier(),
                 resolveUserId(request.getOperatorUserId(), httpServletRequest),
@@ -133,7 +134,7 @@ public class SpecimenRemovalController {
         @RequestParam(required = false) String dateTo
     ) {
         byte[] content = specimenWorkflowAppService.exportSpecimenRemovalItems(
-            new SpecimenWorkflowAppService.SpecimenRemovalQuery(
+            new SpecimenWorkflowModels.SpecimenRemovalQuery(
                 page,
                 size,
                 keyword,
@@ -149,7 +150,7 @@ public class SpecimenRemovalController {
             .body(content);
     }
 
-    private SpecimenRemovalItemResponse toRow(SpecimenWorkflowAppService.SpecimenRemovalListItem item) {
+    private SpecimenRemovalItemResponse toRow(SpecimenWorkflowModels.SpecimenRemovalListItem item) {
         return new SpecimenRemovalItemResponse(
             item.specimenId(),
             item.barcode(),

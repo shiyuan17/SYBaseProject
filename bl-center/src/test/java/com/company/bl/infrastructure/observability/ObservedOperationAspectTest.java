@@ -3,6 +3,7 @@ package com.company.bl.infrastructure.observability;
 import com.company.bl.domain.enums.ApplicationErrorCode;
 import com.company.bl.domain.exception.ApplicationDomainException;
 import com.company.bl.infrastructure.config.ObservabilityConfiguration;
+import com.company.common.web.observability.ObservedOperation;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.aop.aspectj.annotation.AspectJProxyFactory;

@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.SpecimenWorkflowAppService;
+import com.company.bl.application.service.SpecimenWorkflowModels;
 import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
@@ -34,7 +35,7 @@ public class SpecimenFixationController {
     @PostMapping("/start")
     public FixationResponse start(@Valid @RequestBody SpecimenFixationRequest request,
                                   HttpServletRequest httpServletRequest) {
-        SpecimenWorkflowAppService.FixationResult result = specimenWorkflowAppService.startFixation(
+        SpecimenWorkflowModels.FixationResult result = specimenWorkflowAppService.startFixation(
             toCommand(request, httpServletRequest));
         return toFixationResponse(result);
     }
@@ -44,7 +45,7 @@ public class SpecimenFixationController {
     @PostMapping("/complete")
     public FixationResponse complete(@Valid @RequestBody SpecimenFixationRequest request,
                                      HttpServletRequest httpServletRequest) {
-        SpecimenWorkflowAppService.FixationResult result = specimenWorkflowAppService.completeFixation(
+        SpecimenWorkflowModels.FixationResult result = specimenWorkflowAppService.completeFixation(
             toCommand(request, httpServletRequest));
         return toFixationResponse(result);
     }
@@ -72,8 +73,8 @@ public class SpecimenFixationController {
         @Parameter(description = "End date")
         @RequestParam(required = false) String dateTo
     ) {
-        SpecimenWorkflowAppService.PendingSpecimenPage result = specimenWorkflowAppService.listPendingFixations(
-            new SpecimenWorkflowAppService.PendingSpecimenQuery(
+        SpecimenWorkflowModels.PendingSpecimenPage result = specimenWorkflowAppService.listPendingFixations(
+            new SpecimenWorkflowModels.PendingSpecimenQuery(
                 page,
                 size,
                 applicationId,
@@ -90,9 +91,9 @@ public class SpecimenFixationController {
             result.total());
     }
 
-    private SpecimenWorkflowAppService.FixationCommand toCommand(SpecimenFixationRequest request,
+    private SpecimenWorkflowModels.FixationCommand toCommand(SpecimenFixationRequest request,
                                                                  HttpServletRequest httpServletRequest) {
-        return new SpecimenWorkflowAppService.FixationCommand(
+        return new SpecimenWorkflowModels.FixationCommand(
             request.getSpecimenBarcode(),
             request.getFixationLiquidType(),
             resolveUserId(request.getOperatorUserId(), httpServletRequest),
@@ -101,7 +102,7 @@ public class SpecimenFixationController {
             request.getRemarks());
     }
 
-    private FixationResponse toFixationResponse(SpecimenWorkflowAppService.FixationResult result) {
+    private FixationResponse toFixationResponse(SpecimenWorkflowModels.FixationResult result) {
         return new FixationResponse(
             result.specimenId(),
             result.barcode(),
@@ -112,7 +113,7 @@ public class SpecimenFixationController {
             result.fixationLiquidType());
     }
 
-    private PendingSpecimenItemResponse toPendingItem(SpecimenWorkflowAppService.PendingSpecimenItem item) {
+    private PendingSpecimenItemResponse toPendingItem(SpecimenWorkflowModels.PendingSpecimenItem item) {
         return new PendingSpecimenItemResponse(
             item.applicationId(),
             item.applicationNo(),

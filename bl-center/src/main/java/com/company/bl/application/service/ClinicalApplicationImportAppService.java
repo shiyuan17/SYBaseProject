@@ -7,7 +7,7 @@ import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.domain.repository.SpecimenWorkflowRepository;
 import com.company.bl.domain.valueobject.ApplicationId;
 import com.company.bl.integration.application.IntegrationManagementService;
-import com.company.bl.infrastructure.observability.ObservedOperation;
+import com.company.common.web.observability.ObservedOperation;
 import com.company.bl.support.application.NumberingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

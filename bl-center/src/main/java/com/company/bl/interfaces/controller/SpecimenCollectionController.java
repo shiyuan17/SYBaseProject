@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.SpecimenWorkflowAppService;
+import com.company.bl.application.service.SpecimenWorkflowModels;
 import com.company.bl.domain.model.Specimen;
 import com.company.bl.interfaces.auth.ApiPermissionContext;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
@@ -37,8 +38,8 @@ public class SpecimenCollectionController {
     @PostMapping
     public ResponseEntity<SpecimenRegistrationResponse> register(@Valid @RequestBody RegisterSpecimensRequest request,
                                                                  HttpServletRequest httpServletRequest) {
-        SpecimenWorkflowAppService.SpecimenRegistrationResult result = specimenWorkflowAppService.registerSpecimens(
-            new SpecimenWorkflowAppService.RegisterSpecimensCommand(
+        SpecimenWorkflowModels.SpecimenRegistrationResult result = specimenWorkflowAppService.registerSpecimens(
+            new SpecimenWorkflowModels.RegisterSpecimensCommand(
                 request.getApplicationId(),
                 request.getPrinterCode(),
                 request.getCollectionScene(),
@@ -46,7 +47,7 @@ public class SpecimenCollectionController {
                 resolveOperatorName(request.getOperatorName(), httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks(),
-                request.getItems().stream().map(item -> new SpecimenWorkflowAppService.SpecimenRegistrationItem(
+                request.getItems().stream().map(item -> new SpecimenWorkflowModels.SpecimenRegistrationItem(
                     item.getSpecimenNameStandardized(),
                     item.getSpecimenType(),
                     item.getSpecimenSite(),

@@ -8,6 +8,7 @@
 - [项目目录说明](./guides/PROJECT_DIRECTORY.md)
 - [模板定制说明](./guides/TEMPLATE_CUSTOMIZATION.md)
 - [本地 GitLab 与测试流程](./guides/GITLAB_LOCAL_TEST_FLOW.md)
+- [项目健康治理规则](./rules/PROJECT_HEALTH_RULES.md)
 - [文件健康豁免清单](./file-health-exemptions.properties)
 
 ## 当前里程碑状态
