@@ -12,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
@@ -46,5 +47,25 @@ class SpecimenWorkflowSupportTest {
         assertThatThrownBy(() -> support.resolveSpecimenForRemoval("SPECIMEN_NO", "SP-1"))
             .isInstanceOf(BlBusinessException.class)
             .hasMessageContaining("multiple records");
+    }
+
+    @Test
+    void normalizeQualityCheckResultShouldRejectUnsupportedValue() {
+        SpecimenWorkflowSupport support = new SpecimenWorkflowSupport(applicationRepository, workbenchRepository, queryRepository);
+
+        assertThatThrownBy(() -> support.normalizeQualityCheckResult("UNKNOWN"))
+            .isInstanceOf(BlBusinessException.class)
+            .hasMessageContaining("Unsupported quality check result")
+            .extracting("errorCode")
+            .isEqualTo(BlErrorCode.INVALID_ARGUMENT);
+    }
+
+    @Test
+    void normalizeQualityIssueCodesShouldTrimUppercaseAndDeduplicate() {
+        SpecimenWorkflowSupport support = new SpecimenWorkflowSupport(applicationRepository, workbenchRepository, queryRepository);
+
+        List<String> normalized = support.normalizeQualityIssueCodes(List.of(" hemolysis ", "HEMOLYSIS", "broken"));
+
+        assertThat(normalized).containsExactly("HEMOLYSIS", "BROKEN");
     }
 }

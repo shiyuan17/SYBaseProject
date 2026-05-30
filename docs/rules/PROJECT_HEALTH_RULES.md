@@ -49,3 +49,11 @@
 - 涉及模块边界、公共能力归属、测试分层、质量门禁的规则更新，优先同步本文件。
 - 文本文档默认使用 UTF-8 编码；Java、YAML、XML 等源代码与配置默认使用 LF。
 - 如需新增治理例外，必须同时更新 `docs/file-health-exemptions.properties` 并说明原因。
+
+## 持续健康趋势
+
+- 每轮结构性治理完成后，刷新 `docs/reports/largest-files-report.md`，并在 `docs/reports/` 下补充对应趋势报告。
+- 趋势报告至少记录超长文件数量、测试数量、JaCoCo line/branch baseline、热点模块列表和下一批治理目标。
+- CI 初期只把趋势报告作为报告/告警产物；除现有 file-health gate、JaCoCo baseline 和 fast feedback 外，不因为趋势波动立即阻断发布。
+- 新增治理例外必须先写入 `docs/file-health-exemptions.properties`，并说明例外原因、退出条件和责任模块。
+- 下一批优先治理目标为 `SamplingService`、`MedicalOrderService`、`SystemUserManagementService`、`StatisticsService`、`BillingManagementService`。
