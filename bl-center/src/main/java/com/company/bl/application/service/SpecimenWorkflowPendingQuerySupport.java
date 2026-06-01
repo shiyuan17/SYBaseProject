@@ -107,6 +107,8 @@ class SpecimenWorkflowPendingQuerySupport extends AbstractSpecimenWorkflowQueryS
                 item.status(),
                 item.toBeTransportedAt(),
                 item.handedOverAt(),
+                item.outboundUserId(),
+                item.outboundUserName(),
                 specimenWorkflowRepository.findTransportOrderSpecimenBarcodes(item.id()))).toList(),
             specimenWorkflowSupport.normalizePage(query.page()),
             specimenWorkflowSupport.normalizeSize(query.size()),

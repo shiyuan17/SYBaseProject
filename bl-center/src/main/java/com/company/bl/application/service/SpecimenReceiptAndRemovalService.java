@@ -268,13 +268,14 @@ class SpecimenReceiptAndRemovalService {
                 receivedByUserId,
                 receivedByName,
                 null,
+                null,
+                null,
                 order.handedOverAt());
         }
         if (pathologyCase != null) {
-            specimenWorkflowRepository.upsertTechnicalPendingTask(
+            specimenWorkflowRepository.ensureTechnicalSpecimenRegistrationPending(
                 application.getId().value(),
-                pathologyCase.id(),
-                "pathologyNo=" + pathologyCase.pathologyNo() + ";receivedCount=" + receivedCount + ";processedCount=" + processedCount);
+                pathologyCase.id());
         }
         return new ReceiptResult(
             pathologyCase == null ? null : pathologyCase.id(),

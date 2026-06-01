@@ -96,6 +96,8 @@ public interface SpecimenWorkflowCommandRepository {
                                               TransportOrderStatus status,
                                               String receiverUserId,
                                               String receiverUserName,
+                                              String outboundUserId,
+                                              String outboundUserName,
                                               LocalDateTime printedAt,
                                               LocalDateTime handedOverAt);
 
@@ -131,5 +133,5 @@ public interface SpecimenWorkflowCommandRepository {
 
     void insertWorkflowEvent(TrackingEvent event);
 
-    void upsertTechnicalPendingTask(String applicationId, String caseId, String payload);
+    void ensureTechnicalSpecimenRegistrationPending(String applicationId, String caseId);
 }

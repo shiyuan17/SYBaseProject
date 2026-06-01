@@ -31,6 +31,31 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
                                                                  String barcode,
                                                                  String submittingDepartmentId,
                                                                  String submittingDepartmentName) throws Exception {
+        TechnicalCaseContext registrationContext =
+            receiveCaseAndGetPendingRegistration(applicationNo, barcode, submittingDepartmentId, submittingDepartmentName);
+        completeTechnicalSpecimenRegistration(registrationContext.caseId(), "auto registration");
+
+        JsonNode pendingTasks = listPendingTasks("GROSSING", registrationContext.pathologyNo(), USER_M3_GROSSING);
+        String grossingTaskId = pendingTasks.path("items").get(0).path("id").asText();
+
+        return new TechnicalCaseContext(
+            registrationContext.applicationId(),
+            registrationContext.caseId(),
+            registrationContext.pathologyNo(),
+            registrationContext.specimenId(),
+            registrationContext.barcode(),
+            grossingTaskId);
+    }
+
+    protected TechnicalCaseContext receiveCaseAndGetPendingRegistration(String applicationNo,
+                                                                        String barcode) throws Exception {
+        return receiveCaseAndGetPendingRegistration(applicationNo, barcode, "DEPT-OR", "OR");
+    }
+
+    protected TechnicalCaseContext receiveCaseAndGetPendingRegistration(String applicationNo,
+                                                                        String barcode,
+                                                                        String submittingDepartmentId,
+                                                                        String submittingDepartmentName) throws Exception {
         String applicationId = createApplication(applicationNo, submittingDepartmentId, submittingDepartmentName);
         JsonNode registration = registerSpecimens(applicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", barcode);
         JsonNode specimen = registration.path("specimens").get(0);
@@ -56,10 +81,24 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
 
         String caseId = receipt.path("caseId").asText();
         String pathologyNo = receipt.path("pathologyNo").asText();
-        JsonNode pendingTasks = listPendingTasks("GROSSING", pathologyNo, USER_M3_GROSSING);
-        String grossingTaskId = pendingTasks.path("items").get(0).path("id").asText();
+        return new TechnicalCaseContext(applicationId, caseId, pathologyNo, specimenId, actualBarcode, null);
+    }
 
-        return new TechnicalCaseContext(applicationId, caseId, pathologyNo, specimenId, actualBarcode, grossingTaskId);
+    protected JsonNode listPendingTechnicalSpecimenRegistrations(String keyword, String userId) throws Exception {
+        ResultActions action = mockMvc.perform(authorized(get("/api/v1/technical-specimen-registrations/pending"), userId)
+            .param("page", "1")
+            .param("size", "20")
+            .param("keyword", keyword == null ? "" : keyword));
+        return responseBody(action, 200);
+    }
+
+    protected JsonNode completeTechnicalSpecimenRegistration(String caseId, String remarks) throws Exception {
+        return responseBody(postJson("/api/v1/technical-specimen-registrations/%s/complete".formatted(caseId), USER_RECEIVE, """
+            {
+              "terminalCode": "T-M3-REG",
+              "remarks": %s
+            }
+            """.formatted(remarks == null ? "null" : "\"" + remarks + "\"")), 200);
     }
 
     protected JsonNode listPendingTasks(String taskType, String pathologyNo, String userId) throws Exception {

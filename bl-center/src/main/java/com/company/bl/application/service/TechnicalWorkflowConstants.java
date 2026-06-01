@@ -11,6 +11,7 @@ final class TechnicalWorkflowConstants {
     static final String OBJECT_EMBEDDING_BOX = "EMBEDDING_BOX";
     static final String OBJECT_SLIDE = "SLIDE";
     static final String NODE_GROSSING = "GROSSING";
+    static final String NODE_SPECIMEN_REGISTRATION = "SPECIMEN_REGISTRATION";
     static final String NODE_DEHYDRATION = "DEHYDRATION";
     static final String NODE_EMBEDDING = "EMBEDDING";
     static final String NODE_SLICING = "SLICING";

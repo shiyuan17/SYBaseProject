@@ -88,7 +88,9 @@ public interface SpecimenWorkflowRepository extends SpecimenWorkflowQueryReposit
         String receiverDepartmentName,
         String status,
         LocalDateTime toBeTransportedAt,
-        LocalDateTime handedOverAt
+        LocalDateTime handedOverAt,
+        String outboundUserId,
+        String outboundUserName
     ) {
     }
 
@@ -221,6 +223,9 @@ public interface SpecimenWorkflowRepository extends SpecimenWorkflowQueryReposit
         String fixationOperatorName,
         String verificationStatus,
         LocalDateTime specimenConfirmedAt,
+        String specimenConfirmedByUserId,
+        String specimenConfirmedByName,
+        LocalDateTime specimenRemovalAt,
         String checkInStatus,
         LocalDateTime checkedInAt,
         String checkedInByName,

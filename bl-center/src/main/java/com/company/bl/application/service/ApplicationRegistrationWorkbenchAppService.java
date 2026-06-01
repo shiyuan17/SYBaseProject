@@ -45,59 +45,13 @@ public class ApplicationRegistrationWorkbenchAppService {
 
     @Transactional
     public WorkbenchRecord save(String applicationId, SaveWorkbenchCommand command) {
-        Application application = applicationRepository.findById(new ApplicationId(applicationId))
-            .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Application not found"));
-        if (workbenchRepository.hasStartedDownstreamWorkflow(applicationId)) {
-            throw new BlBusinessException(
-                BlErrorCode.OPERATION_NOT_ALLOWED,
-                409,
-                "申请单已进入下游流程，无法在登记工作台重新填写");
-        }
-
-        workbenchRepository.updateApplicationEditableFields(
+        Application application = loadEditableApplication(applicationId);
+        persistPatientInfo(
             applicationId,
-            trim(command.patientInfo().clinicalDiagnosis()),
-            trim(command.patientInfo().remark()));
-        workbenchRepository.upsertExtension(new ApplicationRegistrationWorkbenchRepository.SaveWorkbenchExtensionCommand(
-            applicationId,
-            trim(command.patientInfo().inpatientNo()),
-            trim(command.patientInfo().bedNo()),
-            trim(command.patientInfo().wardName()),
-            trim(command.patientInfo().phone()),
-            trim(command.patientInfo().idNo()),
-            trim(command.patientInfo().checkItem()),
-            trim(command.patientInfo().clinicalHistory()),
-            trim(command.patientInfo().imagingResult()),
-            trim(command.patientInfo().endoscopyDiagnosis()),
-            trim(command.patientInfo().deliveryRequirement()),
-            trim(command.patientInfo().specimenType()),
-            trim(command.surgeryInfo().surgeryName()),
-            trim(command.surgeryInfo().clinicalFindings()),
-            trim(command.surgeryInfo().fixativeType()),
-            trim(command.surgeryInfo().fixationPerson()),
-            parseDateTime(command.surgeryInfo().fixationTime()),
-            trim(command.surgeryInfo().buildingId()),
-            trim(command.surgeryInfo().roomId()),
-            command.contagiousSpecimen().isolation(),
-            command.contagiousSpecimen().hiv(),
-            command.contagiousSpecimen().tuberculosis(),
-            command.contagiousSpecimen().hepatitis(),
-            command.contagiousSpecimen().syphilis(),
-            command.gynecologyInfo().menopause(),
-            trim(command.gynecologyInfo().lastMenstrualPeriod()),
-            trim(command.gynecologyInfo().hpvResult()),
-            trim(command.gynecologyInfo().previousCytology()),
-            trim(command.gynecologyInfo().previousTreatment()),
-            trim(command.gynecologyInfo().additionalNotes()),
-            command.gynecologyInfo().specialConditions().abnormalBleeding(),
-            command.gynecologyInfo().specialConditions().birthControl(),
-            command.gynecologyInfo().specialConditions().hormoneReplacement(),
-            command.gynecologyInfo().specialConditions().hysterectomy(),
-            command.gynecologyInfo().specialConditions().iud(),
-            command.gynecologyInfo().specialConditions().lactation(),
-            command.gynecologyInfo().specialConditions().pregnancy(),
-            command.gynecologyInfo().specialConditions().radiotherapy(),
-            trim(command.gynecologyInfo().specialConditions().other())));
+            command.contagiousSpecimen(),
+            command.gynecologyInfo(),
+            command.patientInfo(),
+            command.surgeryInfo());
 
         workbenchRepository.clearPreDownstreamRegistrationData(applicationId);
 
@@ -122,6 +76,83 @@ public class ApplicationRegistrationWorkbenchAppService {
                 .toList()));
 
         return loadByApplicationId(application.getId().value());
+    }
+
+    @Transactional
+    public WorkbenchRecord savePatientInfo(String applicationId, SavePatientInfoCommand command) {
+        Application application = loadEditableApplication(applicationId);
+        persistPatientInfo(
+            applicationId,
+            command.contagiousSpecimen(),
+            command.gynecologyInfo(),
+            command.patientInfo(),
+            command.surgeryInfo());
+        return loadByApplicationId(application.getId().value());
+    }
+
+    private Application loadEditableApplication(String applicationId) {
+        Application application = applicationRepository.findById(new ApplicationId(applicationId))
+            .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Application not found"));
+        if (workbenchRepository.hasStartedDownstreamWorkflow(applicationId)) {
+            throw new BlBusinessException(
+                BlErrorCode.OPERATION_NOT_ALLOWED,
+                409,
+                "申请单已进入下游流程，无法在登记工作台重新填写");
+        }
+        return application;
+    }
+
+    private void persistPatientInfo(
+        String applicationId,
+        ContagiousSpecimen contagiousSpecimen,
+        GynecologyInfo gynecologyInfo,
+        PatientInfo patientInfo,
+        SurgeryInfo surgeryInfo
+    ) {
+        workbenchRepository.updateApplicationEditableFields(
+            applicationId,
+            trim(patientInfo.clinicalDiagnosis()),
+            trim(patientInfo.remark()));
+        workbenchRepository.upsertExtension(new ApplicationRegistrationWorkbenchRepository.SaveWorkbenchExtensionCommand(
+            applicationId,
+            trim(patientInfo.inpatientNo()),
+            trim(patientInfo.bedNo()),
+            trim(patientInfo.wardName()),
+            trim(patientInfo.phone()),
+            trim(patientInfo.idNo()),
+            trim(patientInfo.checkItem()),
+            trim(patientInfo.clinicalHistory()),
+            trim(patientInfo.imagingResult()),
+            trim(patientInfo.endoscopyDiagnosis()),
+            trim(patientInfo.deliveryRequirement()),
+            trim(patientInfo.specimenType()),
+            trim(surgeryInfo.surgeryName()),
+            trim(surgeryInfo.clinicalFindings()),
+            trim(surgeryInfo.fixativeType()),
+            trim(surgeryInfo.fixationPerson()),
+            parseDateTime(surgeryInfo.fixationTime()),
+            trim(surgeryInfo.buildingId()),
+            trim(surgeryInfo.roomId()),
+            contagiousSpecimen.isolation(),
+            contagiousSpecimen.hiv(),
+            contagiousSpecimen.tuberculosis(),
+            contagiousSpecimen.hepatitis(),
+            contagiousSpecimen.syphilis(),
+            gynecologyInfo.menopause(),
+            trim(gynecologyInfo.lastMenstrualPeriod()),
+            trim(gynecologyInfo.hpvResult()),
+            trim(gynecologyInfo.previousCytology()),
+            trim(gynecologyInfo.previousTreatment()),
+            trim(gynecologyInfo.additionalNotes()),
+            gynecologyInfo.specialConditions().abnormalBleeding(),
+            gynecologyInfo.specialConditions().birthControl(),
+            gynecologyInfo.specialConditions().hormoneReplacement(),
+            gynecologyInfo.specialConditions().hysterectomy(),
+            gynecologyInfo.specialConditions().iud(),
+            gynecologyInfo.specialConditions().lactation(),
+            gynecologyInfo.specialConditions().pregnancy(),
+            gynecologyInfo.specialConditions().radiotherapy(),
+            trim(gynecologyInfo.specialConditions().other())));
     }
 
     private WorkbenchRecord loadByApplicationId(String applicationId) {
@@ -241,6 +272,14 @@ public class ApplicationRegistrationWorkbenchAppService {
         SurgeryInfo surgeryInfo,
         String operatorUserId,
         String operatorName
+    ) {
+    }
+
+    public record SavePatientInfoCommand(
+        ContagiousSpecimen contagiousSpecimen,
+        GynecologyInfo gynecologyInfo,
+        PatientInfo patientInfo,
+        SurgeryInfo surgeryInfo
     ) {
     }
 

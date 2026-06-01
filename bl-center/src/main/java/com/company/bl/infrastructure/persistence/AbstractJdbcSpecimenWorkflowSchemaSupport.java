@@ -17,6 +17,7 @@ abstract class AbstractJdbcSpecimenWorkflowSchemaSupport {
     private volatile Boolean specimenContainerColumnsAvailable;
     private volatile Boolean collectionPrinterCodeColumnAvailable;
     private volatile Boolean specimenRemovalColumnsAvailable;
+    private volatile Boolean transportOrderOutboundColumnsAvailable;
 
     protected AbstractJdbcSpecimenWorkflowSchemaSupport(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
@@ -65,6 +66,18 @@ abstract class AbstractJdbcSpecimenWorkflowSchemaSupport {
                 && columnExists(connection.getMetaData(), "SPECIMENS", "CHECKED_IN_AT")
                 && columnExists(connection.getMetaData(), "SPECIMENS", "CHECKED_IN_BY_NAME"));
         return Boolean.TRUE.equals(resolved);
+    }
+
+    protected boolean hasTransportOrderOutboundColumns() {
+        Boolean cached = transportOrderOutboundColumnsAvailable;
+        if (cached != null) {
+            return cached;
+        }
+        Boolean resolved = jdbcTemplate.getJdbcOperations().execute((ConnectionCallback<Boolean>) connection ->
+            columnExists(connection.getMetaData(), "TRANSPORT_ORDERS", "OUTBOUND_USER_ID")
+                && columnExists(connection.getMetaData(), "TRANSPORT_ORDERS", "OUTBOUND_USER_NAME"));
+        transportOrderOutboundColumnsAvailable = Boolean.TRUE.equals(resolved);
+        return transportOrderOutboundColumnsAvailable;
     }
 
     protected String containerNameSelect(String alias) {
@@ -137,6 +150,20 @@ abstract class AbstractJdbcSpecimenWorkflowSchemaSupport {
         return "                cast(null as varchar(100)) as checked_in_by_name,\n";
     }
 
+    protected String outboundUserIdSelect(String alias) {
+        if (hasTransportOrderOutboundColumns()) {
+            return "                " + alias + ".outbound_user_id as outbound_user_id,\n";
+        }
+        return "                cast(null as varchar(64)) as outbound_user_id,\n";
+    }
+
+    protected String outboundUserNameSelect(String alias) {
+        if (hasTransportOrderOutboundColumns()) {
+            return "                " + alias + ".outbound_user_name as outbound_user_name,\n";
+        }
+        return "                cast(null as varchar(100)) as outbound_user_name,\n";
+    }
+
     protected String specimenSelectColumns() {
         return """
             select
@@ -177,6 +204,34 @@ abstract class AbstractJdbcSpecimenWorkflowSchemaSupport {
                 ) ranked
                 where ranked.rn = 1
             ) latest_receipt on latest_receipt.specimen_id = s.id
+            """;
+    }
+
+    protected String transportOrderSelectColumns() {
+        return """
+            select
+                t.id,
+                t.transport_order_no,
+                t.application_id,
+                t.order_status,
+                t.handover_user_id,
+                t.handover_user_name,
+                t.handover_department_id,
+                t.handover_department_name,
+                t.receiver_department_id,
+                t.receiver_department_name,
+                t.receiver_user_id,
+                t.receiver_user_name,
+            """
+            + outboundUserIdSelect("t")
+            + outboundUserNameSelect("t")
+            + """
+                t.printed_at,
+                t.to_be_transported_at,
+                t.handed_over_at,
+                t.terminal_code,
+                t.remarks
+            from transport_orders t
             """;
     }
 

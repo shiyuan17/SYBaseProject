@@ -41,15 +41,19 @@ import java.util.Optional;
 public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowRepository {
 
     private final JdbcTechnicalWorkflowTaskQueries taskQueries;
+    private final JdbcTechnicalWorkflowSpecimenRegistrationQueries specimenRegistrationQueries;
     private final JdbcTechnicalWorkflowProcessingQueries processingQueries;
     private final JdbcTechnicalWorkflowTaskMutations taskMutations;
+    private final JdbcTechnicalWorkflowSpecimenRegistrationMutations specimenRegistrationMutations;
     private final JdbcTechnicalWorkflowProcessingMutations processingMutations;
 
     public JdbcTechnicalWorkflowRepository(NamedParameterJdbcTemplate jdbcTemplate) {
         JdbcTechnicalWorkflowRowMappers rowMappers = new JdbcTechnicalWorkflowRowMappers();
         this.taskQueries = new JdbcTechnicalWorkflowTaskQueries(jdbcTemplate, rowMappers);
+        this.specimenRegistrationQueries = new JdbcTechnicalWorkflowSpecimenRegistrationQueries(jdbcTemplate);
         this.processingQueries = new JdbcTechnicalWorkflowProcessingQueries(jdbcTemplate, rowMappers);
         this.taskMutations = new JdbcTechnicalWorkflowTaskMutations(jdbcTemplate);
+        this.specimenRegistrationMutations = new JdbcTechnicalWorkflowSpecimenRegistrationMutations(jdbcTemplate);
         this.processingMutations = new JdbcTechnicalWorkflowProcessingMutations(jdbcTemplate);
     }
 
@@ -91,6 +95,18 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     @Override
     public PagedTechnicalTasks findTechnicalTasks(PendingTechnicalTaskQuery query) {
         return taskQueries.findTechnicalTasks(query);
+    }
+
+    @Override
+    public com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedTechnicalSpecimenRegistrations findPendingTechnicalSpecimenRegistrations(
+        com.company.bl.domain.repository.TechnicalWorkflowRecords.PendingTechnicalSpecimenRegistrationQuery query) {
+        return specimenRegistrationQueries.findPendingTechnicalSpecimenRegistrations(query);
+    }
+
+    @Override
+    public java.util.Optional<com.company.bl.domain.repository.TechnicalWorkflowRecords.TechnicalSpecimenRegistration> findTechnicalSpecimenRegistrationByCaseId(
+        String caseId) {
+        return specimenRegistrationQueries.findTechnicalSpecimenRegistrationByCaseId(caseId);
     }
 
     @Override
@@ -145,6 +161,21 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     @Override
     public void insertTechnicalTask(CreateTechnicalTaskCommand command) {
         taskMutations.insertTechnicalTask(command);
+    }
+
+    @Override
+    public void ensureTechnicalSpecimenRegistrationPending(String applicationId, String caseId) {
+        specimenRegistrationMutations.ensureTechnicalSpecimenRegistrationPending(applicationId, caseId);
+    }
+
+    @Override
+    public void completeTechnicalSpecimenRegistration(String caseId,
+                                                      String registeredByUserId,
+                                                      String registeredByName,
+                                                      String remarks,
+                                                      LocalDateTime registeredAt) {
+        specimenRegistrationMutations.completeTechnicalSpecimenRegistration(
+            caseId, registeredByUserId, registeredByName, remarks, registeredAt);
     }
 
     @Override

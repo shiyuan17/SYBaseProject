@@ -17,6 +17,8 @@ public record TransportOrder(
     String receiverDepartmentName,
     String receiverUserId,
     String receiverUserName,
+    String outboundUserId,
+    String outboundUserName,
     LocalDateTime printedAt,
     LocalDateTime toBeTransportedAt,
     LocalDateTime handedOverAt,

@@ -31,6 +31,41 @@ public final class TechnicalWorkflowRecords {
     public record PagedTechnicalTasks(List<TechnicalTask> items, long total) {
     }
 
+    public record PendingTechnicalSpecimenRegistrationQuery(
+        int page,
+        int size,
+        String keyword
+    ) {
+    }
+
+    public record PagedTechnicalSpecimenRegistrations(
+        List<TechnicalSpecimenRegistration> items,
+        long total
+    ) {
+    }
+
+    public record TechnicalSpecimenRegistration(
+        String caseId,
+        String applicationId,
+        String pathologyNo,
+        String applicationNo,
+        String patientName,
+        String patientId,
+        String inpatientNo,
+        String applicationType,
+        String submittingDepartmentName,
+        String checkItem,
+        String registrationStatus,
+        String registeredByUserId,
+        String registeredByName,
+        LocalDateTime registeredAt,
+        String registrationRemarks,
+        LocalDateTime receivedAt,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
+    ) {
+    }
+
     public record TechnicalTask(
         String id,
         String applicationId,

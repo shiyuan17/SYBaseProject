@@ -116,6 +116,8 @@ abstract class AbstractJdbcSpecimenWorkflowRowMapperSupport extends AbstractJdbc
             rs.getString("receiver_department_name"),
             rs.getString("receiver_user_id"),
             rs.getString("receiver_user_name"),
+            JdbcResultSetUtils.getNullableString(rs, "outbound_user_id"),
+            JdbcResultSetUtils.getNullableString(rs, "outbound_user_name"),
             rs.getTimestamp("printed_at") == null ? null : rs.getTimestamp("printed_at").toLocalDateTime(),
             rs.getTimestamp("to_be_transported_at") == null ? null : rs.getTimestamp("to_be_transported_at").toLocalDateTime(),
             rs.getTimestamp("handed_over_at") == null ? null : rs.getTimestamp("handed_over_at").toLocalDateTime(),

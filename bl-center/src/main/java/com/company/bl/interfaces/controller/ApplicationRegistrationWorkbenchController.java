@@ -3,6 +3,7 @@ package com.company.bl.interfaces.controller;
 import com.company.bl.application.service.ApplicationRegistrationWorkbenchAppService;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
+import com.company.bl.interfaces.dto.SaveApplicationRegistrationPatientInfoRequest;
 import com.company.bl.interfaces.dto.SaveApplicationRegistrationWorkbenchRequest;
 import com.company.bl.interfaces.vo.ApplicationRegistrationWorkbenchResponse;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -12,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -45,54 +47,9 @@ public class ApplicationRegistrationWorkbenchController {
         return toResponse(workbenchAppService.save(
             applicationId,
             new ApplicationRegistrationWorkbenchAppService.SaveWorkbenchCommand(
-                new ApplicationRegistrationWorkbenchAppService.ContagiousSpecimen(
-                    request.getContagiousSpecimen().isHepatitis(),
-                    request.getContagiousSpecimen().isHiv(),
-                    request.getContagiousSpecimen().isIsolation(),
-                    request.getContagiousSpecimen().isSyphilis(),
-                    request.getContagiousSpecimen().isTuberculosis()),
-                new ApplicationRegistrationWorkbenchAppService.GynecologyInfo(
-                    request.getGynecologyInfo().getAdditionalNotes(),
-                    request.getGynecologyInfo().getHpvResult(),
-                    request.getGynecologyInfo().getLastMenstrualPeriod(),
-                    request.getGynecologyInfo().isMenopause(),
-                    request.getGynecologyInfo().getPreviousCytology(),
-                    request.getGynecologyInfo().getPreviousTreatment(),
-                    new ApplicationRegistrationWorkbenchAppService.SpecialConditions(
-                        request.getGynecologyInfo().getSpecialConditions().isAbnormalBleeding(),
-                        request.getGynecologyInfo().getSpecialConditions().isBirthControl(),
-                        request.getGynecologyInfo().getSpecialConditions().isHormoneReplacement(),
-                        request.getGynecologyInfo().getSpecialConditions().isHysterectomy(),
-                        request.getGynecologyInfo().getSpecialConditions().isIud(),
-                        request.getGynecologyInfo().getSpecialConditions().isLactation(),
-                        request.getGynecologyInfo().getSpecialConditions().isMenopause(),
-                        request.getGynecologyInfo().getSpecialConditions().getOther(),
-                        request.getGynecologyInfo().getSpecialConditions().isPregnancy(),
-                        request.getGynecologyInfo().getSpecialConditions().isRadiotherapy())),
-                new ApplicationRegistrationWorkbenchAppService.PatientInfo(
-                    request.getPatientInfo().getAge(),
-                    request.getPatientInfo().getApplicationDate(),
-                    request.getPatientInfo().getApplicationNo(),
-                    request.getPatientInfo().getApplyDept(),
-                    request.getPatientInfo().getApplyDoctor(),
-                    request.getPatientInfo().getBedNo(),
-                    request.getPatientInfo().getCheckItem(),
-                    request.getPatientInfo().getClinicalDiagnosis(),
-                    request.getPatientInfo().getClinicalHistory(),
-                    request.getPatientInfo().getDeliveryRequirement(),
-                    request.getPatientInfo().getEndoscopyDiagnosis(),
-                    request.getPatientInfo().isFrozenReminder(),
-                    request.getPatientInfo().getGender(),
-                    request.getPatientInfo().getIdNo(),
-                    request.getPatientInfo().getImagingResult(),
-                    request.getPatientInfo().getInpatientNo(),
-                    request.getPatientInfo().getPatientName(),
-                    request.getPatientInfo().isPatientVerified(),
-                    request.getPatientInfo().getPhone(),
-                    request.getPatientInfo().getRegistrationStatus(),
-                    request.getPatientInfo().getRemark(),
-                    request.getPatientInfo().getSpecimenType(),
-                    request.getPatientInfo().getWardName()),
+                toContagiousSpecimen(request.getContagiousSpecimen()),
+                toGynecologyInfo(request.getGynecologyInfo()),
+                toPatientInfo(request.getPatientInfo()),
                 request.getSpecimenItems().stream().map(item -> new ApplicationRegistrationWorkbenchAppService.SaveSpecimenItem(
                     null,
                     item.getQuantity(),
@@ -100,17 +57,101 @@ public class ApplicationRegistrationWorkbenchController {
                     item.getSpecimenSite(),
                     item.getStatus()))
                     .toList(),
-                new ApplicationRegistrationWorkbenchAppService.SurgeryInfo(
-                    request.getSurgeryInfo().getBuildingId(),
-                    request.getSurgeryInfo().getClinicalFindings(),
-                    request.getSurgeryInfo().getFixativeType(),
-                    request.getSurgeryInfo().getFixationPerson(),
-                    request.getSurgeryInfo().getFixationTime(),
-                    request.getSurgeryInfo().getRoomId(),
-                    request.getSurgeryInfo().getSpecimenRemovalTime(),
-                    request.getSurgeryInfo().getSurgeryName()),
+                toSurgeryInfo(request.getSurgeryInfo()),
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest))));
+    }
+
+    @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
+    @PatchMapping("/{applicationId}/patient-info")
+    public ApplicationRegistrationWorkbenchResponse savePatientInfo(
+        @PathVariable("applicationId") String applicationId,
+        @Valid @RequestBody SaveApplicationRegistrationPatientInfoRequest request
+    ) {
+        return toResponse(workbenchAppService.savePatientInfo(
+            applicationId,
+            new ApplicationRegistrationWorkbenchAppService.SavePatientInfoCommand(
+                toContagiousSpecimen(request.getContagiousSpecimen()),
+                toGynecologyInfo(request.getGynecologyInfo()),
+                toPatientInfo(request.getPatientInfo()),
+                toSurgeryInfo(request.getSurgeryInfo()))));
+    }
+
+    private ApplicationRegistrationWorkbenchAppService.ContagiousSpecimen toContagiousSpecimen(
+        SaveApplicationRegistrationWorkbenchRequest.ContagiousSpecimen request
+    ) {
+        return new ApplicationRegistrationWorkbenchAppService.ContagiousSpecimen(
+            request.isHepatitis(),
+            request.isHiv(),
+            request.isIsolation(),
+            request.isSyphilis(),
+            request.isTuberculosis());
+    }
+
+    private ApplicationRegistrationWorkbenchAppService.GynecologyInfo toGynecologyInfo(
+        SaveApplicationRegistrationWorkbenchRequest.GynecologyInfo request
+    ) {
+        return new ApplicationRegistrationWorkbenchAppService.GynecologyInfo(
+            request.getAdditionalNotes(),
+            request.getHpvResult(),
+            request.getLastMenstrualPeriod(),
+            request.isMenopause(),
+            request.getPreviousCytology(),
+            request.getPreviousTreatment(),
+            new ApplicationRegistrationWorkbenchAppService.SpecialConditions(
+                request.getSpecialConditions().isAbnormalBleeding(),
+                request.getSpecialConditions().isBirthControl(),
+                request.getSpecialConditions().isHormoneReplacement(),
+                request.getSpecialConditions().isHysterectomy(),
+                request.getSpecialConditions().isIud(),
+                request.getSpecialConditions().isLactation(),
+                request.getSpecialConditions().isMenopause(),
+                request.getSpecialConditions().getOther(),
+                request.getSpecialConditions().isPregnancy(),
+                request.getSpecialConditions().isRadiotherapy()));
+    }
+
+    private ApplicationRegistrationWorkbenchAppService.PatientInfo toPatientInfo(
+        SaveApplicationRegistrationWorkbenchRequest.PatientInfo request
+    ) {
+        return new ApplicationRegistrationWorkbenchAppService.PatientInfo(
+            request.getAge(),
+            request.getApplicationDate(),
+            request.getApplicationNo(),
+            request.getApplyDept(),
+            request.getApplyDoctor(),
+            request.getBedNo(),
+            request.getCheckItem(),
+            request.getClinicalDiagnosis(),
+            request.getClinicalHistory(),
+            request.getDeliveryRequirement(),
+            request.getEndoscopyDiagnosis(),
+            request.isFrozenReminder(),
+            request.getGender(),
+            request.getIdNo(),
+            request.getImagingResult(),
+            request.getInpatientNo(),
+            request.getPatientName(),
+            request.isPatientVerified(),
+            request.getPhone(),
+            request.getRegistrationStatus(),
+            request.getRemark(),
+            request.getSpecimenType(),
+            request.getWardName());
+    }
+
+    private ApplicationRegistrationWorkbenchAppService.SurgeryInfo toSurgeryInfo(
+        SaveApplicationRegistrationWorkbenchRequest.SurgeryInfo request
+    ) {
+        return new ApplicationRegistrationWorkbenchAppService.SurgeryInfo(
+            request.getBuildingId(),
+            request.getClinicalFindings(),
+            request.getFixativeType(),
+            request.getFixationPerson(),
+            request.getFixationTime(),
+            request.getRoomId(),
+            request.getSpecimenRemovalTime(),
+            request.getSurgeryName());
     }
 
     private ApplicationRegistrationWorkbenchResponse toResponse(

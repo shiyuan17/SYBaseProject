@@ -34,6 +34,74 @@ public final class TechnicalWorkflowModels {
     public record PendingTechnicalTaskPage(List<TaskView> items, int page, int size, long total) {
     }
 
+    public record PendingTechnicalSpecimenRegistrationQuery(
+        int page,
+        int size,
+        String keyword
+    ) {
+    }
+
+    public record PendingTechnicalSpecimenRegistrationPage(
+        List<PendingTechnicalSpecimenRegistrationItem> items,
+        int page,
+        int size,
+        long total
+    ) {
+    }
+
+    public record PendingTechnicalSpecimenRegistrationItem(
+        String caseId,
+        String applicationId,
+        String applicationNo,
+        String pathologyNo,
+        String patientName,
+        String patientId,
+        String inpatientNo,
+        String applicationType,
+        String submittingDepartmentName,
+        String checkItem,
+        String registeredByName,
+        String registrationStatus,
+        String receivedAt,
+        String registeredAt
+    ) {
+    }
+
+    public record TechnicalSpecimenRegistrationMaterial(
+        int sequenceNo,
+        String specimenType,
+        String specimenName,
+        String sourcePart
+    ) {
+    }
+
+    public record TechnicalSpecimenRegistrationCheckItem(
+        int sequenceNo,
+        String name
+    ) {
+    }
+
+    public record TechnicalSpecimenRegistrationDetail(
+        String caseId,
+        String applicationId,
+        String applicationNo,
+        String pathologyNo,
+        String patientName,
+        String patientId,
+        String inpatientNo,
+        String applicationType,
+        String submittingDepartmentName,
+        String clinicalDiagnosis,
+        String registrationStatus,
+        String registeredByName,
+        String registeredAt,
+        String registrationRemarks,
+        String receivedAt,
+        List<TechnicalSpecimenRegistrationMaterial> materials,
+        List<TechnicalSpecimenRegistrationCheckItem> checkItems
+    ) {
+    }
+
     public record TaskView(
         String id,
         String applicationId,
@@ -139,6 +207,23 @@ public final class TechnicalWorkflowModels {
         public String remarks() {
             return productionRemarks;
         }
+    }
+
+    public record CompleteTechnicalSpecimenRegistrationCommand(
+        String caseId,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) implements OperatorCarrier {
+    }
+
+    public record TechnicalSpecimenRegistrationCompleteResult(
+        String caseId,
+        String pathologyNo,
+        String registrationStatus,
+        boolean grossingTaskCreated
+    ) {
     }
 
     public record MediaAssetInput(String fileUrl, String fileName) {

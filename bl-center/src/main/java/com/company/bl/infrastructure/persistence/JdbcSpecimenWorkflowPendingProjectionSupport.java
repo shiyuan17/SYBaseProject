@@ -168,6 +168,15 @@ class JdbcSpecimenWorkflowPendingProjectionSupport extends AbstractJdbcSpecimenW
             where t.order_status <> 'COMPLETED'
             """ + buildTransportPendingFilters(query);
         long total = countPendingTransportOrders(whereClause, query);
+        String outboundColumns = hasTransportOrderOutboundColumns()
+            ? """
+                t.outbound_user_id as outbound_user_id,
+                t.outbound_user_name as outbound_user_name
+            """
+            : """
+                cast(null as varchar(64)) as outbound_user_id,
+                cast(null as varchar(100)) as outbound_user_name
+            """;
         List<SpecimenWorkflowRepository.PendingTransportOrderRow> items = queryPendingTransportOrders("""
             select
                 t.id,
@@ -179,8 +188,8 @@ class JdbcSpecimenWorkflowPendingProjectionSupport extends AbstractJdbcSpecimenW
                 t.receiver_department_name,
                 t.order_status,
                 t.to_be_transported_at,
-                t.handed_over_at
-            """ + whereClause + " order by t.to_be_transported_at asc, t.id asc", query);
+                t.handed_over_at,
+            """ + outboundColumns + whereClause + " order by t.to_be_transported_at asc, t.id asc", query);
         return new SpecimenWorkflowRepository.PagedPendingTransportOrders(items, total);
     }
 
@@ -388,6 +397,8 @@ class JdbcSpecimenWorkflowPendingProjectionSupport extends AbstractJdbcSpecimenW
             rs.getString("receiver_department_name"),
             rs.getString("order_status"),
             rs.getTimestamp("to_be_transported_at") == null ? null : rs.getTimestamp("to_be_transported_at").toLocalDateTime(),
-            rs.getTimestamp("handed_over_at") == null ? null : rs.getTimestamp("handed_over_at").toLocalDateTime());
+            rs.getTimestamp("handed_over_at") == null ? null : rs.getTimestamp("handed_over_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableString(rs, "outbound_user_id"),
+            JdbcResultSetUtils.getNullableString(rs, "outbound_user_name"));
     }
 }

@@ -26,8 +26,18 @@ public final class SpecimenWorkflowTransportModels {
     }
 
     public record HandoverTransportOrderCommand(
+        String outboundUserId,
+        String outboundUserName,
         String receiverUserId,
         String receiverUserName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
+    public record OutboundTransportOrderCommand(
+        String outboundUserId,
+        String outboundUserName,
         String terminalCode,
         String remarks
     ) {
@@ -64,6 +74,8 @@ public final class SpecimenWorkflowTransportModels {
         String status,
         LocalDateTime toBeTransportedAt,
         LocalDateTime handedOverAt,
+        String outboundUserId,
+        String outboundUserName,
         List<String> specimenBarcodes
     ) {
     }

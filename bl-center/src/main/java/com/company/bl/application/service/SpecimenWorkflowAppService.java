@@ -64,6 +64,10 @@ public class SpecimenWorkflowAppService {
         return specimenTransportService.handoverTransportOrder(transportOrderId, command);
     }
 
+    public TransportOrder outboundTransportOrder(String transportOrderId, OutboundTransportOrderCommand command) {
+        return specimenTransportService.outboundTransportOrder(transportOrderId, command);
+    }
+
     public ReceiptResult receiveSpecimens(ReceiveSpecimensCommand command) {
         return specimenReceiptAndRemovalService.receiveSpecimens(command);
     }

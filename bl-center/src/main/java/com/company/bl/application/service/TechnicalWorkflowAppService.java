@@ -6,17 +6,20 @@ import org.springframework.stereotype.Service;
 public class TechnicalWorkflowAppService {
 
     private final TechnicalWorkflowQueryService technicalWorkflowQueryService;
+    private final TechnicalSpecimenRegistrationService technicalSpecimenRegistrationService;
     private final TechnicalTaskManagementService technicalTaskManagementService;
     private final TechnicalGrossingWorkflowService technicalGrossingWorkflowService;
     private final TechnicalProcessingWorkflowService technicalProcessingWorkflowService;
     private final TechnicalReworkWorkflowService technicalReworkWorkflowService;
 
     public TechnicalWorkflowAppService(TechnicalWorkflowQueryService technicalWorkflowQueryService,
+                                       TechnicalSpecimenRegistrationService technicalSpecimenRegistrationService,
                                        TechnicalTaskManagementService technicalTaskManagementService,
                                        TechnicalGrossingWorkflowService technicalGrossingWorkflowService,
                                        TechnicalProcessingWorkflowService technicalProcessingWorkflowService,
                                        TechnicalReworkWorkflowService technicalReworkWorkflowService) {
         this.technicalWorkflowQueryService = technicalWorkflowQueryService;
+        this.technicalSpecimenRegistrationService = technicalSpecimenRegistrationService;
         this.technicalTaskManagementService = technicalTaskManagementService;
         this.technicalGrossingWorkflowService = technicalGrossingWorkflowService;
         this.technicalProcessingWorkflowService = technicalProcessingWorkflowService;
@@ -25,6 +28,20 @@ public class TechnicalWorkflowAppService {
 
     public TechnicalWorkflowModels.PendingTechnicalTaskPage listPendingTasks(TechnicalWorkflowModels.PendingTechnicalTaskQuery query) {
         return technicalWorkflowQueryService.listPendingTasks(query);
+    }
+
+    public TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationPage listPendingTechnicalSpecimenRegistrations(
+        TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationQuery query) {
+        return technicalSpecimenRegistrationService.listPendingRegistrations(query);
+    }
+
+    public TechnicalWorkflowModels.TechnicalSpecimenRegistrationDetail getTechnicalSpecimenRegistrationDetail(String caseId) {
+        return technicalSpecimenRegistrationService.getRegistrationDetail(caseId);
+    }
+
+    public TechnicalWorkflowModels.TechnicalSpecimenRegistrationCompleteResult completeTechnicalSpecimenRegistration(
+        TechnicalWorkflowModels.CompleteTechnicalSpecimenRegistrationCommand command) {
+        return technicalSpecimenRegistrationService.completeRegistration(command);
     }
 
     public TechnicalWorkflowModels.TaskView assignTechnicalTask(TechnicalWorkflowModels.TechnicalTaskAssignCommand command) {

@@ -145,6 +145,8 @@ final class SpecimenWorkflowServiceTestFixtures {
             null,
             null,
             null,
+            null,
+            null,
             LocalDateTime.now().minusHours(1),
             null,
             "TERM-1",

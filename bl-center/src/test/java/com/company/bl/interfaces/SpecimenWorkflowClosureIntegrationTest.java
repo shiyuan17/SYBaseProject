@@ -103,6 +103,121 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
     }
 
     @Test
+    void shouldPersistSelectedConfirmationAndCheckInOperators() throws Exception {
+        String applicationId = createApplication("APP-M2-OPERATOR-001");
+        JsonNode registration = registerSpecimens(
+            applicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-OPERATOR-001");
+        String barcode = registration.path("specimens").get(0).path("barcode").asText();
+        String confirmUserId = USER_TRANSPORT;
+        String confirmUserName = userDisplayName(confirmUserId);
+        String checkInUserId = USER_RECEIVE;
+        String checkInUserName = userDisplayName(checkInUserId);
+
+        completeFixation(barcode);
+
+        postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(barcode), USER_FIXATION, """
+            {
+              "operatorUserId": "%s",
+              "operatorName": "%s",
+              "terminalCode": "T-CONFIRM-SELECTED"
+            }
+            """.formatted(confirmUserId, confirmUserName))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.specimenConfirmedAt").isNotEmpty());
+
+        postJson("/api/v1/specimens/barcodes/%s/check-in".formatted(barcode), USER_FIXATION, """
+            {
+              "operatorUserId": "%s",
+              "operatorName": "%s",
+              "specimenBarcode": "%s",
+              "terminalCode": "T-CHECK-IN-SELECTED"
+            }
+            """.formatted(checkInUserId, checkInUserName, barcode))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.checkedInByName").value(checkInUserName));
+
+        mockMvc.perform(authorized(get("/api/v1/specimens"), USER_REGISTER)
+                .param("page", "1")
+                .param("size", "20")
+                .param("keyword", barcode))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.items[0].specimenConfirmedByUserId").value(confirmUserId))
+            .andExpect(jsonPath("$.data.items[0].specimenConfirmedByName").value(confirmUserName))
+            .andExpect(jsonPath("$.data.items[0].checkedInByName").value(checkInUserName));
+    }
+
+    @Test
+    void shouldOutboundTransportOrderAndPersistOutboundOperator() throws Exception {
+        String applicationId = createApplication("APP-M2-OUTBOUND-001");
+        JsonNode registration = registerSpecimens(
+            applicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-OUTBOUND-001");
+        String barcode = registration.path("specimens").get(0).path("barcode").asText();
+        String outboundUserId = USER_RECEIVE;
+        String outboundUserName = userDisplayName(outboundUserId);
+
+        prepareTransportReadySpecimen(barcode);
+        String transportOrderId = createTransportOrder(applicationId, barcode).path("id").asText();
+
+        postJson("/api/v1/transport-orders/%s/print".formatted(transportOrderId), USER_TRANSPORT, """
+            {
+              "terminalCode": "T-OUTBOUND-PRINT"
+            }
+            """)
+            .andExpect(status().isOk());
+
+        postJson("/api/v1/transport-orders/%s/outbound".formatted(transportOrderId), USER_TRANSPORT, """
+            {
+              "outboundUserId": "%s",
+              "outboundUserName": "%s",
+              "terminalCode": "T-OUTBOUND-01",
+              "remarks": "扫码直接出库"
+            }
+            """.formatted(outboundUserId, outboundUserName))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("HANDED_OVER"))
+            .andExpect(jsonPath("$.data.outboundUserId").value(outboundUserId))
+            .andExpect(jsonPath("$.data.outboundUserName").value(outboundUserName))
+            .andExpect(jsonPath("$.data.handedOverAt").isNotEmpty());
+
+        assertThat(querySingleString(
+            """
+                select outbound_user_name
+                from transport_orders
+                where id = :transportOrderId
+                """,
+            "transportOrderId",
+            transportOrderId)).isEqualTo(outboundUserName);
+        assertThat(querySingleString(
+            """
+                select specimen_status
+                from specimens
+                where barcode = :barcode
+                """,
+            "barcode",
+            barcode)).isEqualTo("IN_TRANSIT");
+        assertThat(querySingleString(
+            """
+                select status
+                from applications
+                where id = :applicationId
+                """,
+            "applicationId",
+            applicationId)).isEqualTo("IN_TRANSIT");
+        assertThat(querySingleString(
+            """
+                select operator_name
+                from workflow_events
+                where transport_order_id = :transportOrderId
+                  and node_code = 'TRANSPORT'
+                  and event_type = 'HANDED_OVER'
+                order by event_time desc
+                limit 1
+                """,
+            "transportOrderId",
+            transportOrderId)).isEqualTo(outboundUserName);
+    }
+
+    @Test
     void shouldQuickConfirmRemovalByBarcodeAndPersistAudit() throws Exception {
         String applicationId = createApplication("APP-M2-REMOVAL-BARCODE-001");
         JsonNode registration = registerSpecimens(
@@ -162,6 +277,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
                 .param("keyword", barcode))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.items[0].barcode").value(barcode))
+            .andExpect(jsonPath("$.data.items[0].specimenRemovalAt").isNotEmpty())
             .andExpect(jsonPath("$.data.items[0].verificationStatus").value("VERIFIED"));
 
         postJson("/api/v1/specimen-fixations/start", USER_FIXATION, """
@@ -191,6 +307,14 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
                 where barcode = :barcode
                 """,
             java.util.Map.of("specimenNo", specimenNo, "barcode", barcode));
+
+        mockMvc.perform(authorized(get("/api/v1/specimens"), USER_REGISTER)
+                .param("page", "1")
+                .param("size", "20")
+                .param("keyword", specimenNo))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.items[0].barcode").value(barcode))
+            .andExpect(jsonPath("$.data.items[0].specimenRemovalAt").isEmpty());
 
         postJson("/api/v1/specimen-removals/confirm-by-identifier", USER_FIXATION, """
             {

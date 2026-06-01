@@ -79,6 +79,8 @@ class SpecimenTransportService {
             null,
             null,
             null,
+            null,
+            null,
             now,
             null,
             command.terminalCode(),
@@ -128,6 +130,8 @@ class SpecimenTransportService {
             TransportOrderStatus.PRINTED,
             null,
             null,
+            null,
+            null,
             now,
             null);
         specimenWorkflowRepository.insertWorkflowEvent(new TrackingEvent(
@@ -161,6 +165,8 @@ class SpecimenTransportService {
             TransportOrderStatus.HANDED_OVER,
             command.receiverUserId(),
             command.receiverUserName(),
+            command.outboundUserId(),
+            command.outboundUserName(),
             null,
             now);
         List<TransportOrderItem> items = specimenWorkflowSupport.getTransportOrderItems(transportOrderId);
@@ -189,6 +195,55 @@ class SpecimenTransportService {
                 command.receiverUserName(),
                 command.terminalCode(),
                 "Transport handover completed"));
+        }
+        specimenWorkflowRepository.updateApplicationStatus(order.applicationId(), "IN_TRANSIT");
+        return updated;
+    }
+
+    @Transactional
+    @ObservedOperation(
+        operation = "outbound_transport_order",
+        successCounter = "transport_order_outbound_total",
+        failureCounter = "transport_order_outbound_failed_total",
+        durationMetric = "transport_order_outbound_duration")
+    TransportOrder outboundTransportOrder(String transportOrderId, OutboundTransportOrderCommand command) {
+        TransportOrder order = specimenWorkflowSupport.getTransportOrder(transportOrderId);
+        LocalDateTime now = LocalDateTime.now();
+        TransportOrder updated = specimenWorkflowRepository.updateTransportOrderStatus(
+            order.id(),
+            TransportOrderStatus.HANDED_OVER,
+            null,
+            null,
+            command.outboundUserId(),
+            command.outboundUserName(),
+            null,
+            now);
+        List<TransportOrderItem> items = specimenWorkflowSupport.getTransportOrderItems(transportOrderId);
+        for (TransportOrderItem item : items) {
+            specimenWorkflowRepository.updateTransportOrderItemStatus(
+                order.id(),
+                item.specimenId(),
+                TransportItemStatus.HANDED_OVER,
+                "MATCHED",
+                command.outboundUserId(),
+                command.outboundUserName(),
+                now,
+                command.remarks());
+            specimenWorkflowRepository.updateSpecimenStatus(item.specimenId(), SpecimenStatus.IN_TRANSIT, FixationStatus.COMPLETED, null, command.remarks(), null);
+            specimenWorkflowRepository.insertWorkflowEvent(new TrackingEvent(
+                "EVT-" + UUID.randomUUID(),
+                order.applicationId(),
+                item.specimenId(),
+                null,
+                order.id(),
+                "TRANSPORT",
+                "HANDED_OVER",
+                "SUCCESS",
+                now,
+                command.outboundUserId(),
+                command.outboundUserName(),
+                command.terminalCode(),
+                "Transport outbound completed"));
         }
         specimenWorkflowRepository.updateApplicationStatus(order.applicationId(), "IN_TRANSIT");
         return updated;

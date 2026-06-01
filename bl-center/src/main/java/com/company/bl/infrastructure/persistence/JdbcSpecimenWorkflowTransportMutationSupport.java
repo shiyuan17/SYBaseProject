@@ -24,13 +24,13 @@ abstract class JdbcSpecimenWorkflowTransportMutationSupport extends JdbcSpecimen
             insert into transport_orders
                 (id, transport_order_no, application_id, order_status, handover_user_id, handover_user_name,
                  handover_department_id, handover_department_name, receiver_department_id, receiver_department_name,
-                 receiver_user_id, receiver_user_name, printed_at, to_be_transported_at, handed_over_at,
-                 terminal_code, remarks, created_at, updated_at)
+                 receiver_user_id, receiver_user_name, outbound_user_id, outbound_user_name, printed_at,
+                 to_be_transported_at, handed_over_at, terminal_code, remarks, created_at, updated_at)
             values
                 (:id, :transportOrderNo, :applicationId, :status, :handoverUserId, :handoverUserName,
                  :handoverDepartmentId, :handoverDepartmentName, :receiverDepartmentId, :receiverDepartmentName,
-                 :receiverUserId, :receiverUserName, :printedAt, :toBeTransportedAt, :handedOverAt,
-                 :terminalCode, :remarks, :createdAt, :updatedAt)
+                 :receiverUserId, :receiverUserName, :outboundUserId, :outboundUserName, :printedAt,
+                 :toBeTransportedAt, :handedOverAt, :terminalCode, :remarks, :createdAt, :updatedAt)
             """, new MapSqlParameterSource()
             .addValue("id", order.id())
             .addValue("transportOrderNo", order.transportOrderNo())
@@ -44,6 +44,8 @@ abstract class JdbcSpecimenWorkflowTransportMutationSupport extends JdbcSpecimen
             .addValue("receiverDepartmentName", order.receiverDepartmentName())
             .addValue("receiverUserId", order.receiverUserId())
             .addValue("receiverUserName", order.receiverUserName())
+            .addValue("outboundUserId", order.outboundUserId())
+            .addValue("outboundUserName", order.outboundUserName())
             .addValue("printedAt", order.printedAt())
             .addValue("toBeTransportedAt", order.toBeTransportedAt())
             .addValue("handedOverAt", order.handedOverAt())
@@ -58,6 +60,8 @@ abstract class JdbcSpecimenWorkflowTransportMutationSupport extends JdbcSpecimen
                                                      TransportOrderStatus status,
                                                      String receiverUserId,
                                                      String receiverUserName,
+                                                     String outboundUserId,
+                                                     String outboundUserName,
                                                      LocalDateTime printedAt,
                                                      LocalDateTime handedOverAt) {
         jdbcTemplate.update("""
@@ -65,6 +69,8 @@ abstract class JdbcSpecimenWorkflowTransportMutationSupport extends JdbcSpecimen
             set order_status = :status,
                 receiver_user_id = COALESCE(:receiverUserId, receiver_user_id),
                 receiver_user_name = COALESCE(:receiverUserName, receiver_user_name),
+                outbound_user_id = COALESCE(:outboundUserId, outbound_user_id),
+                outbound_user_name = COALESCE(:outboundUserName, outbound_user_name),
                 printed_at = COALESCE(:printedAt, printed_at),
                 handed_over_at = COALESCE(:handedOverAt, handed_over_at),
                 updated_at = :updatedAt
@@ -74,6 +80,8 @@ abstract class JdbcSpecimenWorkflowTransportMutationSupport extends JdbcSpecimen
             .addValue("status", status.name())
             .addValue("receiverUserId", receiverUserId)
             .addValue("receiverUserName", receiverUserName)
+            .addValue("outboundUserId", outboundUserId)
+            .addValue("outboundUserName", outboundUserName)
             .addValue("printedAt", printedAt)
             .addValue("handedOverAt", handedOverAt)
             .addValue("updatedAt", LocalDateTime.now()));
@@ -227,44 +235,33 @@ abstract class JdbcSpecimenWorkflowTransportMutationSupport extends JdbcSpecimen
             .addValue("createdAt", LocalDateTime.now()));
     }
 
-    public void upsertTechnicalPendingTask(String applicationId, String caseId, String payload) {
+    public void ensureTechnicalSpecimenRegistrationPending(String applicationId, String caseId) {
         Long count = jdbcTemplate.queryForObject("""
             select count(1)
-            from technical_pending_tasks
+            from technical_specimen_registrations
             where case_id = :caseId
-              and task_type = 'GROSSING'
-              and object_type = 'CASE'
-              and object_id = :caseId
-              and task_status in ('PENDING', 'IN_PROGRESS')
             """, Map.of("caseId", caseId), Long.class);
         if (count != null && count > 0) {
             jdbcTemplate.update("""
-                update technical_pending_tasks
-                set payload = :payload,
+                update technical_specimen_registrations
+                set application_id = :applicationId,
                     updated_at = :updatedAt
                 where case_id = :caseId
-                  and task_type = 'GROSSING'
-                  and object_type = 'CASE'
-                  and object_id = :caseId
-                  and task_status in ('PENDING', 'IN_PROGRESS')
+                  and registration_status = 'PENDING'
                 """, new MapSqlParameterSource()
                 .addValue("caseId", caseId)
-                .addValue("payload", payload)
+                .addValue("applicationId", applicationId)
                 .addValue("updatedAt", LocalDateTime.now()));
             return;
         }
         jdbcTemplate.update("""
-            insert into technical_pending_tasks
-                (id, application_id, case_id, specimen_id, task_type, task_status, object_type, object_id,
-                 parent_task_id, payload, created_at, updated_at, remarks)
+            insert into technical_specimen_registrations
+                (case_id, application_id, registration_status, created_at, updated_at)
             values
-                (:id, :applicationId, :caseId, null, 'GROSSING', 'PENDING', 'CASE', :caseId,
-                 null, :payload, :createdAt, :updatedAt, null)
+                (:caseId, :applicationId, 'PENDING', :createdAt, :updatedAt)
             """, new MapSqlParameterSource()
-            .addValue("id", nextId("TT"))
             .addValue("applicationId", applicationId)
             .addValue("caseId", caseId)
-            .addValue("payload", payload)
             .addValue("createdAt", LocalDateTime.now())
             .addValue("updatedAt", LocalDateTime.now()));
     }

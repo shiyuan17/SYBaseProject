@@ -98,6 +98,7 @@ public class SpecimenReceiptController {
     public PendingSpecimenPageResponse listPending(@Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
                                                    @Parameter(description = "每页条数，默认 20") @RequestParam(defaultValue = "20") int size,
                                                    @Parameter(description = "申请单 ID") @RequestParam(required = false) String applicationId,
+                                                   @Parameter(description = "标本编号") @RequestParam(required = false) String specimenNo,
                                                    @Parameter(description = "送检科室 ID") @RequestParam(required = false) String departmentId,
                                                    @Parameter(description = "开始日期") @RequestParam(required = false) String dateFrom,
                                                    @Parameter(description = "结束日期") @RequestParam(required = false) String dateTo) {
@@ -106,7 +107,7 @@ public class SpecimenReceiptController {
                 page,
                 size,
                 applicationId,
-                null,
+                specimenNo,
                 departmentId,
                 null,
                 null,

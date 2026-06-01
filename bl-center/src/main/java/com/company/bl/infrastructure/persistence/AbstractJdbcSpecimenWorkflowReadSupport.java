@@ -59,11 +59,12 @@ abstract class AbstractJdbcSpecimenWorkflowReadSupport extends AbstractJdbcSpeci
     }
 
     public Optional<TransportOrder> findTransportOrderById(String transportOrderId) {
-        List<TransportOrder> rows = jdbcTemplate.query("""
-            select *
-            from transport_orders
-            where id = :id
-            """, Map.of("id", transportOrderId), this::mapTransportOrder);
+        List<TransportOrder> rows = jdbcTemplate.query(
+            transportOrderSelectColumns() + """
+                where t.id = :id
+                """,
+            Map.of("id", transportOrderId),
+            this::mapTransportOrder);
         return rows.stream().findFirst();
     }
 

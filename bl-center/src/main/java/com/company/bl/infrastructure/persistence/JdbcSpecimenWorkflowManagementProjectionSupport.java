@@ -86,6 +86,27 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
                 from workflow_events
                 group by specimen_id
             ) evt on evt.specimen_id = s.id
+            left join (
+                select
+                    ranked.specimen_id,
+                    ranked.operator_user_id,
+                    ranked.operator_name
+                from (
+                    select
+                        we.specimen_id,
+                        we.operator_user_id,
+                        we.operator_name,
+                        row_number() over (
+                            partition by we.specimen_id
+                            order by we.event_time desc, we.created_at desc, we.id desc
+                        ) as rn
+                    from workflow_events we
+                    where we.node_code = 'CONFIRMATION'
+                      and we.event_type = 'COMPLETED'
+                      and we.event_status = 'SUCCESS'
+                ) ranked
+                where ranked.rn = 1
+            ) confirm_evt on confirm_evt.specimen_id = s.id
             where 1 = 1
             """ + buildSpecimenManagementFilters(query, abnormalExpression);
         long total = countSpecimenManagement(whereClause, query);
@@ -117,6 +138,11 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
                 """ + buildVerificationStatusExpression("sfr", "s") + """
                  as verification_status,
             """ + specimenConfirmedAtSelect("s")
+                + """
+                confirm_evt.operator_user_id as specimen_confirmed_by_user_id,
+                confirm_evt.operator_name as specimen_confirmed_by_name,
+            """
+                + specimenRemovalAtSelect("s")
                 + checkInStatusSelect("s", "check_in_status")
                 + checkedInAtSelect("s")
                 + checkedInByNameSelect("s")
@@ -309,6 +335,11 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
             JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_confirmed_at") == null
                 ? null
                 : JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_confirmed_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableString(rs, "specimen_confirmed_by_user_id"),
+            JdbcResultSetUtils.getNullableString(rs, "specimen_confirmed_by_name"),
+            JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_removal_at") == null
+                ? null
+                : JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_removal_at").toLocalDateTime(),
             JdbcResultSetUtils.getNullableString(rs, "check_in_status"),
             JdbcResultSetUtils.getNullableTimestamp(rs, "checked_in_at") == null
                 ? null

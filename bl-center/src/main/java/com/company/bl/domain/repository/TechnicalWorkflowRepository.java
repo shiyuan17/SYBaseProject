@@ -14,9 +14,12 @@ import com.company.bl.domain.repository.TechnicalWorkflowRecords.DehydrationBatc
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.DehydrationBatchItem;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.Embedding;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingBox;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedTechnicalSpecimenRegistrations;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedTechnicalTasks;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.PendingTechnicalSpecimenRegistrationQuery;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PendingTechnicalTaskQuery;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.SamplingBlock;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.TechnicalSpecimenRegistration;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.TechnicalTask;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.CreateCaseMediaAssetCommand;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.CreateReworkOrderCommand;
@@ -52,6 +55,10 @@ public interface TechnicalWorkflowRepository {
 
     PagedTechnicalTasks findTechnicalTasks(PendingTechnicalTaskQuery query);
 
+    PagedTechnicalSpecimenRegistrations findPendingTechnicalSpecimenRegistrations(PendingTechnicalSpecimenRegistrationQuery query);
+
+    Optional<TechnicalSpecimenRegistration> findTechnicalSpecimenRegistrationByCaseId(String caseId);
+
     void updatePathologyCaseStatus(String caseId, String caseStatus);
 
     void startTechnicalTask(String taskId,
@@ -86,6 +93,14 @@ public interface TechnicalWorkflowRepository {
     void updateTechnicalTaskPriority(String taskId, String priority, String productionRemarks);
 
     void insertTechnicalTask(CreateTechnicalTaskCommand command);
+
+    void ensureTechnicalSpecimenRegistrationPending(String applicationId, String caseId);
+
+    void completeTechnicalSpecimenRegistration(String caseId,
+                                               String registeredByUserId,
+                                               String registeredByName,
+                                               String remarks,
+                                               LocalDateTime registeredAt);
 
     void insertSampling(CreateSamplingCommand command);
 

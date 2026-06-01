@@ -198,6 +198,14 @@ class SpecimenWorkflowQueueAndVerificationIntegrationTest extends AbstractSpecim
             .andExpect(jsonPath("$.data.total").value(1))
             .andExpect(jsonPath("$.data.items[0].barcode").value(barcode));
 
+        mockMvc.perform(authorized(get("/api/v1/specimen-receipts/pending"), USER_RECEIVE)
+                .param("page", "1")
+                .param("size", "20")
+                .param("specimenNo", specimenNo))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].specimenNo").value(specimenNo));
+
         postJson("/api/v1/specimen-receipts", USER_RECEIVE, """
             {
               "transportOrderId": "%s",

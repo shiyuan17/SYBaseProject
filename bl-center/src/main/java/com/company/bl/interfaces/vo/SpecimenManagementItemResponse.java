@@ -50,6 +50,12 @@ public record SpecimenManagementItemResponse(
     String verificationStatus,
     @Schema(description = "Specimen confirmed at")
     String specimenConfirmedAt,
+    @Schema(description = "Specimen confirmed by user id")
+    String specimenConfirmedByUserId,
+    @Schema(description = "Specimen confirmed by name")
+    String specimenConfirmedByName,
+    @Schema(description = "Specimen removal confirmed at")
+    String specimenRemovalAt,
     @Schema(description = "Check-in status")
     String checkInStatus,
     @Schema(description = "Checked-in at")

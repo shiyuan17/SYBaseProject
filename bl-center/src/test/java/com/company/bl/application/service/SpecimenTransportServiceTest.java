@@ -24,6 +24,7 @@ import java.util.Optional;
 
 import static com.company.bl.application.service.SpecimenWorkflowTransportModels.CreateTransportOrderCommand;
 import static com.company.bl.application.service.SpecimenWorkflowTransportModels.HandoverTransportOrderCommand;
+import static com.company.bl.application.service.SpecimenWorkflowTransportModels.OutboundTransportOrderCommand;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -92,6 +93,8 @@ class SpecimenTransportServiceTest {
             eq(TransportOrderStatus.HANDED_OVER),
             eq("receiver-1"),
             eq("Receiver"),
+            eq("outbound-1"),
+            eq("Outbound User"),
             eq(null),
             any(LocalDateTime.class)))
             .thenReturn(SpecimenWorkflowServiceTestFixtures.transportOrder("TO-1", "APP-1", TransportOrderStatus.HANDED_OVER));
@@ -102,7 +105,7 @@ class SpecimenTransportServiceTest {
 
         TransportOrder updated = service.handoverTransportOrder(
             "TO-1",
-            new HandoverTransportOrderCommand("receiver-1", "Receiver", "TERM-1", "remark"));
+            new HandoverTransportOrderCommand("outbound-1", "Outbound User", "receiver-1", "Receiver", "TERM-1", "remark"));
 
         assertThat(updated.status()).isEqualTo(TransportOrderStatus.HANDED_OVER);
         verify(commandRepository, times(2)).updateTransportOrderItemStatus(
@@ -122,5 +125,49 @@ class SpecimenTransportServiceTest {
             eq("remark"),
             eq(null));
         verify(commandRepository).updateApplicationStatus("APP-1", "IN_TRANSIT");
+    }
+
+    @Test
+    void transportOutboundShouldAdvanceItemAndApplicationStatuses() {
+        SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
+        TransportOrder order = SpecimenWorkflowServiceTestFixtures.transportOrder("TO-2", "APP-2", TransportOrderStatus.PRINTED);
+        when(queryRepository.findTransportOrderById("TO-2")).thenReturn(Optional.of(order));
+        when(commandRepository.updateTransportOrderStatus(
+            eq("TO-2"),
+            eq(TransportOrderStatus.HANDED_OVER),
+            eq(null),
+            eq(null),
+            eq("outbound-2"),
+            eq("Outbound User 2"),
+            eq(null),
+            any(LocalDateTime.class)))
+            .thenReturn(SpecimenWorkflowServiceTestFixtures.transportOrder("TO-2", "APP-2", TransportOrderStatus.HANDED_OVER));
+        when(queryRepository.findTransportOrderItems("TO-2")).thenReturn(List.of(
+            new TransportOrderItem("TOI-3", "TO-2", "APP-2", "SP-3", TransportItemStatus.PENDING, "MATCHED", null, null, null, null),
+            new TransportOrderItem("TOI-4", "TO-2", "APP-2", "SP-4", TransportItemStatus.PENDING, "MATCHED", null, null, null, null)));
+        SpecimenTransportService service = new SpecimenTransportService(commandRepository, support, numberingService);
+
+        TransportOrder updated = service.outboundTransportOrder(
+            "TO-2",
+            new OutboundTransportOrderCommand("outbound-2", "Outbound User 2", "TERM-2", "scan outbound"));
+
+        assertThat(updated.status()).isEqualTo(TransportOrderStatus.HANDED_OVER);
+        verify(commandRepository, times(2)).updateTransportOrderItemStatus(
+            eq("TO-2"),
+            any(String.class),
+            eq(TransportItemStatus.HANDED_OVER),
+            eq("MATCHED"),
+            eq("outbound-2"),
+            eq("Outbound User 2"),
+            any(LocalDateTime.class),
+            eq("scan outbound"));
+        verify(commandRepository, times(2)).updateSpecimenStatus(
+            any(String.class),
+            eq(SpecimenStatus.IN_TRANSIT),
+            eq(FixationStatus.COMPLETED),
+            eq(null),
+            eq("scan outbound"),
+            eq(null));
+        verify(commandRepository).updateApplicationStatus("APP-2", "IN_TRANSIT");
     }
 }

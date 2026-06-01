@@ -92,8 +92,8 @@ class SpecimenControllerAssembler {
     ConfirmSpecimenCommand toConfirmSpecimenCommand(String barcode, SpecimenConfirmRequest request, HttpServletRequest httpServletRequest) {
         return new ConfirmSpecimenCommand(
             barcode,
-            resolveUserId(null, httpServletRequest),
-            resolveOperatorName(null, httpServletRequest),
+            resolveUserId(request.getOperatorUserId(), httpServletRequest),
+            resolveOperatorName(request.getOperatorName(), httpServletRequest),
             request.getTerminalCode(),
             request.getRemarks());
     }
@@ -101,8 +101,8 @@ class SpecimenControllerAssembler {
     CheckInSpecimenCommand toCheckInSpecimenCommand(String barcode, SpecimenCheckInRequest request, HttpServletRequest httpServletRequest) {
         return new CheckInSpecimenCommand(
             barcode,
-            resolveUserId(null, httpServletRequest),
-            resolveOperatorName(null, httpServletRequest),
+            resolveUserId(request.getOperatorUserId(), httpServletRequest),
+            resolveOperatorName(request.getOperatorName(), httpServletRequest),
             request.getTerminalCode(),
             request.getRemarks());
     }
@@ -307,6 +307,9 @@ class SpecimenControllerAssembler {
             item.fixationOperatorName(),
             item.verificationStatus(),
             stringify(item.specimenConfirmedAt()),
+            item.specimenConfirmedByUserId(),
+            item.specimenConfirmedByName(),
+            stringify(item.specimenRemovalAt()),
             item.checkInStatus(),
             stringify(item.checkedInAt()),
             item.checkedInByName(),
@@ -341,10 +344,16 @@ class SpecimenControllerAssembler {
     }
 
     private String resolveUserId(String bodyUserId, HttpServletRequest request) {
+        if (bodyUserId != null && !bodyUserId.isBlank()) {
+            return bodyUserId;
+        }
         return RequestOperatorContext.currentUserId(request);
     }
 
     private String resolveOperatorName(String bodyOperatorName, HttpServletRequest request) {
+        if (bodyOperatorName != null && !bodyOperatorName.isBlank()) {
+            return bodyOperatorName;
+        }
         return RequestOperatorContext.currentOperatorName(request);
     }
 

@@ -32,6 +32,10 @@ public record PendingTransportOrderResponse(
     String toBeTransportedAt,
     @Schema(description = "交接完成时间")
     String handedOverAt,
+    @Schema(description = "出库人用户 ID")
+    String outboundUserId,
+    @Schema(description = "出库人姓名")
+    String outboundUserName,
     @Schema(description = "标本条码列表")
     List<String> specimenBarcodes
 ) {

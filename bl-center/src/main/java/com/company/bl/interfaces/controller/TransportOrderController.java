@@ -7,6 +7,7 @@ import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.CreateTransportOrderRequest;
 import com.company.bl.interfaces.dto.HandoverTransportOrderRequest;
+import com.company.bl.interfaces.dto.OutboundTransportOrderRequest;
 import com.company.bl.interfaces.dto.TransportOrderOperatorRequest;
 import com.company.bl.interfaces.vo.PendingTransportOrderPageResponse;
 import com.company.bl.interfaces.vo.PendingTransportOrderResponse;
@@ -119,7 +120,24 @@ public class TransportOrderController {
             id,
             new SpecimenWorkflowTransportModels.HandoverTransportOrderCommand(
                 resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getReceiverUserId(),
                 request.getReceiverUserName(),
+                request.getTerminalCode(),
+                request.getRemarks())));
+    }
+
+    @Operation(summary = "Outbound transport order", description = "Confirm specimen outbound for the specified transport order.")
+    @RequirePermission(M2PermissionCodes.TRANSPORT_HANDOVER)
+    @PostMapping("/{id}/outbound")
+    public TransportOrderResponse outbound(@Parameter(description = "Transport order ID") @PathVariable("id") String id,
+                                           @Valid @RequestBody OutboundTransportOrderRequest request,
+                                           HttpServletRequest httpServletRequest) {
+        return toResponse(specimenWorkflowAppService.outboundTransportOrder(
+            id,
+            new SpecimenWorkflowTransportModels.OutboundTransportOrderCommand(
+                resolveUserId(request.getOutboundUserId(), httpServletRequest),
+                resolveOperatorName(request.getOutboundUserName(), httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks())));
     }
@@ -132,6 +150,8 @@ public class TransportOrderController {
             order.status().name(),
             order.handoverUserName(),
             order.receiverUserName(),
+            order.outboundUserId(),
+            order.outboundUserName(),
             stringify(order.toBeTransportedAt()),
             stringify(order.handedOverAt()));
     }
@@ -152,6 +172,8 @@ public class TransportOrderController {
             "PARTIALLY_RECEIVED".equals(item.status()),
             stringify(item.toBeTransportedAt()),
             stringify(item.handedOverAt()),
+            item.outboundUserId(),
+            item.outboundUserName(),
             item.specimenBarcodes());
     }
 
@@ -163,7 +185,21 @@ public class TransportOrderController {
         return RequestOperatorContext.currentUserId(request);
     }
 
+    private String resolveUserId(String bodyUserId, HttpServletRequest request) {
+        if (bodyUserId != null && !bodyUserId.isBlank()) {
+            return bodyUserId;
+        }
+        return resolveUserId(request);
+    }
+
     private String resolveOperatorName(HttpServletRequest request) {
         return RequestOperatorContext.currentOperatorName(request);
+    }
+
+    private String resolveOperatorName(String bodyOperatorName, HttpServletRequest request) {
+        if (bodyOperatorName != null && !bodyOperatorName.isBlank()) {
+            return bodyOperatorName;
+        }
+        return resolveOperatorName(request);
     }
 }
