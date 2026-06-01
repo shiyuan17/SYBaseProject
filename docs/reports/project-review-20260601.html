@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYBaseProject 审查报告 - 2026-06-01</title>
+    <style>
+        :root {
+            --bg: #f5f1e8;
+            --panel: #fffaf2;
+            --ink: #1e2430;
+            --muted: #5d6676;
+            --line: #d9cdb8;
+            --critical: #a61b1b;
+            --major: #b85c00;
+            --watch: #8a6a00;
+            --ok: #1d6b43;
+            --accent: #174a7c;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background:
+                radial-gradient(circle at top right, rgba(23, 74, 124, 0.08), transparent 24rem),
+                linear-gradient(180deg, #f9f4ea 0%, var(--bg) 100%);
+            color: var(--ink);
+            line-height: 1.6;
+        }
+
+        .wrap {
+            width: min(1120px, calc(100vw - 32px));
+            margin: 0 auto;
+            padding: 32px 0 56px;
+        }
+
+        .hero,
+        .section,
+        .metric,
+        .finding {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            box-shadow: 0 12px 30px rgba(30, 36, 48, 0.05);
+        }
+
+        .hero {
+            padding: 28px;
+            margin-bottom: 20px;
+        }
+
+        h1,
+        h2,
+        h3 {
+            margin: 0 0 12px;
+            line-height: 1.25;
+        }
+
+        h1 {
+            font-size: 32px;
+        }
+
+        h2 {
+            font-size: 22px;
+            color: var(--accent);
+        }
+
+        h3 {
+            font-size: 18px;
+        }
+
+        p {
+            margin: 0 0 10px;
+        }
+
+        .subtitle,
+        .muted,
+        li,
+        td,
+        th,
+        code {
+            color: var(--muted);
+        }
+
+        .verdict {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(166, 27, 27, 0.1);
+            color: var(--critical);
+            font-weight: 700;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .metric {
+            padding: 18px 18px 16px;
+        }
+
+        .metric .label {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .metric .value {
+            display: block;
+            margin-top: 8px;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--ink);
+        }
+
+        .section {
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .finding-list {
+            display: grid;
+            gap: 16px;
+        }
+
+        .finding {
+            padding: 20px;
+            border-left-width: 6px;
+        }
+
+        .finding.critical {
+            border-left-color: var(--critical);
+        }
+
+        .finding.major {
+            border-left-color: var(--major);
+        }
+
+        .finding.watch {
+            border-left-color: var(--watch);
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            margin-bottom: 12px;
+        }
+
+        .tag.critical {
+            background: rgba(166, 27, 27, 0.12);
+            color: var(--critical);
+        }
+
+        .tag.major {
+            background: rgba(184, 92, 0, 0.12);
+            color: var(--major);
+        }
+
+        .tag.watch {
+            background: rgba(138, 106, 0, 0.12);
+            color: var(--watch);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        th,
+        td {
+            text-align: left;
+            vertical-align: top;
+            border-top: 1px solid var(--line);
+            padding: 12px 10px;
+        }
+
+        th {
+            color: var(--ink);
+            font-size: 14px;
+        }
+
+        ul {
+            margin: 8px 0 0 18px;
+            padding: 0;
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        code {
+            font-family: Consolas, "SFMono-Regular", monospace;
+            background: rgba(23, 74, 124, 0.06);
+            padding: 1px 5px;
+            border-radius: 6px;
+        }
+
+        .footer {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        @media (max-width: 920px) {
+            .grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .wrap {
+                width: min(100vw - 20px, 1120px);
+                padding-top: 20px;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 26px;
+            }
+        }
+    </style>
+</head>
+<body>
+<main class="wrap">
+    <section class="hero">
+        <h1>SYBaseProject 审查报告</h1>
+        <p class="subtitle">生成时间：2026-06-01</p>
+        <p>本次审查基于当前工作树、关键安全配置、认证限流实现、标本流程持久化逻辑，以及一次实际执行的文件健康门禁测试。</p>
+        <div class="verdict">结论：Request changes，当前不建议按“可合入”状态判断</div>
+    </section>
+
+    <section class="grid">
+        <article class="metric">
+            <div class="label">工作树状态</div>
+            <span class="value">14</span>
+            <p>当前存在 14 条已修改 / 新增 / 重命名记录，仓库不是干净状态。</p>
+        </article>
+        <article class="metric">
+            <div class="label">门禁结果</div>
+            <span class="value">FAIL</span>
+            <p><code>RepositoryFileHealthGateTest</code> 复跑失败，问题不是历史快照。</p>
+        </article>
+        <article class="metric">
+            <div class="label">CRLF 违规数</div>
+            <span class="value">54</span>
+            <p>当前门禁输出识别出 54 个非脚本文件的行尾不合规项。</p>
+        </article>
+        <article class="metric">
+            <div class="label">结构热点</div>
+            <span class="value">58</span>
+            <p>现有仓库报告显示 58 个 Java 文件超过 300 行，维护压力偏高。</p>
+        </article>
+    </section>
+
+    <section class="section">
+        <h2>核心发现</h2>
+        <div class="finding-list">
+            <article class="finding critical">
+                <span class="tag critical">Critical</span>
+                <h3>提交配置中带有默认数据库密码与默认 JWT 密钥，生产配置还允许自动生成密钥</h3>
+                <p>认证中心和业务中心都把默认数据库密码、默认 SM2 私钥/公钥直接放进了版本库配置；同时生产配置把 <code>allow-generated-keys</code> 设为 <code>true</code>，运行时守卫只在该开关关闭时才强制要求显式密钥。这会把“未配置安全参数”的问题降级成“静默使用仓库默认值或本地生成值”，属于高风险配置缺陷。</p>
+                <table>
+                    <tr>
+                        <th>证据位置</th>
+                        <th>说明</th>
+                    </tr>
+                    <tr>
+                        <td><code>auth-center/src/main/resources/application.yml:8</code></td>
+                        <td>默认数据库密码 <code>Dm.2027.Pwd.</code> 被提交在公共配置中。</td>
+                    </tr>
+                    <tr>
+                        <td><code>auth-center/src/main/resources/application.yml:44-45</code></td>
+                        <td>默认 SM2 私钥与公钥直接提交在配置中。</td>
+                    </tr>
+                    <tr>
+                        <td><code>bl-center/src/main/resources/application.yml:55-56</code></td>
+                        <td>业务中心重复携带默认 SM2 私钥与公钥。</td>
+                    </tr>
+                    <tr>
+                        <td><code>auth-center/src/main/resources/application-prod.yml:6,10-11</code></td>
+                        <td>生产配置仍保留默认数据库密码，并允许自动生成密钥。</td>
+                    </tr>
+                    <tr>
+                        <td><code>bl-center/src/main/resources/application-prod.yml:6,10-11</code></td>
+                        <td>业务中心生产配置存在相同问题。</td>
+                    </tr>
+                    <tr>
+                        <td><code>common/common-security/src/main/java/com/company/common/security/jwt/Sm2JwtTokenService.java:181-233</code></td>
+                        <td>开启 <code>allow-generated-keys</code> 时会落本地开发密钥文件并继续运行。</td>
+                    </tr>
+                    <tr>
+                        <td><code>auth-center/src/main/java/com/company/auth/infrastructure/config/AuthRuntimeConfigurationGuard.java:27-38</code><br><code>bl-center/src/main/java/com/company/bl/interfaces/auth/BlRuntimeConfigurationGuard.java:27-38</code></td>
+                        <td>运行时守卫不会在“允许生成密钥”时阻止生产环境启动。</td>
+                    </tr>
+                </table>
+                <p><strong>建议：</strong>移除所有默认密码和默认密钥，生产环境强制 <code>allow-generated-keys=false</code>，并把密钥 / 密码改成必须由部署环境注入。</p>
+            </article>
+
+            <article class="finding major">
+                <span class="tag major">Required</span>
+                <h3>仓库文件健康门禁当前真实失败，CI 质量线已经处于红灯状态</h3>
+                <p>我在 2026-06-01 直接执行了 <code>./mvnw.cmd -pl common/common-test -Dtest=RepositoryFileHealthGateTest test</code>，命令以失败退出。失败项包括 54 个 CRLF 行尾违规，以及 3 个超出硬限制的 CI 脚本文件。这个问题会持续阻塞项目的质量门禁，而不是“建议性提醒”。</p>
+                <table>
+                    <tr>
+                        <th>证据位置</th>
+                        <th>说明</th>
+                    </tr>
+                    <tr>
+                        <td><code>common/common-test/target/surefire-reports/com.company.common.test.filehealth.RepositoryFileHealthGateTest.txt:7-63</code></td>
+                        <td>复跑后的 surefire 输出，列出全部门禁失败项。</td>
+                    </tr>
+                    <tr>
+                        <td><code>README.md:1</code></td>
+                        <td>门禁直接点名该文件存在 CRLF 行尾问题。</td>
+                    </tr>
+                    <tr>
+                        <td><code>bl-center/src/main/java/com/company/bl/interfaces/controller/SpecimenCollectionController.java:1</code></td>
+                        <td>同一批接口层文件被门禁点名为 CRLF 违规样本。</td>
+                    </tr>
+                    <tr>
+                        <td><code>scripts/ci/generate-code-health-checklist.ps1:1</code><br><code>scripts/ci/generate-code-health-report.ps1:1</code><br><code>scripts/ci/generate-code-health-report.sh:1</code></td>
+                        <td>门禁点名这 3 个脚本超过行数限制。</td>
+                    </tr>
+                </table>
+                <p><strong>建议：</strong>先统一修复行尾规范，再把超长脚本拆成可复用函数或子脚本，否则“代码健康报告”本身会持续拖垮代码健康门禁。</p>
+            </article>
+
+            <article class="finding major">
+                <span class="tag major">Required</span>
+                <h3>技术待办任务的“先查再写” upsert 存在并发竞争窗口，可能产生重复待办</h3>
+                <p><code>upsertTechnicalPendingTask</code> 先 <code>select count(1)</code>，再根据结果决定 <code>update</code> 或 <code>insert</code>。在并发请求同时为同一个 <code>caseId</code> 执行时，两个线程都可能读到 0，然后各自插入一条 <code>PENDING</code> 任务，形成重复待办或需要后续人工清理的数据脏写。</p>
+                <table>
+                    <tr>
+                        <th>证据位置</th>
+                        <th>说明</th>
+                    </tr>
+                    <tr>
+                        <td><code>bl-center/src/main/java/com/company/bl/infrastructure/persistence/JdbcSpecimenWorkflowTransportMutationSupport.java:230-269</code></td>
+                        <td>读取数量与插入写入之间没有唯一约束、锁或数据库原子 upsert。</td>
+                    </tr>
+                </table>
+                <p><strong>建议：</strong>给活跃任务建立唯一索引，或改成数据库原子 upsert / merge；至少要把“存在性判断”和“写入”收敛到单条 SQL 或明确事务锁中。</p>
+            </article>
+
+            <article class="finding watch">
+                <span class="tag watch">Watch</span>
+                <h3>登录失败保护仅在单节点内存中生效，并且失败状态没有主动清理策略</h3>
+                <p><code>LoginAttemptGuard</code> 用本地 <code>ConcurrentHashMap</code> 保存失败状态。这样一来，多实例部署时限流可以被轮询不同节点绕过；另一方面，未达到封禁阈值且后续不再重试的键会常驻内存，项目运行越久，状态表越容易积累无意义条目。</p>
+                <table>
+                    <tr>
+                        <th>证据位置</th>
+                        <th>说明</th>
+                    </tr>
+                    <tr>
+                        <td><code>auth-center/src/main/java/com/company/auth/application/service/LoginAttemptGuard.java:16</code></td>
+                        <td>状态直接保存在进程内 <code>ConcurrentHashMap</code>。</td>
+                    </tr>
+                    <tr>
+                        <td><code>auth-center/src/main/java/com/company/auth/application/service/LoginAttemptGuard.java:44-71</code></td>
+                        <td>只在成功登录或“再次访问且恰好过期”时清理状态，没有统一过期淘汰机制。</td>
+                    </tr>
+                </table>
+                <p><strong>建议：</strong>把登录保护迁移到 Redis 之类的共享存储，至少补上 TTL / 定时清理策略，并明确多实例部署下的行为预期。</p>
+            </article>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2>项目状态摘要</h2>
+        <ul>
+            <li>模块结构清晰，顶层 Maven 聚合了 8 个模块，基础分层方向没有跑偏。</li>
+            <li>仓库当前处于活跃改动中，已有 14 条工作树变更，审查时需要避免把“现有脏改动”误判成新增问题。</li>
+            <li>现有代码健康报告显示：54 个行尾问题之外，还有 58 个超过 300 行的 Java 文件，热点主要集中在 <code>bl-center</code> 的仓储、控制器和集成测试。</li>
+            <li>从风险优先级看，现阶段先修安全配置和质量门禁，比继续堆功能更划算。</li>
+        </ul>
+    </section>
+
+    <section class="section">
+        <h2>验证记录</h2>
+        <table>
+            <tr>
+                <th>动作</th>
+                <th>结果</th>
+            </tr>
+            <tr>
+                <td><code>git status --short</code></td>
+                <td>工作树非干净，合计 14 条状态记录。</td>
+            </tr>
+            <tr>
+                <td><code>./mvnw.cmd -pl common/common-test -Dtest=RepositoryFileHealthGateTest test</code></td>
+                <td>失败。文件健康门禁仍未通过，属于当前可复现问题。</td>
+            </tr>
+            <tr>
+                <td>配置与关键实现抽样审查</td>
+                <td>确认了默认密码、默认密钥、运行时生成密钥、内存限流、非原子 upsert 这几类问题。</td>
+            </tr>
+        </table>
+    </section>
+
+    <section class="section footer">
+        <p>说明：本报告以“代码审查”视角输出，优先强调会影响合入、上线或长期维护成本的事项，而不是罗列所有可优化点。</p>
+    </section>
+</main>
+</body>
+</html>

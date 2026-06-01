@@ -1,6 +1,6 @@
 # Largest Files Report
 
-Generated at `2026-05-30T19:48:45Z`.
+Generated at `2026-05-31T03:37:29Z`.
 
 ## Temporary Exemptions
 
@@ -25,7 +25,10 @@ Generated at `2026-05-30T19:48:45Z`.
 
 | Lines | Limit | File |
 | ---: | ---: | --- |
+| 1094 | 500 | `scripts/ci/generate-code-health-report.ps1` |
+| 605 | 500 | `scripts/ci/generate-code-health-checklist.ps1` |
 | 596 | 200 | `infrastructure/monitor/grafana/dashboards/bl-center-overview.json` |
+| 532 | 500 | `scripts/ci/generate-code-health-report.sh` |
 | 356 | 200 | `infrastructure/monitor/grafana/dashboards/user-center-overview.json` |
 
 ## Java Files Over 300 Lines
@@ -41,8 +44,8 @@ Count: `58`
 | 437 | `bl-center/src/test/java/com/company/bl/interfaces/SystemManagementRoleAndMenuIntegrationTest.java` |
 | 434 | `bl-center/src/main/java/com/company/bl/integration/application/StatisticsService.java` |
 | 433 | `bl-center/src/main/java/com/company/bl/interfaces/controller/SpecimenControllerAssembler.java` |
-| 432 | `bl-center/src/main/java/db/migration/V11LegacyDmSchemaSupport.java` |
 | 432 | `bl-center/src/main/java/com/company/bl/infrastructure/persistence/JdbcOperationSupportRepository.java` |
+| 432 | `bl-center/src/main/java/db/migration/V11LegacyDmSchemaSupport.java` |
 | 431 | `bl-center/src/main/java/db/migration/V54__reconcile_workflow_reference_options.java` |
 | 429 | `bl-center/src/test/java/com/company/bl/interfaces/M2CollectionAndLabelIntegrationTest.java` |
 | 426 | `bl-center/src/main/java/db/migration/V17__reconcile_m1_permission_codes.java` |
@@ -60,8 +63,8 @@ Count: `58`
 | 376 | `bl-center/src/main/java/com/company/bl/infrastructure/persistence/JdbcTechnicalWorkflowTaskMutations.java` |
 | 375 | `bl-center/src/main/java/com/company/bl/tools/BlCenterFlywayCliSupport.java` |
 | 372 | `bl-center/src/test/java/com/company/bl/interfaces/ApplicationQueryAndDetailIntegrationTest.java` |
-| 370 | `bl-center/src/test/java/com/company/bl/interfaces/DiagnosticWorkflowReportLifecycleIntegrationTest.java` |
 | 370 | `bl-center/src/main/java/com/company/bl/application/service/TechnicalWorkflowModels.java` |
+| 370 | `bl-center/src/test/java/com/company/bl/interfaces/DiagnosticWorkflowReportLifecycleIntegrationTest.java` |
 | 355 | `bl-center/src/test/java/com/company/bl/interfaces/SpecimenWorkflowQueueAndVerificationIntegrationTest.java` |
 | 354 | `bl-center/src/main/java/com/company/bl/application/service/ArchiveWorkflowService.java` |
 
@@ -77,8 +80,8 @@ Count: `0`
 | 473 | `bl-center/src/test/java/com/company/bl/interfaces/SpecimenWorkflowClosureIntegrationTest.java` |
 | 468 | `bl-center/src/test/java/com/company/bl/interfaces/MasterDataControllerIntegrationTest.java` |
 | 438 | `bl-center/src/main/java/com/company/bl/masterdata/infrastructure/SamplingJdbcRepository.java` |
-| 437 | `bl-center/src/main/java/com/company/bl/infrastructure/persistence/JdbcSpecimenWorkflowSpecimenMutationSupport.java` |
 | 437 | `bl-center/src/test/java/com/company/bl/interfaces/SystemManagementRoleAndMenuIntegrationTest.java` |
+| 437 | `bl-center/src/main/java/com/company/bl/infrastructure/persistence/JdbcSpecimenWorkflowSpecimenMutationSupport.java` |
 | 434 | `bl-center/src/main/java/com/company/bl/integration/application/StatisticsService.java` |
 | 433 | `bl-center/src/main/java/com/company/bl/interfaces/controller/SpecimenControllerAssembler.java` |
 | 432 | `bl-center/src/main/java/com/company/bl/infrastructure/persistence/JdbcOperationSupportRepository.java` |
@@ -92,5 +95,5 @@ Count: `0`
 | 412 | `bl-center/src/test/java/com/company/bl/interfaces/ApplicationRegistrationWorkbenchIntegrationTest.java` |
 | 411 | `bl-center/src/main/java/com/company/bl/masterdata/interfaces/MedicalOrderController.java` |
 | 401 | `bl-center/src/main/java/com/company/bl/system/infrastructure/SystemRoleJdbcRepository.java` |
-| 394 | `bl-center/src/main/java/com/company/bl/system/interfaces/SystemManagementController.java` |
 | 394 | `bl-center/src/main/java/com/company/bl/notification/infrastructure/NotificationCenterJdbcRepository.java` |
+| 394 | `bl-center/src/main/java/com/company/bl/system/interfaces/SystemManagementController.java` |

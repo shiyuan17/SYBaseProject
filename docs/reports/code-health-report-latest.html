@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>&#x4EE3;&#x7801;&#x5065;&#x5EB7;&#x5EA6;&#x62A5;&#x544A;</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --panel: #fffdf8;
+      --ink: #1f2a30;
+      --muted: #67757f;
+      --line: #d8d2c4;
+      --pass: #2f7d4a;
+      --watch: #b87418;
+      --fail: #b53a2d;
+      --unknown: #5d6d79;
+      --shadow: 0 18px 40px rgba(32, 39, 43, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(205, 160, 67, 0.18), transparent 28%),
+        linear-gradient(180deg, #efe8da 0%, var(--bg) 22%, #efe9dc 100%);
+      color: var(--ink);
+    }
+    .page {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 32px 20px 56px;
+    }
+    .hero, .section {
+      background: var(--panel);
+      border: 1px solid rgba(143, 132, 114, 0.25);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+    }
+    .hero {
+      padding: 28px;
+      margin-bottom: 22px;
+    }
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    h1, h2, h3 { margin: 0; }
+    h1 {
+      font-size: clamp(30px, 5vw, 48px);
+      letter-spacing: -0.04em;
+    }
+    .lede {
+      margin-top: 12px;
+      color: var(--muted);
+      max-width: 760px;
+      line-height: 1.6;
+    }
+    .status-pill {
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      border: 1px solid currentColor;
+      min-width: 120px;
+      text-align: center;
+    }
+    .status-pill.pass { color: var(--pass); background: rgba(47, 125, 74, 0.08); }
+    .status-pill.watch { color: var(--watch); background: rgba(184, 116, 24, 0.1); }
+    .status-pill.fail { color: var(--fail); background: rgba(181, 58, 45, 0.1); }
+    .status-pill.unknown { color: var(--unknown); background: rgba(93, 109, 121, 0.1); }
+    .hero-grid, .summary-grid, .meta-grid {
+      display: grid;
+      gap: 16px;
+    }
+    .hero-grid {
+      margin-top: 24px;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    }
+    .metric {
+      background: rgba(247, 243, 235, 0.92);
+      border: 1px solid rgba(143, 132, 114, 0.25);
+      border-radius: 18px;
+      padding: 16px;
+    }
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    .metric strong {
+      font-size: 28px;
+      letter-spacing: -0.03em;
+    }
+    .section {
+      padding: 24px;
+      margin-top: 18px;
+    }
+    .section h2 {
+      font-size: 24px;
+      margin-bottom: 8px;
+      letter-spacing: -0.03em;
+    }
+    .section-intro {
+      color: var(--muted);
+      margin-bottom: 18px;
+      line-height: 1.6;
+    }
+    .summary-grid {
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    .summary-card {
+      border: 1px solid rgba(143, 132, 114, 0.22);
+      border-radius: 18px;
+      padding: 18px;
+      background: rgba(248, 245, 239, 0.85);
+    }
+    .summary-card h3 {
+      margin-top: 12px;
+      font-size: 18px;
+    }
+    .summary-card p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 78px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      border: 1px solid currentColor;
+    }
+    .status-badge.pass { color: var(--pass); background: rgba(47, 125, 74, 0.08); }
+    .status-badge.watch { color: var(--watch); background: rgba(184, 116, 24, 0.1); }
+    .status-badge.fail { color: var(--fail); background: rgba(181, 58, 45, 0.1); }
+    .status-badge.unknown { color: var(--unknown); background: rgba(93, 109, 121, 0.1); }
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid rgba(143, 132, 114, 0.2);
+      border-radius: 16px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+      background: #fffefb;
+    }
+    th, td {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(143, 132, 114, 0.16);
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    th {
+      background: rgba(244, 238, 228, 0.94);
+      color: #334047;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    code {
+      font-family: "Cascadia Code", "Consolas", monospace;
+      font-size: 0.92em;
+      color: #183447;
+    }
+    pre {
+      margin: 10px 0 0;
+      padding: 12px;
+      border-radius: 12px;
+      background: #f4f1ea;
+      border: 1px solid rgba(143, 132, 114, 0.2);
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    details summary {
+      cursor: pointer;
+      color: #2d4958;
+      font-weight: 600;
+    }
+    .meta-grid {
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+    .panel {
+      border: 1px solid rgba(143, 132, 114, 0.2);
+      border-radius: 18px;
+      padding: 18px;
+      background: rgba(248, 245, 239, 0.85);
+    }
+    .panel h3 {
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+    .facts, .list {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .facts strong {
+      color: var(--ink);
+    }
+    .footer-note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    @media (max-width: 720px) {
+      .page { padding: 18px 14px 40px; }
+      .hero, .section { padding: 18px; border-radius: 18px; }
+      table { min-width: 620px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <h1>&#x4EE3;&#x7801;&#x5065;&#x5EB7;&#x5EA6;&#x62A5;&#x544A;</h1>
+          <p class="lede">&#x8FD9;&#x4EFD;&#x62A5;&#x544A;&#x57FA;&#x4E8E;&#x4ED3;&#x5E93;&#x73B0;&#x6709;&#x7684; <code>largest-files-report</code>&#x3001;<code>code-health-checklist</code>&#x3001;JaCoCo baseline &#x4E0E;&#x9879;&#x76EE;&#x5065;&#x5EB7;&#x89C4;&#x5219;&#x751F;&#x6210;&#xFF0C;&#x91C7;&#x7528;&#x201C;&#x9759;&#x6001;&#x5206;&#x6790; + &#x5B9E;&#x9645;&#x9A8C;&#x8BC1;&#x201D;&#x6A21;&#x5F0F;&#xFF0C;&#x5E76;&#x4FDD;&#x7559;&#x810F;&#x5DE5;&#x4F5C;&#x533A;&#x4E0A;&#x4E0B;&#x6587;&#x3002;</p>
+        </div>
+        <div class="status-pill fail">&#x5931;&#x8D25;</div>
+      </div>
+      <div class="hero-grid">
+        <div class="metric">
+          <span>&#x751F;&#x6210;&#x65F6;&#x95F4;</span>
+          <strong>2026-05-31 11:37:29 +08:00</strong>
+        </div>
+        <div class="metric">
+          <span>300+ &#x884C;&#x70ED;&#x70B9;&#x6570;</span>
+          <strong>58</strong>
+        </div>
+        <div class="metric">
+          <span>&#x95E8;&#x7981; / &#x5FEB;&#x53CD;&#x9988;</span>
+          <strong>&#x5931;&#x8D25; / &#x5931;&#x8D25;</strong>
+        </div>
+        <div class="metric">
+          <span>&#x5DE5;&#x4F5C;&#x533A;&#x810F;&#x72B6;&#x6001;</span>
+          <strong>&#x662F;</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>&#x6267;&#x884C;&#x6458;&#x8981;</h2>
+      <p class="section-intro">&#x6458;&#x8981;&#x5361;&#x7247;&#x76F4;&#x63A5;&#x6765;&#x81EA;&#x5237;&#x65B0;&#x540E;&#x7684; <code>docs/reports/code-health-checklist.md</code>&#x3002;&#x7EDF;&#x4E00;&#x5165;&#x53E3;&#x8D1F;&#x8D23;&#x6267;&#x884C;&#x9A8C;&#x8BC1;&#x5E76;&#x628A;&#x7ED3;&#x679C;&#x6CE8;&#x5165;&#x5230; Markdown &#x4EA7;&#x7269;&#xFF0C;&#x518D;&#x6E32;&#x67D3;&#x6210; HTML&#x3002;</p>
+      <div class="summary-grid">
+        <article class="summary-card">
+  <div class="status-badge fail">&#x5931;&#x8D25;</div>
+  <h3>&#x6587;&#x4EF6;&#x5065;&#x5EB7;</h3>
+  <p>RepositoryFileHealthGateTest &#x5931;&#x8D25;&#xFF1B;&#x8BE6;&#x60C5;&#x89C1;&#x4E0B;&#x65B9;&#x9A8C;&#x8BC1;&#x7ED3;&#x679C;&#x3002;</p>
+</article>
+<article class="summary-card">
+  <div class="status-badge fail">&#x5931;&#x8D25;</div>
+  <h3>&#x53EF;&#x6D4B;&#x6027;</h3>
+  <p>&#x81F3;&#x5C11;&#x6709;&#x4E00;&#x6761;&#x9A8C;&#x8BC1;&#x547D;&#x4EE4;&#x5931;&#x8D25;&#xFF1B;&#x4F46;&#x62A5;&#x544A;&#x4ECD;&#x5DF2;&#x751F;&#x6210;&#xFF0C;&#x5E76;&#x4FDD;&#x7559;&#x4E86;&#x5931;&#x8D25;&#x8BC1;&#x636E;&#x3002;</p>
+</article>
+<article class="summary-card">
+  <div class="status-badge watch">&#x5173;&#x6CE8;</div>
+  <h3>&#x53EF;&#x7EF4;&#x62A4;&#x6027;</h3>
+  <p>&#x5F53;&#x524D;&#x4ED3;&#x5E93;&#x5171;&#x6709; 58 &#x4E2A; Java &#x6587;&#x4EF6;&#x8D85;&#x8FC7; 300 &#x884C;&#xFF0C;0 &#x4E2A;&#x8D85;&#x8FC7; 500 &#x884C;&#x3002;</p>
+</article>
+<article class="summary-card">
+  <div class="status-badge pass">&#x901A;&#x8FC7;</div>
+  <h3>&#x547D;&#x540D;&#x4E0E;&#x8FB9;&#x754C;</h3>
+  <p>&#x672A;&#x53D1;&#x73B0;&#x6CDB;&#x5316;&#x5DE5;&#x5177;&#x7C7B;&#x6587;&#x4EF6;&#x540D;&#xFF1B;TODO/FIXME &#x4EC5;&#x547D;&#x4E2D;&#x4E86;&#x9886;&#x57DF;&#x5E38;&#x91CF; TODO_TASK&#x3002;</p>
+</article>
+<article class="summary-card">
+  <div class="status-badge pass">&#x901A;&#x8FC7;</div>
+  <h3>&#x5F02;&#x5E38;&#x4E0E;&#x7F16;&#x7801;</h3>
+  <p>&#x672A;&#x53D1;&#x73B0;&#x9690;&#x5F0F;&#x5B57;&#x7B26;&#x96C6;&#x8F6C;&#x6362;&#x6216;&#x7A7A; catch &#x4EE3;&#x7801;&#x5757;&#x3002;</p>
+</article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>&#x9A8C;&#x8BC1;&#x7ED3;&#x679C;</h2>
+      <p class="section-intro">&#x8FD9;&#x91CC;&#x5C55;&#x793A;&#x672C;&#x6B21;&#x8FD0;&#x884C;&#x771F;&#x6B63;&#x6267;&#x884C;&#x8FC7;&#x7684;&#x6821;&#x9A8C;&#x547D;&#x4EE4;&#x3001;&#x8017;&#x65F6;&#x3001;&#x9000;&#x51FA;&#x7801;&#x548C;&#x5931;&#x8D25;&#x6458;&#x8981;&#x3002;&#x5373;&#x4F7F;&#x547D;&#x4EE4;&#x5931;&#x8D25;&#xFF0C;HTML &#x4ECD;&#x4F1A;&#x751F;&#x6210;&#x3002;</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>&#x547D;&#x4EE4;</th>
+              <th>&#x72B6;&#x6001;</th>
+              <th>&#x9000;&#x51FA;&#x7801;</th>
+              <th>&#x8017;&#x65F6;</th>
+              <th>&#x8BE6;&#x60C5;</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>.\mvnw.cmd -pl common\common-test -Dtest=RepositoryFileHealthGateTest test</code></td><td><span class="status-badge fail">&#x5931;&#x8D25;</span></td><td>1</td><td>3.853s</td><td><details><summary>&#x8BE6;&#x60C5;</summary><pre>[INFO] 
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.570 s
+[INFO] Finished at: 2026-05-31T11:37:34+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.2.5:test (default-test) on project common-test: There are test failures.
+[ERROR] 
+[ERROR] Please refer to D:\Github\JW\SYBaseProject\common\common-test\target\surefire-reports for the individual test results.
+[ERROR] Please refer to dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -&gt; [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException</pre></details></td></tr>
+<tr><td><code>.\mvnw.cmd test &quot;-Dsurefire.excludedGroups=slow&quot;</code></td><td><span class="status-badge fail">&#x5931;&#x8D25;</span></td><td>1</td><td>4.368s</td><td><details><summary>&#x8BE6;&#x60C5;</summary><pre>[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  3.125 s
+[INFO] Finished at: 2026-05-31T11:37:39+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.2.5:test (default-test) on project common-test: There are test failures.
+[ERROR] 
+[ERROR] Please refer to D:\Github\JW\SYBaseProject\common\common-test\target\surefire-reports for the individual test results.
+[ERROR] Please refer to dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -&gt; [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+[ERROR] 
+[ERROR] After correcting the problems, you can resume the build with the command
+[ERROR]   mvn &lt;args&gt; -rf :common-test</pre></details></td></tr>
+
+          </tbody>
+        </table>
+      </div>
+      <p class="footer-note">&#x8986;&#x76D6;&#x7387;&#x57FA;&#x7EBF;&#x53D6;&#x81EA; <code>bl-center/jacoco-baseline.properties</code>&#xFF1A;line = <strong>0.858216</strong>&#xFF0C;branch = <strong>0.557996</strong>&#x3002;&#x8FD9;&#x662F;&#x6CBB;&#x7406;&#x57FA;&#x7EBF;&#xFF0C;&#x4E0D;&#x662F;&#x672C;&#x6B21;&#x5B9E;&#x65F6;&#x8986;&#x76D6;&#x7387;&#x3002;</p>
+    </section>
+
+    <section class="section">
+      <h2>&#x7ED3;&#x6784;&#x70ED;&#x70B9;</h2>
+      <p class="section-intro">&#x70ED;&#x70B9;&#x6765;&#x81EA;&#x5237;&#x65B0;&#x540E;&#x7684; <code>docs/reports/largest-files-report.md</code>&#x3002;&#x5F53;&#x524D; hard-limit &#x8D85;&#x9650;&#x6587;&#x4EF6;&#x6570;&#x4E3A; <strong>5</strong>&#xFF0C;Java 500+ &#x6587;&#x4EF6;&#x6570;&#x4E3A; <strong>0</strong>&#x3002;</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>&#x884C;&#x6570;</th>
+              <th>&#x6587;&#x4EF6;</th>
+              <th>&#x5173;&#x6CE8;&#x539F;&#x56E0;</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>473</td><td><code>bl-center/src/test/java/com/company/bl/interfaces/SpecimenWorkflowClosureIntegrationTest.java</code></td><td>&#x7ED3;&#x6784;&#x70ED;&#x70B9;</td></tr>
+<tr><td>468</td><td><code>bl-center/src/test/java/com/company/bl/interfaces/MasterDataControllerIntegrationTest.java</code></td><td>&#x63A5;&#x53E3;&#x5C42;&#x7EC4;&#x88C5;&#x804C;&#x8D23;&#x8FC7;&#x91CD;</td></tr>
+<tr><td>438</td><td><code>bl-center/src/main/java/com/company/bl/masterdata/infrastructure/SamplingJdbcRepository.java</code></td><td>&#x6301;&#x4E45;&#x5316;&#x804C;&#x8D23;&#x8FC7;&#x4E8E;&#x96C6;&#x4E2D;</td></tr>
+<tr><td>437</td><td><code>bl-center/src/test/java/com/company/bl/interfaces/SystemManagementRoleAndMenuIntegrationTest.java</code></td><td>&#x7ED3;&#x6784;&#x70ED;&#x70B9;</td></tr>
+<tr><td>437</td><td><code>bl-center/src/main/java/com/company/bl/infrastructure/persistence/JdbcSpecimenWorkflowSpecimenMutationSupport.java</code></td><td>&#x6301;&#x4E45;&#x5316;&#x804C;&#x8D23;&#x8FC7;&#x4E8E;&#x96C6;&#x4E2D;</td></tr>
+<tr><td>434</td><td><code>bl-center/src/main/java/com/company/bl/integration/application/StatisticsService.java</code></td><td>&#x5E94;&#x7528;&#x7F16;&#x6392;&#x804C;&#x8D23;&#x8FC7;&#x5927;</td></tr>
+<tr><td>433</td><td><code>bl-center/src/main/java/com/company/bl/interfaces/controller/SpecimenControllerAssembler.java</code></td><td>&#x63A5;&#x53E3;&#x5C42;&#x7EC4;&#x88C5;&#x804C;&#x8D23;&#x8FC7;&#x91CD;</td></tr>
+<tr><td>432</td><td><code>bl-center/src/main/java/com/company/bl/infrastructure/persistence/JdbcOperationSupportRepository.java</code></td><td>&#x6301;&#x4E45;&#x5316;&#x804C;&#x8D23;&#x8FC7;&#x4E8E;&#x96C6;&#x4E2D;</td></tr>
+<tr><td>432</td><td><code>bl-center/src/main/java/db/migration/V11LegacyDmSchemaSupport.java</code></td><td>&#x6301;&#x4E45;&#x5316;&#x804C;&#x8D23;&#x8FC7;&#x4E8E;&#x96C6;&#x4E2D;</td></tr>
+<tr><td>431</td><td><code>bl-center/src/main/java/db/migration/V54__reconcile_workflow_reference_options.java</code></td><td>&#x7ED3;&#x6784;&#x70ED;&#x70B9;</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>&#x6A21;&#x5757;&#x6D4B;&#x8BD5;&#x5206;&#x5E03;</h2>
+      <p class="section-intro">&#x7EDF;&#x8BA1;&#x6309;&#x6839; POM &#x4E2D;&#x58F0;&#x660E;&#x7684; Maven module &#x8BA1;&#x7B97;&#xFF0C;&#x5E2E;&#x52A9;&#x5FEB;&#x901F;&#x8BC6;&#x522B;&#x6D4B;&#x8BD5;&#x9762;&#x660E;&#x663E;&#x504F;&#x8584;&#x7684;&#x6A21;&#x5757;&#x3002;</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>&#x6A21;&#x5757;</th>
+              <th>&#x4E3B;&#x4EE3;&#x7801; Java</th>
+              <th>&#x6D4B;&#x8BD5; Java</th>
+              <th>&#x6D4B;&#x8BD5;/&#x4E3B;&#x4EE3;&#x7801;&#x6BD4;</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code></code></td><td>0</td><td>0</td><td>-</td></tr>
+<tr><td><code></code></td><td>0</td><td>0</td><td>-</td></tr>
+<tr><td><code></code></td><td>0</td><td>0</td><td>-</td></tr>
+<tr><td><code></code></td><td>0</td><td>0</td><td>-</td></tr>
+<tr><td><code></code></td><td>0</td><td>0</td><td>-</td></tr>
+<tr><td><code></code></td><td>0</td><td>0</td><td>-</td></tr>
+<tr><td><code></code></td><td>0</td><td>0</td><td>-</td></tr>
+<tr><td><code></code></td><td>0</td><td>0</td><td>-</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>&#x5DE5;&#x4F5C;&#x533A;&#x4E0A;&#x4E0B;&#x6587;</h2>
+      <p class="section-intro">&#x62A5;&#x544A;&#x4E0D;&#x4F1A;&#x56E0;&#x4E3A;&#x5DE5;&#x4F5C;&#x533A;&#x672A;&#x6E05;&#x7406;&#x800C;&#x62D2;&#x7EDD;&#x751F;&#x6210;&#xFF0C;&#x4F46;&#x4F1A;&#x628A;&#x5F53;&#x524D;&#x4E0A;&#x4E0B;&#x6587;&#x663E;&#x5F0F;&#x5E26;&#x51FA;&#x6765;&#xFF0C;&#x907F;&#x514D;&#x628A;&#x6CBB;&#x7406;&#x7ED3;&#x8BBA;&#x8BEF;&#x5F53;&#x6210;&#x5E72;&#x51C0;&#x57FA;&#x7EBF;&#x3002;</p>
+      <div class="meta-grid">
+        <article class="panel">
+          <h3>Git &#x5DE5;&#x4F5C;&#x533A;</h3>
+          <ul class="facts">
+            <li>&#x810F;&#x72B6;&#x6001;&#xFF1A;<strong>&#x662F;</strong></li>
+            <li>&#x5DF2;&#x8DDF;&#x8E2A;&#x53D8;&#x66F4;&#xFF1A;<strong>7</strong></li>
+            <li>&#x672A;&#x8DDF;&#x8E2A;&#x6587;&#x4EF6;&#xFF1A;<strong>7</strong></li>
+          </ul>
+          <ul class="list">
+            <li><code>M bl-center/src/main/java/com/company/bl/infrastructure/persistence/JdbcSpecimenWorkflowRepository.java</code></li>
+<li><code>M docs/AGENTS.md</code></li>
+<li><code>M docs/reports/code-health-checklist.md</code></li>
+<li><code>M docs/reports/largest-files-report.md</code></li>
+<li><code>RD docs/rules/ai-code-health.md -&gt; docs/rules/AI-CODE-HEALTH..md</code></li>
+<li><code>M scripts/ci/generate-code-health-checklist.ps1</code></li>
+<li><code>M scripts/ci/generate-code-health-checklist.sh</code></li>
+<li><code>?? bl-center/src/test/java/com/company/bl/infrastructure/persistence/</code></li>
+          </ul>
+        </article>
+        <article class="panel">
+          <h3>CodeGraph</h3>
+          <ul class="facts">
+  <li>&#x5DF2;&#x7D22;&#x5F15;&#x6587;&#x4EF6;&#xFF1A;<strong>451</strong></li>
+  <li>&#x8282;&#x70B9;&#x6570;&#xFF1A;<strong>8,184</strong></li>
+  <li>&#x8FB9;&#x6570;&#xFF1A;<strong>12,450</strong></li>
+  <li>&#x540E;&#x7AEF;&#xFF1A;<strong>native</strong></li>
+  <li>&#x5F85;&#x540C;&#x6B65;&#x4FEE;&#x6539;&#x6587;&#x4EF6;&#xFF1A;<strong>1</strong></li>
+</ul>
+        </article>
+        <article class="panel">
+          <h3>&#x6CBB;&#x7406;&#x6765;&#x6E90;</h3>
+          <ul class="facts">
+            <li>&#x5927;&#x6587;&#x4EF6;&#x62A5;&#x544A;&#xFF1A;<strong>&#x901A;&#x8FC7;</strong></li>
+            <li>&#x5065;&#x5EB7;&#x68C0;&#x67E5;&#x6E05;&#x5355;&#xFF1A;<strong>&#x901A;&#x8FC7;</strong></li>
+            <li>&#x751F;&#x6210; UTC&#xFF1A;<strong>2026-05-31T03:37:29Z</strong></li>
+          </ul>
+          <p class="footer-note">&#x9879;&#x76EE;&#x5065;&#x5EB7;&#x89C4;&#x5219;&#x6765;&#x81EA; <code>docs/rules/PROJECT_HEALTH_RULES.md</code>&#x3002;</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>&#x5EFA;&#x8BAE;&#x52A8;&#x4F5C;</h2>
+      <p class="section-intro">&#x8FD9;&#x4E9B;&#x52A8;&#x4F5C;&#x6309;&#x5F53;&#x524D;&#x9A8C;&#x8BC1;&#x7ED3;&#x679C;&#x3001;&#x70ED;&#x70B9;&#x7C7B;&#x578B;&#x548C;&#x6A21;&#x5757;&#x6D4B;&#x8BD5;&#x5206;&#x5E03;&#x81EA;&#x52A8;&#x6574;&#x7406;&#xFF0C;&#x4F18;&#x5148;&#x5BF9;&#x9F50;&#x4ED3;&#x5E93;&#x73B0;&#x6709;&#x7684;&#x9879;&#x76EE;&#x5065;&#x5EB7;&#x89C4;&#x5219;&#x3002;</p>
+      <ul class="list">
+        <li>&#x5148;&#x4FEE;&#x590D; RepositoryFileHealthGateTest &#x7684;&#x5931;&#x8D25;&#x9879;&#xFF0C;&#x518D;&#x628A;&#x6587;&#x4EF6;&#x5065;&#x5EB7;&#x7ED3;&#x8BBA;&#x89C6;&#x4E3A;&#x53EF;&#x4FE1;&#x3002;</li>
+<li>&#x5148;&#x6062;&#x590D; mvnw test -Dsurefire.excludedGroups=slow &#x901A;&#x8FC7;&#xFF0C;&#x518D;&#x628A;&#x8FD9;&#x4EFD;&#x62A5;&#x544A;&#x7EB3;&#x5165;&#x65E5;&#x5E38;&#x5FEB;&#x53CD;&#x9988;&#x3002;</li>
+<li>&#x7EE7;&#x7EED;&#x6536;&#x655B;&#x4E34;&#x65F6;&#x8C41;&#x514D;&#xFF0C;&#x628A;&#x8D85;&#x9650;&#x7684;&#x751F;&#x6210;&#x578B;&#x5927;&#x6587;&#x4EF6;&#x8FC1;&#x51FA;&#x6216;&#x6539;&#x9020;&#x6210;&#x53EF;&#x590D;&#x751F;&#x6210;&#x7269;&#x3002;</li>
+<li>&#x4F18;&#x5148;&#x62C6;&#x5206; Repository/Jdbc/Support &#x70ED;&#x70B9;&#xFF0C;&#x628A;&#x8BFB;&#x5199;&#x3001;schema &#x63A2;&#x6D4B;&#x548C;&#x6620;&#x5C04;&#x804C;&#x8D23;&#x7EE7;&#x7EED;&#x4E0B;&#x6C89;&#x3002;</li>
+<li>&#x628A;&#x539A; controller/assembler &#x7684; DTO &#x7EC4;&#x88C5;&#x903B;&#x8F91;&#x7EE7;&#x7EED;&#x8FC1;&#x79FB;&#x5230;&#x663E;&#x5F0F; assembler &#x6216; mapper&#x3002;</li>
+      </ul>
+    </section>
+  </div>
+</body>
+</html>
