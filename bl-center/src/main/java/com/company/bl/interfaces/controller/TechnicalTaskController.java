@@ -50,6 +50,7 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
         @Parameter(description = "当前节点") @RequestParam(required = false) String currentNode,
         @Parameter(description = "申请单号") @RequestParam(required = false) String applicationNo,
         @Parameter(description = "病理号") @RequestParam(required = false) String pathologyNo,
+        @Parameter(description = "病人 ID 或病理号关键字") @RequestParam(required = false) String keyword,
         @Parameter(description = "对象类型") @RequestParam(required = false) String objectType,
         @Parameter(description = "创建时间起点，ISO-8601") @RequestParam(required = false)
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdFrom,
@@ -60,6 +61,7 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
         TechnicalWorkflowModels.PendingTechnicalTaskPage result = technicalWorkflowAppService.listPendingTasks(
             new TechnicalWorkflowModels.PendingTechnicalTaskQuery(
                 page, size, taskType, taskStatus, priority, assignedToUserId, currentNode, applicationNo, pathologyNo,
+                keyword,
                 objectType, createdFrom, createdTo, timedOutOnly));
         return new PendingTechnicalTaskPageResponse(
             result.items().stream().map(this::toResponse).toList(),
@@ -151,6 +153,10 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
             item.taskStatus(),
             item.objectType(),
             item.objectId(),
+            item.samplingBlockCode(),
+            item.samplingBlockDescription(),
+            item.sampledByName(),
+            item.sampledAt(),
             item.payload(),
             item.priority(),
             item.currentNode(),

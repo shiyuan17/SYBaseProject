@@ -24,6 +24,14 @@ public record PendingTechnicalTaskResponse(
     String objectType,
     @Schema(description = "对象 ID")
     String objectId,
+    @Schema(description = "蜡块号")
+    String samplingBlockCode,
+    @Schema(description = "蜡块名称")
+    String samplingBlockDescription,
+    @Schema(description = "取材操作人")
+    String sampledByName,
+    @Schema(description = "取材时间")
+    String sampledAt,
     @Schema(description = "扩展载荷")
     String payload,
     @Schema(description = "任务优先级")

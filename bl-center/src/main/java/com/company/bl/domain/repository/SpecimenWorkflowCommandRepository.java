@@ -19,6 +19,12 @@ public interface SpecimenWorkflowCommandRepository {
 
     void updateSpecimenLabelPrintStatus(String specimenId, String labelPrintStatus);
 
+    void updateSpecimenMaterial(String specimenId,
+                                String specimenType,
+                                String specimenNameStandardized,
+                                String specimenSite,
+                                String remarks);
+
     Specimen insertSpecimen(Specimen specimen);
 
     void insertCollectionRecord(String applicationId,

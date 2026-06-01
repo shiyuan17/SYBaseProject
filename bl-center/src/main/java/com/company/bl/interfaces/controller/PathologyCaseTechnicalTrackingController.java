@@ -37,6 +37,7 @@ public class PathologyCaseTechnicalTrackingController {
             result.technicalTasks().stream().map(task -> new PendingTechnicalTaskResponse(
                 task.id(), task.applicationId(), task.applicationNo(), task.caseId(), task.pathologyNo(),
                 task.specimenId(), task.taskType(), task.taskStatus(), task.objectType(), task.objectId(),
+                task.samplingBlockCode(), task.samplingBlockDescription(), task.sampledByName(), task.sampledAt(),
                 task.payload(), task.priority(), task.currentNode(), task.stationCode(), task.stationName(),
                 task.assignedToUserId(), task.assignedToName(), task.expectedCompletedAt(), task.productionRemarks(),
                 task.receivedAt(), task.remarks(), task.createdAt(), task.startedAt(), task.completedAt(),
@@ -46,10 +47,23 @@ public class PathologyCaseTechnicalTrackingController {
                 item.specimenId(), item.specimenNo(), item.barcode(), item.specimenName(), item.specimenStatus()))
                 .toList(),
             result.blocks().stream().map(item -> new TechnicalTrackingResponse.BlockSummary(
-                item.blockId(), item.specimenId(), item.blockCode(), item.embeddingBoxNo(), item.description()))
+                item.blockId(), item.specimenId(), item.blockCode(), item.embeddingBoxNo(), item.description(),
+                item.specimenName(), item.grossDescription()))
                 .toList(),
             result.embeddingBoxes().stream().map(item -> new TechnicalTrackingResponse.EmbeddingBoxSummary(
                 item.embeddingBoxId(), item.specimenId(), item.embeddingBoxNo(), item.sliceNotice(), item.slideCount()))
+                .toList(),
+            result.embeddingRecords().stream().map(item -> new TechnicalTrackingResponse.EmbeddingRecordSummary(
+                item.taskId(), item.caseId(), item.pathologyNo(), item.specimenId(), item.specimenName(),
+                item.samplingBlockId(), item.samplingBlockCode(), item.samplingBlockDescription(), item.grossDescription(),
+                item.embeddingId(), item.embeddingBoxId(), item.embeddingBoxNo(), item.sliceNotice(),
+                item.evaluationLevel(), item.samplingEvaluation(), item.embeddingRemarks(), item.sampledByName(),
+                item.sampledAt(), item.embeddedByName(), item.startedAt(), item.endedAt(), item.taskStatus()))
+                .toList(),
+            result.embeddingEvaluationRecords().stream().map(item -> new TechnicalTrackingResponse.EmbeddingEvaluationRecordSummary(
+                item.embeddingId(), item.caseId(), item.pathologyNo(), item.specimenId(), item.specimenName(),
+                item.samplingBlockId(), item.samplingBlockCode(), item.embeddingBoxNo(), item.evaluationLevel(),
+                item.samplingEvaluation(), item.embeddingRemarks(), item.embeddedByName(), item.endedAt()))
                 .toList(),
             result.slides().stream().map(item -> new TechnicalTrackingResponse.SlideSummary(
                 item.slideId(), item.specimenId(), item.embeddingBoxId(), item.slideNo(), item.slideStatus(), item.qualityStatus()))

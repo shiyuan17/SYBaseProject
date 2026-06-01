@@ -1,28 +1,44 @@
 package com.company.bl.interfaces.controller;
 
+import com.company.bl.application.service.GrossingMediaStorageService;
 import com.company.bl.application.service.TechnicalWorkflowAppService;
 import com.company.bl.application.service.TechnicalWorkflowModels;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.TechnicalSpecimenRegistrationCompleteRequest;
-import com.company.bl.interfaces.vo.PendingTechnicalSpecimenRegistrationPageResponse;
+import com.company.bl.interfaces.dto.TechnicalSpecimenRegistrationMaterialsSaveRequest;
 import com.company.bl.interfaces.vo.PendingTechnicalSpecimenRegistrationResponse;
+import com.company.bl.interfaces.vo.PendingTechnicalSpecimenRegistrationPageResponse;
+import com.company.bl.interfaces.vo.TechnicalSpecimenRegistrationActionFlagsResponse;
+import com.company.bl.interfaces.vo.TechnicalSpecimenRegistrationBasicInfoResponse;
 import com.company.bl.interfaces.vo.TechnicalSpecimenRegistrationCheckItemResponse;
 import com.company.bl.interfaces.vo.TechnicalSpecimenRegistrationCompleteResponse;
+import com.company.bl.interfaces.vo.TechnicalSpecimenRegistrationDetailSectionsResponse;
 import com.company.bl.interfaces.vo.TechnicalSpecimenRegistrationDetailResponse;
+import com.company.bl.interfaces.vo.TechnicalSpecimenRegistrationMediaAssetDeleteResponse;
+import com.company.bl.interfaces.vo.TechnicalSpecimenRegistrationMediaAssetResponse;
 import com.company.bl.interfaces.vo.TechnicalSpecimenRegistrationMaterialResponse;
+import com.company.bl.interfaces.vo.TechnicalSpecimenRegistrationWorkspaceResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/v1/technical-specimen-registrations")
@@ -30,9 +46,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class TechnicalSpecimenRegistrationController extends TechnicalControllerSupport {
 
     private final TechnicalWorkflowAppService technicalWorkflowAppService;
+    private final GrossingMediaStorageService grossingMediaStorageService;
 
-    public TechnicalSpecimenRegistrationController(TechnicalWorkflowAppService technicalWorkflowAppService) {
+    public TechnicalSpecimenRegistrationController(TechnicalWorkflowAppService technicalWorkflowAppService,
+                                                   GrossingMediaStorageService grossingMediaStorageService) {
         this.technicalWorkflowAppService = technicalWorkflowAppService;
+        this.grossingMediaStorageService = grossingMediaStorageService;
     }
 
     @Operation(summary = "查询待技术登记病例", description = "分页查询病理接收后待进入技术登记环节的病例。")
@@ -41,11 +60,18 @@ public class TechnicalSpecimenRegistrationController extends TechnicalController
     public PendingTechnicalSpecimenRegistrationPageResponse listPending(
         @Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
         @Parameter(description = "每页条数，默认 20") @RequestParam(defaultValue = "20") int size,
-        @Parameter(description = "病人 ID、病理号、姓名、住院号关键字") @RequestParam(required = false) String keyword
+        @Parameter(description = "病人 ID、病理号、姓名、住院号关键字") @RequestParam(required = false) String keyword,
+        @Parameter(description = "接收开始日期") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receivedFrom,
+        @Parameter(description = "接收结束日期") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receivedTo
     ) {
         TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationPage result =
             technicalWorkflowAppService.listPendingTechnicalSpecimenRegistrations(
-                new TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationQuery(page, size, keyword));
+                new TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationQuery(
+                    page,
+                    size,
+                    keyword,
+                    receivedFrom == null ? null : receivedFrom.atStartOfDay(),
+                    receivedTo == null ? null : receivedTo.plusDays(1).atStartOfDay()));
         return new PendingTechnicalSpecimenRegistrationPageResponse(
             result.items().stream().map(item -> new PendingTechnicalSpecimenRegistrationResponse(
                 item.caseId(),
@@ -90,6 +116,7 @@ public class TechnicalSpecimenRegistrationController extends TechnicalController
             detail.registrationRemarks(),
             detail.receivedAt(),
             detail.materials().stream().map(item -> new TechnicalSpecimenRegistrationMaterialResponse(
+                item.specimenId(),
                 item.sequenceNo(),
                 item.specimenType(),
                 item.specimenName(),
@@ -97,6 +124,132 @@ public class TechnicalSpecimenRegistrationController extends TechnicalController
             detail.checkItems().stream().map(item -> new TechnicalSpecimenRegistrationCheckItemResponse(
                 item.sequenceNo(),
                 item.name())).toList());
+    }
+
+    @Operation(summary = "查询技术标本登记工作台", description = "按工作台布局返回左侧摘要、中间详情与右侧图片区数据。")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_RECEIVE)
+    @GetMapping("/{caseId}/workspace")
+    public TechnicalSpecimenRegistrationWorkspaceResponse workspace(@PathVariable String caseId) {
+        TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace workspace =
+            technicalWorkflowAppService.getTechnicalSpecimenRegistrationWorkspace(caseId);
+        return new TechnicalSpecimenRegistrationWorkspaceResponse(
+            new PendingTechnicalSpecimenRegistrationResponse(
+                workspace.pendingSummary().caseId(),
+                workspace.pendingSummary().applicationId(),
+                workspace.pendingSummary().applicationNo(),
+                workspace.pendingSummary().pathologyNo(),
+                workspace.pendingSummary().patientName(),
+                workspace.pendingSummary().patientId(),
+                workspace.pendingSummary().inpatientNo(),
+                workspace.pendingSummary().applicationType(),
+                workspace.pendingSummary().submittingDepartmentName(),
+                workspace.pendingSummary().checkItem(),
+                workspace.pendingSummary().registeredByName(),
+                workspace.pendingSummary().registrationStatus(),
+                workspace.pendingSummary().receivedAt(),
+                workspace.pendingSummary().registeredAt()),
+            new TechnicalSpecimenRegistrationBasicInfoResponse(
+                workspace.basicInfo().patientName(),
+                workspace.basicInfo().patientGender(),
+                workspace.basicInfo().patientAge(),
+                workspace.basicInfo().patientId(),
+                workspace.basicInfo().inpatientNo(),
+                workspace.basicInfo().applicationNo(),
+                workspace.basicInfo().submittingDepartmentName(),
+                workspace.basicInfo().submittingDoctorName(),
+                workspace.basicInfo().submissionDate(),
+                workspace.basicInfo().specimenRemovalTime(),
+                workspace.basicInfo().fixationTime(),
+                workspace.basicInfo().applicationType(),
+                workspace.basicInfo().pathologyNo(),
+                workspace.basicInfo().registrationStatus()),
+            new TechnicalSpecimenRegistrationDetailSectionsResponse(
+                workspace.detailSections().historySummary(),
+                workspace.detailSections().clinicalExaminationAndSurgeryFindings(),
+                workspace.detailSections().labAndImagingExaminations(),
+                workspace.detailSections().clinicalSubmissionRequirements(),
+                workspace.detailSections().infectiousAndPastHistorySummary(),
+                workspace.detailSections().externalPathologyDiagnosis()),
+            workspace.materials().stream().map(item -> new TechnicalSpecimenRegistrationMaterialResponse(
+                item.specimenId(),
+                item.sequenceNo(),
+                item.specimenType(),
+                item.specimenName(),
+                item.sourcePart())).toList(),
+            workspace.checkItems().stream().map(item -> new TechnicalSpecimenRegistrationCheckItemResponse(
+                item.sequenceNo(),
+                item.name())).toList(),
+            workspace.mediaAssets().stream().map(item -> new TechnicalSpecimenRegistrationMediaAssetResponse(
+                item.assetId(),
+                item.fileName(),
+                item.fileUrl(),
+                item.capturedAt())).toList(),
+            new TechnicalSpecimenRegistrationActionFlagsResponse(
+                workspace.actionFlags().canCompleteRegistration(),
+                workspace.actionFlags().canSaveMaterials(),
+                workspace.actionFlags().canUploadMediaAssets(),
+                workspace.actionFlags().canDeleteMediaAssets()));
+    }
+
+    @Operation(summary = "保存技术标本登记材料", description = "批量替换技术登记阶段维护的材料列表。")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_RECEIVE)
+    @PutMapping("/{caseId}/materials")
+    public TechnicalSpecimenRegistrationWorkspaceResponse saveMaterials(@PathVariable String caseId,
+                                                                       @Valid @RequestBody TechnicalSpecimenRegistrationMaterialsSaveRequest request,
+                                                                       HttpServletRequest httpServletRequest) {
+        TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace workspace =
+            technicalWorkflowAppService.saveTechnicalSpecimenRegistrationMaterials(
+                new TechnicalWorkflowModels.SaveTechnicalSpecimenRegistrationMaterialsCommand(
+                    caseId,
+                    resolveUserId(httpServletRequest),
+                    resolveOperatorName(httpServletRequest),
+                    request.getTerminalCode(),
+                    request.getMaterials().stream().map(item ->
+                        new TechnicalWorkflowModels.TechnicalSpecimenRegistrationMaterialInput(
+                            item.getSpecimenId(),
+                            item.getSpecimenType(),
+                            item.getSpecimenName(),
+                            item.getSourcePart())).toList()));
+        return workspace(caseId);
+    }
+
+    @Operation(summary = "上传技术标本登记图片", description = "上传并挂接技术登记阶段的右侧图片区附件。")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_RECEIVE)
+    @PostMapping(value = "/{caseId}/media-assets", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public TechnicalSpecimenRegistrationMediaAssetResponse uploadMediaAsset(@PathVariable String caseId,
+                                                                            @RequestParam("file") MultipartFile file,
+                                                                            HttpServletRequest httpServletRequest) {
+        var stored = grossingMediaStorageService.store(file);
+        TechnicalWorkflowModels.TechnicalSpecimenRegistrationMediaAsset asset =
+            technicalWorkflowAppService.uploadTechnicalSpecimenRegistrationMediaAsset(
+                new TechnicalWorkflowModels.UploadTechnicalSpecimenRegistrationMediaAssetCommand(
+                    caseId,
+                    resolveUserId(httpServletRequest),
+                    resolveOperatorName(httpServletRequest),
+                    null,
+                    stored.fileName(),
+                    stored.fileUrl()));
+        return new TechnicalSpecimenRegistrationMediaAssetResponse(
+            asset.assetId(),
+            asset.fileName(),
+            asset.fileUrl(),
+            asset.capturedAt());
+    }
+
+    @Operation(summary = "删除技术标本登记图片", description = "删除技术登记阶段的右侧图片区附件。")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_RECEIVE)
+    @DeleteMapping("/{caseId}/media-assets/{assetId}")
+    public TechnicalSpecimenRegistrationMediaAssetDeleteResponse deleteMediaAsset(@PathVariable String caseId,
+                                                                                  @PathVariable String assetId,
+                                                                                  HttpServletRequest httpServletRequest) {
+        technicalWorkflowAppService.deleteTechnicalSpecimenRegistrationMediaAsset(
+            new TechnicalWorkflowModels.DeleteTechnicalSpecimenRegistrationMediaAssetCommand(
+                caseId,
+                assetId,
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                null));
+        return new TechnicalSpecimenRegistrationMediaAssetDeleteResponse(assetId, true);
     }
 
     @Operation(summary = "完成技术标本登记", description = "完成登记并生成病例取材任务。")

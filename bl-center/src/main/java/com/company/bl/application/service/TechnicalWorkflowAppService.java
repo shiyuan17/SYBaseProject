@@ -30,6 +30,14 @@ public class TechnicalWorkflowAppService {
         return technicalWorkflowQueryService.listPendingTasks(query);
     }
 
+    public TechnicalWorkflowModels.EmbeddingWorkstationSummary getEmbeddingWorkstationSummary(java.time.LocalDate workDate) {
+        return technicalWorkflowQueryService.getEmbeddingWorkstationSummary(workDate);
+    }
+
+    public TechnicalWorkflowModels.SlicingWorkbenchView getSlicingWorkbench(TechnicalWorkflowModels.SlicingWorkbenchQuery query) {
+        return technicalWorkflowQueryService.getSlicingWorkbench(query);
+    }
+
     public TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationPage listPendingTechnicalSpecimenRegistrations(
         TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationQuery query) {
         return technicalSpecimenRegistrationService.listPendingRegistrations(query);
@@ -37,6 +45,25 @@ public class TechnicalWorkflowAppService {
 
     public TechnicalWorkflowModels.TechnicalSpecimenRegistrationDetail getTechnicalSpecimenRegistrationDetail(String caseId) {
         return technicalSpecimenRegistrationService.getRegistrationDetail(caseId);
+    }
+
+    public TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace getTechnicalSpecimenRegistrationWorkspace(String caseId) {
+        return technicalSpecimenRegistrationService.getRegistrationWorkspace(caseId);
+    }
+
+    public TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace saveTechnicalSpecimenRegistrationMaterials(
+        TechnicalWorkflowModels.SaveTechnicalSpecimenRegistrationMaterialsCommand command) {
+        return technicalSpecimenRegistrationService.saveRegistrationMaterials(command);
+    }
+
+    public TechnicalWorkflowModels.TechnicalSpecimenRegistrationMediaAsset uploadTechnicalSpecimenRegistrationMediaAsset(
+        TechnicalWorkflowModels.UploadTechnicalSpecimenRegistrationMediaAssetCommand command) {
+        return technicalSpecimenRegistrationService.uploadMediaAsset(command);
+    }
+
+    public void deleteTechnicalSpecimenRegistrationMediaAsset(
+        TechnicalWorkflowModels.DeleteTechnicalSpecimenRegistrationMediaAssetCommand command) {
+        technicalSpecimenRegistrationService.deleteMediaAsset(command);
     }
 
     public TechnicalWorkflowModels.TechnicalSpecimenRegistrationCompleteResult completeTechnicalSpecimenRegistration(
@@ -62,6 +89,10 @@ public class TechnicalWorkflowAppService {
 
     public TechnicalWorkflowModels.TaskStartResult startGrossing(TechnicalWorkflowModels.TaskStartCommand command) {
         return technicalGrossingWorkflowService.startGrossing(command);
+    }
+
+    public TechnicalWorkflowModels.GrossingWorkbenchContext getGrossingWorkbenchContext(String taskId) {
+        return technicalGrossingWorkflowService.getGrossingWorkbenchContext(taskId);
     }
 
     public TechnicalWorkflowModels.GrossingResult completeGrossing(TechnicalWorkflowModels.GrossingCompleteCommand command) {
@@ -95,6 +126,11 @@ public class TechnicalWorkflowAppService {
 
     public TechnicalWorkflowModels.SlicingResult completeSlicing(TechnicalWorkflowModels.SlicingCompleteCommand command) {
         return technicalProcessingWorkflowService.completeSlicing(command);
+    }
+
+    public TechnicalWorkflowModels.SlideQcEvaluationResult createSlideQcEvaluation(
+        TechnicalWorkflowModels.CreateSlideQcEvaluationCommand command) {
+        return technicalProcessingWorkflowService.createSlideQcEvaluation(command);
     }
 
     public TechnicalWorkflowModels.TaskStartResult startSlideStaining(TechnicalWorkflowModels.TaskStartCommand command) {

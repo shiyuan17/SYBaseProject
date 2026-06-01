@@ -4,16 +4,156 @@ import com.company.bl.BlCenterApplication;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ActiveProfiles("test")
 @SpringBootTest(classes = BlCenterApplication.class)
 class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflowIntegrationTest {
+
+    @Test
+    void shouldExposeGrossingWorkbenchContextFromAggregatedSources() throws Exception {
+        TechnicalCaseContext registrationContext =
+            receiveCaseAndGetPendingRegistration("APP-M3-CTX-001", "BC-M3-CTX-001");
+
+        mockMvc.perform(authorized(
+                patch("/api/v1/application-registration-workbench/{applicationId}/patient-info", registrationContext.applicationId()),
+                USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "contagiousSpecimen": {
+                        "hepatitis": false,
+                        "hiv": false,
+                        "isolation": true,
+                        "syphilis": false,
+                        "tuberculosis": false
+                      },
+                      "gynecologyInfo": {
+                        "additionalNotes": "既往曾行穿刺",
+                        "hpvResult": "",
+                        "lastMenstrualPeriod": "",
+                        "menopause": false,
+                        "previousCytology": "",
+                        "previousTreatment": "",
+                        "specialConditions": {
+                          "abnormalBleeding": false,
+                          "birthControl": false,
+                          "hormoneReplacement": false,
+                          "hysterectomy": false,
+                          "iud": false,
+                          "lactation": false,
+                          "menopause": false,
+                          "other": "",
+                          "pregnancy": false,
+                          "radiotherapy": false
+                        }
+                      },
+                      "patientInfo": {
+                        "age": "35岁",
+                        "applicationDate": "2026-05-27",
+                        "applicationNo": "",
+                        "applyDept": "OR",
+                        "applyDoctor": "Dr A",
+                        "bedNo": "16床",
+                        "checkItem": "术中病理；免疫组化复核",
+                        "clinicalDiagnosis": "Papillary thyroid carcinoma",
+                        "clinicalHistory": "甲状腺结节病史，近一个月增大",
+                        "deliveryRequirement": "立即送检",
+                        "endoscopyDiagnosis": "",
+                        "frozenReminder": false,
+                        "gender": "女",
+                        "idNo": "320101199001011234",
+                        "imagingResult": "超声提示甲状腺左叶低回声结节",
+                        "inpatientNo": "ZY-GROSSING-CTX-001",
+                        "patientName": "Patient A",
+                        "patientVerified": true,
+                        "phone": "13800001111",
+                        "registrationStatus": "登记",
+                        "remark": "取材工作台上下文测试",
+                        "specimenType": "ROUTINE",
+                        "wardName": "外科病区"
+                      },
+                      "surgeryInfo": {
+                        "buildingId": "B001",
+                        "clinicalFindings": "术中见甲状腺左叶结节样病灶",
+                        "fixativeType": "福尔马林",
+                        "fixationPerson": "护士甲",
+                        "fixationTime": "2026-05-27T10:15:00",
+                        "roomId": "OR-101",
+                        "specimenRemovalTime": "2026-05-27T10:00:00",
+                        "surgeryName": "甲状腺左叶切除术"
+                      }
+                    }
+                    """))
+            .andExpect(status().isOk());
+
+        completeTechnicalSpecimenRegistration(registrationContext.caseId(), "context ready");
+        String grossingTaskId = listPendingTasks("GROSSING", registrationContext.pathologyNo(), USER_M3_GROSSING)
+            .path("items")
+            .get(0)
+            .path("id")
+            .asText();
+
+        TechnicalCaseContext context = new TechnicalCaseContext(
+            registrationContext.applicationId(),
+            registrationContext.caseId(),
+            registrationContext.pathologyNo(),
+            registrationContext.specimenId(),
+            registrationContext.barcode(),
+            grossingTaskId);
+
+        namedParameterJdbcTemplate.update("""
+            insert into case_media_assets
+                (id, case_id, specimen_id, object_type, object_id, media_type, file_url, file_name,
+                 captured_at, captured_by_user_id, captured_by_name, remarks, created_at, updated_at)
+            values
+                (:id, :caseId, :specimenId, :objectType, :objectId, :mediaType, :fileUrl, :fileName,
+                 :capturedAt, :capturedByUserId, :capturedByName, :remarks, :createdAt, :updatedAt)
+            """, new MapSqlParameterSource()
+            .addValue("id", "MED-GROSSING-CTX-001")
+            .addValue("caseId", context.caseId())
+            .addValue("specimenId", context.specimenId())
+            .addValue("objectType", "SAMPLING")
+            .addValue("objectId", "SMP-GROSSING-CTX-001")
+            .addValue("mediaType", "GROSS_IMAGE")
+            .addValue("fileUrl", "http://example.com/grossing-context-1.jpg")
+            .addValue("fileName", "grossing-context-1.jpg")
+            .addValue("capturedAt", java.time.LocalDateTime.parse("2026-05-27T10:20:00"))
+            .addValue("capturedByUserId", USER_M3_GROSSING)
+            .addValue("capturedByName", userDisplayName(USER_M3_GROSSING))
+            .addValue("remarks", "历史取材影像")
+            .addValue("createdAt", java.time.LocalDateTime.parse("2026-05-27T10:20:00"))
+            .addValue("updatedAt", java.time.LocalDateTime.parse("2026-05-27T10:20:00")));
+
+        mockMvc.perform(authorized(get("/api/v1/grossings/{taskId}/context", context.grossingTaskId()), USER_M3_GROSSING))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.task.taskId").value(context.grossingTaskId()))
+            .andExpect(jsonPath("$.data.task.taskStatus").value("PENDING"))
+            .andExpect(jsonPath("$.data.caseSummary.caseId").value(context.caseId()))
+            .andExpect(jsonPath("$.data.caseSummary.applicationId").value(context.applicationId()))
+            .andExpect(jsonPath("$.data.caseSummary.pathologyNo").value(context.pathologyNo()))
+            .andExpect(jsonPath("$.data.clinicalDiagnosis").value("Papillary thyroid carcinoma"))
+            .andExpect(jsonPath("$.data.clinicalHistory").value("甲状腺结节病史，近一个月增大"))
+            .andExpect(jsonPath("$.data.relatedExaminations").value("影像检查: 超声提示甲状腺左叶低回声结节"))
+            .andExpect(jsonPath("$.data.contextSummary").value(containsString("术中见甲状腺左叶结节样病灶")))
+            .andExpect(jsonPath("$.data.contextSummary").value(containsString("立即送检")))
+            .andExpect(jsonPath("$.data.contextSummary").value(containsString("传染信息: 隔离")))
+            .andExpect(jsonPath("$.data.checkItems[0].name").value("术中病理"))
+            .andExpect(jsonPath("$.data.checkItems[1].name").value("免疫组化复核"))
+            .andExpect(jsonPath("$.data.tracking.caseId").value(context.caseId()))
+            .andExpect(jsonPath("$.data.tracking.specimens[0].specimenId").value(context.specimenId()))
+            .andExpect(jsonPath("$.data.mediaAssets[0].fileName").value("grossing-context-1.jpg"))
+            .andExpect(jsonPath("$.data.mediaAssets[0].specimenId").value(context.specimenId()));
+    }
 
     @Test
     void shouldCompleteTechnicalWorkflowEndToEndAndExposeTracking() throws Exception {

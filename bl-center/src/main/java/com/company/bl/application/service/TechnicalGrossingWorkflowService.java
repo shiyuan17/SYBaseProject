@@ -14,13 +14,69 @@ import java.util.UUID;
 @Service
 class TechnicalGrossingWorkflowService {
 
+    private static final String GROSSING_MEDIA_OBJECT_TYPE = "SAMPLING";
+    private static final String GROSSING_MEDIA_TYPE = "GROSS_IMAGE";
+
     private final TechnicalWorkflowRepository technicalWorkflowRepository;
     private final TechnicalWorkflowSupport technicalWorkflowSupport;
+    private final TechnicalWorkflowQueryService technicalWorkflowQueryService;
+    private final TechnicalSpecimenRegistrationService technicalSpecimenRegistrationService;
 
     TechnicalGrossingWorkflowService(TechnicalWorkflowRepository technicalWorkflowRepository,
-                                     TechnicalWorkflowSupport technicalWorkflowSupport) {
+                                     TechnicalWorkflowSupport technicalWorkflowSupport,
+                                     TechnicalWorkflowQueryService technicalWorkflowQueryService,
+                                     TechnicalSpecimenRegistrationService technicalSpecimenRegistrationService) {
         this.technicalWorkflowRepository = technicalWorkflowRepository;
         this.technicalWorkflowSupport = technicalWorkflowSupport;
+        this.technicalWorkflowQueryService = technicalWorkflowQueryService;
+        this.technicalSpecimenRegistrationService = technicalSpecimenRegistrationService;
+    }
+
+    @Transactional(readOnly = true)
+    TechnicalWorkflowModels.GrossingWorkbenchContext getGrossingWorkbenchContext(String taskId) {
+        TechnicalWorkflowRecords.TechnicalTask task = technicalWorkflowSupport.requireActiveTask(
+            taskId, TechnicalWorkflowConstants.NODE_GROSSING, TechnicalWorkflowConstants.OBJECT_CASE);
+        TechnicalWorkflowModels.TechnicalTrackingView tracking =
+            technicalWorkflowQueryService.getTechnicalTracking(task.caseId());
+        TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace workspace =
+            technicalSpecimenRegistrationService.getRegistrationWorkspace(task.caseId());
+        TechnicalWorkflowModels.TechnicalSpecimenRegistrationDetail detail =
+            technicalSpecimenRegistrationService.getRegistrationDetail(task.caseId());
+        List<TechnicalWorkflowModels.GrossingWorkbenchMediaAsset> mediaAssets =
+            technicalWorkflowRepository.findCaseMediaAssets(
+                    task.caseId(),
+                    GROSSING_MEDIA_OBJECT_TYPE,
+                    GROSSING_MEDIA_TYPE)
+                .stream()
+                .map(this::toWorkbenchMediaAsset)
+                .toList();
+        return new TechnicalWorkflowModels.GrossingWorkbenchContext(
+            new TechnicalWorkflowModels.GrossingWorkbenchTaskSummary(
+                task.id(),
+                task.taskStatus(),
+                task.objectType(),
+                task.objectId()),
+            new TechnicalWorkflowModels.GrossingWorkbenchCaseSummary(
+                workspace.pendingSummary().caseId(),
+                workspace.pendingSummary().applicationId(),
+                workspace.pendingSummary().applicationNo(),
+                workspace.basicInfo().pathologyNo(),
+                tracking.caseStatus(),
+                workspace.basicInfo().patientName(),
+                workspace.basicInfo().patientId(),
+                workspace.basicInfo().inpatientNo(),
+                workspace.basicInfo().applicationType(),
+                workspace.basicInfo().submittingDepartmentName()),
+            tracking,
+            detail.clinicalDiagnosis(),
+            workspace.detailSections().historySummary(),
+            workspace.detailSections().labAndImagingExaminations(),
+            joinSections(
+                workspace.detailSections().clinicalExaminationAndSurgeryFindings(),
+                workspace.detailSections().clinicalSubmissionRequirements(),
+                workspace.detailSections().infectiousAndPastHistorySummary()),
+            detail.checkItems(),
+            mediaAssets);
     }
 
     @Transactional
@@ -220,5 +276,25 @@ class TechnicalGrossingWorkflowService {
             command.operatorName(), command.terminalCode(), "Dehydration completed");
         return new TechnicalWorkflowModels.DehydrationBatchResult(
             batch.id(), batch.batchNo(), TechnicalWorkflowConstants.TASK_COMPLETED, items.size());
+    }
+
+    private TechnicalWorkflowModels.GrossingWorkbenchMediaAsset toWorkbenchMediaAsset(
+        TechnicalWorkflowRecords.CaseMediaAsset asset
+    ) {
+        return new TechnicalWorkflowModels.GrossingWorkbenchMediaAsset(
+            asset.id(),
+            asset.specimenId(),
+            asset.fileName(),
+            asset.fileUrl(),
+            asset.capturedAt() == null ? null : asset.capturedAt().toString(),
+            asset.capturedByName());
+    }
+
+    private String joinSections(String... values) {
+        return java.util.Arrays.stream(values)
+            .filter(value -> value != null && !value.isBlank())
+            .distinct()
+            .reduce((left, right) -> left + "\n\n" + right)
+            .orElse(null);
     }
 }

@@ -1,6 +1,9 @@
 package com.company.bl.application.service;
 
 import com.company.bl.application.gateway.TechnicalMarkingGateway;
+import com.company.bl.domain.model.PathologyCase;
+import com.company.bl.domain.exception.BlBusinessException;
+import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRepository;
@@ -189,6 +192,64 @@ class TechnicalProcessingWorkflowService {
             TechnicalWorkflowConstants.NODE_SLICING, "COMPLETE", "SUCCESS", command.operatorUserId(),
             command.operatorName(), command.terminalCode(), "Slicing completed");
         return new TechnicalWorkflowModels.SlicingResult(task.id(), slicingId, slideIds, "SLICING");
+    }
+
+    @Transactional
+    TechnicalWorkflowModels.SlideQcEvaluationResult createSlideQcEvaluation(
+        TechnicalWorkflowModels.CreateSlideQcEvaluationCommand command
+    ) {
+        TechnicalWorkflowProcessingRecords.Slide slide = technicalWorkflowSupport.getSlide(command.slideId());
+        technicalWorkflowSupport.ensureSameCase(command.caseId(), slide.caseId());
+        if (command.specimenId() != null
+            && !command.specimenId().isBlank()
+            && !command.specimenId().trim().equals(slide.specimenId())) {
+            throw new BlBusinessException(
+                BlErrorCode.INVALID_ARGUMENT,
+                400,
+                "Slide specimen mismatch");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        String qcEvaluationId = technicalWorkflowSupport.nextId("QC");
+        technicalWorkflowRepository.insertSlideQcEvaluation(
+            new TechnicalWorkflowProcessingRecords.CreateSlideQcEvaluationCommand(
+                qcEvaluationId,
+                slide.caseId(),
+                command.specimenId() == null || command.specimenId().isBlank()
+                    ? slide.specimenId()
+                    : command.specimenId(),
+                slide.id(),
+                command.qcType(),
+                command.evaluationResult(),
+                command.issueDescription(),
+                command.improvementSuggestion(),
+                command.operatorUserId(),
+                command.operatorName(),
+                now,
+                command.remarks()));
+        String qualityStatus = switch (command.evaluationResult()) {
+            case "UNQUALIFIED", "REWORK_REQUIRED" -> "UNQUALIFIED";
+            default -> "QUALIFIED";
+        };
+        technicalWorkflowRepository.updateSlideStatus(slide.id(), slide.slideStatus(), qualityStatus);
+        PathologyCase pathologyCase = technicalWorkflowSupport.getCase(slide.caseId());
+        technicalWorkflowSupport.insertWorkflowEvent(
+            pathologyCase.applicationId(),
+            slide.specimenId(),
+            slide.caseId(),
+            TechnicalWorkflowConstants.NODE_QC,
+            "EVALUATE",
+            command.evaluationResult(),
+            command.operatorUserId(),
+            command.operatorName(),
+            command.terminalCode(),
+            command.issueDescription() == null || command.issueDescription().isBlank()
+                ? "Slide QC evaluated"
+                : command.issueDescription());
+        return new TechnicalWorkflowModels.SlideQcEvaluationResult(
+            qcEvaluationId,
+            slide.id(),
+            command.evaluationResult(),
+            qualityStatus);
     }
 
     @Transactional

@@ -216,6 +216,14 @@ final class JdbcTechnicalWorkflowProcessingMutations {
             .addValue("updatedAt", command.capturedAt()));
     }
 
+    void deleteCaseMediaAsset(String assetId) {
+        jdbcTemplate.update("""
+            delete from case_media_assets
+            where id = :assetId
+            """, new MapSqlParameterSource()
+            .addValue("assetId", assetId));
+    }
+
     void insertWorkflowEvent(TrackingEvent event) {
         jdbcTemplate.update("""
             insert into workflow_events

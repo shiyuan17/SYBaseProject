@@ -10,10 +10,12 @@ import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateEmbedding
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateSamplingBlockCommand;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateSamplingCommand;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateTechnicalTaskCommand;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.CaseMediaAsset;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.DehydrationBatch;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.DehydrationBatchItem;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.Embedding;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingBox;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingWorkstationRecord;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedTechnicalSpecimenRegistrations;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedTechnicalTasks;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PendingTechnicalSpecimenRegistrationQuery;
@@ -53,7 +55,17 @@ public interface TechnicalWorkflowRepository {
 
     List<TechnicalTask> findActiveTechnicalTasksByObject(String taskType, String objectType, String objectId);
 
+    List<TechnicalTask> findActiveTechnicalTasksByTypeAndCreatedRange(String taskType,
+                                                                      LocalDateTime createdFrom,
+                                                                      LocalDateTime createdTo);
+
     PagedTechnicalTasks findTechnicalTasks(PendingTechnicalTaskQuery query);
+
+    TechnicalWorkflowRecords.SlicingWorkbenchStats summarizeSlicingWorkbench(TechnicalWorkflowRecords.SlicingWorkbenchQuery query);
+
+    TechnicalWorkflowRecords.PagedSlicingWorkbenchRows findPendingSlicingWorkbenchRows(TechnicalWorkflowRecords.SlicingWorkbenchQuery query);
+
+    TechnicalWorkflowRecords.PagedSlicingWorkbenchRows findCompletedSlicingWorkbenchRows(TechnicalWorkflowRecords.SlicingWorkbenchQuery query);
 
     PagedTechnicalSpecimenRegistrations findPendingTechnicalSpecimenRegistrations(PendingTechnicalSpecimenRegistrationQuery query);
 
@@ -145,6 +157,11 @@ public interface TechnicalWorkflowRepository {
 
     List<EmbeddingBox> findEmbeddingBoxesByCaseId(String caseId);
 
+    List<EmbeddingWorkstationRecord> findEmbeddingWorkstationRecordsByCaseId(String caseId);
+
+    List<EmbeddingWorkstationRecord> findEmbeddingWorkstationRecordsByEndedAtRange(LocalDateTime endedFrom,
+                                                                                   LocalDateTime endedTo);
+
     void insertSlicing(CreateSlicingCommand command);
 
     Optional<Slicing> findSlicingById(String slicingId);
@@ -181,6 +198,14 @@ public interface TechnicalWorkflowRepository {
     List<SlideQcEvaluation> findSlideQcEvaluationsByCaseId(String caseId);
 
     void insertCaseMediaAsset(CreateCaseMediaAssetCommand command);
+
+    List<CaseMediaAsset> findCaseMediaAssets(String caseId, String objectType, String objectId, String mediaType);
+
+    List<CaseMediaAsset> findCaseMediaAssets(String caseId, String objectType, String mediaType);
+
+    Optional<CaseMediaAsset> findCaseMediaAssetById(String assetId);
+
+    void deleteCaseMediaAsset(String assetId);
 
     List<TrackingEvent> findTrackingEventsByCaseId(String caseId);
 

@@ -18,12 +18,14 @@ public final class TechnicalWorkflowRecords {
         String currentNode,
         String applicationNo,
         String pathologyNo,
+        String keyword,
         String objectType,
         LocalDateTime createdFrom,
         LocalDateTime createdTo,
         boolean timedOutOnly,
         LocalDateTime grossingTimedOutBefore,
         LocalDateTime dehydrationTimedOutBefore,
+        LocalDateTime slicingTimedOutBefore,
         LocalDateTime stainingTimedOutBefore
     ) {
     }
@@ -31,10 +33,67 @@ public final class TechnicalWorkflowRecords {
     public record PagedTechnicalTasks(List<TechnicalTask> items, long total) {
     }
 
+    public record SlicingWorkbenchQuery(
+        String keyword,
+        boolean pendingTodayOnly,
+        boolean overdueOnly,
+        int pendingPage,
+        int pendingSize,
+        int completedPage,
+        int completedSize,
+        String currentUserId,
+        LocalDateTime todayStart,
+        LocalDateTime tomorrowStart,
+        LocalDateTime dayAfterTomorrowStart,
+        LocalDateTime slicingTimedOutBefore
+    ) {
+    }
+
+    public record SlicingWorkbenchStats(
+        long pendingTodayCount,
+        long pendingTomorrowCount,
+        long completedMineTodayCount,
+        long completedDeptTodayCount,
+        long overdueCount,
+        long pendingPrintCount
+    ) {
+    }
+
+    public record SlicingWorkbenchRow(
+        String taskId,
+        String caseId,
+        String pathologyNo,
+        String patientName,
+        String patientId,
+        String specimenId,
+        String specimenName,
+        String embeddingBoxId,
+        String slideId,
+        String slideNo,
+        String slicingOperatorName,
+        String slicingRemark,
+        LocalDateTime completedAt,
+        String grossingEvaluation,
+        String embeddingEvaluation,
+        String embeddingOperatorName,
+        String embeddingClearRemark,
+        String shiftRemark,
+        String sliceNotice,
+        String taskStatus,
+        boolean timedOut,
+        boolean selectable
+    ) {
+    }
+
+    public record PagedSlicingWorkbenchRows(List<SlicingWorkbenchRow> items, long total) {
+    }
+
     public record PendingTechnicalSpecimenRegistrationQuery(
         int page,
         int size,
-        String keyword
+        String keyword,
+        LocalDateTime receivedFrom,
+        LocalDateTime receivedTo
     ) {
     }
 
@@ -66,6 +125,22 @@ public final class TechnicalWorkflowRecords {
     ) {
     }
 
+    public record CaseMediaAsset(
+        String id,
+        String caseId,
+        String specimenId,
+        String objectType,
+        String objectId,
+        String mediaType,
+        String fileUrl,
+        String fileName,
+        LocalDateTime capturedAt,
+        String capturedByUserId,
+        String capturedByName,
+        String remarks
+    ) {
+    }
+
     public record TechnicalTask(
         String id,
         String applicationId,
@@ -77,6 +152,10 @@ public final class TechnicalWorkflowRecords {
         String taskStatus,
         String objectType,
         String objectId,
+        String samplingBlockCode,
+        String samplingBlockDescription,
+        String sampledByName,
+        LocalDateTime sampledAt,
         String parentTaskId,
         String priority,
         String currentNode,
@@ -163,7 +242,9 @@ public final class TechnicalWorkflowRecords {
         String blockSite,
         String blockDescription,
         String embeddingBoxNo,
-        String specialRequirement
+        String specialRequirement,
+        String specimenName,
+        String grossDescription
     ) {
     }
 
@@ -243,7 +324,14 @@ public final class TechnicalWorkflowRecords {
         String specimenId,
         String samplingId,
         String samplingBlockId,
-        String embeddingStatus
+        String embeddingStatus,
+        String evaluationLevel,
+        String samplingEvaluation,
+        LocalDateTime startedAt,
+        LocalDateTime endedAt,
+        String embeddedByUserId,
+        String embeddedByName,
+        String remarks
     ) {
     }
 
@@ -272,6 +360,32 @@ public final class TechnicalWorkflowRecords {
         boolean reEmbeddingFlag,
         String sliceNotice,
         String storageStatus
+    ) {
+    }
+
+    public record EmbeddingWorkstationRecord(
+        String taskId,
+        String caseId,
+        String pathologyNo,
+        String specimenId,
+        String specimenName,
+        String samplingBlockId,
+        String samplingBlockCode,
+        String samplingBlockDescription,
+        String grossDescription,
+        String embeddingId,
+        String embeddingBoxId,
+        String embeddingBoxNo,
+        String sliceNotice,
+        String evaluationLevel,
+        String samplingEvaluation,
+        String embeddingRemarks,
+        String sampledByName,
+        LocalDateTime sampledAt,
+        String embeddedByName,
+        LocalDateTime startedAt,
+        LocalDateTime endedAt,
+        String taskStatus
     ) {
     }
 

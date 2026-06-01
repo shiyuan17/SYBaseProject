@@ -6,16 +6,25 @@ import com.company.bl.interfaces.auth.M3PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.EmbeddingCompleteRequest;
 import com.company.bl.interfaces.dto.TechnicalTaskStartRequest;
+import com.company.bl.interfaces.vo.EmbeddingWorkstationSummaryResponse;
 import com.company.bl.interfaces.vo.EmbeddingResponse;
+import com.company.bl.interfaces.vo.PendingTechnicalTaskResponse;
+import com.company.bl.interfaces.vo.TechnicalTrackingResponse;
 import com.company.bl.interfaces.vo.TaskOperationResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/v1/embeddings")
@@ -26,6 +35,38 @@ public class EmbeddingController extends TechnicalControllerSupport {
 
     public EmbeddingController(TechnicalWorkflowAppService technicalWorkflowAppService) {
         this.technicalWorkflowAppService = technicalWorkflowAppService;
+    }
+
+    @Operation(summary = "查询包埋工作站当日汇总", description = "按工作日期返回包埋工作站待处理数、已处理数及对应任务明细。")
+    @RequirePermission(M3PermissionCodes.EMBEDDING)
+    @GetMapping("/workstation-summary")
+    public EmbeddingWorkstationSummaryResponse getWorkstationSummary(
+        @Parameter(description = "工作日期，默认服务端当天日期")
+        @RequestParam(required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate workDate
+    ) {
+        TechnicalWorkflowModels.EmbeddingWorkstationSummary result =
+            technicalWorkflowAppService.getEmbeddingWorkstationSummary(workDate);
+        return new EmbeddingWorkstationSummaryResponse(
+            result.workDate() == null ? null : result.workDate().toString(),
+            result.pendingCount(),
+            result.completedCount(),
+            result.pendingTasks().stream().map(task -> new PendingTechnicalTaskResponse(
+                task.id(), task.applicationId(), task.applicationNo(), task.caseId(), task.pathologyNo(),
+                task.specimenId(), task.taskType(), task.taskStatus(), task.objectType(), task.objectId(),
+                task.samplingBlockCode(), task.samplingBlockDescription(), task.sampledByName(), task.sampledAt(),
+                task.payload(), task.priority(), task.currentNode(), task.stationCode(), task.stationName(),
+                task.assignedToUserId(), task.assignedToName(), task.expectedCompletedAt(), task.productionRemarks(),
+                task.receivedAt(), task.remarks(), task.createdAt(), task.startedAt(), task.completedAt(),
+                task.deadlineAt(), task.timeoutRuleCode(), task.timedOut()))
+                .toList(),
+            result.completedRecords().stream().map(item -> new TechnicalTrackingResponse.EmbeddingRecordSummary(
+                item.taskId(), item.caseId(), item.pathologyNo(), item.specimenId(), item.specimenName(),
+                item.samplingBlockId(), item.samplingBlockCode(), item.samplingBlockDescription(), item.grossDescription(),
+                item.embeddingId(), item.embeddingBoxId(), item.embeddingBoxNo(), item.sliceNotice(),
+                item.evaluationLevel(), item.samplingEvaluation(), item.embeddingRemarks(), item.sampledByName(),
+                item.sampledAt(), item.embeddedByName(), item.startedAt(), item.endedAt(), item.taskStatus()))
+                .toList());
     }
 
     @Operation(summary = "开始包埋", description = "将技术任务推进到包埋中状态。")

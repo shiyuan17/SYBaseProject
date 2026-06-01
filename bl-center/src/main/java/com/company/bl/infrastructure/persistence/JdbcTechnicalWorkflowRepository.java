@@ -21,13 +21,18 @@ import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateEmbedding
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateSamplingBlockCommand;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateSamplingCommand;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateTechnicalTaskCommand;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.CaseMediaAsset;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.DehydrationBatch;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.DehydrationBatchItem;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.Embedding;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingBox;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingWorkstationRecord;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedSlicingWorkbenchRows;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedTechnicalTasks;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PendingTechnicalTaskQuery;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.SamplingBlock;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.SlicingWorkbenchQuery;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.SlicingWorkbenchStats;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.TechnicalTask;
 import com.company.bl.domain.repository.TechnicalWorkflowRepository;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -93,8 +98,32 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     }
 
     @Override
+    public List<TechnicalTask> findActiveTechnicalTasksByTypeAndCreatedRange(
+        String taskType,
+        LocalDateTime createdFrom,
+        LocalDateTime createdTo
+    ) {
+        return taskQueries.findActiveTechnicalTasksByTypeAndCreatedRange(taskType, createdFrom, createdTo);
+    }
+
+    @Override
     public PagedTechnicalTasks findTechnicalTasks(PendingTechnicalTaskQuery query) {
         return taskQueries.findTechnicalTasks(query);
+    }
+
+    @Override
+    public SlicingWorkbenchStats summarizeSlicingWorkbench(SlicingWorkbenchQuery query) {
+        return processingQueries.summarizeSlicingWorkbench(query);
+    }
+
+    @Override
+    public PagedSlicingWorkbenchRows findPendingSlicingWorkbenchRows(SlicingWorkbenchQuery query) {
+        return processingQueries.findPendingSlicingWorkbenchRows(query);
+    }
+
+    @Override
+    public PagedSlicingWorkbenchRows findCompletedSlicingWorkbenchRows(SlicingWorkbenchQuery query) {
+        return processingQueries.findCompletedSlicingWorkbenchRows(query);
     }
 
     @Override
@@ -270,6 +299,19 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     }
 
     @Override
+    public List<EmbeddingWorkstationRecord> findEmbeddingWorkstationRecordsByCaseId(String caseId) {
+        return processingQueries.findEmbeddingWorkstationRecordsByCaseId(caseId);
+    }
+
+    @Override
+    public List<EmbeddingWorkstationRecord> findEmbeddingWorkstationRecordsByEndedAtRange(
+        LocalDateTime endedFrom,
+        LocalDateTime endedTo
+    ) {
+        return processingQueries.findEmbeddingWorkstationRecordsByEndedAtRange(endedFrom, endedTo);
+    }
+
+    @Override
     public void insertSlicing(CreateSlicingCommand command) {
         processingMutations.insertSlicing(command);
     }
@@ -352,6 +394,26 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     @Override
     public void insertCaseMediaAsset(CreateCaseMediaAssetCommand command) {
         processingMutations.insertCaseMediaAsset(command);
+    }
+
+    @Override
+    public List<CaseMediaAsset> findCaseMediaAssets(String caseId, String objectType, String objectId, String mediaType) {
+        return processingQueries.findCaseMediaAssets(caseId, objectType, objectId, mediaType);
+    }
+
+    @Override
+    public List<CaseMediaAsset> findCaseMediaAssets(String caseId, String objectType, String mediaType) {
+        return processingQueries.findCaseMediaAssets(caseId, objectType, mediaType);
+    }
+
+    @Override
+    public Optional<CaseMediaAsset> findCaseMediaAssetById(String assetId) {
+        return processingQueries.findCaseMediaAssetById(assetId);
+    }
+
+    @Override
+    public void deleteCaseMediaAsset(String assetId) {
+        processingMutations.deleteCaseMediaAsset(assetId);
     }
 
     @Override

@@ -23,7 +23,7 @@ final class JdbcTechnicalWorkflowSpecimenRegistrationQueries {
     ) {
         String where = """
              where tsr.registration_status = 'PENDING'
-            """ + buildKeywordFilter(query);
+            """ + buildKeywordFilter(query) + buildReceivedAtFilter(query);
         Long total = jdbcTemplate.queryForObject("""
             select count(1)
             from technical_specimen_registrations tsr
@@ -151,7 +151,24 @@ final class JdbcTechnicalWorkflowSpecimenRegistrationQueries {
         if (query.keyword() != null && !query.keyword().isBlank()) {
             params.addValue("keyword", "%" + query.keyword().trim().toUpperCase() + "%");
         }
+        if (query.receivedFrom() != null) {
+            params.addValue("receivedFrom", query.receivedFrom());
+        }
+        if (query.receivedTo() != null) {
+            params.addValue("receivedTo", query.receivedTo());
+        }
         return params;
+    }
+
+    private String buildReceivedAtFilter(TechnicalWorkflowRecords.PendingTechnicalSpecimenRegistrationQuery query) {
+        StringBuilder builder = new StringBuilder();
+        if (query.receivedFrom() != null) {
+            builder.append(" and pc.received_at >= :receivedFrom");
+        }
+        if (query.receivedTo() != null) {
+            builder.append(" and pc.received_at < :receivedTo");
+        }
+        return builder.toString();
     }
 
     private MapSqlParameterSource buildPageParams(TechnicalWorkflowRecords.PendingTechnicalSpecimenRegistrationQuery query) {

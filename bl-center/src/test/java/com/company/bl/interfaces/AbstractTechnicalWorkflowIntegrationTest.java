@@ -1,13 +1,16 @@
 package com.company.bl.interfaces;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.http.MediaType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.util.Map;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimenWorkflowIntegrationTest {
 
@@ -85,11 +88,26 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
     }
 
     protected JsonNode listPendingTechnicalSpecimenRegistrations(String keyword, String userId) throws Exception {
+        return listPendingTechnicalSpecimenRegistrations(keyword, null, null, userId);
+    }
+
+    protected JsonNode listPendingTechnicalSpecimenRegistrations(String keyword,
+                                                                 String receivedFrom,
+                                                                 String receivedTo,
+                                                                 String userId) throws Exception {
         ResultActions action = mockMvc.perform(authorized(get("/api/v1/technical-specimen-registrations/pending"), userId)
             .param("page", "1")
             .param("size", "20")
-            .param("keyword", keyword == null ? "" : keyword));
+            .param("keyword", keyword == null ? "" : keyword)
+            .param("receivedFrom", receivedFrom == null ? "" : receivedFrom)
+            .param("receivedTo", receivedTo == null ? "" : receivedTo));
         return responseBody(action, 200);
+    }
+
+    protected JsonNode technicalSpecimenRegistrationWorkspace(String caseId, String userId) throws Exception {
+        return responseBody(mockMvc.perform(authorized(
+            get("/api/v1/technical-specimen-registrations/{caseId}/workspace", caseId),
+            userId)), 200);
     }
 
     protected JsonNode completeTechnicalSpecimenRegistration(String caseId, String remarks) throws Exception {
@@ -99,6 +117,20 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
               "remarks": %s
             }
             """.formatted(remarks == null ? "null" : "\"" + remarks + "\"")), 200);
+    }
+
+    protected JsonNode saveTechnicalSpecimenRegistrationMaterials(String caseId, String userId, String content) throws Exception {
+        return responseBody(mockMvc.perform(authorized(
+                put("/api/v1/technical-specimen-registrations/{caseId}/materials", caseId),
+                userId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(content)), 200);
+    }
+
+    protected JsonNode deleteTechnicalSpecimenRegistrationMediaAsset(String caseId, String assetId, String userId) throws Exception {
+        return responseBody(mockMvc.perform(authorized(
+            delete("/api/v1/technical-specimen-registrations/{caseId}/media-assets/{assetId}", caseId, assetId),
+            userId)), 200);
     }
 
     protected JsonNode listPendingTasks(String taskType, String pathologyNo, String userId) throws Exception {

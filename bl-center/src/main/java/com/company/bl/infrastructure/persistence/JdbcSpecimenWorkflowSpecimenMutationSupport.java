@@ -40,6 +40,28 @@ abstract class JdbcSpecimenWorkflowSpecimenMutationSupport extends AbstractJdbcS
             .addValue("updatedAt", LocalDateTime.now()));
     }
 
+    public void updateSpecimenMaterial(String specimenId,
+                                       String specimenType,
+                                       String specimenNameStandardized,
+                                       String specimenSite,
+                                       String remarks) {
+        jdbcTemplate.update("""
+            update specimens
+            set specimen_type = :specimenType,
+                specimen_name_standardized = :specimenNameStandardized,
+                specimen_site = :specimenSite,
+                remarks = :remarks,
+                updated_at = :updatedAt
+            where id = :specimenId
+            """, new MapSqlParameterSource()
+            .addValue("specimenId", specimenId)
+            .addValue("specimenType", specimenType)
+            .addValue("specimenNameStandardized", specimenNameStandardized)
+            .addValue("specimenSite", specimenSite)
+            .addValue("remarks", remarks)
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
     public Specimen insertSpecimen(Specimen specimen) {
         MapSqlParameterSource parameters = new MapSqlParameterSource()
             .addValue("id", specimen.id())

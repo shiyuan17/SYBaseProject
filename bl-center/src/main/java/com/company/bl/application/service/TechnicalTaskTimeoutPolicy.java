@@ -14,10 +14,12 @@ class TechnicalTaskTimeoutPolicy {
 
     static final String GROSSING_TIMEOUT_RULE = "technical.timeout.grossingMinutes";
     static final String DEHYDRATION_TIMEOUT_RULE = "technical.timeout.dehydrationMinutes";
+    static final String SLICING_TIMEOUT_RULE = "technical.timeout.slicingMinutes";
     static final String STAINING_TIMEOUT_RULE = "technical.timeout.stainingMinutes";
 
     private static final int DEFAULT_GROSSING_TIMEOUT_MINUTES = 240;
     private static final int DEFAULT_DEHYDRATION_TIMEOUT_MINUTES = 720;
+    private static final int DEFAULT_SLICING_TIMEOUT_MINUTES = 240;
     private static final int DEFAULT_STAINING_TIMEOUT_MINUTES = 240;
     private static final Set<String> ACTIVE_STATUSES = Set.of(
         TechnicalWorkflowConstants.TASK_PENDING,
@@ -40,6 +42,10 @@ class TechnicalTaskTimeoutPolicy {
             TechnicalWorkflowConstants.NODE_DEHYDRATION,
             DEHYDRATION_TIMEOUT_RULE,
             loadTimeoutMinutes(DEHYDRATION_TIMEOUT_RULE, DEFAULT_DEHYDRATION_TIMEOUT_MINUTES)));
+        rules.put(TechnicalWorkflowConstants.NODE_SLICING, new TimeoutRule(
+            TechnicalWorkflowConstants.NODE_SLICING,
+            SLICING_TIMEOUT_RULE,
+            loadTimeoutMinutes(SLICING_TIMEOUT_RULE, DEFAULT_SLICING_TIMEOUT_MINUTES)));
         rules.put(TechnicalWorkflowConstants.NODE_STAINING, new TimeoutRule(
             TechnicalWorkflowConstants.NODE_STAINING,
             STAINING_TIMEOUT_RULE,

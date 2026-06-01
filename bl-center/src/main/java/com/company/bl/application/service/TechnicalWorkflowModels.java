@@ -1,5 +1,6 @@
 package com.company.bl.application.service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -24,6 +25,7 @@ public final class TechnicalWorkflowModels {
         String currentNode,
         String applicationNo,
         String pathologyNo,
+        String keyword,
         String objectType,
         LocalDateTime createdFrom,
         LocalDateTime createdTo,
@@ -34,10 +36,73 @@ public final class TechnicalWorkflowModels {
     public record PendingTechnicalTaskPage(List<TaskView> items, int page, int size, long total) {
     }
 
+    public record SlicingWorkbenchQuery(
+        String keyword,
+        boolean pendingTodayOnly,
+        boolean overdueOnly,
+        int pendingPage,
+        int pendingSize,
+        int completedPage,
+        int completedSize,
+        String currentUserId
+    ) {
+    }
+
+    public record SlicingWorkbenchView(
+        SlicingWorkbenchStats stats,
+        List<SlicingWorkbenchRow> pendingList,
+        int pendingPage,
+        int pendingSize,
+        long pendingTotal,
+        List<SlicingWorkbenchRow> completedTodayList,
+        int completedPage,
+        int completedSize,
+        long completedTotal
+    ) {
+    }
+
+    public record SlicingWorkbenchStats(
+        long pendingTodayCount,
+        long pendingTomorrowCount,
+        long completedMineTodayCount,
+        long completedDeptTodayCount,
+        long overdueCount,
+        long pendingPrintCount
+    ) {
+    }
+
+    public record SlicingWorkbenchRow(
+        String taskId,
+        String caseId,
+        String pathologyNo,
+        String patientName,
+        String patientId,
+        String specimenId,
+        String specimenName,
+        String embeddingBoxId,
+        String slideId,
+        String slideNo,
+        String slicingOperatorName,
+        String slicingRemark,
+        String completedAt,
+        String grossingEvaluation,
+        String embeddingEvaluation,
+        String embeddingOperatorName,
+        String embeddingClearRemark,
+        String shiftRemark,
+        String sliceNotice,
+        String taskStatus,
+        boolean timedOut,
+        boolean selectable
+    ) {
+    }
+
     public record PendingTechnicalSpecimenRegistrationQuery(
         int page,
         int size,
-        String keyword
+        String keyword,
+        LocalDateTime receivedFrom,
+        LocalDateTime receivedTo
     ) {
     }
 
@@ -68,10 +133,66 @@ public final class TechnicalWorkflowModels {
     }
 
     public record TechnicalSpecimenRegistrationMaterial(
+        String specimenId,
         int sequenceNo,
         String specimenType,
         String specimenName,
         String sourcePart
+    ) {
+    }
+
+    public record TechnicalSpecimenRegistrationBasicInfo(
+        String patientName,
+        String patientGender,
+        String patientAge,
+        String patientId,
+        String inpatientNo,
+        String applicationNo,
+        String submittingDepartmentName,
+        String submittingDoctorName,
+        String submissionDate,
+        String specimenRemovalTime,
+        String fixationTime,
+        String applicationType,
+        String pathologyNo,
+        String registrationStatus
+    ) {
+    }
+
+    public record TechnicalSpecimenRegistrationDetailSections(
+        String historySummary,
+        String clinicalExaminationAndSurgeryFindings,
+        String labAndImagingExaminations,
+        String clinicalSubmissionRequirements,
+        String infectiousAndPastHistorySummary,
+        String externalPathologyDiagnosis
+    ) {
+    }
+
+    public record TechnicalSpecimenRegistrationMediaAsset(
+        String assetId,
+        String fileName,
+        String fileUrl,
+        String capturedAt
+    ) {
+    }
+
+    public record TechnicalSpecimenRegistrationActionFlags(
+        boolean canCompleteRegistration,
+        boolean canSaveMaterials,
+        boolean canUploadMediaAssets,
+        boolean canDeleteMediaAssets
+    ) {
+    }
+
+    public record TechnicalSpecimenRegistrationWorkspace(
+        PendingTechnicalSpecimenRegistrationItem pendingSummary,
+        TechnicalSpecimenRegistrationBasicInfo basicInfo,
+        TechnicalSpecimenRegistrationDetailSections detailSections,
+        List<TechnicalSpecimenRegistrationMaterial> materials,
+        List<TechnicalSpecimenRegistrationCheckItem> checkItems,
+        List<TechnicalSpecimenRegistrationMediaAsset> mediaAssets,
+        TechnicalSpecimenRegistrationActionFlags actionFlags
     ) {
     }
 
@@ -113,6 +234,10 @@ public final class TechnicalWorkflowModels {
         String taskStatus,
         String objectType,
         String objectId,
+        String samplingBlockCode,
+        String samplingBlockDescription,
+        String sampledByName,
+        String sampledAt,
         String payload,
         String priority,
         String currentNode,
@@ -226,6 +351,54 @@ public final class TechnicalWorkflowModels {
     ) {
     }
 
+    public record SaveTechnicalSpecimenRegistrationMaterialsCommand(
+        String caseId,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        List<TechnicalSpecimenRegistrationMaterialInput> materials
+    ) implements OperatorCarrier {
+        @Override
+        public String remarks() {
+            return null;
+        }
+    }
+
+    public record TechnicalSpecimenRegistrationMaterialInput(
+        String specimenId,
+        String specimenType,
+        String specimenName,
+        String sourcePart
+    ) {
+    }
+
+    public record UploadTechnicalSpecimenRegistrationMediaAssetCommand(
+        String caseId,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String fileName,
+        String fileUrl
+    ) implements OperatorCarrier {
+        @Override
+        public String remarks() {
+            return null;
+        }
+    }
+
+    public record DeleteTechnicalSpecimenRegistrationMediaAssetCommand(
+        String caseId,
+        String assetId,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode
+    ) implements OperatorCarrier {
+        @Override
+        public String remarks() {
+            return null;
+        }
+    }
+
     public record MediaAssetInput(String fileUrl, String fileName) {
     }
 
@@ -259,6 +432,51 @@ public final class TechnicalWorkflowModels {
     }
 
     public record GrossingResult(String taskId, String caseId, String caseStatus, int createdDehydrationTaskCount) {
+    }
+
+    public record GrossingWorkbenchTaskSummary(
+        String taskId,
+        String taskStatus,
+        String objectType,
+        String objectId
+    ) {
+    }
+
+    public record GrossingWorkbenchCaseSummary(
+        String caseId,
+        String applicationId,
+        String applicationNo,
+        String pathologyNo,
+        String caseStatus,
+        String patientName,
+        String patientId,
+        String inpatientNo,
+        String applicationType,
+        String submittingDepartmentName
+    ) {
+    }
+
+    public record GrossingWorkbenchMediaAsset(
+        String assetId,
+        String specimenId,
+        String fileName,
+        String fileUrl,
+        String capturedAt,
+        String capturedByName
+    ) {
+    }
+
+    public record GrossingWorkbenchContext(
+        GrossingWorkbenchTaskSummary task,
+        GrossingWorkbenchCaseSummary caseSummary,
+        TechnicalTrackingView tracking,
+        String clinicalDiagnosis,
+        String clinicalHistory,
+        String relatedExaminations,
+        String contextSummary,
+        List<TechnicalSpecimenRegistrationCheckItem> checkItems,
+        List<GrossingWorkbenchMediaAsset> mediaAssets
+    ) {
     }
 
     public record CreateDehydrationBatchCommand(
@@ -312,6 +530,15 @@ public final class TechnicalWorkflowModels {
     ) {
     }
 
+    public record EmbeddingWorkstationSummary(
+        LocalDate workDate,
+        int pendingCount,
+        int completedCount,
+        List<TaskView> pendingTasks,
+        List<TechnicalEmbeddingRecord> completedRecords
+    ) {
+    }
+
     public record SlicingCompleteCommand(
         String taskId,
         String embeddingBoxId,
@@ -328,6 +555,29 @@ public final class TechnicalWorkflowModels {
     }
 
     public record SlicingResult(String taskId, String slicingId, List<String> slideIds, String caseStatus) {
+    }
+
+    public record CreateSlideQcEvaluationCommand(
+        String caseId,
+        String specimenId,
+        String slideId,
+        String qcType,
+        String evaluationResult,
+        String issueDescription,
+        String improvementSuggestion,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) implements OperatorCarrier {
+    }
+
+    public record SlideQcEvaluationResult(
+        String qcEvaluationId,
+        String slideId,
+        String evaluationResult,
+        String qualityStatus
+    ) {
     }
 
     public record SlideStainingCompleteCommand(
@@ -381,6 +631,8 @@ public final class TechnicalWorkflowModels {
         List<TechnicalSpecimenSummary> specimens,
         List<TechnicalBlockSummary> blocks,
         List<TechnicalEmbeddingBoxSummary> embeddingBoxes,
+        List<TechnicalEmbeddingRecord> embeddingRecords,
+        List<TechnicalEmbeddingEvaluationRecord> embeddingEvaluationRecords,
         List<TechnicalSlideSummary> slides,
         List<SlideQcEvaluationSummary> qcEvaluations,
         List<ReworkSummary> reworks,
@@ -402,7 +654,9 @@ public final class TechnicalWorkflowModels {
         String specimenId,
         String blockCode,
         String embeddingBoxNo,
-        String description
+        String description,
+        String specimenName,
+        String grossDescription
     ) {
     }
 
@@ -412,6 +666,49 @@ public final class TechnicalWorkflowModels {
         String embeddingBoxNo,
         String sliceNotice,
         int slideCount
+    ) {
+    }
+
+    public record TechnicalEmbeddingRecord(
+        String taskId,
+        String caseId,
+        String pathologyNo,
+        String specimenId,
+        String specimenName,
+        String samplingBlockId,
+        String samplingBlockCode,
+        String samplingBlockDescription,
+        String grossDescription,
+        String embeddingId,
+        String embeddingBoxId,
+        String embeddingBoxNo,
+        String sliceNotice,
+        String evaluationLevel,
+        String samplingEvaluation,
+        String embeddingRemarks,
+        String sampledByName,
+        String sampledAt,
+        String embeddedByName,
+        String startedAt,
+        String endedAt,
+        String taskStatus
+    ) {
+    }
+
+    public record TechnicalEmbeddingEvaluationRecord(
+        String embeddingId,
+        String caseId,
+        String pathologyNo,
+        String specimenId,
+        String specimenName,
+        String samplingBlockId,
+        String samplingBlockCode,
+        String embeddingBoxNo,
+        String evaluationLevel,
+        String samplingEvaluation,
+        String embeddingRemarks,
+        String embeddedByName,
+        String endedAt
     ) {
     }
 

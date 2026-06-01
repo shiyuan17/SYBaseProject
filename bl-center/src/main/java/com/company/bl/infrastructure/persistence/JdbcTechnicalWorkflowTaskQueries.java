@@ -50,6 +50,7 @@ final class JdbcTechnicalWorkflowTaskQueries {
             select *
             from specimens
             where case_id = :caseId
+              and specimen_status not in ('REJECTED', 'RETURNED')
             order by specimen_no asc, created_at asc
             """, Map.of("caseId", caseId), rowMappers::mapSpecimen);
     }
@@ -94,6 +95,24 @@ final class JdbcTechnicalWorkflowTaskQueries {
             .addValue("statuses", ACTIVE_TASK_STATUSES), rowMappers::mapTechnicalTask);
     }
 
+    List<TechnicalTask> findActiveTechnicalTasksByTypeAndCreatedRange(
+        String taskType,
+        java.time.LocalDateTime createdFrom,
+        java.time.LocalDateTime createdTo
+    ) {
+        return jdbcTemplate.query(taskSelectSql() + """
+            where t.task_type = :taskType
+              and t.task_status in (:statuses)
+              and t.created_at >= :createdFrom
+              and t.created_at < :createdTo
+            order by t.created_at asc, t.id asc
+            """, new MapSqlParameterSource()
+            .addValue("taskType", taskType)
+            .addValue("statuses", ACTIVE_TASK_STATUSES)
+            .addValue("createdFrom", createdFrom)
+            .addValue("createdTo", createdTo), rowMappers::mapTechnicalTask);
+    }
+
     PagedTechnicalTasks findTechnicalTasks(PendingTechnicalTaskQuery query) {
         String where = " where 1 = 1 " + buildTaskFilters(query);
         Long total = jdbcTemplate.queryForObject("""
@@ -115,28 +134,40 @@ final class JdbcTechnicalWorkflowTaskQueries {
             return List.of();
         }
         return jdbcTemplate.query("""
-            select *
-            from sampling_blocks
-            where id in (:ids)
-            order by sequence_no asc, id asc
+            select sb.id, sb.case_id, sb.specimen_id, sb.sampling_id, sb.sequence_no, sb.block_code,
+                   sb.block_site, sb.block_description, sb.embedding_box_no, sb.special_requirement,
+                   s.specimen_name_standardized as specimen_name, sm.gross_description
+            from sampling_blocks sb
+            left join specimens s on s.id = sb.specimen_id
+            left join samplings sm on sm.id = sb.sampling_id
+            where sb.id in (:ids)
+            order by sb.sequence_no asc, sb.id asc
             """, new MapSqlParameterSource().addValue("ids", samplingBlockIds), rowMappers::mapSamplingBlock);
     }
 
     Optional<SamplingBlock> findSamplingBlockById(String samplingBlockId) {
         List<SamplingBlock> rows = jdbcTemplate.query("""
-            select *
-            from sampling_blocks
-            where id = :id
+            select sb.id, sb.case_id, sb.specimen_id, sb.sampling_id, sb.sequence_no, sb.block_code,
+                   sb.block_site, sb.block_description, sb.embedding_box_no, sb.special_requirement,
+                   s.specimen_name_standardized as specimen_name, sm.gross_description
+            from sampling_blocks sb
+            left join specimens s on s.id = sb.specimen_id
+            left join samplings sm on sm.id = sb.sampling_id
+            where sb.id = :id
             """, Map.of("id", samplingBlockId), rowMappers::mapSamplingBlock);
         return rows.stream().findFirst();
     }
 
     List<SamplingBlock> findSamplingBlocksByCaseId(String caseId) {
         return jdbcTemplate.query("""
-            select *
-            from sampling_blocks
-            where case_id = :caseId
-            order by sequence_no asc, id asc
+            select sb.id, sb.case_id, sb.specimen_id, sb.sampling_id, sb.sequence_no, sb.block_code,
+                   sb.block_site, sb.block_description, sb.embedding_box_no, sb.special_requirement,
+                   s.specimen_name_standardized as specimen_name, sm.gross_description
+            from sampling_blocks sb
+            left join specimens s on s.id = sb.specimen_id
+            left join samplings sm on sm.id = sb.sampling_id
+            where sb.case_id = :caseId
+            order by sb.sequence_no asc, sb.id asc
             """, Map.of("caseId", caseId), rowMappers::mapSamplingBlock);
     }
 
@@ -171,6 +202,10 @@ final class JdbcTechnicalWorkflowTaskQueries {
                 t.task_status,
                 t.object_type,
                 t.object_id,
+                sb.block_code as sampling_block_code,
+                sb.block_description as sampling_block_description,
+                sm.sampled_by_name,
+                sm.sampled_at,
                 t.parent_task_id,
                 t.priority,
                 t.current_node,
@@ -189,6 +224,10 @@ final class JdbcTechnicalWorkflowTaskQueries {
             from technical_pending_tasks t
             join pathology_cases pc on pc.id = t.case_id
             join applications a on a.id = t.application_id
+            left join sampling_blocks sb
+              on t.object_type = 'SAMPLING_BLOCK'
+             and t.object_id = sb.id
+            left join samplings sm on sb.sampling_id = sm.id
             """;
     }
 
@@ -217,6 +256,14 @@ final class JdbcTechnicalWorkflowTaskQueries {
         if (hasText(query.pathologyNo())) {
             builder.append(" and pc.pathology_no = :pathologyNo");
         }
+        if (hasText(query.keyword())) {
+            builder.append("""
+                 and (
+                    upper(coalesce(pc.pathology_no, '')) like :keywordLike
+                    or upper(coalesce(a.patient_id, '')) like :keywordLike
+                 )
+                """);
+        }
         if (hasText(query.objectType())) {
             builder.append(" and t.object_type = :objectType");
         }
@@ -231,6 +278,7 @@ final class JdbcTechnicalWorkflowTaskQueries {
                  and (
                     (t.task_type = 'GROSSING' and t.task_status in (:activeStatuses) and t.created_at <= :grossingTimedOutBefore)
                     or (t.task_type = 'DEHYDRATION' and t.task_status in (:activeStatuses) and t.created_at <= :dehydrationTimedOutBefore)
+                    or (t.task_type = 'SLICING' and t.task_status in (:activeStatuses) and t.created_at <= :slicingTimedOutBefore)
                     or (t.task_type = 'STAINING' and t.task_status in (:activeStatuses) and t.created_at <= :stainingTimedOutBefore)
                  )
                 """);
@@ -263,6 +311,9 @@ final class JdbcTechnicalWorkflowTaskQueries {
         if (hasText(query.pathologyNo())) {
             params.addValue("pathologyNo", query.pathologyNo());
         }
+        if (hasText(query.keyword())) {
+            params.addValue("keywordLike", "%" + query.keyword().trim().toUpperCase() + "%");
+        }
         if (hasText(query.objectType())) {
             params.addValue("objectType", query.objectType());
         }
@@ -275,6 +326,7 @@ final class JdbcTechnicalWorkflowTaskQueries {
         if (query.timedOutOnly()) {
             params.addValue("grossingTimedOutBefore", query.grossingTimedOutBefore());
             params.addValue("dehydrationTimedOutBefore", query.dehydrationTimedOutBefore());
+            params.addValue("slicingTimedOutBefore", query.slicingTimedOutBefore());
             params.addValue("stainingTimedOutBefore", query.stainingTimedOutBefore());
         }
         return params;

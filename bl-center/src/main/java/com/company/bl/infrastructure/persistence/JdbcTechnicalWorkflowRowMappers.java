@@ -15,6 +15,8 @@ import com.company.bl.domain.repository.TechnicalWorkflowRecords.DehydrationBatc
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.Embedding;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingBox;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.SamplingBlock;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.CaseMediaAsset;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingWorkstationRecord;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.TechnicalTask;
 
 import java.sql.Date;
@@ -99,6 +101,10 @@ final class JdbcTechnicalWorkflowRowMappers {
             rs.getString("task_status"),
             rs.getString("object_type"),
             rs.getString("object_id"),
+            rs.getString("sampling_block_code"),
+            rs.getString("sampling_block_description"),
+            rs.getString("sampled_by_name"),
+            toLocalDateTime(rs.getTimestamp("sampled_at")),
             rs.getString("parent_task_id"),
             rs.getString("priority"),
             rs.getString("current_node"),
@@ -127,7 +133,9 @@ final class JdbcTechnicalWorkflowRowMappers {
             rs.getString("block_site"),
             rs.getString("block_description"),
             rs.getString("embedding_box_no"),
-            rs.getString("special_requirement"));
+            rs.getString("special_requirement"),
+            rs.getString("specimen_name"),
+            rs.getString("gross_description"));
     }
 
     DehydrationBatch mapDehydrationBatch(ResultSet rs, int rowNum) throws SQLException {
@@ -164,7 +172,14 @@ final class JdbcTechnicalWorkflowRowMappers {
             rs.getString("specimen_id"),
             rs.getString("sampling_id"),
             rs.getString("sampling_block_id"),
-            rs.getString("embedding_status"));
+            rs.getString("embedding_status"),
+            rs.getString("evaluation_level"),
+            rs.getString("sampling_evaluation"),
+            toLocalDateTime(rs.getTimestamp("started_at")),
+            toLocalDateTime(rs.getTimestamp("ended_at")),
+            rs.getString("embedded_by_user_id"),
+            rs.getString("embedded_by_name"),
+            rs.getString("remarks"));
     }
 
     EmbeddingBox mapEmbeddingBox(ResultSet rs, int rowNum) throws SQLException {
@@ -248,6 +263,48 @@ final class JdbcTechnicalWorkflowRowMappers {
             rs.getString("evaluator_name"),
             toLocalDateTime(rs.getTimestamp("evaluated_at")),
             rs.getString("remarks"));
+    }
+
+    CaseMediaAsset mapCaseMediaAsset(ResultSet rs, int rowNum) throws SQLException {
+        return new CaseMediaAsset(
+            rs.getString("id"),
+            rs.getString("case_id"),
+            rs.getString("specimen_id"),
+            rs.getString("object_type"),
+            rs.getString("object_id"),
+            rs.getString("media_type"),
+            rs.getString("file_url"),
+            rs.getString("file_name"),
+            toLocalDateTime(rs.getTimestamp("captured_at")),
+            rs.getString("captured_by_user_id"),
+            rs.getString("captured_by_name"),
+            rs.getString("remarks"));
+    }
+
+    EmbeddingWorkstationRecord mapEmbeddingWorkstationRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new EmbeddingWorkstationRecord(
+            rs.getString("task_id"),
+            rs.getString("case_id"),
+            rs.getString("pathology_no"),
+            rs.getString("specimen_id"),
+            rs.getString("specimen_name"),
+            rs.getString("sampling_block_id"),
+            rs.getString("sampling_block_code"),
+            rs.getString("sampling_block_description"),
+            rs.getString("gross_description"),
+            rs.getString("embedding_id"),
+            rs.getString("embedding_box_id"),
+            rs.getString("embedding_box_no"),
+            rs.getString("slice_notice"),
+            rs.getString("evaluation_level"),
+            rs.getString("sampling_evaluation"),
+            rs.getString("embedding_remarks"),
+            rs.getString("sampled_by_name"),
+            toLocalDateTime(rs.getTimestamp("sampled_at")),
+            rs.getString("embedded_by_name"),
+            toLocalDateTime(rs.getTimestamp("started_at")),
+            toLocalDateTime(rs.getTimestamp("ended_at")),
+            rs.getString("task_status"));
     }
 
     TrackingEvent mapTrackingEvent(ResultSet rs, int rowNum) throws SQLException {

@@ -11,6 +11,7 @@ import com.company.bl.domain.repository.TechnicalWorkflowRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -47,18 +48,95 @@ class TechnicalWorkflowQueryService {
                 query.currentNode(),
                 query.applicationNo(),
                 query.pathologyNo(),
+                query.keyword(),
                 query.objectType(),
                 query.createdFrom(),
                 query.createdTo(),
                 query.timedOutOnly(),
                 timeoutSnapshot.thresholdFor(TechnicalWorkflowConstants.NODE_GROSSING),
                 timeoutSnapshot.thresholdFor(TechnicalWorkflowConstants.NODE_DEHYDRATION),
+                timeoutSnapshot.thresholdFor(TechnicalWorkflowConstants.NODE_SLICING),
                 timeoutSnapshot.thresholdFor(TechnicalWorkflowConstants.NODE_STAINING)));
         return new TechnicalWorkflowModels.PendingTechnicalTaskPage(
             paged.items().stream().map(task -> toTaskView(task, timeoutSnapshot)).toList(),
             query.page(),
             query.size(),
             paged.total());
+    }
+
+    @Transactional(readOnly = true)
+    TechnicalWorkflowModels.EmbeddingWorkstationSummary getEmbeddingWorkstationSummary(LocalDate workDate) {
+        LocalDate resolvedDate = workDate == null ? LocalDate.now() : workDate;
+        LocalDateTime dayStart = resolvedDate.atStartOfDay();
+        LocalDateTime nextDayStart = dayStart.plusDays(1);
+        LocalDateTime now = LocalDateTime.now();
+        TechnicalTaskTimeoutPolicy.TimeoutSnapshot timeoutSnapshot = technicalTaskTimeoutPolicy.snapshot(now);
+
+        List<TechnicalWorkflowModels.TaskView> pendingTasks =
+            technicalWorkflowRepository.findActiveTechnicalTasksByTypeAndCreatedRange(
+                    TechnicalWorkflowConstants.NODE_EMBEDDING,
+                    dayStart,
+                    nextDayStart)
+                .stream()
+                .map(task -> toTaskView(task, timeoutSnapshot))
+                .toList();
+
+        List<TechnicalWorkflowModels.TechnicalEmbeddingRecord> completedRecords =
+            technicalWorkflowRepository.findEmbeddingWorkstationRecordsByEndedAtRange(dayStart, nextDayStart).stream()
+                .map(this::toTechnicalEmbeddingRecord)
+                .toList();
+
+        return new TechnicalWorkflowModels.EmbeddingWorkstationSummary(
+            resolvedDate,
+            pendingTasks.size(),
+            completedRecords.size(),
+            pendingTasks,
+            completedRecords);
+    }
+
+    @Transactional(readOnly = true)
+    TechnicalWorkflowModels.SlicingWorkbenchView getSlicingWorkbench(TechnicalWorkflowModels.SlicingWorkbenchQuery query) {
+        LocalDateTime now = LocalDateTime.now();
+        TechnicalTaskTimeoutPolicy.TimeoutSnapshot timeoutSnapshot = technicalTaskTimeoutPolicy.snapshot(now);
+        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+        LocalDateTime tomorrowStart = todayStart.plusDays(1);
+        LocalDateTime dayAfterTomorrowStart = tomorrowStart.plusDays(1);
+        TechnicalWorkflowRecords.SlicingWorkbenchQuery repositoryQuery =
+            new TechnicalWorkflowRecords.SlicingWorkbenchQuery(
+                query.keyword(),
+                query.pendingTodayOnly(),
+                query.overdueOnly(),
+                query.pendingPage(),
+                query.pendingSize(),
+                query.completedPage(),
+                query.completedSize(),
+                query.currentUserId(),
+                todayStart,
+                tomorrowStart,
+                dayAfterTomorrowStart,
+                timeoutSnapshot.thresholdFor(TechnicalWorkflowConstants.NODE_SLICING));
+        TechnicalWorkflowRecords.SlicingWorkbenchStats stats =
+            technicalWorkflowRepository.summarizeSlicingWorkbench(repositoryQuery);
+        TechnicalWorkflowRecords.PagedSlicingWorkbenchRows pendingRows =
+            technicalWorkflowRepository.findPendingSlicingWorkbenchRows(repositoryQuery);
+        TechnicalWorkflowRecords.PagedSlicingWorkbenchRows completedRows =
+            technicalWorkflowRepository.findCompletedSlicingWorkbenchRows(repositoryQuery);
+        return new TechnicalWorkflowModels.SlicingWorkbenchView(
+            new TechnicalWorkflowModels.SlicingWorkbenchStats(
+                stats.pendingTodayCount(),
+                stats.pendingTomorrowCount(),
+                stats.completedMineTodayCount(),
+                stats.completedDeptTodayCount(),
+                stats.overdueCount(),
+                stats.pendingPrintCount()),
+            pendingRows.items().stream().map(this::toSlicingWorkbenchRow).toList(),
+            query.pendingPage(),
+            query.pendingSize(),
+            pendingRows.total(),
+            completedRows.items().stream().map(this::toSlicingWorkbenchRow).toList(),
+            query.completedPage(),
+            query.completedSize(),
+            completedRows.total());
     }
 
     @Transactional(readOnly = true)
@@ -76,6 +154,8 @@ class TechnicalWorkflowQueryService {
             technicalWorkflowRepository.findSlideQcEvaluationsByCaseId(caseId);
         List<TechnicalWorkflowProcessingRecords.ReworkOrder> reworkOrders = technicalWorkflowRepository.findReworkOrdersByCaseId(caseId);
         List<TrackingEvent> events = technicalWorkflowRepository.findTrackingEventsByCaseId(caseId);
+        List<TechnicalWorkflowRecords.EmbeddingWorkstationRecord> embeddingRecords =
+            technicalWorkflowRepository.findEmbeddingWorkstationRecordsByCaseId(caseId);
         Map<String, List<TechnicalWorkflowProcessingRecords.Slide>> slidesByBox = slides.stream()
             .collect(Collectors.groupingBy(TechnicalWorkflowProcessingRecords.Slide::embeddingBoxId));
         return new TechnicalWorkflowModels.TechnicalTrackingView(
@@ -86,9 +166,17 @@ class TechnicalWorkflowQueryService {
             specimens.stream().map(specimen -> new TechnicalWorkflowModels.TechnicalSpecimenSummary(
                 specimen.id(), specimen.specimenNo(), specimen.barcode(), specimen.specimenNameStandardized(), specimen.specimenStatus().name())).toList(),
             blocks.stream().map(block -> new TechnicalWorkflowModels.TechnicalBlockSummary(
-                block.id(), block.specimenId(), block.blockCode(), block.embeddingBoxNo(), block.blockDescription())).toList(),
+                block.id(),
+                block.specimenId(),
+                block.blockCode(),
+                block.embeddingBoxNo(),
+                block.blockDescription(),
+                block.specimenName(),
+                block.grossDescription())).toList(),
             boxes.stream().map(box -> new TechnicalWorkflowModels.TechnicalEmbeddingBoxSummary(
                 box.id(), box.specimenId(), box.embeddingBoxNo(), box.sliceNotice(), slidesByBox.getOrDefault(box.id(), List.of()).size())).toList(),
+            embeddingRecords.stream().map(this::toTechnicalEmbeddingRecord).toList(),
+            embeddingRecords.stream().map(this::toTechnicalEmbeddingEvaluationRecord).toList(),
             slides.stream().map(slide -> new TechnicalWorkflowModels.TechnicalSlideSummary(
                 slide.id(), slide.specimenId(), slide.embeddingBoxId(), slide.slideNo(), slide.slideStatus(), slide.qualityStatus())).toList(),
             qcEvaluations.stream().map(item -> new TechnicalWorkflowModels.SlideQcEvaluationSummary(
@@ -127,6 +215,81 @@ class TechnicalWorkflowQueryService {
     private TechnicalWorkflowModels.TaskView toTaskView(TechnicalWorkflowRecords.TechnicalTask task,
                                                         TechnicalTaskTimeoutPolicy.TimeoutSnapshot timeoutSnapshot) {
         return technicalWorkflowSupport.toTaskView(task, technicalTaskTimeoutPolicy.evaluate(task, timeoutSnapshot));
+    }
+
+    private TechnicalWorkflowModels.SlicingWorkbenchRow toSlicingWorkbenchRow(
+        TechnicalWorkflowRecords.SlicingWorkbenchRow row
+    ) {
+        return new TechnicalWorkflowModels.SlicingWorkbenchRow(
+            row.taskId(),
+            row.caseId(),
+            row.pathologyNo(),
+            row.patientName(),
+            row.patientId(),
+            row.specimenId(),
+            row.specimenName(),
+            row.embeddingBoxId(),
+            row.slideId(),
+            row.slideNo(),
+            row.slicingOperatorName(),
+            row.slicingRemark(),
+            stringify(row.completedAt()),
+            row.grossingEvaluation(),
+            row.embeddingEvaluation(),
+            row.embeddingOperatorName(),
+            row.embeddingClearRemark(),
+            row.shiftRemark(),
+            row.sliceNotice(),
+            row.taskStatus(),
+            row.timedOut(),
+            row.selectable());
+    }
+
+    private TechnicalWorkflowModels.TechnicalEmbeddingRecord toTechnicalEmbeddingRecord(
+        TechnicalWorkflowRecords.EmbeddingWorkstationRecord record
+    ) {
+        return new TechnicalWorkflowModels.TechnicalEmbeddingRecord(
+            record.taskId(),
+            record.caseId(),
+            record.pathologyNo(),
+            record.specimenId(),
+            record.specimenName(),
+            record.samplingBlockId(),
+            record.samplingBlockCode(),
+            record.samplingBlockDescription(),
+            record.grossDescription(),
+            record.embeddingId(),
+            record.embeddingBoxId(),
+            record.embeddingBoxNo(),
+            record.sliceNotice(),
+            record.evaluationLevel(),
+            record.samplingEvaluation(),
+            record.embeddingRemarks(),
+            record.sampledByName(),
+            stringify(record.sampledAt()),
+            record.embeddedByName(),
+            stringify(record.startedAt()),
+            stringify(record.endedAt()),
+            record.taskStatus());
+    }
+
+    private TechnicalWorkflowModels.TechnicalEmbeddingEvaluationRecord toTechnicalEmbeddingEvaluationRecord(
+        TechnicalWorkflowRecords.EmbeddingWorkstationRecord record
+    ) {
+        return new TechnicalWorkflowModels.TechnicalEmbeddingEvaluationRecord(
+            record.embeddingId(),
+            record.caseId(),
+            record.pathologyNo(),
+            record.specimenId(),
+            record.specimenName(),
+            record.samplingBlockId(),
+            record.samplingBlockCode(),
+            record.embeddingBoxNo(),
+            record.evaluationLevel(),
+            record.samplingEvaluation(),
+            record.embeddingRemarks(),
+            record.embeddedByName(),
+            stringify(record.endedAt()));
     }
 
     private TechnicalWorkflowModels.TechnicalTrackingEvent toTrackingEvent(TrackingEvent event) {

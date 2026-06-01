@@ -20,6 +20,10 @@ public record TechnicalTrackingResponse(
     List<BlockSummary> blocks,
     @Schema(description = "包埋盒摘要列表")
     List<EmbeddingBoxSummary> embeddingBoxes,
+    @Schema(description = "包埋记录列表")
+    List<EmbeddingRecordSummary> embeddingRecords,
+    @Schema(description = "包埋评价记录列表")
+    List<EmbeddingEvaluationRecordSummary> embeddingEvaluationRecords,
     @Schema(description = "玻片摘要列表")
     List<SlideSummary> slides,
     @Schema(description = "玻片质控历史")
@@ -55,7 +59,11 @@ public record TechnicalTrackingResponse(
         @Schema(description = "包埋盒号")
         String embeddingBoxNo,
         @Schema(description = "描述")
-        String description
+        String description,
+        @Schema(description = "标本名称")
+        String specimenName,
+        @Schema(description = "大体所见")
+        String grossDescription
     ) {
     }
 
@@ -71,6 +79,86 @@ public record TechnicalTrackingResponse(
         String sliceNotice,
         @Schema(description = "玻片数量")
         int slideCount
+    ) {
+    }
+
+    @Schema(name = "TechnicalTrackingEmbeddingRecordSummary", description = "技术追踪中的包埋记录摘要")
+    public record EmbeddingRecordSummary(
+        @Schema(description = "技术任务 ID")
+        String taskId,
+        @Schema(description = "病例 ID")
+        String caseId,
+        @Schema(description = "病理号")
+        String pathologyNo,
+        @Schema(description = "标本 ID")
+        String specimenId,
+        @Schema(description = "标本名称")
+        String specimenName,
+        @Schema(description = "蜡块 ID")
+        String samplingBlockId,
+        @Schema(description = "蜡块号")
+        String samplingBlockCode,
+        @Schema(description = "蜡块名称")
+        String samplingBlockDescription,
+        @Schema(description = "大体所见")
+        String grossDescription,
+        @Schema(description = "包埋记录 ID")
+        String embeddingId,
+        @Schema(description = "包埋盒 ID")
+        String embeddingBoxId,
+        @Schema(description = "包埋盒号")
+        String embeddingBoxNo,
+        @Schema(description = "切片提示")
+        String sliceNotice,
+        @Schema(description = "评估等级")
+        String evaluationLevel,
+        @Schema(description = "取材评价")
+        String samplingEvaluation,
+        @Schema(description = "包埋备注")
+        String embeddingRemarks,
+        @Schema(description = "取材操作人")
+        String sampledByName,
+        @Schema(description = "取材时间")
+        String sampledAt,
+        @Schema(description = "包埋操作人")
+        String embeddedByName,
+        @Schema(description = "包埋开始时间")
+        String startedAt,
+        @Schema(description = "包埋完成时间")
+        String endedAt,
+        @Schema(description = "任务状态")
+        String taskStatus
+    ) {
+    }
+
+    @Schema(name = "TechnicalTrackingEmbeddingEvaluationRecordSummary", description = "技术追踪中的包埋评价摘要")
+    public record EmbeddingEvaluationRecordSummary(
+        @Schema(description = "包埋记录 ID")
+        String embeddingId,
+        @Schema(description = "病例 ID")
+        String caseId,
+        @Schema(description = "病理号")
+        String pathologyNo,
+        @Schema(description = "标本 ID")
+        String specimenId,
+        @Schema(description = "标本名称")
+        String specimenName,
+        @Schema(description = "蜡块 ID")
+        String samplingBlockId,
+        @Schema(description = "蜡块号")
+        String samplingBlockCode,
+        @Schema(description = "包埋盒号")
+        String embeddingBoxNo,
+        @Schema(description = "评估等级")
+        String evaluationLevel,
+        @Schema(description = "取材评价")
+        String samplingEvaluation,
+        @Schema(description = "包埋备注")
+        String embeddingRemarks,
+        @Schema(description = "包埋操作人")
+        String embeddedByName,
+        @Schema(description = "包埋完成时间")
+        String endedAt
     ) {
     }
 
