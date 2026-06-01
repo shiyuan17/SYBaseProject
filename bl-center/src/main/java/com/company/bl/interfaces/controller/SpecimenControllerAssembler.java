@@ -6,6 +6,7 @@ import com.company.bl.domain.model.ApplicationTracking;
 import com.company.bl.domain.model.Specimen;
 import com.company.bl.interfaces.dto.RegisterSpecimensRequest;
 import com.company.bl.interfaces.dto.RetryLabelPrintRequest;
+import com.company.bl.interfaces.dto.SpecimenBarcodeBindingRequest;
 import com.company.bl.interfaces.dto.SpecimenCheckInRequest;
 import com.company.bl.interfaces.dto.SpecimenConfirmRequest;
 import com.company.bl.interfaces.vo.ApplicationDetailResponse;
@@ -71,6 +72,9 @@ class SpecimenControllerAssembler {
                                                                String keyword,
                                                                String applicationNo,
                                                                String departmentId,
+                                                               String buildingId,
+                                                               String roomId,
+                                                               String barcodeBindingStatus,
                                                                String specimenStatus,
                                                                String labelPrintStatus,
                                                                Boolean abnormalFlag,
@@ -82,11 +86,38 @@ class SpecimenControllerAssembler {
             keyword,
             applicationNo,
             departmentId,
+            buildingId,
+            roomId,
+            barcodeBindingStatus,
             specimenStatus,
             labelPrintStatus,
             abnormalFlag,
             dateFrom,
             dateTo);
+    }
+
+    SpecimenBarcodeBindingCommand toBindSpecimenBarcodeCommand(String specimenId,
+                                                               SpecimenBarcodeBindingRequest request,
+                                                               HttpServletRequest httpServletRequest) {
+        return new SpecimenBarcodeBindingCommand(
+            specimenId,
+            request.getTargetBarcode(),
+            resolveUserId(null, httpServletRequest),
+            resolveOperatorName(null, httpServletRequest),
+            request.getTerminalCode(),
+            request.getRemarks());
+    }
+
+    SpecimenBarcodeUnbindCommand toUnbindSpecimenBarcodeCommand(String specimenId,
+                                                                String terminalCode,
+                                                                String remarks,
+                                                                HttpServletRequest httpServletRequest) {
+        return new SpecimenBarcodeUnbindCommand(
+            specimenId,
+            resolveUserId(null, httpServletRequest),
+            resolveOperatorName(null, httpServletRequest),
+            terminalCode,
+            remarks);
     }
 
     ConfirmSpecimenCommand toConfirmSpecimenCommand(String barcode, SpecimenConfirmRequest request, HttpServletRequest httpServletRequest) {
@@ -135,7 +166,8 @@ class SpecimenControllerAssembler {
                 result.summary().totalCount(),
                 result.summary().labelPrintedCount(),
                 result.summary().pendingLabelCount(),
-                result.summary().abnormalCount()));
+                result.summary().abnormalCount(),
+                result.summary().unboundCount()));
     }
 
     ApplicationListItemResponse toApplicationListItemResponse(ApplicationListItem item) {
@@ -289,9 +321,14 @@ class SpecimenControllerAssembler {
             item.barcode(),
             item.applicationId(),
             item.applicationNo(),
+            item.patientId(),
             item.patientName(),
+            item.patientGender(),
             item.submittingDepartmentId(),
             item.submittingDepartmentName(),
+            item.buildingId(),
+            item.roomId(),
+            item.surgeryName(),
             item.specimenName(),
             item.specimenType(),
             item.specimenSite(),
@@ -318,6 +355,7 @@ class SpecimenControllerAssembler {
             item.labelPrintBatchNo(),
             resolveAbnormalType(item.specimenStatus(), item.fixationStatus(), item.abnormalFlag()),
             item.specimenStatus(),
+            item.registrationOperatorName(),
             stringify(item.registeredAt()),
             stringify(item.latestTrackingAt()),
             item.abnormalFlag());

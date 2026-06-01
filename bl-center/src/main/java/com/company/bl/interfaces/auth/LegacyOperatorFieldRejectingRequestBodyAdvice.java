@@ -4,9 +4,9 @@ import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpInputMessage;
 import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.json.MappingJacksonInputMessage;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -14,7 +14,6 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestBodyAdvice;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Type;
 
 @ControllerAdvice(annotations = Controller.class)
@@ -42,7 +41,7 @@ public class LegacyOperatorFieldRejectingRequestBodyAdvice implements RequestBod
                                                     @NonNull Class<? extends HttpMessageConverter<?>> converterType) throws IOException {
         byte[] body = inputMessage.getBody().readAllBytes();
         rejectLegacyOperatorFields(body);
-        return new BufferedHttpInputMessage(inputMessage.getHeaders(), body);
+        return new MappingJacksonInputMessage(new ByteArrayInputStream(body), inputMessage.getHeaders());
     }
 
     @Override
@@ -80,15 +79,4 @@ public class LegacyOperatorFieldRejectingRequestBodyAdvice implements RequestBod
         }
     }
 
-    private record BufferedHttpInputMessage(HttpHeaders headers, byte[] body) implements HttpInputMessage {
-        @Override
-        public HttpHeaders getHeaders() {
-            return headers;
-        }
-
-        @Override
-        public InputStream getBody() {
-            return new ByteArrayInputStream(body);
-        }
-    }
 }

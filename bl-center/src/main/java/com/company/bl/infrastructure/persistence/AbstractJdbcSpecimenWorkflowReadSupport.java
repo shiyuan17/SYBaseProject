@@ -29,6 +29,16 @@ abstract class AbstractJdbcSpecimenWorkflowReadSupport extends AbstractJdbcSpeci
         return rows.stream().findFirst();
     }
 
+    public Optional<Specimen> findSpecimenById(String specimenId) {
+        List<Specimen> rows = jdbcTemplate.query(
+            specimenSelectColumns() + """
+                where s.id = :specimenId
+                """,
+            Map.of("specimenId", specimenId),
+            this::mapSpecimen);
+        return rows.stream().findFirst();
+    }
+
     public List<Specimen> findSpecimensBySpecimenNo(String specimenNo) {
         return jdbcTemplate.query(
             specimenSelectColumns() + """
@@ -64,6 +74,20 @@ abstract class AbstractJdbcSpecimenWorkflowReadSupport extends AbstractJdbcSpeci
                 where t.id = :id
                 """,
             Map.of("id", transportOrderId),
+            this::mapTransportOrder);
+        return rows.stream().findFirst();
+    }
+
+    public Optional<TransportOrder> findActiveTransportOrderBySpecimenId(String specimenId) {
+        List<TransportOrder> rows = jdbcTemplate.query(
+            transportOrderSelectColumns() + """
+                join transport_order_items toi on toi.transport_order_id = t.id
+                where toi.specimen_id = :specimenId
+                  and t.order_status not in ('COMPLETED', 'CANCELLED')
+                order by t.to_be_transported_at desc, t.id desc
+                fetch next 1 rows only
+                """,
+            Map.of("specimenId", specimenId),
             this::mapTransportOrder);
         return rows.stream().findFirst();
     }

@@ -19,9 +19,10 @@ export SECURITY_AUTH_JWT_SM2_PRIVATE_KEY="${SECURITY_AUTH_JWT_SM2_PRIVATE_KEY:-M
 export SECURITY_AUTH_JWT_SM2_PUBLIC_KEY="${SECURITY_AUTH_JWT_SM2_PUBLIC_KEY:-MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAEayHE2eAOE9zOeS1Yqz47cYbrDRJ3bdkpsF6OQ35kPjB8rGDgnBSDqiO2F1Jayf3tw+qMIXvRaOJxe6GRc2n0YA==}"
 
 echo "Preparing bl-center dependencies..."
-./mvnw -Dmaven.repo.local=.m2/repository -pl bl-center -am -DskipTests install
+./mvnw -Dmaven.repo.local=.m2/repository -pl bl-center -am -Dmaven.test.skip=true -Djacoco.skip=true install
 
 echo "Running bl-center Flyway ${MODE}..."
-./mvnw -Dmaven.repo.local=.m2/repository -f bl-center/pom.xml -DskipTests spring-boot:run \
+./mvnw -Dmaven.repo.local=.m2/repository -f bl-center/pom.xml -Dmaven.test.skip=true -Djacoco.skip=true spring-boot:run \
+  -Dspring-boot.run.useTestClasspath=false \
   -Dspring-boot.run.main-class=com.company.bl.tools.BlCenterFlywayCli \
   -Dspring-boot.run.arguments="${MODE}"

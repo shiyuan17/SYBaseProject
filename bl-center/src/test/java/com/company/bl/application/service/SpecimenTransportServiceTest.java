@@ -25,10 +25,12 @@ import java.util.Optional;
 import static com.company.bl.application.service.SpecimenWorkflowTransportModels.CreateTransportOrderCommand;
 import static com.company.bl.application.service.SpecimenWorkflowTransportModels.HandoverTransportOrderCommand;
 import static com.company.bl.application.service.SpecimenWorkflowTransportModels.OutboundTransportOrderCommand;
+import static com.company.bl.application.service.SpecimenWorkflowTransportModels.QuickOutboundTransportOrderCommand;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -169,5 +171,176 @@ class SpecimenTransportServiceTest {
             eq("scan outbound"),
             eq(null));
         verify(commandRepository).updateApplicationStatus("APP-2", "IN_TRANSIT");
+    }
+
+    @Test
+    void createTransportOrderShouldRejectSpecimenWithActiveTransportOrder() {
+        SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
+        when(applicationRepository.findById(any(ApplicationId.class)))
+            .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.application("APP-1", ApplicationStatus.SUBMITTED)));
+        when(queryRepository.findSpecimenByBarcode("BC-1"))
+            .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.specimen(
+                "APP-1",
+                "SP-1",
+                "BC-1",
+                SpecimenStatus.CHECKED_IN,
+                FixationStatus.COMPLETED,
+                "VERIFIED",
+                LocalDateTime.now(),
+                "CHECKED_IN",
+                null)));
+        when(queryRepository.findActiveTransportOrderBySpecimenId("SP-1"))
+            .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.transportOrder("TO-ACTIVE", "APP-1", TransportOrderStatus.PENDING)));
+
+        SpecimenTransportService service = new SpecimenTransportService(commandRepository, support, numberingService);
+
+        assertThatThrownBy(() -> service.createTransportOrder(
+            new CreateTransportOrderCommand(
+                "APP-1",
+                List.of("BC-1"),
+                "handover-1",
+                "Handover User",
+                "dept-1",
+                "Grossing",
+                "dept-2",
+                "Lab",
+                "TERM-1",
+                "remark")))
+            .isInstanceOf(BlBusinessException.class)
+            .hasMessageContaining("active transport order");
+    }
+
+    @Test
+    void quickOutboundShouldCreateTransportOrderWhenSpecimenHasNoActiveOrder() {
+        SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
+        when(applicationRepository.findById(any(ApplicationId.class)))
+            .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.application("APP-1", ApplicationStatus.SUBMITTED)));
+        when(queryRepository.findSpecimensBySpecimenNo("SP-NO-1"))
+            .thenReturn(List.of(SpecimenWorkflowServiceTestFixtures.specimen(
+                "APP-1",
+                "SP-1",
+                "BC-1",
+                SpecimenStatus.CHECKED_IN,
+                FixationStatus.COMPLETED,
+                "VERIFIED",
+                LocalDateTime.now(),
+                "CHECKED_IN",
+                null)));
+        when(queryRepository.findActiveTransportOrderBySpecimenId("SP-1"))
+            .thenReturn(Optional.empty());
+        when(numberingService.generateTransportOrderNo()).thenReturn("TR-NEW-001");
+        when(commandRepository.insertTransportOrder(any(TransportOrder.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(commandRepository.updateTransportOrderStatus(
+            any(String.class),
+            eq(TransportOrderStatus.HANDED_OVER),
+            eq(null),
+            eq(null),
+            eq("outbound-1"),
+            eq("Outbound User"),
+            eq(null),
+            any(LocalDateTime.class)))
+            .thenAnswer(invocation -> SpecimenWorkflowServiceTestFixtures.transportOrder(
+                invocation.getArgument(0),
+                "APP-1",
+                TransportOrderStatus.HANDED_OVER));
+        when(queryRepository.findTransportOrderById(any(String.class)))
+            .thenAnswer(invocation -> Optional.of(SpecimenWorkflowServiceTestFixtures.transportOrder(
+                invocation.getArgument(0),
+                "APP-1",
+                TransportOrderStatus.PENDING)));
+        when(queryRepository.findTransportOrderItems(any(String.class)))
+            .thenReturn(List.of(new TransportOrderItem(
+                "TOI-1",
+                "TO-1",
+                "APP-1",
+                "SP-1",
+                TransportItemStatus.PENDING,
+                "MATCHED",
+                null,
+                null,
+                null,
+                null)));
+
+        SpecimenTransportService service = new SpecimenTransportService(commandRepository, support, numberingService);
+
+        TransportOrder result = service.quickOutboundTransportOrder(
+            new QuickOutboundTransportOrderCommand(
+                "SPECIMEN_NO",
+                "SP-NO-1",
+                "outbound-1",
+                "Outbound User",
+                "TERM-1",
+                "remark"));
+
+        assertThat(result.status()).isEqualTo(TransportOrderStatus.HANDED_OVER);
+        verify(commandRepository).insertTransportOrder(any(TransportOrder.class));
+        verify(commandRepository).updateApplicationStatus("APP-1", "IN_TRANSIT");
+    }
+
+    @Test
+    void quickOutboundShouldReuseExistingActiveTransportOrder() {
+        SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
+        TransportOrder existingOrder = SpecimenWorkflowServiceTestFixtures.transportOrder("TO-EXIST", "APP-1", TransportOrderStatus.PRINTED);
+        when(queryRepository.findSpecimensBySpecimenNo("SP-NO-1"))
+            .thenReturn(List.of(SpecimenWorkflowServiceTestFixtures.specimen(
+                "APP-1",
+                "SP-1",
+                "BC-1",
+                SpecimenStatus.CHECKED_IN,
+                FixationStatus.COMPLETED,
+                "VERIFIED",
+                LocalDateTime.now(),
+                "CHECKED_IN",
+                null)));
+        when(queryRepository.findActiveTransportOrderBySpecimenId("SP-1"))
+            .thenReturn(Optional.of(existingOrder));
+        when(queryRepository.findTransportOrderById("TO-EXIST"))
+            .thenReturn(Optional.of(existingOrder));
+        when(commandRepository.updateTransportOrderStatus(
+            eq("TO-EXIST"),
+            eq(TransportOrderStatus.HANDED_OVER),
+            eq(null),
+            eq(null),
+            eq("outbound-2"),
+            eq("Outbound User 2"),
+            eq(null),
+            any(LocalDateTime.class)))
+            .thenReturn(SpecimenWorkflowServiceTestFixtures.transportOrder("TO-EXIST", "APP-1", TransportOrderStatus.HANDED_OVER));
+        when(queryRepository.findTransportOrderItems("TO-EXIST"))
+            .thenReturn(List.of(new TransportOrderItem(
+                "TOI-1",
+                "TO-EXIST",
+                "APP-1",
+                "SP-1",
+                TransportItemStatus.PENDING,
+                "MATCHED",
+                null,
+                null,
+                null,
+                null)));
+
+        SpecimenTransportService service = new SpecimenTransportService(commandRepository, support, numberingService);
+
+        TransportOrder result = service.quickOutboundTransportOrder(
+            new QuickOutboundTransportOrderCommand(
+                "SPECIMEN_NO",
+                "SP-NO-1",
+                "outbound-2",
+                "Outbound User 2",
+                "TERM-2",
+                "remark"));
+
+        assertThat(result.status()).isEqualTo(TransportOrderStatus.HANDED_OVER);
+        verify(commandRepository, never()).insertTransportOrder(any(TransportOrder.class));
+        verify(commandRepository).updateTransportOrderStatus(
+            eq("TO-EXIST"),
+            eq(TransportOrderStatus.HANDED_OVER),
+            eq(null),
+            eq(null),
+            eq("outbound-2"),
+            eq("Outbound User 2"),
+            eq(null),
+            any(LocalDateTime.class));
     }
 }

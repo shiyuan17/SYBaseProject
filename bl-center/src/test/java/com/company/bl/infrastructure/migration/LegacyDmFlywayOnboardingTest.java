@@ -66,8 +66,13 @@ class LegacyDmFlywayOnboardingTest {
                 FROM INFORMATION_SCHEMA.TABLES
                 WHERE LOWER(TABLE_NAME) = 'technical_pending_tasks'
                 """));
+            assertEquals(1, queryInt(statement, """
+                SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.TABLES
+                WHERE LOWER(TABLE_NAME) = 'technical_specimen_registrations'
+                """));
             assertEquals(13, queryInt(statement, "SELECT COUNT(*) FROM roles WHERE role_code LIKE 'M2_%' OR role_code LIKE 'M3_%'"));
-            assertEquals(16, queryInt(statement, "SELECT COUNT(*) FROM menus WHERE menu_code LIKE 'M2_%' OR menu_code LIKE 'M3_%'"));
+            assertEquals(17, queryInt(statement, "SELECT COUNT(*) FROM menus WHERE menu_code LIKE 'M2_%' OR menu_code LIKE 'M3_%'"));
             assertEquals(18, queryInt(statement, "SELECT COUNT(*) FROM permissions WHERE permission_group IN ('M2', 'M3')"));
             assertTrue(queryInt(statement, "SELECT COUNT(*) FROM users WHERE id LIKE 'USER_M%'") >= 28);
             assertTrue(queryInt(statement, "SELECT COUNT(*) FROM user_roles WHERE id LIKE 'UR_M%'") >= 25);
@@ -83,6 +88,13 @@ class LegacyDmFlywayOnboardingTest {
                 )
                 """));
             assertTrue(queryInt(statement, "SELECT COUNT(*) FROM role_menus WHERE role_id = 'ROLE_PATHOLOGY_ADMIN' AND menu_id = 'MENU_M3_TASKS'") > 0);
+            assertTrue(queryInt(statement, "SELECT COUNT(*) FROM role_menus WHERE role_id = 'ROLE_PATHOLOGY_ADMIN' AND menu_id = 'MENU_M3_SPECIMEN_REGISTRATION'") > 0);
+            assertTrue(queryInt(statement, "SELECT COUNT(*) FROM role_menus WHERE role_id = 'ROLE_M2_SPECIMEN_RECEIVE' AND menu_id = 'MENU_M3_SPECIMEN_REGISTRATION'") > 0);
+            assertEquals(1, queryInt(statement, """
+                SELECT COUNT(*)
+                FROM flyway_schema_history
+                WHERE version = '70'
+                """));
             assertEquals(1, queryInt(statement, "SELECT COUNT(*) FROM roles WHERE role_code = 'SUPER_ADMIN'"));
         }
     }

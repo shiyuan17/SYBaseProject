@@ -4,6 +4,24 @@
 DECLARE
     v_count INTEGER;
 BEGIN
+    SELECT COUNT(*) INTO v_count FROM USER_TABLES WHERE TABLE_NAME = 'TECHNICAL_SPECIMEN_REGISTRATIONS';
+    IF v_count = 0 THEN
+        EXECUTE IMMEDIATE '
+            CREATE TABLE technical_specimen_registrations (
+                case_id VARCHAR2(64) NOT NULL,
+                application_id VARCHAR2(64) NOT NULL,
+                registration_status VARCHAR2(32) NOT NULL,
+                registered_by_user_id VARCHAR2(64),
+                registered_by_name VARCHAR2(128),
+                registered_at TIMESTAMP,
+                remarks VARCHAR2(500),
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                CONSTRAINT pk_technical_specimen_registrations PRIMARY KEY (case_id),
+                CONSTRAINT fk_technical_specimen_reg_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id)
+            )';
+    END IF;
+
     SELECT COUNT(*) INTO v_count FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'SAMPLINGS' AND COLUMN_NAME = 'CREATED_AT';
     IF v_count = 0 THEN EXECUTE IMMEDIATE 'ALTER TABLE samplings ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'; END IF;
     SELECT COUNT(*) INTO v_count FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'SAMPLINGS' AND COLUMN_NAME = 'UPDATED_AT';
@@ -160,6 +178,10 @@ END;
 DECLARE
     v_count INTEGER;
 BEGIN
+    SELECT COUNT(*) INTO v_count FROM USER_INDEXES WHERE INDEX_NAME = 'IDX_TECH_SPEC_REG_STATUS_CREATED';
+    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE INDEX idx_tech_spec_reg_status_created ON technical_specimen_registrations (registration_status, created_at)'; END IF;
+    SELECT COUNT(*) INTO v_count FROM USER_INDEXES WHERE INDEX_NAME = 'IDX_TECH_SPEC_REG_APPLICATION';
+    IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE INDEX idx_tech_spec_reg_application ON technical_specimen_registrations (application_id)'; END IF;
     SELECT COUNT(*) INTO v_count FROM USER_INDEXES WHERE INDEX_NAME = 'IDX_INTEGRATION_TASKS_BUSINESS';
     IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE INDEX idx_integration_tasks_business ON integration_tasks (business_type, business_id)'; END IF;
     SELECT COUNT(*) INTO v_count FROM USER_INDEXES WHERE INDEX_NAME = 'IDX_INTEGRATION_TASKS_STATUS';
@@ -174,5 +196,52 @@ BEGIN
     IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE INDEX idx_historical_reports_patient ON historical_reports (patient_id, report_date)'; END IF;
     SELECT COUNT(*) INTO v_count FROM USER_INDEXES WHERE INDEX_NAME = 'IDX_HISTORICAL_REPORTS_PATHOLOGY';
     IF v_count = 0 THEN EXECUTE IMMEDIATE 'CREATE INDEX idx_historical_reports_pathology ON historical_reports (pathology_no, report_date)'; END IF;
+END;
+/
+
+DECLARE
+    v_count INTEGER;
+BEGIN
+    UPDATE menus
+    SET parent_id = 'MENU_M3_WORKFLOW',
+        menu_code = 'M3_SPECIMEN_REGISTRATION',
+        menu_name = '标本登记',
+        menu_type = 'MENU',
+        path = '/api/v1/technical-specimen-registrations/pending',
+        component_name = 'TechnicalSpecimenRegistration',
+        permission_prefix = 'm2:receipt',
+        sort_order = 121,
+        visible = 1,
+        enabled = 1,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = 'MENU_M3_SPECIMEN_REGISTRATION';
+
+    IF SQL%ROWCOUNT = 0 THEN
+        INSERT INTO menus
+            (id, parent_id, menu_code, menu_name, menu_type, path, component_name, permission_prefix,
+             sort_order, visible, enabled, created_at, updated_at)
+        VALUES
+            ('MENU_M3_SPECIMEN_REGISTRATION', 'MENU_M3_WORKFLOW', 'M3_SPECIMEN_REGISTRATION', '标本登记',
+             'MENU', '/api/v1/technical-specimen-registrations/pending', 'TechnicalSpecimenRegistration',
+             'm2:receipt', 121, 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+    END IF;
+
+    SELECT COUNT(*) INTO v_count
+    FROM role_menus
+    WHERE role_id = 'ROLE_PATHOLOGY_ADMIN'
+      AND menu_id = 'MENU_M3_SPECIMEN_REGISTRATION';
+    IF v_count = 0 THEN
+        INSERT INTO role_menus (id, role_id, menu_id, assigned_at)
+        VALUES ('RM_M3_SPEC_REG_ADMIN', 'ROLE_PATHOLOGY_ADMIN', 'MENU_M3_SPECIMEN_REGISTRATION', CURRENT_TIMESTAMP);
+    END IF;
+
+    SELECT COUNT(*) INTO v_count
+    FROM role_menus
+    WHERE role_id = 'ROLE_M2_SPECIMEN_RECEIVE'
+      AND menu_id = 'MENU_M3_SPECIMEN_REGISTRATION';
+    IF v_count = 0 THEN
+        INSERT INTO role_menus (id, role_id, menu_id, assigned_at)
+        VALUES ('RM_M3_SPEC_REG_RECEIPT', 'ROLE_M2_SPECIMEN_RECEIVE', 'MENU_M3_SPECIMEN_REGISTRATION', CURRENT_TIMESTAMP);
+    END IF;
 END;
 /

@@ -81,6 +81,7 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
             from specimens s
             join applications a on a.id = s.application_id
             left join specimen_fixation_records sfr on sfr.specimen_id = s.id
+            left join application_registration_workbench w on w.application_id = a.id
             left join (
                 select specimen_id, max(event_time) as latest_event_time
                 from workflow_events
@@ -118,9 +119,14 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
                 s.barcode,
                 a.id as application_id,
                 a.application_no,
+                a.patient_id,
                 a.patient_name,
+                a.patient_gender,
                 a.submitting_department_id,
                 a.submitting_department_name,
+                w.building_id,
+                w.room_id,
+                coalesce(w.room_id, w.surgery_name) as surgery_name,
                 s.specimen_name_standardized as specimen_name,
                 s.specimen_type,
                 s.specimen_site,
@@ -149,6 +155,7 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
                 + """
                 s.label_print_status,
                 s.label_print_batch_no,
+                s.registered_by_name as registration_operator_name,
                 s.registered_at,
                 evt.latest_event_time,
             """
@@ -195,6 +202,9 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
                 count(1) as total_count,
                 sum(case when s.label_print_status = 'SUCCESS' then 1 else 0 end) as label_printed_count,
                 sum(case when s.label_print_status in ('PENDING', 'FAILED') then 1 else 0 end) as pending_label_count,
+                sum(case when """ + barcodeUnboundExpression("s") + """
+                    then 1 else 0
+                end) as unbound_count,
             """
                 + "    sum(case when (" + specimenManagementAbnormalExpression("s") + ")\n"
                 + """
@@ -228,6 +238,17 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
         if (query.departmentId() != null && !query.departmentId().isBlank()) {
             builder.append(" and a.submitting_department_id = :departmentId");
         }
+        if (query.buildingId() != null && !query.buildingId().isBlank()) {
+            builder.append(" and w.building_id = :buildingId");
+        }
+        if (query.roomId() != null && !query.roomId().isBlank()) {
+            builder.append(" and w.room_id = :roomId");
+        }
+        if ("UNBOUND".equalsIgnoreCase(query.barcodeBindingStatus())) {
+            builder.append(" and ").append(barcodeUnboundExpression("s"));
+        } else if ("BOUND".equalsIgnoreCase(query.barcodeBindingStatus())) {
+            builder.append(" and ").append(barcodeBoundExpression("s"));
+        }
         if (query.specimenStatus() != null && !query.specimenStatus().isBlank()) {
             builder.append(" and s.specimen_status = :specimenStatus");
         }
@@ -255,6 +276,14 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
             + " or " + specimenAlias + ".unqualified_reason is not null";
     }
 
+    private String barcodeUnboundExpression(String specimenAlias) {
+        return "(" + specimenAlias + ".barcode is null or trim(" + specimenAlias + ".barcode) = '')";
+    }
+
+    private String barcodeBoundExpression(String specimenAlias) {
+        return "(" + specimenAlias + ".barcode is not null and trim(" + specimenAlias + ".barcode) <> '')";
+    }
+
     private MapSqlParameterSource duplicateApplicationParams(SpecimenWorkflowRepository.DuplicateApplicationQuery query) {
         return new MapSqlParameterSource()
             .addValue("patientId", query.patientId())
@@ -275,6 +304,12 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
         }
         if (query.departmentId() != null && !query.departmentId().isBlank()) {
             parameters.addValue("departmentId", query.departmentId());
+        }
+        if (query.buildingId() != null && !query.buildingId().isBlank()) {
+            parameters.addValue("buildingId", query.buildingId());
+        }
+        if (query.roomId() != null && !query.roomId().isBlank()) {
+            parameters.addValue("roomId", query.roomId());
         }
         if (query.specimenStatus() != null && !query.specimenStatus().isBlank()) {
             parameters.addValue("specimenStatus", query.specimenStatus());
@@ -311,9 +346,14 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
             rs.getString("barcode"),
             rs.getString("application_id"),
             rs.getString("application_no"),
+            JdbcResultSetUtils.getNullableString(rs, "patient_id"),
             rs.getString("patient_name"),
+            JdbcResultSetUtils.getNullableString(rs, "patient_gender"),
             rs.getString("submitting_department_id"),
             rs.getString("submitting_department_name"),
+            JdbcResultSetUtils.getNullableString(rs, "building_id"),
+            JdbcResultSetUtils.getNullableString(rs, "room_id"),
+            JdbcResultSetUtils.getNullableString(rs, "surgery_name"),
             rs.getString("specimen_name"),
             rs.getString("specimen_type"),
             rs.getString("specimen_site"),
@@ -347,6 +387,7 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
             JdbcResultSetUtils.getNullableString(rs, "checked_in_by_name"),
             rs.getString("label_print_status"),
             rs.getString("label_print_batch_no"),
+            JdbcResultSetUtils.getNullableString(rs, "registration_operator_name"),
             rs.getTimestamp("registered_at") == null ? null : rs.getTimestamp("registered_at").toLocalDateTime(),
             rs.getTimestamp("latest_event_time") == null ? null : rs.getTimestamp("latest_event_time").toLocalDateTime(),
             rs.getInt("abnormal_flag") == 1);
@@ -357,6 +398,7 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
             rs.getLong("total_count"),
             rs.getLong("label_printed_count"),
             rs.getLong("pending_label_count"),
-            rs.getLong("abnormal_count"));
+            rs.getLong("abnormal_count"),
+            rs.getLong("unbound_count"));
     }
 }

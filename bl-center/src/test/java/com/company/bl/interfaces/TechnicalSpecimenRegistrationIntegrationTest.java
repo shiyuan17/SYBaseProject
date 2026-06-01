@@ -102,7 +102,7 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
 
         JsonNode grossingTasks =
             listPendingTasks("GROSSING", context.pathologyNo(), USER_M3_GROSSING);
-        assertThat(grossingTasks.path("items").get(0).path("assignedToUserId").asText()).isBlank();
+        assertThat(grossingTasks.path("items").get(0).path("assignedToUserId").isNull()).isTrue();
 
         postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
             {

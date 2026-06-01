@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 
-public class V67__ensure_transport_order_outbound_columns extends BaseJavaMigration {
+public class V69__ensure_transport_order_outbound_columns extends BaseJavaMigration {
 
     @Override
     public void migrate(Context context) throws Exception {

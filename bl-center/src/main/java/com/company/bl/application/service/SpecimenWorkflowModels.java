@@ -112,6 +112,25 @@ public final class SpecimenWorkflowModels {
     ) {
     }
 
+    public record SpecimenBarcodeBindingCommand(
+        String specimenId,
+        String targetBarcode,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
+    public record SpecimenBarcodeUnbindCommand(
+        String specimenId,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
     public record SpecimenVerificationResult(
         String id,
         String specimenNo,

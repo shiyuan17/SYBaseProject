@@ -11,6 +11,8 @@ public record SpecimenManagementSummaryResponse(
     @Schema(description = "Pending label count under current filters")
     long pendingLabelCount,
     @Schema(description = "Abnormal specimen count under current filters")
-    long abnormalCount
+    long abnormalCount,
+    @Schema(description = "Unbound specimen count under current filters")
+    long unboundCount
 ) {
 }

@@ -27,6 +27,9 @@ import static com.company.bl.application.service.SpecimenWorkflowTransportModels
 @Service
 class SpecimenTransportService {
 
+    private static final String PATHOLOGY_DEPARTMENT_ID = "DEPT_PATH";
+    private static final String PATHOLOGY_DEPARTMENT_NAME = "病理科";
+
     private final SpecimenWorkflowCommandRepository specimenWorkflowRepository;
     private final SpecimenWorkflowSupport specimenWorkflowSupport;
     private final NumberingService numberingService;
@@ -51,18 +54,8 @@ class SpecimenTransportService {
             .map(specimenWorkflowSupport::getSpecimen)
             .toList();
         specimens.forEach(specimen -> {
-            if (!specimen.applicationId().equals(command.applicationId())) {
-                throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Specimen does not belong to application");
-            }
-            if (specimen.fixationStatus() != FixationStatus.COMPLETED) {
-                throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must be fixed before transport");
-            }
-            if (specimen.specimenConfirmedAt() == null) {
-                throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must be confirmed before transport");
-            }
-            if (!"CHECKED_IN".equalsIgnoreCase(specimenWorkflowSupport.commandCheckInStatus(specimen))) {
-                throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must be checked in before transport");
-            }
+            requireTransportReadySpecimen(specimen, command.applicationId());
+            requireNoActiveTransportOrder(specimen);
         });
         LocalDateTime now = LocalDateTime.now();
         TransportOrder order = new TransportOrder(
@@ -247,5 +240,83 @@ class SpecimenTransportService {
         }
         specimenWorkflowRepository.updateApplicationStatus(order.applicationId(), "IN_TRANSIT");
         return updated;
+    }
+
+    @Transactional
+    @ObservedOperation(
+        operation = "quick_outbound_transport_order",
+        successCounter = "transport_order_quick_outbound_total",
+        failureCounter = "transport_order_quick_outbound_failed_total",
+        durationMetric = "transport_order_quick_outbound_duration")
+    TransportOrder quickOutboundTransportOrder(QuickOutboundTransportOrderCommand command) {
+        Specimen specimen = specimenWorkflowSupport.resolveSpecimenByIdentifier(
+            command.identifierType(),
+            command.identifier());
+        requireTransportReadySpecimen(specimen, specimen.applicationId());
+
+        TransportOrder activeOrder = specimenWorkflowSupport.findActiveTransportOrderBySpecimenId(specimen.id())
+            .orElse(null);
+        if (activeOrder != null) {
+            if (activeOrder.status() == TransportOrderStatus.HANDED_OVER
+                || activeOrder.status() == TransportOrderStatus.PARTIALLY_RECEIVED) {
+                return activeOrder;
+            }
+            return outboundTransportOrder(
+                activeOrder.id(),
+                new OutboundTransportOrderCommand(
+                    command.outboundUserId(),
+                    command.outboundUserName(),
+                    command.terminalCode(),
+                    command.remarks()));
+        }
+
+        Application application = specimenWorkflowSupport.getApplication(specimen.applicationId());
+        TransportOrder createdOrder = createTransportOrder(
+            new CreateTransportOrderCommand(
+                application.getId().value(),
+                List.of(specimen.barcode()),
+                null,
+                resolveHandoverUserName(specimen, command.outboundUserName()),
+                application.getSubmittingDepartmentId(),
+                application.getSubmittingDepartmentName(),
+                PATHOLOGY_DEPARTMENT_ID,
+                PATHOLOGY_DEPARTMENT_NAME,
+                command.terminalCode(),
+                command.remarks()));
+        return outboundTransportOrder(
+            createdOrder.id(),
+            new OutboundTransportOrderCommand(
+                command.outboundUserId(),
+                command.outboundUserName(),
+                command.terminalCode(),
+                command.remarks()));
+    }
+
+    private void requireTransportReadySpecimen(Specimen specimen, String applicationId) {
+        if (!specimen.applicationId().equals(applicationId)) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Specimen does not belong to application");
+        }
+        if (specimenWorkflowSupport.isReceiptTerminalStatus(specimen.specimenStatus())) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen already reached receipt terminal state");
+        }
+        if (specimen.fixationStatus() != FixationStatus.COMPLETED) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must be fixed before transport");
+        }
+        if (specimen.specimenConfirmedAt() == null) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must be confirmed before transport");
+        }
+        if (!"CHECKED_IN".equalsIgnoreCase(specimenWorkflowSupport.commandCheckInStatus(specimen))) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must be checked in before transport");
+        }
+    }
+
+    private void requireNoActiveTransportOrder(Specimen specimen) {
+        if (specimenWorkflowSupport.findActiveTransportOrderBySpecimenId(specimen.id()).isPresent()) {
+            throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Specimen already has an active transport order");
+        }
+    }
+
+    private String resolveHandoverUserName(Specimen specimen, String outboundUserName) {
+        return specimenWorkflowSupport.defaultIfBlank(specimen.checkedInByName(), outboundUserName);
     }
 }

@@ -10,6 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class SpecimenWorkflowQueryServiceTest {
@@ -23,7 +24,13 @@ class SpecimenWorkflowQueryServiceTest {
     @Test
     void listSpecimenVerificationRecordsShouldRejectBlankBarcode() {
         SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
-        SpecimenWorkflowQueryService service = new SpecimenWorkflowQueryService(applicationRepository, queryRepository, support);
+        SpecimenWorkflowPendingQuerySupport pendingQuerySupport =
+            new SpecimenWorkflowPendingQuerySupport(applicationRepository, queryRepository, support);
+        SpecimenWorkflowQueryService service = new SpecimenWorkflowQueryService(
+            pendingQuerySupport,
+            mock(SpecimenWorkflowApplicationQuerySupport.class),
+            mock(SpecimenWorkflowTrackingQuerySupport.class),
+            mock(SpecimenWorkflowRemovalQuerySupport.class));
 
         assertThatThrownBy(() -> service.listSpecimenVerificationRecords("  "))
             .isInstanceOf(BlBusinessException.class)

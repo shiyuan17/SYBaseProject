@@ -32,6 +32,12 @@ abstract class AbstractJdbcSpecimenWorkflowProjectionSupport extends AbstractJdb
         return pendingProjectionSupport.findPendingTransportOrders(query);
     }
 
+    public SpecimenWorkflowRepository.PagedSpecimenOutbounds findSpecimenOutbounds(
+        SpecimenWorkflowRepository.SpecimenOutboundListQuery query
+    ) {
+        return removalProjectionSupport.findSpecimenOutbounds(query);
+    }
+
     public List<SpecimenWorkflowRepository.DuplicateApplicationRow> findDuplicateApplications(
         SpecimenWorkflowRepository.DuplicateApplicationQuery query
     ) {

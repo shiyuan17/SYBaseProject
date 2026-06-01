@@ -80,6 +80,7 @@ final class BlCenterFlywayTableSupport {
         "STAT_CATEGORIES",
         "SYSTEM_CONFIG_CATEGORIES",
         "SYSTEM_CONFIG_ITEMS",
+        "TECHNICAL_SPECIMEN_REGISTRATIONS",
         "TECHNICAL_PENDING_TASKS",
         "TRANSPORT_ORDERS",
         "TRANSPORT_ORDER_ITEMS",

@@ -97,6 +97,37 @@ public interface SpecimenWorkflowRepository extends SpecimenWorkflowQueryReposit
     record PagedPendingTransportOrders(List<PendingTransportOrderRow> items, long total) {
     }
 
+    record SpecimenOutboundListQuery(
+        int page,
+        int size,
+        String applicationId,
+        String specimenNo
+    ) {
+    }
+
+    record SpecimenOutboundRow(
+        String specimenId,
+        String transportOrderId,
+        String applicationId,
+        String applicationNo,
+        String specimenNo,
+        String patientName,
+        String patientGender,
+        String patientId,
+        String inpatientNo,
+        String surgeryName,
+        String specimenName,
+        String specimenStatus,
+        LocalDateTime registeredAt,
+        String registeredByName,
+        LocalDateTime outboundAt,
+        String outboundUserName
+    ) {
+    }
+
+    record PagedSpecimenOutbounds(List<SpecimenOutboundRow> items, long total) {
+    }
+
     record ApplicationListQuery(
         int page,
         int size,
@@ -178,6 +209,9 @@ public interface SpecimenWorkflowRepository extends SpecimenWorkflowQueryReposit
         String keyword,
         String applicationNo,
         String departmentId,
+        String buildingId,
+        String roomId,
+        String barcodeBindingStatus,
         String specimenStatus,
         String labelPrintStatus,
         Boolean abnormalFlag,
@@ -205,9 +239,14 @@ public interface SpecimenWorkflowRepository extends SpecimenWorkflowQueryReposit
         String barcode,
         String applicationId,
         String applicationNo,
+        String patientId,
         String patientName,
+        String patientGender,
         String submittingDepartmentId,
         String submittingDepartmentName,
+        String buildingId,
+        String roomId,
+        String surgeryName,
         String specimenName,
         String specimenType,
         String specimenSite,
@@ -231,6 +270,7 @@ public interface SpecimenWorkflowRepository extends SpecimenWorkflowQueryReposit
         String checkedInByName,
         String labelPrintStatus,
         String labelPrintBatchNo,
+        String registrationOperatorName,
         LocalDateTime registeredAt,
         LocalDateTime latestTrackingAt,
         boolean abnormalFlag
@@ -279,7 +319,8 @@ public interface SpecimenWorkflowRepository extends SpecimenWorkflowQueryReposit
         long totalCount,
         long labelPrintedCount,
         long pendingLabelCount,
-        long abnormalCount
+        long abnormalCount,
+        long unboundCount
     ) {
     }
 

@@ -56,6 +56,7 @@ final class JdbcTechnicalWorkflowSpecimenRegistrationQueries {
             join applications a on a.id = tsr.application_id
             left join application_registration_workbench w on w.application_id = tsr.application_id
             """ + where + """
+
             order by case when pc.received_at is null then 1 else 0 end,
                      pc.received_at desc,
                      tsr.created_at desc,

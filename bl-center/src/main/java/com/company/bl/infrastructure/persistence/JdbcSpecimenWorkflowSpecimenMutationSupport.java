@@ -333,6 +333,29 @@ abstract class JdbcSpecimenWorkflowSpecimenMutationSupport extends AbstractJdbcS
             .addValue("updatedAt", specimenConfirmedAt));
     }
 
+    public void bindSpecimenBarcode(String specimenId, String barcode) {
+        jdbcTemplate.update("""
+            update specimens
+            set barcode = :barcode,
+                updated_at = :updatedAt
+            where id = :specimenId
+            """, new MapSqlParameterSource()
+            .addValue("specimenId", specimenId)
+            .addValue("barcode", barcode)
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    public void unbindSpecimenBarcode(String specimenId) {
+        jdbcTemplate.update("""
+            update specimens
+            set barcode = null,
+                updated_at = :updatedAt
+            where id = :specimenId
+            """, new MapSqlParameterSource()
+            .addValue("specimenId", specimenId)
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
     public void checkInSpecimen(String specimenId,
                                 String checkInStatus,
                                 LocalDateTime checkedInAt,

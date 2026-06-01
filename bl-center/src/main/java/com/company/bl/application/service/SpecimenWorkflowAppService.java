@@ -18,6 +18,7 @@ import static com.company.bl.application.service.SpecimenWorkflowTransportModels
 public class SpecimenWorkflowAppService {
 
     private final SpecimenRegistrationService specimenRegistrationService;
+    private final SpecimenBarcodeBindingService specimenBarcodeBindingService;
     private final SpecimenFixationService specimenFixationService;
     private final SpecimenVerificationService specimenVerificationService;
     private final SpecimenTransportService specimenTransportService;
@@ -30,6 +31,18 @@ public class SpecimenWorkflowAppService {
 
     public FixationResult startFixation(FixationCommand command) {
         return specimenFixationService.startFixation(command);
+    }
+
+    public Specimen bindSpecimenBarcode(SpecimenBarcodeBindingCommand command) {
+        return specimenBarcodeBindingService.bindSpecimenBarcode(command);
+    }
+
+    public Specimen rebindSpecimenBarcode(SpecimenBarcodeBindingCommand command) {
+        return specimenBarcodeBindingService.rebindSpecimenBarcode(command);
+    }
+
+    public Specimen unbindSpecimenBarcode(SpecimenBarcodeUnbindCommand command) {
+        return specimenBarcodeBindingService.unbindSpecimenBarcode(command);
     }
 
     public FixationResult completeFixation(FixationCommand command) {
@@ -68,6 +81,10 @@ public class SpecimenWorkflowAppService {
         return specimenTransportService.outboundTransportOrder(transportOrderId, command);
     }
 
+    public TransportOrder quickOutboundTransportOrder(QuickOutboundTransportOrderCommand command) {
+        return specimenTransportService.quickOutboundTransportOrder(command);
+    }
+
     public ReceiptResult receiveSpecimens(ReceiveSpecimensCommand command) {
         return specimenReceiptAndRemovalService.receiveSpecimens(command);
     }
@@ -94,6 +111,10 @@ public class SpecimenWorkflowAppService {
 
     public PendingTransportOrderPage listPendingTransportOrders(PendingTransportOrderQuery query) {
         return specimenWorkflowQueryService.listPendingTransportOrders(query);
+    }
+
+    public SpecimenOutboundPage listSpecimenOutbounds(SpecimenOutboundListQuery query) {
+        return specimenWorkflowQueryService.listSpecimenOutbounds(query);
     }
 
     public ApplicationPage listApplications(ApplicationListQuery query) {

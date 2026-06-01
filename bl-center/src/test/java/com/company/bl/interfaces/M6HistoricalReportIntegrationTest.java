@@ -6,8 +6,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.util.Map;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
@@ -51,13 +49,5 @@ class M6HistoricalReportIntegrationTest extends AbstractSpecimenWorkflowIntegrat
         assertThat(importJobs.size()).isGreaterThanOrEqualTo(2);
         assertThat(importJobs.get(0).path("integrationTaskId").asText()).isNotBlank();
         assertThat(importJobs.get(0).path("compensationStatus").asText()).isIn("NONE", "RESOLVED");
-    }
-
-    private String userDisplayName(String userId) {
-        return jdbcTemplate.queryForObject("""
-            select name
-            from users
-            where id = :userId
-            """, Map.of("userId", userId), String.class);
     }
 }

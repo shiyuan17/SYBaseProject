@@ -37,9 +37,18 @@ class SpecimenWorkflowLookupSupport {
             .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Specimen barcode not found"));
     }
 
+    Specimen getSpecimenById(String specimenId) {
+        return specimenWorkflowRepository.findSpecimenById(specimenId)
+            .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Specimen id not found"));
+    }
+
     TransportOrder getTransportOrder(String transportOrderId) {
         return specimenWorkflowRepository.findTransportOrderById(transportOrderId)
             .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Transport order not found"));
+    }
+
+    Optional<TransportOrder> findActiveTransportOrderBySpecimenId(String specimenId) {
+        return specimenWorkflowRepository.findActiveTransportOrderBySpecimenId(specimenId);
     }
 
     List<Specimen> getSpecimensByApplicationId(String applicationId) {
@@ -59,6 +68,10 @@ class SpecimenWorkflowLookupSupport {
     }
 
     Specimen resolveSpecimenForRemoval(String identifierType, String identifier) {
+        return resolveSpecimenByIdentifier(identifierType, identifier);
+    }
+
+    Specimen resolveSpecimenByIdentifier(String identifierType, String identifier) {
         if ("BARCODE".equals(identifierType)) {
             return getSpecimen(identifier);
         }

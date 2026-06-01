@@ -64,10 +64,17 @@ class SpecimenWorkflowObservabilityContractTest {
         when(support.getApplication("APP-1")).thenReturn(application);
         when(queryRepository.getApplicationTracking("APP-1", application)).thenReturn(tracking);
 
-        SpecimenWorkflowQueryService queryService = new SpecimenWorkflowQueryService(applicationRepository, queryRepository, support);
-        AspectJProxyFactory proxyFactory = new AspectJProxyFactory(queryService);
-        proxyFactory.addAspect(aspect);
-        SpecimenWorkflowQueryService proxiedQueryService = proxyFactory.getProxy();
+        SpecimenWorkflowTrackingQuerySupport trackingQuerySupport =
+            new SpecimenWorkflowTrackingQuerySupport(applicationRepository, queryRepository, support);
+        AspectJProxyFactory supportProxyFactory = new AspectJProxyFactory(trackingQuerySupport);
+        supportProxyFactory.addAspect(aspect);
+        SpecimenWorkflowTrackingQuerySupport proxiedTrackingQuerySupport = supportProxyFactory.getProxy();
+
+        SpecimenWorkflowQueryService queryService = new SpecimenWorkflowQueryService(
+            mock(SpecimenWorkflowPendingQuerySupport.class),
+            mock(SpecimenWorkflowApplicationQuerySupport.class),
+            proxiedTrackingQuerySupport,
+            mock(SpecimenWorkflowRemovalQuerySupport.class));
 
         SpecimenWorkflowAppService facade = new SpecimenWorkflowAppService(
             null,
@@ -75,7 +82,8 @@ class SpecimenWorkflowObservabilityContractTest {
             null,
             null,
             null,
-            proxiedQueryService);
+            null,
+            queryService);
 
         ApplicationTracking result = facade.getApplicationTracking("APP-1");
 

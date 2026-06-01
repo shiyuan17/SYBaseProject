@@ -218,6 +218,208 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
     }
 
     @Test
+    void shouldQuickOutboundSpecimenBySpecimenNoAndPersistAutoCreatedOrder() throws Exception {
+        String applicationId = createApplication("APP-M2-QUICK-OUTBOUND-001");
+        JsonNode registration = registerSpecimens(
+            applicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-QUICK-OUTBOUND-001");
+        String barcode = registration.path("specimens").get(0).path("barcode").asText();
+        String specimenId = registration.path("specimens").get(0).path("id").asText();
+        String specimenNo = registration.path("specimens").get(0).path("specimenNo").asText();
+        String outboundUserId = USER_RECEIVE;
+        String outboundUserName = userDisplayName(outboundUserId);
+
+        prepareTransportReadySpecimen(barcode);
+
+        JsonNode quickOutbound = responseBody(postJson("/api/v1/specimen-outbounds/quick-outbound", USER_TRANSPORT, """
+            {
+              "identifierType": "SPECIMEN_NO",
+              "identifier": "%s",
+              "outboundUserId": "%s",
+              "outboundUserName": "%s",
+              "terminalCode": "T-QUICK-OUTBOUND-01",
+              "remarks": "自动补建并出库"
+            }
+            """.formatted(specimenNo, outboundUserId, outboundUserName)), 200);
+
+        String transportOrderId = quickOutbound.path("id").asText();
+        assertThat(transportOrderId).isNotBlank();
+        assertThat(quickOutbound.path("status").asText()).isEqualTo("HANDED_OVER");
+        assertThat(quickOutbound.path("outboundUserName").asText()).isEqualTo(outboundUserName);
+        assertThat(quickOutbound.path("handedOverAt").asText()).isNotBlank();
+
+        assertThat(jdbcTemplate.queryForObject(
+            """
+                select count(1)
+                from transport_orders
+                where application_id = :applicationId
+                """,
+            java.util.Map.of("applicationId", applicationId),
+            Long.class)).isEqualTo(1L);
+        assertThat(querySingleString(
+            """
+                select outbound_user_name
+                from transport_orders
+                where id = :transportOrderId
+                """,
+            "transportOrderId",
+            transportOrderId)).isEqualTo(outboundUserName);
+        assertThat(querySingleString(
+            """
+                select specimen_status
+                from specimens
+                where id = :specimenId
+                """,
+            "specimenId",
+            specimenId)).isEqualTo("IN_TRANSIT");
+        assertThat(querySingleString(
+            """
+                select status
+                from applications
+                where id = :applicationId
+                """,
+            "applicationId",
+            applicationId)).isEqualTo("IN_TRANSIT");
+        assertThat(jdbcTemplate.queryForObject(
+            """
+                select count(1)
+                from transport_order_items
+                where transport_order_id = :transportOrderId
+                  and specimen_id = :specimenId
+                """,
+            java.util.Map.of(
+                "transportOrderId", transportOrderId,
+                "specimenId", specimenId),
+            Long.class)).isEqualTo(1L);
+        assertThat(jdbcTemplate.queryForObject(
+            """
+                select count(1)
+                from workflow_events
+                where transport_order_id = :transportOrderId
+                  and specimen_id = :specimenId
+                  and node_code = 'TRANSPORT'
+                  and event_type = 'ORDER_CREATED'
+                """,
+            java.util.Map.of(
+                "transportOrderId", transportOrderId,
+                "specimenId", specimenId),
+            Long.class)).isEqualTo(1L);
+        assertThat(jdbcTemplate.queryForObject(
+            """
+                select count(1)
+                from workflow_events
+                where transport_order_id = :transportOrderId
+                  and specimen_id = :specimenId
+                  and node_code = 'TRANSPORT'
+                  and event_type = 'HANDED_OVER'
+                """,
+            java.util.Map.of(
+                "transportOrderId", transportOrderId,
+                "specimenId", specimenId),
+            Long.class)).isEqualTo(1L);
+
+        mockMvc.perform(authorized(get("/api/v1/specimen-outbounds"), USER_TRANSPORT)
+                .param("page", "1")
+                .param("size", "20")
+                .param("specimenNo", specimenNo))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].transportOrderId").value(transportOrderId))
+            .andExpect(jsonPath("$.data.items[0].specimenId").value(specimenId))
+            .andExpect(jsonPath("$.data.items[0].specimenNo").value(specimenNo))
+            .andExpect(jsonPath("$.data.items[0].outboundAt").isNotEmpty())
+            .andExpect(jsonPath("$.data.items[0].outboundUserName").value(outboundUserName));
+    }
+
+    @Test
+    void shouldListOperatingOptionsWhenWorkbenchContainsBuildingAndRoom() throws Exception {
+        String applicationId = createApplication("APP-M2-OPERATING-OPTIONS-001");
+        insertWorkbenchOperatingOption(applicationId, "OR-BUILDING-A", "OR-ROOM-01");
+
+        mockMvc.perform(authorized(get("/api/v1/application-registration-workbench/operating-options"), USER_REGISTER))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.buildings[0].buildingId").value("OR-BUILDING-A"))
+            .andExpect(jsonPath("$.data.buildings[0].operatingRooms[0].buildingId").value("OR-BUILDING-A"))
+            .andExpect(jsonPath("$.data.buildings[0].operatingRooms[0].roomId").value("OR-ROOM-01"));
+    }
+
+    @Test
+    void shouldListSpecimenOutboundsWithMixedStatesAndReflectOutboundUpdates() throws Exception {
+        mockMvc.perform(authorized(get("/api/v1/application-registration-workbench/operating-options"), USER_REGISTER))
+            .andExpect(status().isOk());
+
+        String pendingApplicationId = createApplication("APP-M2-OUTBOUND-LIST-PENDING-001");
+        JsonNode pendingRegistration = registerSpecimens(
+            pendingApplicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-OUTBOUND-LIST-PENDING-001");
+        String pendingBarcode = pendingRegistration.path("specimens").get(0).path("barcode").asText();
+        String pendingSpecimenNo = pendingRegistration.path("specimens").get(0).path("specimenNo").asText();
+        String pendingSpecimenId = pendingRegistration.path("specimens").get(0).path("id").asText();
+
+        prepareTransportReadySpecimen(pendingBarcode);
+        String pendingTransportOrderId = createTransportOrder(pendingApplicationId, pendingBarcode).path("id").asText();
+        insertWorkbenchExtension(pendingApplicationId, "ZY-OUT-001", "手术间A");
+
+        String completedApplicationId = createApplication("APP-M2-OUTBOUND-LIST-COMPLETE-001");
+        JsonNode completedRegistration = registerSpecimens(
+            completedApplicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-OUTBOUND-LIST-COMPLETE-001");
+        String completedBarcode = completedRegistration.path("specimens").get(0).path("barcode").asText();
+        String completedSpecimenNo = completedRegistration.path("specimens").get(0).path("specimenNo").asText();
+        String outboundUserName = userDisplayName(USER_RECEIVE);
+
+        prepareTransportReadySpecimen(completedBarcode);
+        String completedTransportOrderId = createTransportOrder(completedApplicationId, completedBarcode).path("id").asText();
+        insertWorkbenchExtension(completedApplicationId, "ZY-OUT-002", "手术间B");
+
+        postJson("/api/v1/transport-orders/%s/outbound".formatted(completedTransportOrderId), USER_TRANSPORT, """
+            {
+              "outboundUserId": "%s",
+              "outboundUserName": "%s",
+              "terminalCode": "T-OUTBOUND-LIST"
+            }
+            """.formatted(USER_RECEIVE, outboundUserName))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(get("/api/v1/specimen-outbounds"), USER_TRANSPORT)
+                .param("page", "1")
+                .param("size", "20"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(2))
+            .andExpect(jsonPath("$.data.items[0].transportOrderId").value(pendingTransportOrderId))
+            .andExpect(jsonPath("$.data.items[0].specimenId").value(pendingSpecimenId))
+            .andExpect(jsonPath("$.data.items[0].specimenNo").value(pendingSpecimenNo))
+            .andExpect(jsonPath("$.data.items[0].patientId").value("P-001"))
+            .andExpect(jsonPath("$.data.items[0].inpatientNo").value("ZY-OUT-001"))
+            .andExpect(jsonPath("$.data.items[0].surgeryName").value("手术间A"))
+            .andExpect(jsonPath("$.data.items[0].registeredByName").value(userDisplayName(USER_REGISTER)))
+            .andExpect(jsonPath("$.data.items[0].outboundAt").isEmpty())
+            .andExpect(jsonPath("$.data.items[0].outboundUserName").isEmpty())
+            .andExpect(jsonPath("$.data.items[1].transportOrderId").value(completedTransportOrderId))
+            .andExpect(jsonPath("$.data.items[1].specimenNo").value(completedSpecimenNo))
+            .andExpect(jsonPath("$.data.items[1].inpatientNo").value("ZY-OUT-002"))
+            .andExpect(jsonPath("$.data.items[1].surgeryName").value("手术间B"))
+            .andExpect(jsonPath("$.data.items[1].outboundAt").isNotEmpty())
+            .andExpect(jsonPath("$.data.items[1].outboundUserName").value(outboundUserName));
+
+        mockMvc.perform(authorized(get("/api/v1/specimen-outbounds"), USER_TRANSPORT)
+                .param("page", "1")
+                .param("size", "20")
+                .param("specimenNo", pendingSpecimenNo))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].transportOrderId").value(pendingTransportOrderId))
+            .andExpect(jsonPath("$.data.items[0].specimenNo").value(pendingSpecimenNo));
+
+        mockMvc.perform(authorized(get("/api/v1/specimen-outbounds"), USER_TRANSPORT)
+                .param("page", "1")
+                .param("size", "20")
+                .param("specimenNo", completedSpecimenNo))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].transportOrderId").value(completedTransportOrderId))
+            .andExpect(jsonPath("$.data.items[0].outboundAt").isNotEmpty())
+            .andExpect(jsonPath("$.data.items[0].outboundUserName").value(outboundUserName));
+    }
+
+    @Test
     void shouldQuickConfirmRemovalByBarcodeAndPersistAudit() throws Exception {
         String applicationId = createApplication("APP-M2-REMOVAL-BARCODE-001");
         JsonNode registration = registerSpecimens(
@@ -290,6 +492,44 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             """.formatted(barcode))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.fixationStatus").value("FIXING"));
+    }
+
+    private void insertWorkbenchExtension(String applicationId, String inpatientNo, String surgeryName) {
+        jdbcTemplate.update(
+            """
+                insert into application_registration_workbench (
+                    application_id,
+                    inpatient_no,
+                    surgery_name
+                ) values (
+                    :applicationId,
+                    :inpatientNo,
+                    :surgeryName
+                )
+                """,
+            java.util.Map.of(
+                "applicationId", applicationId,
+                "inpatientNo", inpatientNo,
+                "surgeryName", surgeryName));
+    }
+
+    private void insertWorkbenchOperatingOption(String applicationId, String buildingId, String roomId) {
+        jdbcTemplate.update(
+            """
+                insert into application_registration_workbench (
+                    application_id,
+                    building_id,
+                    room_id
+                ) values (
+                    :applicationId,
+                    :buildingId,
+                    :roomId
+                )
+                """,
+            java.util.Map.of(
+                "applicationId", applicationId,
+                "buildingId", buildingId,
+                "roomId", roomId));
     }
 
     @Test

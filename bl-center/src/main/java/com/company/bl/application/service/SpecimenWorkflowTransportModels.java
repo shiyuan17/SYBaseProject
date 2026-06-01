@@ -43,6 +43,16 @@ public final class SpecimenWorkflowTransportModels {
     ) {
     }
 
+    public record QuickOutboundTransportOrderCommand(
+        String identifierType,
+        String identifier,
+        String outboundUserId,
+        String outboundUserName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
     public record PendingTransportOrderQuery(
         int page,
         int size,
@@ -77,6 +87,42 @@ public final class SpecimenWorkflowTransportModels {
         String outboundUserId,
         String outboundUserName,
         List<String> specimenBarcodes
+    ) {
+    }
+
+    public record SpecimenOutboundListQuery(
+        int page,
+        int size,
+        String applicationId,
+        String specimenNo
+    ) {
+    }
+
+    public record SpecimenOutboundPage(
+        List<SpecimenOutboundItem> items,
+        int page,
+        int size,
+        long total
+    ) {
+    }
+
+    public record SpecimenOutboundItem(
+        String specimenId,
+        String transportOrderId,
+        String applicationId,
+        String applicationNo,
+        String specimenNo,
+        String patientName,
+        String patientGender,
+        String patientId,
+        String inpatientNo,
+        String surgeryName,
+        String specimenName,
+        String specimenStatus,
+        LocalDateTime registeredAt,
+        String registeredByName,
+        LocalDateTime outboundAt,
+        String outboundUserName
     ) {
     }
 }

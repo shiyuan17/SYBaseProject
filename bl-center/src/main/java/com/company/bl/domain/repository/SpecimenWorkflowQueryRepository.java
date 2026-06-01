@@ -14,6 +14,8 @@ public interface SpecimenWorkflowQueryRepository {
 
     Optional<Specimen> findSpecimenByBarcode(String barcode);
 
+    Optional<Specimen> findSpecimenById(String specimenId);
+
     List<Specimen> findSpecimensBySpecimenNo(String specimenNo);
 
     List<Specimen> findSpecimensByApplicationId(String applicationId);
@@ -21,6 +23,8 @@ public interface SpecimenWorkflowQueryRepository {
     Optional<PathologyCase> findPathologyCaseByApplicationId(String applicationId);
 
     Optional<TransportOrder> findTransportOrderById(String transportOrderId);
+
+    Optional<TransportOrder> findActiveTransportOrderBySpecimenId(String specimenId);
 
     List<TransportOrderItem> findTransportOrderItems(String transportOrderId);
 
@@ -47,6 +51,10 @@ public interface SpecimenWorkflowQueryRepository {
 
     SpecimenWorkflowRepository.PagedPendingTransportOrders findPendingTransportOrders(
         SpecimenWorkflowRepository.PendingTransportOrderQuery query
+    );
+
+    SpecimenWorkflowRepository.PagedSpecimenOutbounds findSpecimenOutbounds(
+        SpecimenWorkflowRepository.SpecimenOutboundListQuery query
     );
 
     SpecimenWorkflowRepository.PagedApplications findApplications(SpecimenWorkflowRepository.ApplicationListQuery query);

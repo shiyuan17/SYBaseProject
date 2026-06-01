@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import static com.company.bl.application.service.SpecimenWorkflowQueryModels.*;
+import static com.company.bl.application.service.SpecimenWorkflowTransportModels.*;
 
 @Component
 class SpecimenWorkflowRemovalQuerySupport extends AbstractSpecimenWorkflowQuerySupport {
@@ -29,6 +30,9 @@ class SpecimenWorkflowRemovalQuerySupport extends AbstractSpecimenWorkflowQueryS
                     specimenWorkflowSupport.trim(query.keyword()),
                     specimenWorkflowSupport.trim(query.applicationNo()),
                     specimenWorkflowSupport.trim(query.departmentId()),
+                    specimenWorkflowSupport.trim(query.buildingId()),
+                    specimenWorkflowSupport.trim(query.roomId()),
+                    specimenWorkflowSupport.normalizeStatus(query.barcodeBindingStatus()),
                     specimenWorkflowSupport.normalizeStatus(query.specimenStatus()),
                     specimenWorkflowSupport.normalizeStatus(query.labelPrintStatus()),
                     query.abnormalFlag(),
@@ -41,9 +45,14 @@ class SpecimenWorkflowRemovalQuerySupport extends AbstractSpecimenWorkflowQueryS
                 item.barcode(),
                 item.applicationId(),
                 item.applicationNo(),
+                item.patientId(),
                 item.patientName(),
+                item.patientGender(),
                 item.submittingDepartmentId(),
                 item.submittingDepartmentName(),
+                item.buildingId(),
+                item.roomId(),
+                item.surgeryName(),
                 item.specimenName(),
                 item.specimenType(),
                 item.specimenSite(),
@@ -67,6 +76,7 @@ class SpecimenWorkflowRemovalQuerySupport extends AbstractSpecimenWorkflowQueryS
                 item.checkedInByName(),
                 item.labelPrintStatus(),
                 item.labelPrintBatchNo(),
+                item.registrationOperatorName(),
                 item.registeredAt(),
                 item.latestTrackingAt(),
                 item.abnormalFlag()))
@@ -78,7 +88,43 @@ class SpecimenWorkflowRemovalQuerySupport extends AbstractSpecimenWorkflowQueryS
                 result.summary().totalCount(),
                 result.summary().labelPrintedCount(),
                 result.summary().pendingLabelCount(),
-                result.summary().abnormalCount()));
+                result.summary().abnormalCount(),
+                result.summary().unboundCount()));
+    }
+
+    @Transactional(readOnly = true)
+    SpecimenOutboundPage listSpecimenOutbounds(SpecimenOutboundListQuery query) {
+        int page = specimenWorkflowSupport.normalizePage(query.page());
+        int size = specimenWorkflowSupport.normalizeSize(query.size());
+        SpecimenWorkflowRepository.PagedSpecimenOutbounds result =
+            specimenWorkflowRepository.findSpecimenOutbounds(
+                new SpecimenWorkflowRepository.SpecimenOutboundListQuery(
+                    page,
+                    size,
+                    specimenWorkflowSupport.trim(query.applicationId()),
+                    specimenWorkflowSupport.trim(query.specimenNo())));
+        return new SpecimenOutboundPage(
+            result.items().stream().map(item -> new SpecimenOutboundItem(
+                item.specimenId(),
+                item.transportOrderId(),
+                item.applicationId(),
+                item.applicationNo(),
+                item.specimenNo(),
+                item.patientName(),
+                item.patientGender(),
+                item.patientId(),
+                item.inpatientNo(),
+                item.surgeryName(),
+                item.specimenName(),
+                item.specimenStatus(),
+                item.registeredAt(),
+                item.registeredByName(),
+                item.outboundAt(),
+                item.outboundUserName()))
+                .toList(),
+            page,
+            size,
+            result.total());
     }
 
     @Transactional(readOnly = true)

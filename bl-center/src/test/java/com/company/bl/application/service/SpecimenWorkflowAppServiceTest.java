@@ -22,7 +22,7 @@ class SpecimenWorkflowAppServiceTest {
     void facadeShouldDelegateTrackingQueryToQueryService() {
         SpecimenWorkflowQueryService queryService = mock(SpecimenWorkflowQueryService.class);
         SpecimenWorkflowAppService appService = new SpecimenWorkflowAppService(
-            null, null, null, null, null, queryService);
+            null, null, null, null, null, null, queryService);
 
         ApplicationTracking tracking = new ApplicationTracking(
             SpecimenWorkflowServiceTestFixtures.application("APP-1", com.company.bl.domain.enums.ApplicationStatus.SUBMITTED),
@@ -38,6 +38,7 @@ class SpecimenWorkflowAppServiceTest {
     @Test
     void facadeShouldDelegateCommandOperationsToSpecificServices() {
         SpecimenRegistrationService registrationService = mock(SpecimenRegistrationService.class);
+        SpecimenBarcodeBindingService barcodeBindingService = mock(SpecimenBarcodeBindingService.class);
         SpecimenFixationService fixationService = mock(SpecimenFixationService.class);
         SpecimenVerificationService verificationService = mock(SpecimenVerificationService.class);
         SpecimenTransportService transportService = mock(SpecimenTransportService.class);
@@ -46,6 +47,7 @@ class SpecimenWorkflowAppServiceTest {
 
         SpecimenWorkflowAppService appService = new SpecimenWorkflowAppService(
             registrationService,
+            barcodeBindingService,
             fixationService,
             verificationService,
             transportService,

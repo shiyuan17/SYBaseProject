@@ -6,6 +6,7 @@ import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.SaveApplicationRegistrationPatientInfoRequest;
 import com.company.bl.interfaces.dto.SaveApplicationRegistrationWorkbenchRequest;
 import com.company.bl.interfaces.vo.ApplicationRegistrationWorkbenchResponse;
+import com.company.bl.interfaces.vo.ApplicationRegistrationWorkbenchOperatingOptionsResponse;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,6 +36,28 @@ public class ApplicationRegistrationWorkbenchController {
         @Parameter(description = "查询类型") @RequestParam(value = "queryType", required = false) String queryType
     ) {
         return toResponse(workbenchAppService.lookup(keyword, queryType));
+    }
+
+    @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
+    @GetMapping("/operating-options")
+    public ApplicationRegistrationWorkbenchOperatingOptionsResponse listOperatingOptions() {
+        return new ApplicationRegistrationWorkbenchOperatingOptionsResponse(
+            workbenchAppService.listOperatingBuildingOptions().stream()
+                .map(building -> new ApplicationRegistrationWorkbenchOperatingOptionsResponse.OperatingBuildingResponse(
+                    building.buildingId(),
+                    building.buildingName(),
+                    building.floors(),
+                    building.location(),
+                    building.operatingRooms().stream()
+                        .map(room -> new ApplicationRegistrationWorkbenchOperatingOptionsResponse.OperatingRoomResponse(
+                            room.buildingId(),
+                            room.cleanLevel(),
+                            room.floor(),
+                            room.roomId(),
+                            room.roomName(),
+                            room.roomType()))
+                        .toList()))
+                .toList());
     }
 
     @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)

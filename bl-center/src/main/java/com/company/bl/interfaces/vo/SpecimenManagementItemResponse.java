@@ -14,12 +14,22 @@ public record SpecimenManagementItemResponse(
     String applicationId,
     @Schema(description = "Application number")
     String applicationNo,
+    @Schema(description = "Patient id")
+    String patientId,
     @Schema(description = "Patient name")
     String patientName,
+    @Schema(description = "Patient gender")
+    String patientGender,
     @Schema(description = "Submitting department id")
     String submittingDepartmentId,
     @Schema(description = "Submitting department name")
     String submittingDepartmentName,
+    @Schema(description = "Operating building id")
+    String buildingId,
+    @Schema(description = "Operating room id")
+    String roomId,
+    @Schema(description = "Surgery display name")
+    String surgeryName,
     @Schema(description = "Specimen name")
     String specimenName,
     @Schema(description = "Specimen type")
@@ -72,6 +82,8 @@ public record SpecimenManagementItemResponse(
     String abnormalType,
     @Schema(description = "Recent node")
     String recentNode,
+    @Schema(description = "Registration operator name")
+    String registrationOperatorName,
     @Schema(description = "Registration time")
     String registeredAt,
     @Schema(description = "Latest tracking time")

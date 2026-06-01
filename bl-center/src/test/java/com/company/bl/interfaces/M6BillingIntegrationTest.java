@@ -6,8 +6,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.util.Map;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -149,13 +147,5 @@ class M6BillingIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTest
             }
         }
         throw new AssertionError("Unable to find item with " + fieldName + " containing " + expectedValue + " in " + items);
-    }
-
-    private String userDisplayName(String userId) {
-        return jdbcTemplate.queryForObject("""
-            select name
-            from users
-            where id = :userId
-            """, Map.of("userId", userId), String.class);
     }
 }

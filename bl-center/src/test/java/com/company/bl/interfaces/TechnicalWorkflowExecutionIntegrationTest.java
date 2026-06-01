@@ -156,6 +156,25 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
     }
 
     @Test
+    void shouldFallbackGrossingWorkbenchContextWhenRegistrationTableIsUnavailable() throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-CTX-002", "BC-M3-CTX-002");
+
+        dropTechnicalSpecimenRegistrationsTable();
+        try {
+            mockMvc.perform(authorized(get("/api/v1/grossings/{taskId}/context", context.grossingTaskId()), USER_M3_GROSSING))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.task.taskId").value(context.grossingTaskId()))
+                .andExpect(jsonPath("$.data.caseSummary.caseId").value(context.caseId()))
+                .andExpect(jsonPath("$.data.caseSummary.applicationId").value(context.applicationId()))
+                .andExpect(jsonPath("$.data.caseSummary.pathologyNo").value(context.pathologyNo()))
+                .andExpect(jsonPath("$.data.tracking.caseId").value(context.caseId()))
+                .andExpect(jsonPath("$.data.tracking.specimens[0].specimenId").value(context.specimenId()));
+        } finally {
+            recreateTechnicalSpecimenRegistrationsTable();
+        }
+    }
+
+    @Test
     void shouldCompleteTechnicalWorkflowEndToEndAndExposeTracking() throws Exception {
         TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-001", "BC-M3-001");
 
@@ -467,5 +486,35 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
                 .param("pathologyNo", context.pathologyNo()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.total").value(1));
+    }
+
+    private void dropTechnicalSpecimenRegistrationsTable() {
+        namedParameterJdbcTemplate.getJdbcOperations().execute("drop table technical_specimen_registrations");
+    }
+
+    private void recreateTechnicalSpecimenRegistrationsTable() {
+        namedParameterJdbcTemplate.getJdbcOperations().execute("""
+            create table technical_specimen_registrations (
+                case_id varchar(64) not null,
+                application_id varchar(64) not null,
+                registration_status varchar(32) not null,
+                registered_by_user_id varchar(64),
+                registered_by_name varchar(128),
+                registered_at timestamp,
+                remarks varchar(500),
+                created_at timestamp not null,
+                updated_at timestamp not null,
+                constraint pk_technical_specimen_registrations primary key (case_id),
+                constraint fk_technical_specimen_reg_case foreign key (case_id) references pathology_cases (id)
+            )
+            """);
+        namedParameterJdbcTemplate.getJdbcOperations().execute("""
+            create index idx_tech_spec_reg_status_created
+                on technical_specimen_registrations (registration_status, created_at)
+            """);
+        namedParameterJdbcTemplate.getJdbcOperations().execute("""
+            create index idx_tech_spec_reg_application
+                on technical_specimen_registrations (application_id)
+            """);
     }
 }

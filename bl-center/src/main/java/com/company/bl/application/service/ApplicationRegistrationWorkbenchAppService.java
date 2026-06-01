@@ -43,6 +43,16 @@ public class ApplicationRegistrationWorkbenchAppService {
         return loadByApplicationId(applicationRow.applicationId());
     }
 
+    @Transactional(readOnly = true)
+    public List<ApplicationRegistrationWorkbenchRepository.OperatingBuildingOption> listOperatingBuildingOptions() {
+        return workbenchRepository.listOperatingBuildingOptions();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ApplicationRegistrationWorkbenchRepository.OperatingRoomOption> listOperatingRoomOptions(String buildingId) {
+        return workbenchRepository.listOperatingRoomOptions(trim(buildingId));
+    }
+
     @Transactional
     public WorkbenchRecord save(String applicationId, SaveWorkbenchCommand command) {
         Application application = loadEditableApplication(applicationId);

@@ -37,6 +37,10 @@ class SpecimenWorkflowQueryService {
         return pendingQuerySupport.listPendingTransportOrders(query);
     }
 
+    SpecimenOutboundPage listSpecimenOutbounds(SpecimenOutboundListQuery query) {
+        return removalQuerySupport.listSpecimenOutbounds(query);
+    }
+
     ApplicationPage listApplications(ApplicationListQuery query) {
         return applicationQuerySupport.listApplications(query);
     }

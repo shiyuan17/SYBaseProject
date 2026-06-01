@@ -5,6 +5,7 @@ import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.RegisterSpecimensRequest;
 import com.company.bl.interfaces.dto.RetryLabelPrintRequest;
+import com.company.bl.interfaces.dto.SpecimenBarcodeBindingRequest;
 import com.company.bl.interfaces.dto.SpecimenCheckInRequest;
 import com.company.bl.interfaces.dto.SpecimenConfirmRequest;
 import com.company.bl.interfaces.vo.ApplicationDetailResponse;
@@ -24,9 +25,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -74,6 +77,9 @@ public class SpecimenController {
         @RequestParam(value = "keyword", required = false) String keyword,
         @RequestParam(value = "applicationNo", required = false) String applicationNo,
         @RequestParam(value = "departmentId", required = false) String departmentId,
+        @RequestParam(value = "buildingId", required = false) String buildingId,
+        @RequestParam(value = "roomId", required = false) String roomId,
+        @RequestParam(value = "barcodeBindingStatus", required = false) String barcodeBindingStatus,
         @RequestParam(value = "specimenStatus", required = false) String specimenStatus,
         @RequestParam(value = "labelPrintStatus", required = false) String labelPrintStatus,
         @RequestParam(value = "abnormalFlag", required = false) Boolean abnormalFlag,
@@ -88,6 +94,9 @@ public class SpecimenController {
                     keyword,
                     applicationNo,
                     departmentId,
+                    buildingId,
+                    roomId,
+                    barcodeBindingStatus,
                     specimenStatus,
                     labelPrintStatus,
                     abnormalFlag,
@@ -135,6 +144,50 @@ public class SpecimenController {
     ) {
         return specimenControllerAssembler.toSpecimenVerificationRecordResponses(
             specimenWorkflowAppService.listSpecimenVerificationRecords(barcode));
+    }
+
+    @Operation(summary = "Bind specimen barcode", description = "Bind barcode for an unbound specimen.")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
+    @PostMapping("/{specimenId}/barcode-binding")
+    public SpecimenSummaryResponse bindBarcode(
+        @Parameter(description = "Specimen id") @PathVariable("specimenId") String specimenId,
+        @Valid @RequestBody SpecimenBarcodeBindingRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        return specimenControllerAssembler.toSpecimenSummaryResponse(
+            specimenWorkflowAppService.bindSpecimenBarcode(
+                specimenControllerAssembler.toBindSpecimenBarcodeCommand(specimenId, request, httpServletRequest)));
+    }
+
+    @Operation(summary = "Rebind specimen barcode", description = "Replace barcode for a bound specimen.")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
+    @PutMapping("/{specimenId}/barcode-binding")
+    public SpecimenSummaryResponse rebindBarcode(
+        @Parameter(description = "Specimen id") @PathVariable("specimenId") String specimenId,
+        @Valid @RequestBody SpecimenBarcodeBindingRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        return specimenControllerAssembler.toSpecimenSummaryResponse(
+            specimenWorkflowAppService.rebindSpecimenBarcode(
+                specimenControllerAssembler.toBindSpecimenBarcodeCommand(specimenId, request, httpServletRequest)));
+    }
+
+    @Operation(summary = "Unbind specimen barcode", description = "Clear current barcode from a bound specimen.")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
+    @DeleteMapping("/{specimenId}/barcode-binding")
+    public SpecimenSummaryResponse unbindBarcode(
+        @Parameter(description = "Specimen id") @PathVariable("specimenId") String specimenId,
+        @RequestParam(value = "terminalCode", required = false) String terminalCode,
+        @RequestParam(value = "remarks", required = false) String remarks,
+        HttpServletRequest httpServletRequest
+    ) {
+        return specimenControllerAssembler.toSpecimenSummaryResponse(
+            specimenWorkflowAppService.unbindSpecimenBarcode(
+                specimenControllerAssembler.toUnbindSpecimenBarcodeCommand(
+                    specimenId,
+                    terminalCode,
+                    remarks,
+                    httpServletRequest)));
     }
 
     @Operation(summary = "Confirm specimen", description = "Confirm a fixed specimen before check-in.")

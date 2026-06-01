@@ -17,6 +17,7 @@ import com.company.bl.domain.repository.TechnicalWorkflowRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRepository;
 import com.company.bl.domain.valueobject.ApplicationId;
 import com.company.bl.support.application.NumberingService;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -98,7 +99,26 @@ class TechnicalSpecimenRegistrationService {
 
     @Transactional(readOnly = true)
     TechnicalWorkflowModels.TechnicalSpecimenRegistrationDetail getRegistrationDetail(String caseId) {
-        TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace workspace = getRegistrationWorkspace(caseId);
+        return buildRegistrationDetail(loadWorkspaceContext(caseId, false));
+    }
+
+    @Transactional(readOnly = true)
+    TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace getRegistrationWorkspace(String caseId) {
+        return buildRegistrationWorkspace(loadWorkspaceContext(caseId, false));
+    }
+
+    @Transactional(readOnly = true)
+    TechnicalWorkflowModels.TechnicalSpecimenRegistrationDetail getRegistrationDetailForGrossingContext(String caseId) {
+        return buildRegistrationDetail(loadWorkspaceContext(caseId, true));
+    }
+
+    @Transactional(readOnly = true)
+    TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace getRegistrationWorkspaceForGrossingContext(String caseId) {
+        return buildRegistrationWorkspace(loadWorkspaceContext(caseId, true));
+    }
+
+    private TechnicalWorkflowModels.TechnicalSpecimenRegistrationDetail buildRegistrationDetail(WorkspaceContext context) {
+        TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace workspace = buildRegistrationWorkspace(context);
         return new TechnicalWorkflowModels.TechnicalSpecimenRegistrationDetail(
             workspace.pendingSummary().caseId(),
             workspace.pendingSummary().applicationId(),
@@ -109,7 +129,7 @@ class TechnicalSpecimenRegistrationService {
             workspace.basicInfo().inpatientNo(),
             workspace.basicInfo().applicationType(),
             workspace.basicInfo().submittingDepartmentName(),
-            loadWorkspaceContext(caseId).application().getClinicalDiagnosis(),
+            context.application().getClinicalDiagnosis(),
             workspace.basicInfo().registrationStatus(),
             workspace.pendingSummary().registeredByName(),
             workspace.pendingSummary().registeredAt(),
@@ -119,9 +139,9 @@ class TechnicalSpecimenRegistrationService {
             workspace.checkItems());
     }
 
-    @Transactional(readOnly = true)
-    TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace getRegistrationWorkspace(String caseId) {
-        WorkspaceContext context = loadWorkspaceContext(caseId);
+    private TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace buildRegistrationWorkspace(
+        WorkspaceContext context
+    ) {
         boolean editable = isEditable(context.registration());
         return new TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace(
             toPendingSummary(context.registration()),
@@ -152,7 +172,7 @@ class TechnicalSpecimenRegistrationService {
                 buildInfectiousSummary(context.extension()),
                 null),
             buildMaterials(context.specimens()),
-            buildCheckItems(valueOf(() -> context.extension().checkItem()), caseId),
+            buildCheckItems(valueOf(() -> context.extension().checkItem()), context.registration().caseId()),
             buildMediaAssets(context.mediaAssets()),
             new TechnicalWorkflowModels.TechnicalSpecimenRegistrationActionFlags(
                 editable,
@@ -348,13 +368,14 @@ class TechnicalSpecimenRegistrationService {
                 "Technical specimen registration not found"));
     }
 
-    private WorkspaceContext loadWorkspaceContext(String caseId) {
-        TechnicalWorkflowRecords.TechnicalSpecimenRegistration registration = getRegistration(caseId);
+    private WorkspaceContext loadWorkspaceContext(String caseId, boolean allowRegistrationFallback) {
         PathologyCase pathologyCase = technicalWorkflowSupport.getCase(caseId);
         Application application = applicationRepository.findById(new ApplicationId(pathologyCase.applicationId()))
             .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Application not found"));
         ApplicationRegistrationWorkbenchRepository.WorkbenchExtensionData extension =
             workbenchRepository.findExtensionByApplicationId(application.getId().value()).orElse(null);
+        TechnicalWorkflowRecords.TechnicalSpecimenRegistration registration =
+            resolveRegistration(caseId, pathologyCase, application, extension, allowRegistrationFallback);
         List<Specimen> specimens = technicalWorkflowRepository.findSpecimensByCaseId(caseId);
         List<TechnicalWorkflowRecords.CaseMediaAsset> mediaAssets = technicalWorkflowRepository.findCaseMediaAssets(
             caseId,
@@ -364,8 +385,66 @@ class TechnicalSpecimenRegistrationService {
         return new WorkspaceContext(registration, pathologyCase, application, extension, specimens, mediaAssets);
     }
 
+    private TechnicalWorkflowRecords.TechnicalSpecimenRegistration resolveRegistration(
+        String caseId,
+        PathologyCase pathologyCase,
+        Application application,
+        ApplicationRegistrationWorkbenchRepository.WorkbenchExtensionData extension,
+        boolean allowRegistrationFallback
+    ) {
+        try {
+            return getRegistration(caseId);
+        } catch (BlBusinessException | DataAccessException exception) {
+            if (!allowRegistrationFallback || !shouldFallbackToSyntheticRegistration(exception)) {
+                throw exception;
+            }
+            return createSyntheticRegistration(pathologyCase, application, extension);
+        }
+    }
+
+    private boolean shouldFallbackToSyntheticRegistration(RuntimeException exception) {
+        if (exception instanceof BlBusinessException businessException) {
+            return businessException.getErrorCode() == BlErrorCode.RESOURCE_NOT_FOUND;
+        }
+        if (exception instanceof DataAccessException dataAccessException) {
+            return containsIgnoreCase(
+                dataAccessException.getMostSpecificCause() == null
+                    ? dataAccessException.getMessage()
+                    : dataAccessException.getMostSpecificCause().getMessage(),
+                "technical_specimen_registrations");
+        }
+        return false;
+    }
+
+    private TechnicalWorkflowRecords.TechnicalSpecimenRegistration createSyntheticRegistration(
+        PathologyCase pathologyCase,
+        Application application,
+        ApplicationRegistrationWorkbenchRepository.WorkbenchExtensionData extension
+    ) {
+        LocalDateTime referenceTime = pathologyCase.receivedAt();
+        return new TechnicalWorkflowRecords.TechnicalSpecimenRegistration(
+            pathologyCase.id(),
+            application.getId().value(),
+            pathologyCase.pathologyNo(),
+            application.getApplicationNo(),
+            application.getPatientName(),
+            application.getPatientId(),
+            valueOf(() -> extension.inpatientNo()),
+            application.getApplicationType(),
+            application.getSubmittingDepartmentName(),
+            valueOf(() -> extension.checkItem()),
+            "COMPLETED",
+            null,
+            null,
+            null,
+            null,
+            referenceTime,
+            referenceTime,
+            referenceTime);
+    }
+
     private WorkspaceContext loadEditableWorkspaceContext(String caseId) {
-        WorkspaceContext context = loadWorkspaceContext(caseId);
+        WorkspaceContext context = loadWorkspaceContext(caseId, false);
         if (!isEditable(context.registration())) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Technical specimen registration is completed");
         }
@@ -674,6 +753,13 @@ class TechnicalSpecimenRegistrationService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private boolean containsIgnoreCase(String source, String fragment) {
+        if (source == null || fragment == null) {
+            return false;
+        }
+        return source.toLowerCase(java.util.Locale.ROOT).contains(fragment.toLowerCase(java.util.Locale.ROOT));
     }
 
     private <T> T valueOf(java.util.function.Supplier<T> supplier) {

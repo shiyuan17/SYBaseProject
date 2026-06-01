@@ -70,6 +70,11 @@ public interface SpecimenWorkflowCommandRepository {
     void confirmSpecimen(String specimenId,
                          LocalDateTime specimenConfirmedAt);
 
+    void bindSpecimenBarcode(String specimenId,
+                             String barcode);
+
+    void unbindSpecimenBarcode(String specimenId);
+
     void checkInSpecimen(String specimenId,
                          String checkInStatus,
                          LocalDateTime checkedInAt,

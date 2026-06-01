@@ -39,9 +39,9 @@ class TechnicalGrossingWorkflowService {
         TechnicalWorkflowModels.TechnicalTrackingView tracking =
             technicalWorkflowQueryService.getTechnicalTracking(task.caseId());
         TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace workspace =
-            technicalSpecimenRegistrationService.getRegistrationWorkspace(task.caseId());
+            technicalSpecimenRegistrationService.getRegistrationWorkspaceForGrossingContext(task.caseId());
         TechnicalWorkflowModels.TechnicalSpecimenRegistrationDetail detail =
-            technicalSpecimenRegistrationService.getRegistrationDetail(task.caseId());
+            technicalSpecimenRegistrationService.getRegistrationDetailForGrossingContext(task.caseId());
         List<TechnicalWorkflowModels.GrossingWorkbenchMediaAsset> mediaAssets =
             technicalWorkflowRepository.findCaseMediaAssets(
                     task.caseId(),

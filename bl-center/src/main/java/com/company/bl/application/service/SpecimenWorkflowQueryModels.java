@@ -151,6 +151,9 @@ public final class SpecimenWorkflowQueryModels {
         String keyword,
         String applicationNo,
         String departmentId,
+        String buildingId,
+        String roomId,
+        String barcodeBindingStatus,
         String specimenStatus,
         String labelPrintStatus,
         Boolean abnormalFlag,
@@ -174,9 +177,14 @@ public final class SpecimenWorkflowQueryModels {
         String barcode,
         String applicationId,
         String applicationNo,
+        String patientId,
         String patientName,
+        String patientGender,
         String submittingDepartmentId,
         String submittingDepartmentName,
+        String buildingId,
+        String roomId,
+        String surgeryName,
         String specimenName,
         String specimenType,
         String specimenSite,
@@ -200,6 +208,7 @@ public final class SpecimenWorkflowQueryModels {
         String checkedInByName,
         String labelPrintStatus,
         String labelPrintBatchNo,
+        String registrationOperatorName,
         LocalDateTime registeredAt,
         LocalDateTime latestTrackingAt,
         boolean abnormalFlag
@@ -210,7 +219,8 @@ public final class SpecimenWorkflowQueryModels {
         long totalCount,
         long labelPrintedCount,
         long pendingLabelCount,
-        long abnormalCount
+        long abnormalCount,
+        long unboundCount
     ) {
     }
 

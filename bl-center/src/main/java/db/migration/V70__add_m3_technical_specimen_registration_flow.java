@@ -12,7 +12,7 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 
-public class V68__add_m3_technical_specimen_registration_flow extends BaseJavaMigration {
+public class V70__add_m3_technical_specimen_registration_flow extends BaseJavaMigration {
 
     private static final String TABLE_NAME = "TECHNICAL_SPECIMEN_REGISTRATIONS";
     private static final String MENU_ID = "MENU_M3_SPECIMEN_REGISTRATION";

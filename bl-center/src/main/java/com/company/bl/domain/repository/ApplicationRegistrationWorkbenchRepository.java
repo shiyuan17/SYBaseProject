@@ -21,6 +21,10 @@ public interface ApplicationRegistrationWorkbenchRepository {
 
     void clearPreDownstreamRegistrationData(String applicationId);
 
+    java.util.List<OperatingBuildingOption> listOperatingBuildingOptions();
+
+    java.util.List<OperatingRoomOption> listOperatingRoomOptions(String buildingId);
+
     record WorkbenchApplicationRow(
         String applicationId,
         String applicationNo,
@@ -120,6 +124,25 @@ public interface ApplicationRegistrationWorkbenchRepository {
         boolean conditionPregnancy,
         boolean conditionRadiotherapy,
         String otherSpecialCondition
+    ) {
+    }
+
+    record OperatingRoomOption(
+        String buildingId,
+        String cleanLevel,
+        int floor,
+        String roomId,
+        String roomName,
+        String roomType
+    ) {
+    }
+
+    record OperatingBuildingOption(
+        String buildingId,
+        String buildingName,
+        int floors,
+        String location,
+        java.util.List<OperatingRoomOption> operatingRooms
     ) {
     }
 }

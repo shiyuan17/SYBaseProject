@@ -333,6 +333,25 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
             .doesNotContain("");
     }
 
+    @Test
+    void shouldExposeOperatingOptionsFromWorkbenchRecords() throws Exception {
+        String applicationId = createApplication("APP-WORKBENCH-OPERATING-001");
+
+        responseBody(
+            postJson(
+                "/api/v1/application-registration-workbench/%s/save".formatted(applicationId),
+                USER_REGISTER,
+                workbenchSavePayload("ZY-WORKBENCH-OPERATING-001", "甲状腺病灶", "甲状腺")),
+            200);
+
+        mockMvc.perform(authorized(get("/api/v1/application-registration-workbench/operating-options"), USER_REGISTER))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.buildings[0].buildingId").value("B001"))
+            .andExpect(jsonPath("$.data.buildings[0].buildingName").value("B001"))
+            .andExpect(jsonPath("$.data.buildings[0].operatingRooms[0].roomId").value("OR-101"))
+            .andExpect(jsonPath("$.data.buildings[0].operatingRooms[0].roomName").value("OR-101"));
+    }
+
     private String workbenchSavePayload(String inpatientNo, String specimenName, String specimenSite) {
         return """
             {

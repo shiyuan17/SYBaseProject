@@ -1,10 +1,8 @@
-package com.company.bl.application.service;
+package com.company.bl.system.application;
 
 import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.support.application.NumberingService;
 import com.company.bl.support.application.OperationAuditService;
-import com.company.bl.system.application.SystemManagementService;
-import com.company.bl.system.application.SystemUserManagementService;
 import com.company.bl.system.infrastructure.SystemJdbcRepository;
 import com.company.bl.system.infrastructure.SystemUserJdbcRepository;
 import com.company.common.security.crypto.Sm3PasswordEncoder;
@@ -19,6 +17,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,11 +37,15 @@ class SystemUserManagementServiceTest {
 
     @Test
     void createUserShouldMapDuplicateKeyToConflictException() {
-        SystemUserManagementService service = new SystemUserManagementService(
+        SystemUserManagementMutationSupport mutationSupport = new SystemUserManagementMutationSupport(
             systemUserJdbcRepository,
             numberingService,
             operationAuditService,
             sm3PasswordEncoder);
+        SystemUserManagementService service = new SystemUserManagementService(
+            mock(SystemUserManagementQuerySupport.class),
+            mutationSupport,
+            mock(SystemUserManagementImportSupport.class));
         when(numberingService.generateUserCode()).thenReturn("USER-CODE");
         when(numberingService.generateLoginTagCode()).thenReturn("TAG-CODE");
         when(systemUserJdbcRepository.insertUser(any())).thenThrow(new DuplicateKeyException("duplicate"));
@@ -69,11 +72,15 @@ class SystemUserManagementServiceTest {
 
     @Test
     void assignUserRolesShouldRejectMoreThanOnePrimaryRole() {
-        SystemUserManagementService service = new SystemUserManagementService(
+        SystemUserManagementMutationSupport mutationSupport = new SystemUserManagementMutationSupport(
             systemUserJdbcRepository,
             numberingService,
             operationAuditService,
             sm3PasswordEncoder);
+        SystemUserManagementService service = new SystemUserManagementService(
+            mock(SystemUserManagementQuerySupport.class),
+            mutationSupport,
+            mock(SystemUserManagementImportSupport.class));
         when(systemUserJdbcRepository.findUserById("USER-1")).thenReturn(user("USER-1"));
         when(operationAuditService.audit(anyString(), anyString(), anyString(), any(), any(), any()))
             .thenAnswer(invocation -> ((java.util.function.Supplier<?>) invocation.getArgument(3)).get());

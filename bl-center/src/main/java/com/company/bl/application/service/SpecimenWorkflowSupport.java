@@ -53,8 +53,16 @@ class SpecimenWorkflowSupport {
         return lookupSupport.getSpecimen(barcode);
     }
 
+    Specimen getSpecimenById(String specimenId) {
+        return lookupSupport.getSpecimenById(specimenId);
+    }
+
     TransportOrder getTransportOrder(String transportOrderId) {
         return lookupSupport.getTransportOrder(transportOrderId);
+    }
+
+    java.util.Optional<TransportOrder> findActiveTransportOrderBySpecimenId(String specimenId) {
+        return lookupSupport.findActiveTransportOrderBySpecimenId(specimenId);
     }
 
     List<Specimen> getSpecimensByApplicationId(String applicationId) {
@@ -75,6 +83,10 @@ class SpecimenWorkflowSupport {
 
     Specimen resolveSpecimenForRemoval(String identifierType, String identifier) {
         return lookupSupport.resolveSpecimenForRemoval(identifierType, identifier);
+    }
+
+    Specimen resolveSpecimenByIdentifier(String identifierType, String identifier) {
+        return lookupSupport.resolveSpecimenByIdentifier(identifierType, identifier);
     }
 
     void validateApplicationCanRegister(Application application) {

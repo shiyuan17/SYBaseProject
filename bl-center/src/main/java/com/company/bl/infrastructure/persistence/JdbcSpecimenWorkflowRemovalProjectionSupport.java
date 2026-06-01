@@ -27,6 +27,17 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
         return new SpecimenWorkflowRepository.PagedSpecimenRemovalItems(items, total, summary);
     }
 
+    SpecimenWorkflowRepository.PagedSpecimenOutbounds findSpecimenOutbounds(
+        SpecimenWorkflowRepository.SpecimenOutboundListQuery query
+    ) {
+        String whereClause = specimenOutboundWhereClause(query);
+        long total = countSpecimenOutbounds(whereClause, query);
+        List<SpecimenWorkflowRepository.SpecimenOutboundRow> items = querySpecimenOutbounds(
+            specimenOutboundSelectSql(whereClause),
+            query);
+        return new SpecimenWorkflowRepository.PagedSpecimenOutbounds(items, total);
+    }
+
     List<SpecimenWorkflowRepository.SpecimenRemovalListRow> listSpecimenRemovalExportRows(
         SpecimenWorkflowRepository.SpecimenRemovalListQuery query
     ) {
@@ -47,6 +58,17 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
         return total == null ? 0L : total;
     }
 
+    private long countSpecimenOutbounds(
+        String whereClause,
+        SpecimenWorkflowRepository.SpecimenOutboundListQuery query
+    ) {
+        Long total = jdbcTemplate.queryForObject(
+            "select count(1) " + whereClause,
+            specimenOutboundParams(query),
+            Long.class);
+        return total == null ? 0L : total;
+    }
+
     private List<SpecimenWorkflowRepository.SpecimenRemovalListRow> querySpecimenRemoval(
         String sql,
         SpecimenWorkflowRepository.SpecimenRemovalListQuery query
@@ -59,6 +81,20 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
                 + " offset :offset rows fetch next :size rows only",
             parameters,
             this::mapSpecimenRemovalListRow);
+    }
+
+    private List<SpecimenWorkflowRepository.SpecimenOutboundRow> querySpecimenOutbounds(
+        String sql,
+        SpecimenWorkflowRepository.SpecimenOutboundListQuery query
+    ) {
+        MapSqlParameterSource parameters = specimenOutboundParams(query)
+            .addValue("offset", Math.max(0, (query.page() - 1) * query.size()))
+            .addValue("size", query.size());
+        return jdbcTemplate.query(
+            sql + specimenOutboundOrderBy()
+                + " offset :offset rows fetch next :size rows only",
+            parameters,
+            this::mapSpecimenOutboundRow);
     }
 
     private SpecimenWorkflowRepository.SpecimenRemovalSummary summarizeSpecimenRemoval(
@@ -107,6 +143,31 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
         return builder.toString();
     }
 
+    private String specimenOutboundWhereClause(
+        SpecimenWorkflowRepository.SpecimenOutboundListQuery query
+    ) {
+        StringBuilder builder = new StringBuilder("""
+            from transport_order_items toi
+            join transport_orders t on t.id = toi.transport_order_id
+            join specimens s on s.id = toi.specimen_id
+            join applications a on a.id = s.application_id
+            left join application_registration_workbench w on w.application_id = a.id
+            left join (
+                select specimen_id, max(event_time) as latest_event_time
+                from workflow_events
+                group by specimen_id
+            ) evt on evt.specimen_id = s.id
+            where 1 = 1
+            """);
+        if (query.applicationId() != null && !query.applicationId().isBlank()) {
+            builder.append(" and a.id = :applicationId");
+        }
+        if (query.specimenNo() != null && !query.specimenNo().isBlank()) {
+            builder.append(" and s.specimen_no = :specimenNo");
+        }
+        return builder.toString();
+    }
+
     private String specimenRemovalSelectSql(String whereClause, String abnormalExpression) {
         return """
             select
@@ -145,6 +206,43 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
                 end as abnormal_flag
             """
             + whereClause;
+    }
+
+    private String specimenOutboundSelectSql(String whereClause) {
+        String outboundUserColumns = hasTransportOrderOutboundColumns()
+            ? "t.outbound_user_name as outbound_user_name\n"
+            : "cast(null as varchar(100)) as outbound_user_name\n";
+        return """
+            select
+                s.id as specimen_id,
+                t.id as transport_order_id,
+                a.id as application_id,
+                a.application_no,
+                s.specimen_no,
+                a.patient_name,
+                a.patient_gender,
+                a.patient_id,
+                w.inpatient_no,
+                coalesce(w.room_id, w.surgery_name) as surgery_name,
+                s.specimen_name_standardized as specimen_name,
+                s.specimen_status,
+                s.registered_at,
+                s.registered_by_name,
+                t.handed_over_at as outbound_at,
+            """ + outboundUserColumns + whereClause;
+    }
+
+    private String specimenOutboundOrderBy() {
+        return """
+             order by
+                case when t.handed_over_at is null then 0 else 1 end asc,
+                case
+                    when t.handed_over_at is null then coalesce(evt.latest_event_time, s.registered_at)
+                    else null
+                end desc,
+                t.handed_over_at desc,
+                s.id desc
+            """;
     }
 
     private String buildSpecimenRemovalFilters(
@@ -220,6 +318,19 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
         return parameters;
     }
 
+    private MapSqlParameterSource specimenOutboundParams(
+        SpecimenWorkflowRepository.SpecimenOutboundListQuery query
+    ) {
+        MapSqlParameterSource parameters = new MapSqlParameterSource();
+        if (query.applicationId() != null && !query.applicationId().isBlank()) {
+            parameters.addValue("applicationId", query.applicationId());
+        }
+        if (query.specimenNo() != null && !query.specimenNo().isBlank()) {
+            parameters.addValue("specimenNo", query.specimenNo());
+        }
+        return parameters;
+    }
+
     private SpecimenWorkflowRepository.SpecimenRemovalSummary mapSpecimenRemovalSummary(ResultSet rs, int rowNum) throws SQLException {
         return new SpecimenWorkflowRepository.SpecimenRemovalSummary(
             rs.getLong("total_count"),
@@ -258,5 +369,27 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
             JdbcResultSetUtils.getNullableString(rs, "registered_by_name"),
             rs.getTimestamp("latest_event_time") == null ? null : rs.getTimestamp("latest_event_time").toLocalDateTime(),
             rs.getInt("abnormal_flag") == 1);
+    }
+
+    private SpecimenWorkflowRepository.SpecimenOutboundRow mapSpecimenOutboundRow(ResultSet rs, int rowNum) throws SQLException {
+        return new SpecimenWorkflowRepository.SpecimenOutboundRow(
+            rs.getString("specimen_id"),
+            rs.getString("transport_order_id"),
+            rs.getString("application_id"),
+            rs.getString("application_no"),
+            rs.getString("specimen_no"),
+            rs.getString("patient_name"),
+            JdbcResultSetUtils.getNullableString(rs, "patient_gender"),
+            JdbcResultSetUtils.getNullableString(rs, "patient_id"),
+            JdbcResultSetUtils.getNullableString(rs, "inpatient_no"),
+            JdbcResultSetUtils.getNullableString(rs, "surgery_name"),
+            rs.getString("specimen_name"),
+            rs.getString("specimen_status"),
+            rs.getTimestamp("registered_at") == null ? null : rs.getTimestamp("registered_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableString(rs, "registered_by_name"),
+            JdbcResultSetUtils.getNullableTimestamp(rs, "outbound_at") == null
+                ? null
+                : JdbcResultSetUtils.getNullableTimestamp(rs, "outbound_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableString(rs, "outbound_user_name"));
     }
 }
