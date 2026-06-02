@@ -204,4 +204,12 @@ class SpecimenWorkflowSupport {
     String commandCheckInStatus(Specimen specimen) {
         return statusPolicy.commandCheckInStatus(specimen);
     }
+
+    boolean canCheckInApplication(String applicationId) {
+        return statusPolicy.canCheckInApplication(getSpecimensByApplicationId(applicationId));
+    }
+
+    boolean canTransportApplication(String applicationId) {
+        return statusPolicy.canTransportApplication(getSpecimensByApplicationId(applicationId));
+    }
 }

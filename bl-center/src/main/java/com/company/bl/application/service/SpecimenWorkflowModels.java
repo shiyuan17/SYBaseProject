@@ -172,6 +172,7 @@ public final class SpecimenWorkflowModels {
         String transportOrderId,
         String receivedByUserId,
         String receivedByName,
+        String logisticsStaffName,
         String terminalCode,
         List<ReceiptItem> items
     ) {

@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -96,12 +97,60 @@ class SpecimenReceiptAndRemovalServiceTest {
             "TO-1",
             "receiver-1",
             "Receiver",
+            "Logistics",
             "TERM-1",
             List.of(new ReceiptItem("BC-1", ReceiptStatus.RECEIVED, 1, "PASSED", List.of(), null, "ok")));
 
         assertThatThrownBy(() -> service.receiveSpecimens(command))
             .isInstanceOf(BlBusinessException.class)
             .hasMessageContaining("not ready for receipt");
+    }
+
+    @Test
+    void directReceiptShouldCreateCaseWithoutImmediatePathologyNumber() {
+        SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
+        Specimen receivedSpecimen = SpecimenWorkflowServiceTestFixtures.specimen(
+            "APP-1",
+            "SP-1",
+            "BC-1",
+            SpecimenStatus.RECEIVED,
+            FixationStatus.COMPLETED,
+            "VERIFIED",
+            LocalDateTime.now(),
+            "CHECKED_IN",
+            null);
+        when(queryRepository.findSpecimenByBarcode("BC-1"))
+            .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.specimen(
+                "APP-1",
+                "SP-1",
+                "BC-1",
+                SpecimenStatus.FIXED,
+                FixationStatus.COMPLETED,
+                "VERIFIED",
+                LocalDateTime.now(),
+                "CHECKED_IN",
+                null)));
+        when(queryRepository.findPathologyCaseByApplicationId("APP-1")).thenReturn(Optional.empty());
+        when(queryRepository.findSpecimensByApplicationId("APP-1")).thenReturn(List.of(receivedSpecimen));
+        when(applicationRepository.findById(any()))
+            .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.application(
+                "APP-1",
+                com.company.bl.domain.enums.ApplicationStatus.SUBMITTED)));
+        when(commandRepository.insertPathologyCase(any()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        SpecimenReceiptAndRemovalService service = new SpecimenReceiptAndRemovalService(commandRepository, support, numberingService);
+
+        var result = service.receiveSpecimensByBarcodes(new DirectReceiveSpecimensCommand(
+            "receiver-1",
+            "Receiver",
+            "TERM-1",
+            List.of(new ReceiptItem("BC-1", ReceiptStatus.RECEIVED, 1, "PASSED", List.of(), null, "ok"))));
+
+        assertThat(result.caseId()).isNotBlank();
+        assertThat(result.pathologyNo()).isNull();
+        verify(commandRepository).insertPathologyCase(any());
+        verify(numberingService, never()).generatePathologyNo();
     }
 
     @Test

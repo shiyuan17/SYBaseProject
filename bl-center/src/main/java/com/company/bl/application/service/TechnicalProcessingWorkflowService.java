@@ -21,13 +21,16 @@ class TechnicalProcessingWorkflowService {
     private final TechnicalWorkflowRepository technicalWorkflowRepository;
     private final TechnicalWorkflowSupport technicalWorkflowSupport;
     private final DiagnosticReportAppService diagnosticReportAppService;
+    private final TechnicalReworkWorkflowService technicalReworkWorkflowService;
 
     TechnicalProcessingWorkflowService(TechnicalWorkflowRepository technicalWorkflowRepository,
                                        TechnicalWorkflowSupport technicalWorkflowSupport,
-                                       DiagnosticReportAppService diagnosticReportAppService) {
+                                       DiagnosticReportAppService diagnosticReportAppService,
+                                       TechnicalReworkWorkflowService technicalReworkWorkflowService) {
         this.technicalWorkflowRepository = technicalWorkflowRepository;
         this.technicalWorkflowSupport = technicalWorkflowSupport;
         this.diagnosticReportAppService = diagnosticReportAppService;
+        this.technicalReworkWorkflowService = technicalReworkWorkflowService;
     }
 
     @Transactional
@@ -99,6 +102,123 @@ class TechnicalProcessingWorkflowService {
             "embeddingBoxNo=" + embeddingBoxNo);
         return new TechnicalWorkflowModels.EmbeddingResult(
             task.id(), embeddingId, embeddingBoxId, "EMBEDDING", markingResult.success(), markingResult.message());
+    }
+
+    @Transactional
+    TechnicalWorkflowModels.EmbeddingQualityReviewResult updateEmbeddingQualityReview(
+        TechnicalWorkflowModels.EmbeddingQualityReviewCommand command
+    ) {
+        TechnicalWorkflowRecords.EmbeddingWorkstationRecord currentRecord =
+            technicalWorkflowRepository.findEmbeddingWorkstationRecordByEmbeddingId(command.embeddingId())
+                .orElseThrow(() -> new BlBusinessException(
+                    BlErrorCode.RESOURCE_NOT_FOUND,
+                    404,
+                    "Embedding record not found"));
+        String samplingEvaluation = buildSamplingEvaluation(command);
+        technicalWorkflowRepository.updateEmbeddingQualityReview(
+            currentRecord.embeddingId(),
+            normalizeText(command.evaluationLevel()),
+            samplingEvaluation);
+        technicalWorkflowRepository.updateEmbeddingBoxSliceNoticeByEmbeddingId(
+            currentRecord.embeddingId(),
+            normalizeText(command.sliceNotice()));
+
+        TechnicalWorkflowModels.ReworkOrderResult reworkResult = null;
+        if ("REGROSSING".equals(command.treatmentAction())) {
+            reworkResult = technicalReworkWorkflowService.createAndExecuteReworkOrder(
+                new TechnicalWorkflowModels.CreateReworkOrderCommand(
+                    currentRecord.caseId(),
+                    currentRecord.specimenId(),
+                    currentRecord.samplingBlockId(),
+                    null,
+                    null,
+                    "REGROSSING",
+                    samplingEvaluation == null || samplingEvaluation.isBlank()
+                        ? "取材评价不合格，需重新取材"
+                        : samplingEvaluation,
+                    null,
+                    command.operatorUserId(),
+                    command.operatorName(),
+                    command.terminalCode(),
+                    command.remarks()));
+        }
+
+        TechnicalWorkflowRecords.EmbeddingWorkstationRecord updatedRecord =
+            technicalWorkflowRepository.findEmbeddingWorkstationRecordByEmbeddingId(currentRecord.embeddingId())
+                .orElseThrow(() -> new BlBusinessException(
+                    BlErrorCode.RESOURCE_NOT_FOUND,
+                    404,
+                    "Embedding record not found"));
+        return new TechnicalWorkflowModels.EmbeddingQualityReviewResult(
+            toTechnicalEmbeddingRecord(updatedRecord),
+            reworkResult == null ? null : reworkResult.reworkType(),
+            reworkResult == null ? null : reworkResult.status());
+    }
+
+    private String buildSamplingEvaluation(TechnicalWorkflowModels.EmbeddingQualityReviewCommand command) {
+        List<String> parts = new ArrayList<>();
+        String samplingEvaluation = normalizeText(command.samplingEvaluation());
+        if (samplingEvaluation != null) {
+            parts.add(samplingEvaluation);
+        }
+        List<String> unqualifiedReasons = command.unqualifiedReasons() == null
+            ? List.of()
+            : command.unqualifiedReasons().stream()
+                .map(this::normalizeText)
+                .filter(item -> item != null)
+                .toList();
+        if (!unqualifiedReasons.isEmpty()) {
+            parts.add("不合格原因：" + String.join("、", unqualifiedReasons));
+        }
+        if ("REGROSSING".equals(command.treatmentAction())) {
+            parts.add("处理措施：重新取材");
+        } else if ("OTHER".equals(command.treatmentAction())) {
+            parts.add("处理措施：其他");
+        }
+        String treatmentRemark = normalizeText(command.treatmentRemark());
+        if (treatmentRemark != null) {
+            parts.add("处理说明：" + treatmentRemark);
+        }
+        if (command.notifiedGrossingOperator()) {
+            parts.add("已通知取材人");
+        }
+        return parts.isEmpty() ? null : String.join("；", parts);
+    }
+
+    private TechnicalWorkflowModels.TechnicalEmbeddingRecord toTechnicalEmbeddingRecord(
+        TechnicalWorkflowRecords.EmbeddingWorkstationRecord record
+    ) {
+        return new TechnicalWorkflowModels.TechnicalEmbeddingRecord(
+            record.taskId(),
+            record.caseId(),
+            record.pathologyNo(),
+            record.specimenId(),
+            record.specimenName(),
+            record.samplingBlockId(),
+            record.samplingBlockCode(),
+            record.samplingBlockDescription(),
+            record.grossDescription(),
+            record.embeddingId(),
+            record.embeddingBoxId(),
+            record.embeddingBoxNo(),
+            record.sliceNotice(),
+            record.evaluationLevel(),
+            record.samplingEvaluation(),
+            record.embeddingRemarks(),
+            record.sampledByName(),
+            stringify(record.sampledAt()),
+            record.embeddedByName(),
+            stringify(record.startedAt()),
+            stringify(record.endedAt()),
+            record.taskStatus());
+    }
+
+    private String normalizeText(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String stringify(LocalDateTime value) {
+        return value == null ? null : value.toString();
     }
 
     @Transactional

@@ -37,6 +37,9 @@ class TechnicalSpecimenRegistrationService {
     private static final String DEFAULT_CONTAINER_NAME = "Specimen Bottle";
     private static final String DEFAULT_FIXATIVE_TYPE = "FORMALIN";
     private static final String DEFAULT_QUALITY_CHECK_RESULT = "PASSED";
+    private static final String DEFAULT_SPECIMEN_SIZE = "小标本";
+    private static final String DEFAULT_SPECIMEN_TYPE = "活体";
+    private static final int DEFAULT_TISSUE_COUNT = 1;
     private static final String REGISTRATION_MEDIA_OBJECT_TYPE = "TECHNICAL_SPECIMEN_REGISTRATION";
     private static final String REGISTRATION_MEDIA_TYPE = "REGISTRATION_IMAGE";
 
@@ -132,8 +135,8 @@ class TechnicalSpecimenRegistrationService {
         ApplicationRegistrationWorkbenchAppService.SavePatientInfoCommand command
     ) {
         WorkspaceContext context = loadEditableWorkspaceContext(caseId);
-        return applicationRegistrationWorkbenchAppService.savePatientInfo(
-            context.application().getId().value(),
+        return applicationRegistrationWorkbenchAppService.savePatientInfoForTechnicalRegistration(
+            context.application(),
             command);
     }
 
@@ -237,6 +240,10 @@ class TechnicalSpecimenRegistrationService {
                     payload.specimenType(),
                     payload.specimenName(),
                     payload.sourcePart(),
+                    payload.tissueCount(),
+                    payload.specimenSize(),
+                    payload.frozen(),
+                    serializeEvaluationItems(payload.evaluationItems()),
                     "Updated during technical specimen registration");
                 retainedSpecimenIds.add(payload.specimenId());
                 continue;
@@ -261,6 +268,66 @@ class TechnicalSpecimenRegistrationService {
             command.operatorName(),
             command.terminalCode(),
             "Technical specimen registration materials saved");
+        return getRegistrationWorkspace(command.caseId());
+    }
+
+    @Transactional
+    TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace verifyRegistrationMaterial(
+        TechnicalWorkflowModels.TechnicalSpecimenRegistrationMaterialVerificationCommand command
+    ) {
+        WorkspaceContext context = loadEditableWorkspaceContext(command.caseId());
+        Specimen specimen = requireMaterialSpecimen(context, command.specimenId());
+        LocalDateTime now = LocalDateTime.now();
+        specimenWorkflowCommandRepository.verifySpecimenImmediately(
+            context.application().getId().value(),
+            specimen.id(),
+            command.operatorUserId(),
+            command.operatorName(),
+            now,
+            command.terminalCode(),
+            command.remarks());
+        specimenWorkflowCommandRepository.insertWorkflowEvent(new TrackingEvent(
+            "EVT-" + UUID.randomUUID(),
+            specimen.applicationId(),
+            specimen.id(),
+            context.pathologyCase().id(),
+            null,
+            TechnicalWorkflowConstants.NODE_SPECIMEN_REGISTRATION,
+            "VERIFY_MATERIAL",
+            "SUCCESS",
+            now,
+            command.operatorUserId(),
+            command.operatorName(),
+            command.terminalCode(),
+            "Verified specimen during technical specimen registration"));
+        return getRegistrationWorkspace(command.caseId());
+    }
+
+    @Transactional
+    TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace cancelRegistrationMaterialVerification(
+        TechnicalWorkflowModels.TechnicalSpecimenRegistrationMaterialVerificationCommand command
+    ) {
+        WorkspaceContext context = loadEditableWorkspaceContext(command.caseId());
+        Specimen specimen = requireMaterialSpecimen(context, command.specimenId());
+        LocalDateTime now = LocalDateTime.now();
+        specimenWorkflowCommandRepository.cancelSpecimenVerification(
+            specimen.id(),
+            command.terminalCode(),
+            command.remarks());
+        specimenWorkflowCommandRepository.insertWorkflowEvent(new TrackingEvent(
+            "EVT-" + UUID.randomUUID(),
+            specimen.applicationId(),
+            specimen.id(),
+            context.pathologyCase().id(),
+            null,
+            TechnicalWorkflowConstants.NODE_SPECIMEN_REGISTRATION,
+            "CANCEL_MATERIAL_VERIFICATION",
+            "SUCCESS",
+            now,
+            command.operatorUserId(),
+            command.operatorName(),
+            command.terminalCode(),
+            "Canceled specimen verification during technical specimen registration"));
         return getRegistrationWorkspace(command.caseId());
     }
 
@@ -391,6 +458,12 @@ class TechnicalSpecimenRegistrationService {
                 "Technical specimen registration completed");
         }
 
+        String pathologyNo = trimToNull(pathologyCase.pathologyNo());
+        if (pathologyNo == null) {
+            pathologyNo = numberingService.generatePathologyNo();
+            specimenWorkflowCommandRepository.updatePathologyCasePathologyNo(command.caseId(), pathologyNo);
+        }
+
         boolean grossingTaskCreated = false;
         if (technicalWorkflowRepository.findActiveTechnicalTasksByObject(
             TechnicalWorkflowConstants.NODE_GROSSING,
@@ -405,7 +478,7 @@ class TechnicalSpecimenRegistrationService {
                 TechnicalWorkflowConstants.OBJECT_CASE,
                 command.caseId(),
                 null,
-                "pathologyNo=" + pathologyCase.pathologyNo() + ";receivedCount=" + specimens.size() + ";processedCount=" + specimens.size());
+                "pathologyNo=" + pathologyNo + ";receivedCount=" + specimens.size() + ";processedCount=" + specimens.size());
             technicalWorkflowSupport.insertWorkflowEvent(
                 pathologyCase.applicationId(),
                 null,
@@ -422,7 +495,7 @@ class TechnicalSpecimenRegistrationService {
 
         return new TechnicalWorkflowModels.TechnicalSpecimenRegistrationCompleteResult(
             pathologyCase.id(),
-            pathologyCase.pathologyNo(),
+            pathologyNo,
             "COMPLETED",
             grossingTaskCreated);
     }
@@ -558,10 +631,18 @@ class TechnicalSpecimenRegistrationService {
         for (Specimen specimen : specimens) {
             materials.add(new TechnicalWorkflowModels.TechnicalSpecimenRegistrationMaterial(
                 specimen.id(),
+                specimen.barcode(),
                 ++sequenceNo,
                 specimen.specimenType(),
                 specimen.specimenNameStandardized(),
-                specimen.specimenSite()));
+                specimen.specimenSite(),
+                specimen.specimenCount() == null ? DEFAULT_TISSUE_COUNT : specimen.specimenCount(),
+                specimen.specimenSize() == null ? DEFAULT_SPECIMEN_SIZE : specimen.specimenSize(),
+                specimen.frozen(),
+                deserializeEvaluationItems(specimen.registrationEvaluationItems()),
+                specimen.verificationStatus(),
+                stringify(specimen.verificationCompletedAt()),
+                specimen.verifiedByName()));
         }
         return materials;
     }
@@ -631,7 +712,10 @@ class TechnicalSpecimenRegistrationService {
             payload.specimenName(),
             payload.sourcePart(),
             DEFAULT_COLLECTION_MODE,
-            1,
+            payload.tissueCount(),
+            payload.specimenSize(),
+            payload.frozen(),
+            serializeEvaluationItems(payload.evaluationItems()),
             DEFAULT_CONTAINER_NAME,
             1,
             SpecimenStatus.RECEIVED,
@@ -639,6 +723,8 @@ class TechnicalSpecimenRegistrationService {
             "VERIFIED",
             receivedAt,
             receivedAt,
+            command.operatorUserId(),
+            command.operatorName(),
             context.application().getSpecimenRemovalTime(),
             null,
             null,
@@ -702,6 +788,7 @@ class TechnicalSpecimenRegistrationService {
             barcode,
             command.operatorUserId(),
             command.operatorName(),
+            null,
             now,
             command.terminalCode(),
             null,
@@ -752,11 +839,67 @@ class TechnicalSpecimenRegistrationService {
             "Removed specimen during technical specimen registration"));
     }
 
+    private Specimen requireMaterialSpecimen(WorkspaceContext context, String specimenId) {
+        String normalizedSpecimenId = trimToNull(specimenId);
+        if (normalizedSpecimenId == null) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Specimen ID is required");
+        }
+        return context.specimens().stream()
+            .filter(specimen -> normalizedSpecimenId.equals(specimen.id()))
+            .findFirst()
+            .orElseThrow(() -> new BlBusinessException(
+                BlErrorCode.RESOURCE_NOT_FOUND,
+                404,
+                "Specimen not found in technical specimen registration workspace"));
+    }
+
     private MaterialPayload normalizeMaterial(TechnicalWorkflowModels.TechnicalSpecimenRegistrationMaterialInput input) {
-        String specimenType = technicalWorkflowSupport.requireText(input.specimenType(), "Specimen type is required");
+        String specimenType = trimToNull(input.specimenType());
+        if (specimenType == null) {
+            specimenType = DEFAULT_SPECIMEN_TYPE;
+        }
         String specimenName = technicalWorkflowSupport.requireText(input.specimenName(), "Specimen name is required");
         String sourcePart = trimToNull(input.sourcePart());
-        return new MaterialPayload(trimToNull(input.specimenId()), specimenType, specimenName, sourcePart);
+        int tissueCount = input.tissueCount() == null || input.tissueCount() < 1
+            ? DEFAULT_TISSUE_COUNT
+            : input.tissueCount();
+        String specimenSize = trimToNull(input.specimenSize());
+        if (specimenSize == null) {
+            specimenSize = DEFAULT_SPECIMEN_SIZE;
+        }
+        return new MaterialPayload(
+            trimToNull(input.specimenId()),
+            specimenType,
+            specimenName,
+            sourcePart,
+            tissueCount,
+            specimenSize,
+            Boolean.TRUE.equals(input.frozen()),
+            normalizeEvaluationItems(input.evaluationItems()));
+    }
+
+    private List<String> normalizeEvaluationItems(List<String> items) {
+        if (items == null || items.isEmpty()) {
+            return List.of();
+        }
+        return items.stream()
+            .map(this::trimToNull)
+            .filter(item -> item != null)
+            .distinct()
+            .toList();
+    }
+
+    private String serializeEvaluationItems(List<String> items) {
+        List<String> normalizedItems = normalizeEvaluationItems(items);
+        return normalizedItems.isEmpty() ? null : String.join("\n", normalizedItems);
+    }
+
+    private List<String> deserializeEvaluationItems(String value) {
+        String normalizedValue = trimToNull(value);
+        if (normalizedValue == null) {
+            return List.of();
+        }
+        return normalizeEvaluationItems(java.util.Arrays.asList(normalizedValue.split("\\R")));
     }
 
     private String resolveSpecimenRemovalTime(WorkspaceContext context) {
@@ -879,7 +1022,11 @@ class TechnicalSpecimenRegistrationService {
         String specimenId,
         String specimenType,
         String specimenName,
-        String sourcePart
+        String sourcePart,
+        int tissueCount,
+        String specimenSize,
+        boolean frozen,
+        List<String> evaluationItems
     ) {
     }
 }

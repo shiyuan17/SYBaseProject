@@ -1,14 +1,18 @@
 package com.company.bl.infrastructure.persistence;
 
 import com.company.bl.domain.repository.SpecimenWorkflowRepository;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
+import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
 class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecimenWorkflowReadSupport {
+
+    private volatile Boolean patientsTableAvailable;
 
     JdbcSpecimenWorkflowManagementProjectionSupport(NamedParameterJdbcTemplate jdbcTemplate) {
         super(jdbcTemplate);
@@ -17,6 +21,24 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
     List<SpecimenWorkflowRepository.DuplicateApplicationRow> findDuplicateApplications(
         SpecimenWorkflowRepository.DuplicateApplicationQuery query
     ) {
+        String patientJoinClause = hasPatientsTable()
+            ? """
+            left join patients p
+                on p.id = a.patient_id
+                or p.patient_no = a.patient_id
+                or p.inpatient_no = a.patient_id
+                or p.outpatient_no = a.patient_id
+            """
+            : "";
+        String patientMatchCondition = hasPatientsTable()
+            ? """
+                (:patientId is not null and (a.patient_id = :patientId or p.id = :patientId))
+                or (:patientName is not null and a.patient_name = :patientName)
+            """
+            : """
+                (:patientId is not null and a.patient_id = :patientId)
+                or (:patientName is not null and a.patient_name = :patientName)
+            """;
         String sql = """
             select
                 a.id,
@@ -52,9 +74,9 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
                     )
                 end as current_node
             from applications a
+            """ + patientJoinClause + """
             where (
-                (:patientId is not null and a.patient_id = :patientId)
-                or (:patientName is not null and a.patient_name = :patientName)
+            """ + patientMatchCondition + """
             )
             and a.status <> 'VOIDED'
             and (
@@ -71,6 +93,35 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
             order by coalesce(a.updated_at, a.created_at) desc, a.id desc
             """;
         return jdbcTemplate.query(sql, duplicateApplicationParams(query), this::mapDuplicateApplicationRow);
+    }
+
+    private boolean hasPatientsTable() {
+        Boolean cached = patientsTableAvailable;
+        if (cached != null) {
+            return cached;
+        }
+        Boolean resolved = jdbcTemplate.getJdbcOperations().execute((ConnectionCallback<Boolean>) connection ->
+            tableExists(connection.getMetaData(), "PATIENTS"));
+        patientsTableAvailable = Boolean.TRUE.equals(resolved);
+        return patientsTableAvailable;
+    }
+
+    private boolean tableExists(DatabaseMetaData metadata, String tableName) throws SQLException {
+        try (ResultSet tables = metadata.getTables(null, null, tableName, null)) {
+            while (tables.next()) {
+                if (tableName.equalsIgnoreCase(tables.getString("TABLE_NAME"))) {
+                    return true;
+                }
+            }
+        }
+        try (ResultSet tables = metadata.getTables(null, null, tableName.toLowerCase(), null)) {
+            while (tables.next()) {
+                if (tableName.equalsIgnoreCase(tables.getString("TABLE_NAME"))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     SpecimenWorkflowRepository.PagedSpecimenManagementItems findSpecimenManagementItems(

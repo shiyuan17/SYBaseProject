@@ -210,6 +210,7 @@ class SpecimenWorkflowQueueAndVerificationIntegrationTest extends AbstractSpecim
             {
               "transportOrderId": "%s",
               "receivedByName": "receiver-pending",
+              "logisticsStaffName": "物流员待签收",
               "terminalCode": "T-05",
               "items": [
                 {

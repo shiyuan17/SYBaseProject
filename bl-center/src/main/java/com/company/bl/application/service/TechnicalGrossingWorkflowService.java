@@ -2,13 +2,17 @@ package com.company.bl.application.service;
 
 import com.company.bl.domain.model.PathologyCase;
 import com.company.bl.domain.model.Specimen;
+import com.company.bl.domain.enums.BlErrorCode;
+import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -119,10 +123,16 @@ class TechnicalGrossingWorkflowService {
                 now,
                 command.remarks()));
             int sequenceNo = 0;
+            List<TechnicalWorkflowModels.GrossingEmbeddingBoxItem> embeddingBoxes =
+                validateGrossingEmbeddingBoxes(item);
             for (TechnicalWorkflowModels.GrossingBlockItem block : item.blocks()) {
                 String blockId = technicalWorkflowSupport.nextId("SBK");
                 String blockCode = technicalWorkflowSupport.generateBlockNo(pathologyCase.id());
-                String embeddingBoxNo = "BX-" + blockCode;
+                TechnicalWorkflowModels.GrossingEmbeddingBoxItem embeddingBox =
+                    embeddingBoxes.isEmpty() ? null : embeddingBoxes.get(sequenceNo);
+                String embeddingBoxNo = embeddingBox == null
+                    ? "BX-" + blockCode
+                    : embeddingBox.embeddingBoxNo().trim();
                 technicalWorkflowRepository.insertSamplingBlock(new TechnicalWorkflowRecords.CreateSamplingBlockCommand(
                     blockId,
                     pathologyCase.id(),
@@ -133,7 +143,10 @@ class TechnicalGrossingWorkflowService {
                     block.blockSite(),
                     block.blockDescription(),
                     embeddingBoxNo,
-                    block.specialRequirement()));
+                    block.specialRequirement(),
+                    embeddingBox == null ? null : trimToNull(embeddingBox.boxName()),
+                    embeddingBox == null ? "PENDING" : embeddingBox.status(),
+                    embeddingBox == null ? null : trimToNull(embeddingBox.embeddingRemarks())));
                 technicalWorkflowSupport.createTechnicalTaskIfAbsent(
                     task.applicationId(),
                     pathologyCase.id(),
@@ -160,6 +173,48 @@ class TechnicalGrossingWorkflowService {
         }
         technicalWorkflowRepository.completeTechnicalTask(task.id(), TechnicalWorkflowConstants.TASK_COMPLETED, command.remarks(), now);
         return new TechnicalWorkflowModels.GrossingResult(task.id(), pathologyCase.id(), "SAMPLING", nextTaskCount);
+    }
+
+    private List<TechnicalWorkflowModels.GrossingEmbeddingBoxItem> validateGrossingEmbeddingBoxes(
+        TechnicalWorkflowModels.GrossingSpecimenItem item
+    ) {
+        List<TechnicalWorkflowModels.GrossingEmbeddingBoxItem> embeddingBoxes = item.embeddingBoxes();
+        if (embeddingBoxes == null) {
+            return List.of();
+        }
+        if (embeddingBoxes.isEmpty()) {
+            throw invalidArgument("Embedding boxes cannot be empty when provided");
+        }
+        if (embeddingBoxes.size() != item.blocks().size()) {
+            throw invalidArgument("Embedding box count must match block count");
+        }
+
+        Set<String> embeddingBoxNos = new HashSet<>();
+        for (TechnicalWorkflowModels.GrossingEmbeddingBoxItem embeddingBox : embeddingBoxes) {
+            String embeddingBoxNo = trimToNull(embeddingBox.embeddingBoxNo());
+            if (embeddingBoxNo == null) {
+                throw invalidArgument("Embedding box number is required");
+            }
+            if (!embeddingBoxNos.add(embeddingBoxNo)) {
+                throw invalidArgument("Embedding box number cannot be duplicated");
+            }
+            if (technicalWorkflowRepository.findEmbeddingBoxByNo(embeddingBoxNo).isPresent()) {
+                throw new BlBusinessException(
+                    BlErrorCode.RESOURCE_CONFLICT, 409, "Embedding box number already exists");
+            }
+        }
+        return embeddingBoxes;
+    }
+
+    private BlBusinessException invalidArgument(String message) {
+        return new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, message);
+    }
+
+    private String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     @Transactional
@@ -276,6 +331,69 @@ class TechnicalGrossingWorkflowService {
             command.operatorName(), command.terminalCode(), "Dehydration completed");
         return new TechnicalWorkflowModels.DehydrationBatchResult(
             batch.id(), batch.batchNo(), TechnicalWorkflowConstants.TASK_COMPLETED, items.size());
+    }
+
+    @Transactional
+    TechnicalWorkflowModels.TaskStartResult startDehydration(TechnicalWorkflowModels.TaskStartCommand command) {
+        TechnicalWorkflowRecords.TechnicalTask task = technicalWorkflowSupport.requireActiveTask(
+            command.taskId(), TechnicalWorkflowConstants.NODE_DEHYDRATION, TechnicalWorkflowConstants.OBJECT_SAMPLING_BLOCK);
+        if (!TechnicalWorkflowConstants.TASK_PENDING.equals(task.taskStatus())) {
+            throw new BlBusinessException(
+                BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Only pending dehydration tasks can be started");
+        }
+        technicalWorkflowRepository.claimTechnicalTask(
+            task.id(), command.operatorUserId(), command.operatorName(), null, null, command.remarks());
+        technicalWorkflowRepository.startTechnicalTask(
+            task.id(), command.operatorUserId(), command.operatorName(), command.remarks(), LocalDateTime.now());
+        technicalWorkflowSupport.insertWorkflowEvent(
+            task,
+            TechnicalWorkflowConstants.NODE_DEHYDRATION,
+            "START",
+            "SUCCESS",
+            command.operatorUserId(),
+            command.operatorName(),
+            command.terminalCode(),
+            "Dehydration started");
+        technicalWorkflowRepository.updatePathologyCaseStatus(task.caseId(), "DEHYDRATION");
+        return new TechnicalWorkflowModels.TaskStartResult(
+            task.id(), task.caseId(), "DEHYDRATION", TechnicalWorkflowConstants.TASK_IN_PROGRESS);
+    }
+
+    @Transactional
+    TechnicalWorkflowModels.TaskStartResult completeDehydration(TechnicalWorkflowModels.TaskStartCommand command) {
+        TechnicalWorkflowRecords.TechnicalTask task = technicalWorkflowSupport.requireActiveTask(
+            command.taskId(), TechnicalWorkflowConstants.NODE_DEHYDRATION, TechnicalWorkflowConstants.OBJECT_SAMPLING_BLOCK);
+        if (!TechnicalWorkflowConstants.TASK_IN_PROGRESS.equals(task.taskStatus())) {
+            throw new BlBusinessException(
+                BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Dehydration task must be started before completion");
+        }
+        TechnicalWorkflowRecords.SamplingBlock block = technicalWorkflowSupport.getSamplingBlock(task.objectId());
+        technicalWorkflowSupport.validateTaskObject(task, block.id());
+        LocalDateTime now = LocalDateTime.now();
+        technicalWorkflowRepository.claimTechnicalTask(
+            task.id(), command.operatorUserId(), command.operatorName(), null, null, command.remarks());
+        technicalWorkflowRepository.completeTechnicalTask(
+            task.id(), TechnicalWorkflowConstants.TASK_COMPLETED, command.remarks(), now);
+        technicalWorkflowSupport.createTechnicalTaskIfAbsent(
+            task.applicationId(),
+            task.caseId(),
+            task.specimenId(),
+            TechnicalWorkflowConstants.NODE_EMBEDDING,
+            TechnicalWorkflowConstants.OBJECT_SAMPLING_BLOCK,
+            block.id(),
+            task.id(),
+            null);
+        technicalWorkflowSupport.insertWorkflowEvent(
+            task,
+            TechnicalWorkflowConstants.NODE_DEHYDRATION,
+            "COMPLETE",
+            "SUCCESS",
+            command.operatorUserId(),
+            command.operatorName(),
+            command.terminalCode(),
+            "Dehydration completed");
+        return new TechnicalWorkflowModels.TaskStartResult(
+            task.id(), task.caseId(), "DEHYDRATION", TechnicalWorkflowConstants.TASK_COMPLETED);
     }
 
     private TechnicalWorkflowModels.GrossingWorkbenchMediaAsset toWorkbenchMediaAsset(

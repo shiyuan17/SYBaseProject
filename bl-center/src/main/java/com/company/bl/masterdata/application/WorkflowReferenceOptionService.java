@@ -19,6 +19,7 @@ public class WorkflowReferenceOptionService {
     static final String CATEGORY_SPECIMEN_IMAGE_SIZE = "SPECIMEN_IMAGE_SIZE";
     static final String CATEGORY_CUT_SURFACE_FEATURE = "CUT_SURFACE_FEATURE";
     static final String CATEGORY_MARGIN_MARKING = "MARGIN_MARKING";
+    static final String CATEGORY_EMBEDDING_REMARK = "EMBEDDING_REMARK";
 
     private final SystemConfigService systemConfigService;
 
@@ -32,6 +33,7 @@ public class WorkflowReferenceOptionService {
             findCategoryByCode(systemConfigService.listSystemConfigs(), ROOT_CATEGORY_WORKFLOW_REFERENCE);
         if (rootCategory == null || !rootCategory.enabled()) {
             return new WorkflowReferenceOptionsResponse(
+                List.of(),
                 List.of(),
                 List.of(),
                 List.of(),
@@ -53,7 +55,8 @@ public class WorkflowReferenceOptionService {
             extractOptions(categoriesByCode.get(CATEGORY_CONTAINER_NAME)),
             extractOptions(categoriesByCode.get(CATEGORY_SPECIMEN_IMAGE_SIZE)),
             extractOptions(categoriesByCode.get(CATEGORY_CUT_SURFACE_FEATURE)),
-            extractOptions(categoriesByCode.get(CATEGORY_MARGIN_MARKING))
+            extractOptions(categoriesByCode.get(CATEGORY_MARGIN_MARKING)),
+            extractOptions(categoriesByCode.get(CATEGORY_EMBEDDING_REMARK))
         );
     }
 
@@ -122,7 +125,8 @@ public class WorkflowReferenceOptionService {
         List<WorkflowReferenceOption> containerNames,
         List<WorkflowReferenceOption> specimenImageSizes,
         List<WorkflowReferenceOption> cutSurfaceFeatures,
-        List<WorkflowReferenceOption> marginMarkings
+        List<WorkflowReferenceOption> marginMarkings,
+        List<WorkflowReferenceOption> embeddingRemarks
     ) {
     }
 }

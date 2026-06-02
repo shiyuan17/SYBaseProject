@@ -304,11 +304,26 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     }
 
     @Override
+    public Optional<EmbeddingWorkstationRecord> findEmbeddingWorkstationRecordByEmbeddingId(String embeddingId) {
+        return processingQueries.findEmbeddingWorkstationRecordByEmbeddingId(embeddingId);
+    }
+
+    @Override
     public List<EmbeddingWorkstationRecord> findEmbeddingWorkstationRecordsByEndedAtRange(
         LocalDateTime endedFrom,
         LocalDateTime endedTo
     ) {
         return processingQueries.findEmbeddingWorkstationRecordsByEndedAtRange(endedFrom, endedTo);
+    }
+
+    @Override
+    public void updateEmbeddingQualityReview(String embeddingId, String evaluationLevel, String samplingEvaluation) {
+        taskMutations.updateEmbeddingQualityReview(embeddingId, evaluationLevel, samplingEvaluation);
+    }
+
+    @Override
+    public void updateEmbeddingBoxSliceNoticeByEmbeddingId(String embeddingId, String sliceNotice) {
+        taskMutations.updateEmbeddingBoxSliceNoticeByEmbeddingId(embeddingId, sliceNotice);
     }
 
     @Override

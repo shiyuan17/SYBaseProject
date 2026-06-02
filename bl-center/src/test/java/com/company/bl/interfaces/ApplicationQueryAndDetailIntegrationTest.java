@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.hamcrest.Matchers.is;
@@ -17,6 +18,47 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @SpringBootTest(classes = BlCenterApplication.class)
 class ApplicationQueryAndDetailIntegrationTest extends AbstractApplicationControllerIntegrationTest {
+
+    private void ensurePatientsTable() {
+        jdbcTemplate.getJdbcOperations().execute("""
+                create table if not exists patients (
+                    id varchar(64) primary key,
+                    patient_no varchar(64),
+                    name varchar(100),
+                    gender varchar(16),
+                    age varchar(32),
+                    inpatient_no varchar(64),
+                    outpatient_no varchar(64),
+                    created_at timestamp,
+                    updated_at timestamp
+                )
+                """);
+    }
+
+    private void insertPatient(
+        String id,
+        String patientNo,
+        String inpatientNo,
+        String outpatientNo,
+        String name
+    ) {
+        ensurePatientsTable();
+        jdbcTemplate.update(
+            "delete from patients where id = :id",
+            new MapSqlParameterSource().addValue("id", id));
+        jdbcTemplate.update("""
+                insert into patients
+                    (id, patient_no, name, gender, age, inpatient_no, outpatient_no, created_at, updated_at)
+                values
+                    (:id, :patientNo, :name, 'M', '45', :inpatientNo, :outpatientNo, current_timestamp, current_timestamp)
+                """,
+            new MapSqlParameterSource()
+                .addValue("id", id)
+                .addValue("patientNo", patientNo)
+                .addValue("name", name)
+                .addValue("inpatientNo", inpatientNo)
+                .addValue("outpatientNo", outpatientNo));
+    }
 
     @Test
     void shouldReturnNotFoundWhenApplicationDoesNotExist() throws Exception {
@@ -231,6 +273,7 @@ class ApplicationQueryAndDetailIntegrationTest extends AbstractApplicationContro
                     {
                       "transportOrderId": "%s",
                       "receivedByName": "receiver-b",
+                      "logisticsStaffName": "物流员乙",
                       "items": [
                         {
                           "specimenBarcode": "%s",
@@ -336,6 +379,25 @@ class ApplicationQueryAndDetailIntegrationTest extends AbstractApplicationContro
     }
 
     @Test
+    void shouldLookupPatientByExternalIdentifier() throws Exception {
+        insertPatient(
+            "PATIENT-LOOKUP-ID",
+            "PATIENT-LOOKUP-NO",
+            "INPATIENT-LOOKUP-NO",
+            "OUTPATIENT-LOOKUP-NO",
+            "Lookup Patient");
+
+        mockMvc.perform(authorized(get("/api/v1/applications/patient-lookup"), USER_REGISTER)
+                .param("identifier", "INPATIENT-LOOKUP-NO"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.patientId").value("PATIENT-LOOKUP-ID"))
+            .andExpect(jsonPath("$.data.patientIdentifier").value("PATIENT-LOOKUP-NO"))
+            .andExpect(jsonPath("$.data.patientName").value("Lookup Patient"))
+            .andExpect(jsonPath("$.data.patientGender").value("M"))
+            .andExpect(jsonPath("$.data.patientAge").value("45"));
+    }
+
+    @Test
     void shouldWarnDuplicateApplicationsByExternalOrderAndSameDaySite() throws Exception {
         mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -368,5 +430,45 @@ class ApplicationQueryAndDetailIntegrationTest extends AbstractApplicationContro
             .andExpect(jsonPath("$.data.items[0].applicationNo").value("APP-DUP-CHECK-001"))
             .andExpect(jsonPath("$.data.items[0].matchedBy[0]").value("EXTERNAL_ORDER_NO"))
             .andExpect(jsonPath("$.data.items[0].matchedBy[1]").value("SAME_DAY_SAME_SITE"));
+    }
+
+    @Test
+    void shouldWarnDuplicateApplicationsWhenQueriedByPatientIdentifier() throws Exception {
+        insertPatient(
+            "PATIENT-DUP-LINK-ID",
+            "PATIENT-DUP-LINK-NO",
+            "INPATIENT-DUP-LINK",
+            "OUTPATIENT-DUP-LINK",
+            "Patient Dup Link");
+
+        mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "APP-DUP-LINK-001",
+                      "applicationType": "ROUTINE",
+                      "patientId": "PATIENT-DUP-LINK-NO",
+                      "patientName": "Patient Dup Link",
+                      "externalOrderNo": "EXT-DUP-LINK-001",
+                      "applicationDate": "2026-05-20",
+                      "submittingDepartmentId": "DEPT-DUP",
+                      "submittingDepartmentName": "Dup Department",
+                      "submittingDoctorUserId": "DOC-DUP-LINK-001",
+                      "submittingDoctorName": "Dr Dup Link",
+                      "clinicalDiagnosis": "dup link diagnosis",
+                      "specimenSite": "Colon"
+                    }
+                    """))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(authorized(get("/api/v1/applications/duplicate-check"), USER_REGISTER)
+                .param("patientId", "PATIENT-DUP-LINK-NO")
+                .param("externalOrderNo", "EXT-DUP-LINK-001")
+                .param("applicationDate", "2026-05-20")
+                .param("applicationType", "ROUTINE")
+                .param("specimenSite", "Colon"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.suggestedAction").value("BLOCK"))
+            .andExpect(jsonPath("$.data.items[0].applicationNo").value("APP-DUP-LINK-001"));
     }
 }

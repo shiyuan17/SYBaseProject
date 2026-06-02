@@ -22,7 +22,7 @@ if not defined SECURITY_AUTH_JWT_SM2_PRIVATE_KEY set "SECURITY_AUTH_JWT_SM2_PRIV
 if not defined SECURITY_AUTH_JWT_SM2_PUBLIC_KEY set "SECURITY_AUTH_JWT_SM2_PUBLIC_KEY=MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAEayHE2eAOE9zOeS1Yqz47cYbrDRJ3bdkpsF6OQ35kPjB8rGDgnBSDqiO2F1Jayf3tw+qMIXvRaOJxe6GRc2n0YA=="
 
 echo Preparing bl-center dependencies...
-call mvnw.cmd -Dmaven.repo.local=.m2/repository -pl bl-center -am -Dmaven.test.skip=true -Djacoco.skip=true install
+call mvnw.cmd -Dmaven.repo.local=.m2/repository -pl bl-center -am -Dmaven.test.skip=true -Djacoco.skip=true clean install
 if errorlevel 1 (
   set "EXIT_CODE=%ERRORLEVEL%"
   goto :finish

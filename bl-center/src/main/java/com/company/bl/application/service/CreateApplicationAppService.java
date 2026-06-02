@@ -18,6 +18,7 @@ public class CreateApplicationAppService {
     private final ApplicationDomainService applicationDomainService;
     private final ApplicationRepository applicationRepository;
     private final NumberingService numberingService;
+    private final ApplicationPatientIdentityResolver patientIdentityResolver;
 
     @Transactional
     @ObservedOperation(
@@ -30,9 +31,14 @@ public class CreateApplicationAppService {
         if (applicationNo == null || applicationNo.isBlank()) {
             applicationNo = numberingService.generateApplicationNo();
         }
+        String resolvedPatientId = patientIdentityResolver.resolveOrCreate(
+            command.patientId(),
+            command.patientName(),
+            command.patientGender(),
+            command.patientAge());
         Application application = applicationDomainService.register(
             applicationNo,
-            command.patientId(),
+            resolvedPatientId,
             command.patientName(),
             command.patientGender(),
             command.patientAge(),

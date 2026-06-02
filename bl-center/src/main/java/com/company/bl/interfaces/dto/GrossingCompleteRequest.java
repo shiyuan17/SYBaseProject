@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -91,6 +92,10 @@ public class GrossingCompleteRequest {
         @Schema(description = "附件列表")
         @Valid
         private List<MediaAssetItem> mediaAssets;
+
+        @Schema(description = "取材阶段预确认包埋盒列表")
+        @Valid
+        private List<EmbeddingBoxItem> embeddingBoxes;
     }
 
     @Getter
@@ -108,6 +113,32 @@ public class GrossingCompleteRequest {
         @Schema(description = "特殊要求")
         @Size(max = 500)
         private String specialRequirement;
+    }
+
+    @Getter
+    @Setter
+    @Schema(name = "GrossingEmbeddingBoxItem", description = "取材阶段预确认包埋盒")
+    public static class EmbeddingBoxItem {
+        @Schema(description = "序号", requiredMode = Schema.RequiredMode.REQUIRED)
+        private Integer sequenceNo;
+
+        @Schema(description = "盒名称")
+        @Size(max = 100)
+        private String boxName;
+
+        @Schema(description = "盒号", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotBlank
+        @Size(max = 64)
+        private String embeddingBoxNo;
+
+        @Schema(description = "确认状态，PENDING/CONFIRMED", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotBlank
+        @Pattern(regexp = "PENDING|CONFIRMED")
+        private String status;
+
+        @Schema(description = "包埋备注")
+        @Size(max = 500)
+        private String embeddingRemarks;
     }
 
     @Getter

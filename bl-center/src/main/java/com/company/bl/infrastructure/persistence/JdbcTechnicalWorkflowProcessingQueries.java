@@ -76,6 +76,13 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             """, Map.of("caseId", caseId), rowMappers::mapEmbeddingWorkstationRecord);
     }
 
+    Optional<EmbeddingWorkstationRecord> findEmbeddingWorkstationRecordByEmbeddingId(String embeddingId) {
+        List<EmbeddingWorkstationRecord> rows = jdbcTemplate.query(embeddingWorkstationSelectSql() + """
+            where e.id = :embeddingId
+            """, Map.of("embeddingId", embeddingId), rowMappers::mapEmbeddingWorkstationRecord);
+        return rows.stream().findFirst();
+    }
+
     List<EmbeddingWorkstationRecord> findEmbeddingWorkstationRecordsByEndedAtRange(
         java.time.LocalDateTime endedFrom,
         java.time.LocalDateTime endedTo

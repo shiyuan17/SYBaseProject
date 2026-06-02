@@ -121,6 +121,14 @@ public class GrossingController extends TechnicalControllerSupport {
                         .toList(),
                     item.getMediaAssets() == null ? java.util.List.of() : item.getMediaAssets().stream()
                         .map(asset -> new TechnicalWorkflowModels.MediaAssetInput(asset.getFileUrl(), asset.getFileName()))
+                        .toList(),
+                    item.getEmbeddingBoxes() == null ? null : item.getEmbeddingBoxes().stream()
+                        .map(box -> new TechnicalWorkflowModels.GrossingEmbeddingBoxItem(
+                            box.getSequenceNo(),
+                            box.getBoxName(),
+                            box.getEmbeddingBoxNo(),
+                            box.getStatus(),
+                            box.getEmbeddingRemarks()))
                         .toList()))
                     .toList()));
         return new GrossingResponse(result.taskId(), result.caseId(), result.caseStatus(), result.createdDehydrationTaskCount());

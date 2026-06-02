@@ -347,6 +347,15 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
         mockMvc.perform(authorized(get("/api/v1/application-registration-workbench/operating-options"), USER_REGISTER))
             .andExpect(status().isOk());
 
+        String candidateApplicationId = createApplication("APP-M2-OUTBOUND-LIST-CANDIDATE-001");
+        JsonNode candidateRegistration = registerSpecimens(
+            candidateApplicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-OUTBOUND-LIST-CANDIDATE-001");
+        String candidateBarcode = candidateRegistration.path("specimens").get(0).path("barcode").asText();
+        String candidateSpecimenNo = candidateRegistration.path("specimens").get(0).path("specimenNo").asText();
+        String candidateSpecimenId = candidateRegistration.path("specimens").get(0).path("id").asText();
+        prepareTransportReadySpecimen(candidateBarcode);
+        insertWorkbenchExtension(candidateApplicationId, "ZY-OUT-000", "手术间候选");
+
         String pendingApplicationId = createApplication("APP-M2-OUTBOUND-LIST-PENDING-001");
         JsonNode pendingRegistration = registerSpecimens(
             pendingApplicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-OUTBOUND-LIST-PENDING-001");
@@ -382,22 +391,40 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
                 .param("page", "1")
                 .param("size", "20"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.total").value(2))
-            .andExpect(jsonPath("$.data.items[0].transportOrderId").value(pendingTransportOrderId))
-            .andExpect(jsonPath("$.data.items[0].specimenId").value(pendingSpecimenId))
-            .andExpect(jsonPath("$.data.items[0].specimenNo").value(pendingSpecimenNo))
+            .andExpect(jsonPath("$.data.total").value(3))
+            .andExpect(jsonPath("$.data.items[0].transportOrderId").isEmpty())
+            .andExpect(jsonPath("$.data.items[0].specimenId").value(candidateSpecimenId))
+            .andExpect(jsonPath("$.data.items[0].specimenNo").value(candidateSpecimenNo))
             .andExpect(jsonPath("$.data.items[0].patientId").value("P-001"))
-            .andExpect(jsonPath("$.data.items[0].inpatientNo").value("ZY-OUT-001"))
-            .andExpect(jsonPath("$.data.items[0].surgeryName").value("手术间A"))
-            .andExpect(jsonPath("$.data.items[0].registeredByName").value(userDisplayName(USER_REGISTER)))
+            .andExpect(jsonPath("$.data.items[0].inpatientNo").value("ZY-OUT-000"))
+            .andExpect(jsonPath("$.data.items[0].surgeryName").value("手术间候选"))
             .andExpect(jsonPath("$.data.items[0].outboundAt").isEmpty())
             .andExpect(jsonPath("$.data.items[0].outboundUserName").isEmpty())
-            .andExpect(jsonPath("$.data.items[1].transportOrderId").value(completedTransportOrderId))
-            .andExpect(jsonPath("$.data.items[1].specimenNo").value(completedSpecimenNo))
-            .andExpect(jsonPath("$.data.items[1].inpatientNo").value("ZY-OUT-002"))
-            .andExpect(jsonPath("$.data.items[1].surgeryName").value("手术间B"))
-            .andExpect(jsonPath("$.data.items[1].outboundAt").isNotEmpty())
-            .andExpect(jsonPath("$.data.items[1].outboundUserName").value(outboundUserName));
+            .andExpect(jsonPath("$.data.items[1].transportOrderId").value(pendingTransportOrderId))
+            .andExpect(jsonPath("$.data.items[1].specimenId").value(pendingSpecimenId))
+            .andExpect(jsonPath("$.data.items[1].specimenNo").value(pendingSpecimenNo))
+            .andExpect(jsonPath("$.data.items[1].patientId").value("P-001"))
+            .andExpect(jsonPath("$.data.items[1].inpatientNo").value("ZY-OUT-001"))
+            .andExpect(jsonPath("$.data.items[1].surgeryName").value("手术间A"))
+            .andExpect(jsonPath("$.data.items[1].registeredByName").value(userDisplayName(USER_REGISTER)))
+            .andExpect(jsonPath("$.data.items[1].outboundAt").isEmpty())
+            .andExpect(jsonPath("$.data.items[1].outboundUserName").isEmpty())
+            .andExpect(jsonPath("$.data.items[2].transportOrderId").value(completedTransportOrderId))
+            .andExpect(jsonPath("$.data.items[2].specimenNo").value(completedSpecimenNo))
+            .andExpect(jsonPath("$.data.items[2].inpatientNo").value("ZY-OUT-002"))
+            .andExpect(jsonPath("$.data.items[2].surgeryName").value("手术间B"))
+            .andExpect(jsonPath("$.data.items[2].outboundAt").isNotEmpty())
+            .andExpect(jsonPath("$.data.items[2].outboundUserName").value(outboundUserName));
+
+        mockMvc.perform(authorized(get("/api/v1/specimen-outbounds"), USER_TRANSPORT)
+                .param("page", "1")
+                .param("size", "20")
+                .param("specimenNo", candidateSpecimenNo))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].transportOrderId").isEmpty())
+            .andExpect(jsonPath("$.data.items[0].specimenId").value(candidateSpecimenId))
+            .andExpect(jsonPath("$.data.items[0].specimenNo").value(candidateSpecimenNo));
 
         mockMvc.perform(authorized(get("/api/v1/specimen-outbounds"), USER_TRANSPORT)
                 .param("page", "1")
@@ -417,6 +444,90 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             .andExpect(jsonPath("$.data.items[0].transportOrderId").value(completedTransportOrderId))
             .andExpect(jsonPath("$.data.items[0].outboundAt").isNotEmpty())
             .andExpect(jsonPath("$.data.items[0].outboundUserName").value(outboundUserName));
+    }
+
+    @Test
+    void shouldRejectCheckInWhenApplicationHasUnreadySiblingSpecimen() throws Exception {
+        String applicationId = createApplication("APP-M2-CHECKIN-GATE-001");
+        JsonNode registration = registerSpecimens(
+            applicationId,
+            USER_REGISTER,
+            "P-01",
+            "/api/v1/specimens/register",
+            "BC-CHECKIN-GATE-001",
+            "BC-CHECKIN-GATE-002");
+        String readyBarcode = registration.path("specimens").get(0).path("barcode").asText();
+
+        completeFixation(readyBarcode);
+        confirmSpecimen(readyBarcode);
+
+        postJson("/api/v1/specimens/barcodes/%s/check-in".formatted(readyBarcode), USER_FIXATION, """
+            {
+              "specimenBarcode": "%s",
+              "terminalCode": "T-CHECK-IN-GATE"
+            }
+            """.formatted(readyBarcode))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("OPERATION_NOT_ALLOWED"));
+    }
+
+    @Test
+    void shouldRejectTransportWhenApplicationHasUncheckedInSiblingSpecimen() throws Exception {
+        String applicationId = createApplication("APP-M2-TRANSPORT-GATE-001");
+        JsonNode registration = registerSpecimens(
+            applicationId,
+            USER_REGISTER,
+            "P-01",
+            "/api/v1/specimens/register",
+            "BC-TRANSPORT-GATE-001",
+            "BC-TRANSPORT-GATE-002");
+        String readyBarcode = registration.path("specimens").get(0).path("barcode").asText();
+        String siblingBarcode = registration.path("specimens").get(1).path("barcode").asText();
+        String siblingSpecimenId = registration.path("specimens").get(1).path("id").asText();
+
+        prepareTransportReadySpecimen(readyBarcode);
+        completeFixation(siblingBarcode);
+        confirmSpecimen(siblingBarcode);
+
+        postJson("/api/v1/transport-orders", USER_TRANSPORT, """
+            {
+              "applicationId": "%s",
+              "specimenBarcodes": ["%s"],
+              "handoverUserName": "handover-a",
+              "handoverDepartmentId": "DEPT-OR",
+              "handoverDepartmentName": "OR",
+              "receiverDepartmentId": "DEPT-PATH",
+              "receiverDepartmentName": "Pathology",
+              "terminalCode": "OR-02"
+            }
+            """.formatted(applicationId, readyBarcode))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("OPERATION_NOT_ALLOWED"));
+
+        checkInSpecimen(siblingBarcode);
+        JsonNode order = createTransportOrder(applicationId, readyBarcode, siblingBarcode);
+        String transportOrderId = order.path("id").asText();
+        jdbcTemplate.update(
+            """
+                update specimens
+                set check_in_status = null,
+                    checked_in_at = null,
+                    checked_in_by_user_id = null,
+                    checked_in_by_name = null,
+                    specimen_status = 'FIXED'
+                where id = :specimenId
+                """,
+            java.util.Map.of("specimenId", siblingSpecimenId));
+
+        postJson("/api/v1/transport-orders/%s/outbound".formatted(transportOrderId), USER_TRANSPORT, """
+            {
+              "outboundUserId": "%s",
+              "outboundUserName": "%s",
+              "terminalCode": "T-OUTBOUND-GATE"
+            }
+            """.formatted(USER_RECEIVE, userDisplayName(USER_RECEIVE)))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("OPERATION_NOT_ALLOWED"));
     }
 
     @Test
@@ -711,6 +822,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             {
               "transportOrderId": "%s",
               "receivedByName": "receiver-complete",
+              "logisticsStaffName": "物流员完成态",
               "terminalCode": "T-RECEIVED",
               "items": [
                 {
@@ -749,6 +861,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             {
               "transportOrderId": "%s",
               "receivedByName": "receiver-partial",
+              "logisticsStaffName": "物流员部分态",
               "terminalCode": "T-PARTIAL",
               "items": [
                 {
@@ -792,6 +905,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             {
               "transportOrderId": "%s",
               "receivedByName": "receiver-rejected",
+              "logisticsStaffName": "物流员拒收态",
               "terminalCode": "T-REJECTED",
               "items": [
                 {

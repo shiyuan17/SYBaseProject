@@ -79,6 +79,7 @@ public class ApplicationRepresentationAssembler {
             application.getId().value(),
             application.getApplicationNo(),
             application.getPatientId(),
+            application.getPatientId(),
             application.getPatientId() == null || application.getPatientId().isBlank() ? null : "PENDING",
             application.getPatientName(),
             application.getPatientGender(),

@@ -46,20 +46,20 @@ final class JdbcTechnicalWorkflowTaskQueries {
     }
 
     List<Specimen> findSpecimensByCaseId(String caseId) {
-        return jdbcTemplate.query("""
-            select *
+        return jdbcTemplate.query(specimenSelectSql() + """
             from specimens
-            where case_id = :caseId
-              and specimen_status not in ('REJECTED', 'RETURNED')
-            order by specimen_no asc, created_at asc
+            left join specimen_fixation_records sfr on sfr.specimen_id = specimens.id
+            where specimens.case_id = :caseId
+              and specimens.specimen_status not in ('REJECTED', 'RETURNED')
+            order by specimens.specimen_no asc, specimens.created_at asc
             """, Map.of("caseId", caseId), rowMappers::mapSpecimen);
     }
 
     Optional<Specimen> findSpecimenById(String specimenId) {
-        List<Specimen> rows = jdbcTemplate.query("""
-            select *
+        List<Specimen> rows = jdbcTemplate.query(specimenSelectSql() + """
             from specimens
-            where id = :specimenId
+            left join specimen_fixation_records sfr on sfr.specimen_id = specimens.id
+            where specimens.id = :specimenId
             """, Map.of("specimenId", specimenId), rowMappers::mapSpecimen);
         return rows.stream().findFirst();
     }
@@ -228,6 +228,30 @@ final class JdbcTechnicalWorkflowTaskQueries {
               on t.object_type = 'SAMPLING_BLOCK'
              and t.object_id = sb.id
             left join samplings sm on sb.sampling_id = sm.id
+            """;
+    }
+
+    private String specimenSelectSql() {
+        return """
+            select
+                specimens.*,
+                case
+                    when coalesce(sfr.verification_completed_at, sfr.verified_at) is not null
+                    then 'VERIFIED'
+                    when sfr.verification_started_at is not null
+                    then 'VERIFYING'
+                    else 'UNVERIFIED'
+                end as verification_status,
+                sfr.verification_started_at,
+                coalesce(sfr.verification_completed_at, sfr.verified_at) as verification_completed_at,
+                sfr.verified_by_user_id,
+                sfr.verified_by_name,
+                cast(null as varchar(32)) as resolved_check_in_status,
+                cast(null as timestamp) as checked_in_at,
+                cast(null as varchar(100)) as checked_in_by_name,
+                cast(null as varchar(32)) as latest_receipt_status,
+                cast(null as varchar(64)) as latest_quality_check_result,
+                cast(null as varchar(255)) as latest_quality_issue_codes
             """;
     }
 

@@ -58,6 +58,7 @@ class SpecimenReceiptAndRemovalService {
             order,
             command.receivedByUserId(),
             command.receivedByName(),
+            command.logisticsStaffName(),
             command.terminalCode(),
             command.items(),
             false);
@@ -87,6 +88,7 @@ class SpecimenReceiptAndRemovalService {
             null,
             command.receivedByUserId(),
             specimenWorkflowSupport.defaultIfBlank(command.receivedByName(), command.receivedByUserId()),
+            null,
             command.terminalCode(),
             command.items(),
             true);
@@ -158,6 +160,7 @@ class SpecimenReceiptAndRemovalService {
                                          TransportOrder order,
                                          String receivedByUserId,
                                          String receivedByName,
+                                         String logisticsStaffName,
                                          String terminalCode,
                                          List<ReceiptItem> items,
                                          boolean directReceive) {
@@ -174,7 +177,7 @@ class SpecimenReceiptAndRemovalService {
                 pathologyCase = specimenWorkflowRepository.insertPathologyCase(new PathologyCase(
                     "CASE-" + UUID.randomUUID(),
                     application.getId().value(),
-                    numberingService.generatePathologyNo(),
+                    null,
                     "RECEIVED",
                     application.getSourceHospitalId(),
                     application.getSourceHospitalName(),
@@ -197,6 +200,7 @@ class SpecimenReceiptAndRemovalService {
                 specimen.barcode(),
                 receivedByUserId,
                 receivedByName,
+                logisticsStaffName,
                 now,
                 terminalCode,
                 item.receiptStatus() == ReceiptStatus.REJECTED ? item.reason() : null,

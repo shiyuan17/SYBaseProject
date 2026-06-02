@@ -41,6 +41,7 @@ class SpecimenWorkflowPartialReceiptIntegrationTest extends AbstractSpecimenWork
             {
               "transportOrderId": "%s",
               "receivedByName": "receiver-b",
+              "logisticsStaffName": "物流员部分签收",
               "items": [
                 {
                   "specimenBarcode": "%s",
@@ -117,6 +118,7 @@ class SpecimenWorkflowPartialReceiptIntegrationTest extends AbstractSpecimenWork
             {
               "transportOrderId": "%s",
               "receivedByName": "receiver-partial-order",
+              "logisticsStaffName": "物流员部分签收",
               "terminalCode": "T-PARTIAL-ORDER",
               "items": [
                 {
@@ -136,6 +138,7 @@ class SpecimenWorkflowPartialReceiptIntegrationTest extends AbstractSpecimenWork
             {
               "transportOrderId": "%s",
               "receivedByName": "receiver-partial-order",
+              "logisticsStaffName": "物流员部分签收",
               "terminalCode": "T-PARTIAL-ORDER",
               "items": [
                 {

@@ -61,12 +61,11 @@ public class ApplicationRegistrationWorkbenchAppService {
     @Transactional
     public WorkbenchRecord save(String applicationId, SaveWorkbenchCommand command) {
         Application application = loadEditableApplication(applicationId);
-        persistPatientInfo(
-            applicationId,
+        persistPatientInfo(applicationId, new SavePatientInfoCommand(
             command.contagiousSpecimen(),
             command.gynecologyInfo(),
             command.patientInfo(),
-            command.surgeryInfo());
+            command.surgeryInfo()));
 
         workbenchRepository.clearPreDownstreamRegistrationData(applicationId);
 
@@ -96,18 +95,17 @@ public class ApplicationRegistrationWorkbenchAppService {
     @Transactional
     public WorkbenchRecord savePatientInfo(String applicationId, SavePatientInfoCommand command) {
         Application application = loadEditableApplication(applicationId);
-        persistPatientInfo(
-            applicationId,
-            command.contagiousSpecimen(),
-            command.gynecologyInfo(),
-            command.patientInfo(),
-            command.surgeryInfo());
+        persistPatientInfo(applicationId, command);
+        return loadByApplicationId(application.getId().value());
+    }
+
+    WorkbenchRecord savePatientInfoForTechnicalRegistration(Application application, SavePatientInfoCommand command) {
+        persistPatientInfo(application.getId().value(), command);
         return loadByApplicationId(application.getId().value());
     }
 
     private Application loadEditableApplication(String applicationId) {
-        Application application = applicationRepository.findById(new ApplicationId(applicationId))
-            .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Application not found"));
+        Application application = loadApplication(applicationId);
         if (workbenchRepository.hasStartedDownstreamWorkflow(applicationId)) {
             throw new BlBusinessException(
                 BlErrorCode.OPERATION_NOT_ALLOWED,
@@ -117,17 +115,44 @@ public class ApplicationRegistrationWorkbenchAppService {
         return application;
     }
 
-    private void persistPatientInfo(
-        String applicationId,
-        ContagiousSpecimen contagiousSpecimen,
-        GynecologyInfo gynecologyInfo,
-        PatientInfo patientInfo,
-        SurgeryInfo surgeryInfo
-    ) {
-        workbenchRepository.updateApplicationEditableFields(
-            applicationId,
+    private Application loadApplication(String applicationId) {
+        return applicationRepository.findById(new ApplicationId(applicationId))
+            .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Application not found"));
+    }
+
+    private void persistPatientInfo(String applicationId, SavePatientInfoCommand command) {
+        Application application = loadApplication(applicationId);
+        ContagiousSpecimen contagiousSpecimen = command.contagiousSpecimen();
+        GynecologyInfo gynecologyInfo = command.gynecologyInfo();
+        PatientInfo patientInfo = command.patientInfo();
+        SurgeryInfo surgeryInfo = command.surgeryInfo();
+        applicationRepository.update(new Application(
+            application.getId(),
+            application.getApplicationNo(),
+            application.getPatientId(),
+            application.getPatientName(),
+            application.getPatientGender(),
+            application.getPatientAge(),
+            application.getApplicationType(),
+            application.getStatus(),
+            application.getApplicationFormStatus(),
+            application.getExternalOrderNo(),
+            application.getThirdPartySource(),
+            application.getSourceHospitalId(),
+            application.getSourceHospitalName(),
+            application.getSubmittingDepartmentId(),
+            application.getSubmittingDepartmentName(),
+            application.getSubmittingDoctorUserId(),
+            application.getSubmittingDoctorName(),
             trim(patientInfo.clinicalDiagnosis()),
-            trim(patientInfo.remark()));
+            application.getClinicalSymptom(),
+            application.getSpecimenSite(),
+            application.getApplicationDate(),
+            application.getSubmissionDate(),
+            application.getSpecimenRemovalTime(),
+            trim(patientInfo.remark()),
+            application.getCreatedAt(),
+            LocalDateTime.now()));
         workbenchRepository.upsertExtension(new ApplicationRegistrationWorkbenchRepository.SaveWorkbenchExtensionCommand(
             applicationId,
             trim(patientInfo.inpatientNo()),

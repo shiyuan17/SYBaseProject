@@ -1,5 +1,6 @@
 package com.company.bl.interfaces.controller;
 
+import com.company.bl.application.service.ApplicationPatientIdentityResolver;
 import com.company.bl.application.service.SpecimenWorkflowAppService;
 import com.company.bl.application.service.SpecimenWorkflowModels;
 import com.company.bl.domain.model.ApplicationTracking;
@@ -22,6 +23,7 @@ import com.company.bl.interfaces.vo.SpecimenSummaryResponse;
 import com.company.bl.interfaces.vo.SpecimenVerificationRecordResponse;
 import com.company.bl.interfaces.vo.TrackingEventResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -34,7 +36,10 @@ import static com.company.bl.application.service.SpecimenWorkflowModels.*;
 import static com.company.bl.application.service.SpecimenWorkflowQueryModels.*;
 
 @Component
+@RequiredArgsConstructor
 class SpecimenControllerAssembler {
+
+    private final ApplicationPatientIdentityResolver patientIdentityResolver;
 
     RegisterSpecimensCommand toRegisterSpecimensCommand(RegisterSpecimensRequest request, HttpServletRequest httpServletRequest) {
         return new RegisterSpecimensCommand(
@@ -211,10 +216,14 @@ class SpecimenControllerAssembler {
         List<SpecimenSummaryResponse> specimenSummaries = tracking.specimens().stream().map(this::toSpecimenSummaryResponse).toList();
         Map<String, SpecimenSummaryResponse> specimenMap = specimenSummaries.stream()
             .collect(Collectors.toMap(SpecimenSummaryResponse::id, Function.identity()));
+        String patientIdentifier = patientIdentityResolver.lookup(tracking.application().getPatientId())
+            .map(ApplicationPatientIdentityResolver.PatientSummary::patientIdentifier)
+            .orElse(tracking.application().getPatientId());
         return new ApplicationDetailResponse(
             tracking.application().getId().value(),
             tracking.application().getApplicationNo(),
             tracking.application().getPatientId(),
+            patientIdentifier,
             resolvePatientCheckStatus(tracking),
             tracking.application().getPatientName(),
             tracking.application().getPatientGender(),

@@ -159,8 +159,14 @@ public interface TechnicalWorkflowRepository {
 
     List<EmbeddingWorkstationRecord> findEmbeddingWorkstationRecordsByCaseId(String caseId);
 
+    Optional<EmbeddingWorkstationRecord> findEmbeddingWorkstationRecordByEmbeddingId(String embeddingId);
+
     List<EmbeddingWorkstationRecord> findEmbeddingWorkstationRecordsByEndedAtRange(LocalDateTime endedFrom,
                                                                                    LocalDateTime endedTo);
+
+    void updateEmbeddingQualityReview(String embeddingId, String evaluationLevel, String samplingEvaluation);
+
+    void updateEmbeddingBoxSliceNoticeByEmbeddingId(String embeddingId, String sliceNotice);
 
     void insertSlicing(CreateSlicingCommand command);
 

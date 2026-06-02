@@ -134,10 +134,18 @@ public final class TechnicalWorkflowModels {
 
     public record TechnicalSpecimenRegistrationMaterial(
         String specimenId,
+        String specimenBarcode,
         int sequenceNo,
         String specimenType,
         String specimenName,
-        String sourcePart
+        String sourcePart,
+        int tissueCount,
+        String specimenSize,
+        boolean frozen,
+        List<String> evaluationItems,
+        String verificationStatus,
+        String verificationCompletedAt,
+        String verifiedByName
     ) {
     }
 
@@ -369,8 +377,22 @@ public final class TechnicalWorkflowModels {
         String specimenId,
         String specimenType,
         String specimenName,
-        String sourcePart
+        String sourcePart,
+        Integer tissueCount,
+        String specimenSize,
+        Boolean frozen,
+        List<String> evaluationItems
     ) {
+    }
+
+    public record TechnicalSpecimenRegistrationMaterialVerificationCommand(
+        String caseId,
+        String specimenId,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) implements OperatorCarrier {
     }
 
     public record SaveTechnicalSpecimenRegistrationDetailSectionsCommand(
@@ -419,6 +441,15 @@ public final class TechnicalWorkflowModels {
     public record GrossingBlockItem(String blockSite, String blockDescription, String specialRequirement) {
     }
 
+    public record GrossingEmbeddingBoxItem(
+        Integer sequenceNo,
+        String boxName,
+        String embeddingBoxNo,
+        String status,
+        String embeddingRemarks
+    ) {
+    }
+
     public record GrossingSpecimenItem(
         String specimenId,
         String specimenType,
@@ -430,7 +461,8 @@ public final class TechnicalWorkflowModels {
         Integer blockCount,
         String grossDescription,
         List<GrossingBlockItem> blocks,
-        List<MediaAssetInput> mediaAssets
+        List<MediaAssetInput> mediaAssets,
+        List<GrossingEmbeddingBoxItem> embeddingBoxes
     ) {
     }
 
@@ -541,6 +573,29 @@ public final class TechnicalWorkflowModels {
         String caseStatus,
         boolean markingSuccess,
         String markingMessage
+    ) {
+    }
+
+    public record EmbeddingQualityReviewCommand(
+        String embeddingId,
+        String sliceNotice,
+        String evaluationLevel,
+        String samplingEvaluation,
+        List<String> unqualifiedReasons,
+        String treatmentAction,
+        String treatmentRemark,
+        boolean notifiedGrossingOperator,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) implements OperatorCarrier {
+    }
+
+    public record EmbeddingQualityReviewResult(
+        TechnicalEmbeddingRecord record,
+        String reworkType,
+        String reworkStatus
     ) {
     }
 

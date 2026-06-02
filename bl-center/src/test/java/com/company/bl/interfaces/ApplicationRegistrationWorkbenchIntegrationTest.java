@@ -82,6 +82,7 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
             {
               "transportOrderId": "%s",
               "receivedByName": "receiver-workbench",
+              "logisticsStaffName": "物流员工作台",
               "terminalCode": "WB-R-01",
               "items": [
                 {

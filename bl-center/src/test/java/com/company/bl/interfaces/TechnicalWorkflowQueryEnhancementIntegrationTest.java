@@ -4,6 +4,7 @@ import com.company.bl.BlCenterApplication;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Duration;
@@ -12,6 +13,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -308,6 +310,48 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
         assertThat(tracking.path("embeddingEvaluationRecords").get(0).path("endedAt").asText()).isNotBlank();
     }
 
+    @Test
+    void shouldUpdateEmbeddingQualityReviewAndCreateRegrossingTask() throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-EMB-REVIEW-001", "BC-M3-EMB-REVIEW-001");
+        EmbeddingFixture fixture = advanceCaseToCompletedEmbedding(
+            context,
+            "quality review gross description",
+            "包埋备注-评价",
+            "原取材评价",
+            "原切片备注");
+
+        JsonNode response = responseBody(mockMvc.perform(authorized(
+                patch("/api/v1/embeddings/{embeddingId}/quality-review", fixture.embeddingId()),
+                USER_M3_EMBEDDING)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "sliceNotice": "皮肤",
+                  "evaluationLevel": "UNQUALIFIED",
+                  "samplingEvaluation": "取材评价调整",
+                  "unqualifiedReasons": ["组织过厚", "有线头"],
+                  "treatmentAction": "REGROSSING",
+                  "treatmentRemark": "请重新取材",
+                  "notifiedGrossingOperator": true,
+                  "terminalCode": "T-EMB-REVIEW"
+                }
+                """)), 200);
+
+        assertThat(response.path("record").path("sliceNotice").asText()).isEqualTo("皮肤");
+        assertThat(response.path("record").path("evaluationLevel").asText()).isEqualTo("UNQUALIFIED");
+        assertThat(response.path("record").path("samplingEvaluation").asText()).contains("组织过厚", "重新取材", "已通知取材人");
+        assertThat(response.path("reworkType").asText()).isEqualTo("REGROSSING");
+        assertThat(response.path("reworkStatus").asText()).isEqualTo("COMPLETED");
+
+        JsonNode tracking = technicalTracking(context.caseId(), USER_M3_TRACKING);
+        assertThat(tracking.path("embeddingRecords").get(0).path("sliceNotice").asText()).isEqualTo("皮肤");
+        assertThat(tracking.path("embeddingRecords").get(0).path("samplingEvaluation").asText()).contains("有线头");
+
+        JsonNode grossingTasks = listPendingTasks("GROSSING", context.pathologyNo(), USER_M3_GROSSING);
+        assertThat(grossingTasks.path("items")).hasSize(1);
+        assertThat(grossingTasks.path("items").get(0).path("taskStatus").asText()).isEqualTo("PENDING");
+    }
+
     private void advanceCaseToPendingEmbedding(TechnicalCaseContext context, String grossDescription) throws Exception {
         advanceCaseToDehydrationCompleted(context, grossDescription);
     }
@@ -338,7 +382,7 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
               "remarks": "%s"
             }
             """.formatted(embeddingTaskId, blockId, sliceNotice, samplingEvaluation, embeddingRemarks)), 200);
-        return new EmbeddingFixture(blockId, embeddingTaskId, embedding.path("embeddingBoxId").asText());
+        return new EmbeddingFixture(blockId, embeddingTaskId, embedding.path("embeddingId").asText(), embedding.path("embeddingBoxId").asText());
     }
 
     private String advanceCaseToDehydrationCompleted(TechnicalCaseContext context, String grossDescription) throws Exception {
@@ -389,6 +433,6 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
         return blockId;
     }
 
-    private record EmbeddingFixture(String blockId, String embeddingTaskId, String embeddingBoxId) {
+    private record EmbeddingFixture(String blockId, String embeddingTaskId, String embeddingId, String embeddingBoxId) {
     }
 }

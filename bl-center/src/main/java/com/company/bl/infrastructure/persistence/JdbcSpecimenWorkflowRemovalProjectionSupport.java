@@ -146,10 +146,14 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
     private String specimenOutboundWhereClause(
         SpecimenWorkflowRepository.SpecimenOutboundListQuery query
     ) {
+        String resolvedCheckInStatus = hasSpecimenConfirmationColumns()
+            ? "coalesce(s.check_in_status, 'NOT_CHECKED_IN')"
+            : "cast('NOT_CHECKED_IN' as varchar(32))";
+        String outboundUserColumns = hasTransportOrderOutboundColumns()
+            ? "                        t.outbound_user_name as outbound_user_name,\n"
+            : "                        cast(null as varchar(100)) as outbound_user_name,\n";
         StringBuilder builder = new StringBuilder("""
-            from transport_order_items toi
-            join transport_orders t on t.id = toi.transport_order_id
-            join specimens s on s.id = toi.specimen_id
+            from specimens s
             join applications a on a.id = s.application_id
             left join application_registration_workbench w on w.application_id = a.id
             left join (
@@ -157,7 +161,39 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
                 from workflow_events
                 group by specimen_id
             ) evt on evt.specimen_id = s.id
+            left join (
+                select
+                    ranked.specimen_id,
+                    ranked.transport_order_id,
+                    ranked.handed_over_at,
+                    ranked.outbound_user_name
+                from (
+                    select
+                        toi.specimen_id,
+                        t.id as transport_order_id,
+                        t.handed_over_at,
+            """ + outboundUserColumns + """
+                        row_number() over (
+                            partition by toi.specimen_id
+                            order by coalesce(t.handed_over_at, t.to_be_transported_at) desc, t.id desc
+                        ) as rn
+                    from transport_order_items toi
+                    join transport_orders t on t.id = toi.transport_order_id
+                    where t.order_status <> 'CANCELLED'
+                ) ranked
+                where ranked.rn = 1
+            ) latest_order on latest_order.specimen_id = s.id
             where 1 = 1
+              and (
+                latest_order.transport_order_id is not null
+                or (
+                    s.specimen_status = 'CHECKED_IN'
+                    and """);
+        builder.append(resolvedCheckInStatus);
+        builder.append("""
+                     = 'CHECKED_IN'
+                )
+              )
             """);
         if (query.applicationId() != null && !query.applicationId().isBlank()) {
             builder.append(" and a.id = :applicationId");
@@ -209,15 +245,13 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
     }
 
     private String specimenOutboundSelectSql(String whereClause) {
-        String outboundUserColumns = hasTransportOrderOutboundColumns()
-            ? "t.outbound_user_name as outbound_user_name\n"
-            : "cast(null as varchar(100)) as outbound_user_name\n";
         return """
             select
                 s.id as specimen_id,
-                t.id as transport_order_id,
+                latest_order.transport_order_id as transport_order_id,
                 a.id as application_id,
                 a.application_no,
+                s.barcode,
                 s.specimen_no,
                 a.patient_name,
                 a.patient_gender,
@@ -226,21 +260,24 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
                 coalesce(w.room_id, w.surgery_name) as surgery_name,
                 s.specimen_name_standardized as specimen_name,
                 s.specimen_status,
+                a.submitting_department_id,
+                a.submitting_department_name,
                 s.registered_at,
                 s.registered_by_name,
-                t.handed_over_at as outbound_at,
-            """ + outboundUserColumns + whereClause;
+                latest_order.handed_over_at as outbound_at,
+                latest_order.outbound_user_name as outbound_user_name
+            """ + whereClause;
     }
 
     private String specimenOutboundOrderBy() {
         return """
              order by
-                case when t.handed_over_at is null then 0 else 1 end asc,
+                case when latest_order.handed_over_at is null then 0 else 1 end asc,
                 case
-                    when t.handed_over_at is null then coalesce(evt.latest_event_time, s.registered_at)
+                    when latest_order.handed_over_at is null then coalesce(evt.latest_event_time, s.registered_at)
                     else null
                 end desc,
-                t.handed_over_at desc,
+                latest_order.handed_over_at desc,
                 s.id desc
             """;
     }
@@ -377,6 +414,7 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
             rs.getString("transport_order_id"),
             rs.getString("application_id"),
             rs.getString("application_no"),
+            JdbcResultSetUtils.getNullableString(rs, "barcode"),
             rs.getString("specimen_no"),
             rs.getString("patient_name"),
             JdbcResultSetUtils.getNullableString(rs, "patient_gender"),
@@ -385,6 +423,8 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
             JdbcResultSetUtils.getNullableString(rs, "surgery_name"),
             rs.getString("specimen_name"),
             rs.getString("specimen_status"),
+            JdbcResultSetUtils.getNullableString(rs, "submitting_department_id"),
+            JdbcResultSetUtils.getNullableString(rs, "submitting_department_name"),
             rs.getTimestamp("registered_at") == null ? null : rs.getTimestamp("registered_at").toLocalDateTime(),
             JdbcResultSetUtils.getNullableString(rs, "registered_by_name"),
             JdbcResultSetUtils.getNullableTimestamp(rs, "outbound_at") == null

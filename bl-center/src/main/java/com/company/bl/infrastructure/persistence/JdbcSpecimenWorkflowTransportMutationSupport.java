@@ -165,6 +165,18 @@ abstract class JdbcSpecimenWorkflowTransportMutationSupport extends JdbcSpecimen
         return pathologyCase;
     }
 
+    public void updatePathologyCasePathologyNo(String caseId, String pathologyNo) {
+        jdbcTemplate.update("""
+            update pathology_cases
+            set pathology_no = :pathologyNo,
+                updated_at = :updatedAt
+            where id = :caseId
+            """, new MapSqlParameterSource()
+            .addValue("caseId", caseId)
+            .addValue("pathologyNo", pathologyNo)
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
     public void insertSpecimenReceipt(String applicationId,
                                       String caseId,
                                       String specimenId,
@@ -176,6 +188,7 @@ abstract class JdbcSpecimenWorkflowTransportMutationSupport extends JdbcSpecimen
                                       String barcode,
                                       String receivedByUserId,
                                       String receivedByName,
+                                      String logisticsStaffName,
                                       LocalDateTime receivedAt,
                                       String terminalCode,
                                       String rejectReason,
@@ -185,11 +198,11 @@ abstract class JdbcSpecimenWorkflowTransportMutationSupport extends JdbcSpecimen
             insert into specimen_receipts
                 (id, application_id, case_id, specimen_id, transport_order_id, receipt_status, container_count,
                  quality_check_result, quality_issue_codes, barcode, received_by_user_id, received_by_name,
-                 received_at, terminal_code, reject_reason, return_reason, remarks)
+                 logistics_staff_name, received_at, terminal_code, reject_reason, return_reason, remarks)
             values
                 (:id, :applicationId, :caseId, :specimenId, :transportOrderId, :receiptStatus, :containerCount,
                  :qualityCheckResult, :qualityIssueCodes, :barcode, :receivedByUserId, :receivedByName,
-                 :receivedAt, :terminalCode, :rejectReason, :returnReason, :remarks)
+                 :logisticsStaffName, :receivedAt, :terminalCode, :rejectReason, :returnReason, :remarks)
             """, new MapSqlParameterSource()
             .addValue("id", nextId("SR"))
             .addValue("applicationId", applicationId)
@@ -203,6 +216,7 @@ abstract class JdbcSpecimenWorkflowTransportMutationSupport extends JdbcSpecimen
             .addValue("barcode", barcode)
             .addValue("receivedByUserId", receivedByUserId)
             .addValue("receivedByName", receivedByName)
+            .addValue("logisticsStaffName", logisticsStaffName)
             .addValue("receivedAt", receivedAt)
             .addValue("terminalCode", terminalCode)
             .addValue("rejectReason", rejectReason)

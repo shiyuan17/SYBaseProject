@@ -69,6 +69,16 @@ public class TechnicalWorkflowAppService {
         return technicalSpecimenRegistrationService.saveRegistrationMaterials(command);
     }
 
+    public TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace verifyTechnicalSpecimenRegistrationMaterial(
+        TechnicalWorkflowModels.TechnicalSpecimenRegistrationMaterialVerificationCommand command) {
+        return technicalSpecimenRegistrationService.verifyRegistrationMaterial(command);
+    }
+
+    public TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace cancelTechnicalSpecimenRegistrationMaterialVerification(
+        TechnicalWorkflowModels.TechnicalSpecimenRegistrationMaterialVerificationCommand command) {
+        return technicalSpecimenRegistrationService.cancelRegistrationMaterialVerification(command);
+    }
+
     public TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace saveTechnicalSpecimenRegistrationDetailSections(
         TechnicalWorkflowModels.SaveTechnicalSpecimenRegistrationDetailSectionsCommand command) {
         return technicalSpecimenRegistrationService.saveRegistrationDetailSections(command);
@@ -130,12 +140,26 @@ public class TechnicalWorkflowAppService {
         return technicalGrossingWorkflowService.completeDehydrationBatch(command);
     }
 
+    public TechnicalWorkflowModels.TaskStartResult startDehydration(TechnicalWorkflowModels.TaskStartCommand command) {
+        return technicalGrossingWorkflowService.startDehydration(command);
+    }
+
+    public TechnicalWorkflowModels.TaskStartResult completeDehydration(TechnicalWorkflowModels.TaskStartCommand command) {
+        return technicalGrossingWorkflowService.completeDehydration(command);
+    }
+
     public TechnicalWorkflowModels.TaskStartResult startEmbedding(TechnicalWorkflowModels.TaskStartCommand command) {
         return technicalProcessingWorkflowService.startEmbedding(command);
     }
 
     public TechnicalWorkflowModels.EmbeddingResult completeEmbedding(TechnicalWorkflowModels.EmbeddingCompleteCommand command) {
         return technicalProcessingWorkflowService.completeEmbedding(command);
+    }
+
+    public TechnicalWorkflowModels.EmbeddingQualityReviewResult updateEmbeddingQualityReview(
+        TechnicalWorkflowModels.EmbeddingQualityReviewCommand command
+    ) {
+        return technicalProcessingWorkflowService.updateEmbeddingQualityReview(command);
     }
 
     public TechnicalWorkflowModels.TaskStartResult startSlicing(TechnicalWorkflowModels.TaskStartCommand command) {

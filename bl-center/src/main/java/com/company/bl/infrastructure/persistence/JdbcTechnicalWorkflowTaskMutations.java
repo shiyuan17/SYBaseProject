@@ -218,10 +218,12 @@ final class JdbcTechnicalWorkflowTaskMutations {
         jdbcTemplate.update("""
             insert into sampling_blocks
                 (id, case_id, specimen_id, sampling_id, sequence_no, block_code, block_site,
-                 block_description, embedding_box_no, special_requirement, created_at, updated_at)
+                 block_description, embedding_box_no, special_requirement, embedding_box_name,
+                 embedding_box_status, embedding_remarks, created_at, updated_at)
             values
                 (:id, :caseId, :specimenId, :samplingId, :sequenceNo, :blockCode, :blockSite,
-                 :blockDescription, :embeddingBoxNo, :specialRequirement, :createdAt, :updatedAt)
+                 :blockDescription, :embeddingBoxNo, :specialRequirement, :embeddingBoxName,
+                 :embeddingBoxStatus, :embeddingRemarks, :createdAt, :updatedAt)
             """, new MapSqlParameterSource()
             .addValue("id", command.id())
             .addValue("caseId", command.caseId())
@@ -233,6 +235,9 @@ final class JdbcTechnicalWorkflowTaskMutations {
             .addValue("blockDescription", command.blockDescription())
             .addValue("embeddingBoxNo", command.embeddingBoxNo())
             .addValue("specialRequirement", command.specialRequirement())
+            .addValue("embeddingBoxName", command.embeddingBoxName())
+            .addValue("embeddingBoxStatus", command.embeddingBoxStatus())
+            .addValue("embeddingRemarks", command.embeddingRemarks())
             .addValue("createdAt", LocalDateTime.now())
             .addValue("updatedAt", LocalDateTime.now()));
     }
@@ -371,6 +376,32 @@ final class JdbcTechnicalWorkflowTaskMutations {
             .addValue("sliceNotice", command.sliceNotice())
             .addValue("storageStatus", command.storageStatus())
             .addValue("createdAt", LocalDateTime.now())
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    void updateEmbeddingQualityReview(String embeddingId, String evaluationLevel, String samplingEvaluation) {
+        jdbcTemplate.update("""
+            update embeddings
+            set evaluation_level = :evaluationLevel,
+                sampling_evaluation = :samplingEvaluation,
+                updated_at = :updatedAt
+            where id = :embeddingId
+            """, new MapSqlParameterSource()
+            .addValue("embeddingId", embeddingId)
+            .addValue("evaluationLevel", evaluationLevel)
+            .addValue("samplingEvaluation", samplingEvaluation)
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    void updateEmbeddingBoxSliceNoticeByEmbeddingId(String embeddingId, String sliceNotice) {
+        jdbcTemplate.update("""
+            update embedding_boxes
+            set slice_notice = :sliceNotice,
+                updated_at = :updatedAt
+            where embedding_id = :embeddingId
+            """, new MapSqlParameterSource()
+            .addValue("embeddingId", embeddingId)
+            .addValue("sliceNotice", sliceNotice)
             .addValue("updatedAt", LocalDateTime.now()));
     }
 }

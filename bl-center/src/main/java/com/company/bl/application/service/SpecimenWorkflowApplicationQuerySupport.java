@@ -19,10 +19,14 @@ import static com.company.bl.application.service.SpecimenWorkflowQueryModels.*;
 @Component
 class SpecimenWorkflowApplicationQuerySupport extends AbstractSpecimenWorkflowQuerySupport {
 
+    private final ApplicationPatientIdentityResolver patientIdentityResolver;
+
     SpecimenWorkflowApplicationQuerySupport(ApplicationRepository applicationRepository,
                                             SpecimenWorkflowQueryRepository specimenWorkflowRepository,
-                                            SpecimenWorkflowSupport specimenWorkflowSupport) {
+                                            SpecimenWorkflowSupport specimenWorkflowSupport,
+                                            ApplicationPatientIdentityResolver patientIdentityResolver) {
         super(applicationRepository, specimenWorkflowRepository, specimenWorkflowSupport);
+        this.patientIdentityResolver = patientIdentityResolver;
     }
 
     @Transactional(readOnly = true)
@@ -73,7 +77,7 @@ class SpecimenWorkflowApplicationQuerySupport extends AbstractSpecimenWorkflowQu
 
     @Transactional(readOnly = true)
     DuplicateCheckResult checkApplicationDuplicate(DuplicateCheckCommand command) {
-        String patientId = specimenWorkflowSupport.trim(command.patientId());
+        String patientId = patientIdentityResolver.resolveExistingOrOriginal(command.patientId());
         String patientName = specimenWorkflowSupport.trim(command.patientName());
         String externalOrderNo = specimenWorkflowSupport.trim(command.externalOrderNo());
         LocalDate applicationDate = specimenWorkflowSupport.parseLocalDate(command.applicationDate());

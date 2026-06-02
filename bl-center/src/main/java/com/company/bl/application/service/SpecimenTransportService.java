@@ -57,6 +57,12 @@ class SpecimenTransportService {
             requireTransportReadySpecimen(specimen, command.applicationId());
             requireNoActiveTransportOrder(specimen);
         });
+        if (!specimenWorkflowSupport.canTransportApplication(command.applicationId())) {
+            throw new BlBusinessException(
+                BlErrorCode.OPERATION_NOT_ALLOWED,
+                409,
+                "All specimens of the application must be checked in before transport");
+        }
         LocalDateTime now = LocalDateTime.now();
         TransportOrder order = new TransportOrder(
             "TO-" + UUID.randomUUID(),
@@ -201,6 +207,12 @@ class SpecimenTransportService {
         durationMetric = "transport_order_outbound_duration")
     TransportOrder outboundTransportOrder(String transportOrderId, OutboundTransportOrderCommand command) {
         TransportOrder order = specimenWorkflowSupport.getTransportOrder(transportOrderId);
+        if (!specimenWorkflowSupport.canTransportApplication(order.applicationId())) {
+            throw new BlBusinessException(
+                BlErrorCode.OPERATION_NOT_ALLOWED,
+                409,
+                "All specimens of the application must be checked in before transport");
+        }
         LocalDateTime now = LocalDateTime.now();
         TransportOrder updated = specimenWorkflowRepository.updateTransportOrderStatus(
             order.id(),
@@ -253,6 +265,12 @@ class SpecimenTransportService {
             command.identifierType(),
             command.identifier());
         requireTransportReadySpecimen(specimen, specimen.applicationId());
+        if (!specimenWorkflowSupport.canTransportApplication(specimen.applicationId())) {
+            throw new BlBusinessException(
+                BlErrorCode.OPERATION_NOT_ALLOWED,
+                409,
+                "All specimens of the application must be checked in before transport");
+        }
 
         TransportOrder activeOrder = specimenWorkflowSupport.findActiveTransportOrderBySpecimenId(specimen.id())
             .orElse(null);

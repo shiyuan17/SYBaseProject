@@ -9,6 +9,7 @@ import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.SaveApplicationRegistrationPatientInfoRequest;
 import com.company.bl.interfaces.dto.TechnicalSpecimenRegistrationCompleteRequest;
 import com.company.bl.interfaces.dto.TechnicalSpecimenRegistrationDetailSectionsSaveRequest;
+import com.company.bl.interfaces.dto.TechnicalSpecimenRegistrationMaterialVerificationRequest;
 import com.company.bl.interfaces.dto.TechnicalSpecimenRegistrationMaterialsSaveRequest;
 import com.company.bl.interfaces.vo.ApplicationRegistrationWorkbenchResponse;
 import com.company.bl.interfaces.vo.PendingTechnicalSpecimenRegistrationResponse;
@@ -122,10 +123,18 @@ public class TechnicalSpecimenRegistrationController extends TechnicalController
             detail.receivedAt(),
             detail.materials().stream().map(item -> new TechnicalSpecimenRegistrationMaterialResponse(
                 item.specimenId(),
+                item.specimenBarcode(),
                 item.sequenceNo(),
                 item.specimenType(),
                 item.specimenName(),
-                item.sourcePart())).toList(),
+                item.sourcePart(),
+                item.tissueCount(),
+                item.specimenSize(),
+                item.frozen(),
+                item.evaluationItems(),
+                item.verificationStatus(),
+                item.verificationCompletedAt(),
+                item.verifiedByName())).toList(),
             detail.checkItems().stream().map(item -> new TechnicalSpecimenRegistrationCheckItemResponse(
                 item.sequenceNo(),
                 item.name())).toList());
@@ -177,10 +186,18 @@ public class TechnicalSpecimenRegistrationController extends TechnicalController
                 workspace.detailSections().externalPathologyDiagnosis()),
             workspace.materials().stream().map(item -> new TechnicalSpecimenRegistrationMaterialResponse(
                 item.specimenId(),
+                item.specimenBarcode(),
                 item.sequenceNo(),
                 item.specimenType(),
                 item.specimenName(),
-                item.sourcePart())).toList(),
+                item.sourcePart(),
+                item.tissueCount(),
+                item.specimenSize(),
+                item.frozen(),
+                item.evaluationItems(),
+                item.verificationStatus(),
+                item.verificationCompletedAt(),
+                item.verifiedByName())).toList(),
             workspace.checkItems().stream().map(item -> new TechnicalSpecimenRegistrationCheckItemResponse(
                 item.sequenceNo(),
                 item.name())).toList(),
@@ -240,7 +257,47 @@ public class TechnicalSpecimenRegistrationController extends TechnicalController
                             item.getSpecimenId(),
                             item.getSpecimenType(),
                             item.getSpecimenName(),
-                            item.getSourcePart())).toList()));
+                            item.getSourcePart(),
+                            item.getTissueCount(),
+                            item.getSpecimenSize(),
+                            item.getFrozen(),
+                            item.getEvaluationItems())).toList()));
+        return workspace(caseId);
+    }
+
+    @Operation(summary = "核对技术标本登记材料", description = "立即将选中材料标记为已核对，并记录核对时间与核对人。")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_RECEIVE)
+    @PostMapping("/{caseId}/materials/{specimenId}/verify")
+    public TechnicalSpecimenRegistrationWorkspaceResponse verifyMaterial(@PathVariable String caseId,
+                                                                         @PathVariable String specimenId,
+                                                                         @Valid @RequestBody TechnicalSpecimenRegistrationMaterialVerificationRequest request,
+                                                                         HttpServletRequest httpServletRequest) {
+        technicalWorkflowAppService.verifyTechnicalSpecimenRegistrationMaterial(
+            new TechnicalWorkflowModels.TechnicalSpecimenRegistrationMaterialVerificationCommand(
+                caseId,
+                specimenId,
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode(),
+                request.getRemarks()));
+        return workspace(caseId);
+    }
+
+    @Operation(summary = "取消技术标本登记材料核对", description = "清空选中材料核对时间与核对人，并回到待核对状态。")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_RECEIVE)
+    @PostMapping("/{caseId}/materials/{specimenId}/cancel-verification")
+    public TechnicalSpecimenRegistrationWorkspaceResponse cancelMaterialVerification(@PathVariable String caseId,
+                                                                                    @PathVariable String specimenId,
+                                                                                    @Valid @RequestBody TechnicalSpecimenRegistrationMaterialVerificationRequest request,
+                                                                                    HttpServletRequest httpServletRequest) {
+        technicalWorkflowAppService.cancelTechnicalSpecimenRegistrationMaterialVerification(
+            new TechnicalWorkflowModels.TechnicalSpecimenRegistrationMaterialVerificationCommand(
+                caseId,
+                specimenId,
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode(),
+                request.getRemarks()));
         return workspace(caseId);
     }
 

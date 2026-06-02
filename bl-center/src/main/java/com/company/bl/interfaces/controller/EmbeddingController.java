@@ -5,6 +5,8 @@ import com.company.bl.application.service.TechnicalWorkflowModels;
 import com.company.bl.interfaces.auth.M3PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.EmbeddingCompleteRequest;
+import com.company.bl.interfaces.dto.EmbeddingQualityReviewRequest;
+import com.company.bl.interfaces.vo.EmbeddingQualityReviewResponse;
 import com.company.bl.interfaces.dto.TechnicalTaskStartRequest;
 import com.company.bl.interfaces.vo.EmbeddingWorkstationSummaryResponse;
 import com.company.bl.interfaces.vo.EmbeddingResponse;
@@ -18,6 +20,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -106,5 +110,45 @@ public class EmbeddingController extends TechnicalControllerSupport {
         return new EmbeddingResponse(
             result.taskId(), result.embeddingId(), result.embeddingBoxId(), result.caseStatus(),
             result.markingSuccess(), result.markingMessage());
+    }
+
+    @Operation(summary = "调整包埋质量评价", description = "调整已包埋记录的切片备注、取材评价，并可同步触发重新取材。")
+    @RequirePermission(M3PermissionCodes.EMBEDDING)
+    @PatchMapping("/{embeddingId}/quality-review")
+    public EmbeddingQualityReviewResponse updateQualityReview(
+        @Parameter(description = "包埋记录 ID") @PathVariable("embeddingId") String embeddingId,
+        @Valid @RequestBody EmbeddingQualityReviewRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        TechnicalWorkflowModels.EmbeddingQualityReviewResult result =
+            technicalWorkflowAppService.updateEmbeddingQualityReview(
+                new TechnicalWorkflowModels.EmbeddingQualityReviewCommand(
+                    embeddingId,
+                    request.getSliceNotice(),
+                    request.getEvaluationLevel(),
+                    request.getSamplingEvaluation(),
+                    request.getUnqualifiedReasons(),
+                    request.getTreatmentAction(),
+                    request.getTreatmentRemark(),
+                    request.isNotifiedGrossingOperator(),
+                    resolveUserId(httpServletRequest),
+                    resolveOperatorName(httpServletRequest),
+                    request.getTerminalCode(),
+                    request.getRemarks()));
+        return new EmbeddingQualityReviewResponse(
+            toEmbeddingRecordSummary(result.record()),
+            result.reworkType(),
+            result.reworkStatus());
+    }
+
+    private TechnicalTrackingResponse.EmbeddingRecordSummary toEmbeddingRecordSummary(
+        TechnicalWorkflowModels.TechnicalEmbeddingRecord item
+    ) {
+        return new TechnicalTrackingResponse.EmbeddingRecordSummary(
+            item.taskId(), item.caseId(), item.pathologyNo(), item.specimenId(), item.specimenName(),
+            item.samplingBlockId(), item.samplingBlockCode(), item.samplingBlockDescription(), item.grossDescription(),
+            item.embeddingId(), item.embeddingBoxId(), item.embeddingBoxNo(), item.sliceNotice(),
+            item.evaluationLevel(), item.samplingEvaluation(), item.embeddingRemarks(), item.sampledByName(),
+            item.sampledAt(), item.embeddedByName(), item.startedAt(), item.endedAt(), item.taskStatus());
     }
 }

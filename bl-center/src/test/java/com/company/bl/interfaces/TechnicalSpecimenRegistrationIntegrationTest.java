@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -33,17 +34,28 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
             receiveCaseAndGetPendingRegistration("APP-M3-REG-001", "BC-M3-REG-001");
 
         JsonNode pendingRegistrations =
-            listPendingTechnicalSpecimenRegistrations(context.pathologyNo(), USER_RECEIVE);
+            listPendingTechnicalSpecimenRegistrations(context.applicationNo(), USER_RECEIVE);
 
         assertThat(pendingRegistrations.path("total").asInt()).isEqualTo(1);
         assertThat(pendingRegistrations.path("items").get(0).path("caseId").asText())
             .isEqualTo(context.caseId());
-        assertThat(pendingRegistrations.path("items").get(0).path("pathologyNo").asText())
-            .isEqualTo(context.pathologyNo());
+        assertThat(pendingRegistrations.path("items").get(0).path("pathologyNo").isNull()).isTrue();
 
-        JsonNode pendingGrossingTasks =
-            listPendingTasks("GROSSING", context.pathologyNo(), USER_M3_GROSSING);
-        assertThat(pendingGrossingTasks.path("total").asInt()).isZero();
+        String pathologyNo = namedParameterJdbcTemplate.queryForObject("""
+            select pathology_no
+            from pathology_cases
+            where id = :caseId
+            """, Map.of("caseId", context.caseId()), String.class);
+        assertThat(pathologyNo).isNull();
+
+        Long pendingGrossingTaskCount = namedParameterJdbcTemplate.queryForObject("""
+            select count(*)
+            from technical_pending_tasks
+            where task_type = 'GROSSING'
+              and object_type = 'CASE'
+              and object_id = :caseId
+            """, Map.of("caseId", context.caseId()), Long.class);
+        assertThat(pendingGrossingTaskCount).isZero();
     }
 
     @Test
@@ -56,7 +68,7 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
                 USER_RECEIVE))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.caseId").value(context.caseId()))
-            .andExpect(jsonPath("$.data.pathologyNo").value(context.pathologyNo()))
+            .andExpect(jsonPath("$.data.pathologyNo").value(nullValue()))
             .andExpect(jsonPath("$.data.materials[0].specimenName").value("Thyroid Tissue"))
             .andExpect(jsonPath("$.data.checkItems").isArray())
             .andExpect(jsonPath("$.data.clinicalDiagnosis").value("Papillary thyroid carcinoma"));
@@ -65,19 +77,29 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
             completeTechnicalSpecimenRegistration(context.caseId(), "first completion");
         JsonNode secondComplete =
             completeTechnicalSpecimenRegistration(context.caseId(), "repeat completion");
+        String pathologyNo = firstComplete.path("pathologyNo").asText();
 
         assertThat(firstComplete.path("registrationStatus").asText()).isEqualTo("COMPLETED");
         assertThat(firstComplete.path("grossingTaskCreated").asBoolean()).isTrue();
+        assertThat(pathologyNo).isNotBlank();
         assertThat(secondComplete.path("registrationStatus").asText()).isEqualTo("COMPLETED");
         assertThat(secondComplete.path("grossingTaskCreated").asBoolean()).isFalse();
+        assertThat(secondComplete.path("pathologyNo").asText()).isEqualTo(pathologyNo);
 
         JsonNode pendingRegistrations =
-            listPendingTechnicalSpecimenRegistrations(context.pathologyNo(), USER_RECEIVE);
+            listPendingTechnicalSpecimenRegistrations(context.applicationNo(), USER_RECEIVE);
         assertThat(pendingRegistrations.path("total").asInt()).isZero();
 
         JsonNode grossingTasks =
-            listPendingTasks("GROSSING", context.pathologyNo(), USER_M3_GROSSING);
+            listPendingTasks("GROSSING", pathologyNo, USER_M3_GROSSING);
         assertThat(grossingTasks.path("total").asInt()).isEqualTo(1);
+
+        String persistedPathologyNo = namedParameterJdbcTemplate.queryForObject("""
+            select pathology_no
+            from pathology_cases
+            where id = :caseId
+            """, Map.of("caseId", context.caseId()), String.class);
+        assertThat(persistedPathologyNo).isEqualTo(pathologyNo);
 
         Long grossingTaskCount = namedParameterJdbcTemplate.queryForObject("""
             select count(*)
@@ -120,17 +142,17 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
     @Test
     void shouldReturnWorkspaceAggregateAndSupportReceivedDateFilter() throws Exception {
         TechnicalCaseContext context =
-            receiveCaseAndGetPendingRegistration("APP-M3-REG-004", "BC-M3-REG-004");
+            receiveCaseAndGetPendingRegistration("APP-M3-REG-FILTER-004", "BC-M3-REG-FILTER-004");
 
         JsonNode emptyResult = listPendingTechnicalSpecimenRegistrations(
-            context.pathologyNo(),
+            context.applicationNo(),
             LocalDate.now().minusDays(5).toString(),
             LocalDate.now().minusDays(3).toString(),
             USER_RECEIVE);
         assertThat(emptyResult.path("total").asInt()).isZero();
 
         JsonNode filteredResult = listPendingTechnicalSpecimenRegistrations(
-            context.pathologyNo(),
+            context.applicationNo(),
             LocalDate.now().minusDays(1).toString(),
             LocalDate.now().plusDays(1).toString(),
             USER_RECEIVE);
@@ -138,7 +160,8 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
 
         JsonNode workspace = technicalSpecimenRegistrationWorkspace(context.caseId(), USER_RECEIVE);
         assertThat(workspace.path("pendingSummary").path("caseId").asText()).isEqualTo(context.caseId());
-        assertThat(workspace.path("basicInfo").path("pathologyNo").asText()).isEqualTo(context.pathologyNo());
+        assertThat(workspace.path("pendingSummary").path("pathologyNo").isNull()).isTrue();
+        assertThat(workspace.path("basicInfo").path("pathologyNo").isNull()).isTrue();
         assertThat(workspace.path("basicInfo").path("patientName").asText()).isEqualTo("Patient A");
         assertThat(workspace.path("materials").size()).isEqualTo(1);
         assertThat(workspace.path("materials").get(0).path("specimenId").asText()).isEqualTo(context.specimenId());
@@ -151,15 +174,15 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
     @Test
     void shouldExposeAndSaveReceiveScopedApplicationWorkbench() throws Exception {
         TechnicalCaseContext context =
-            receiveCaseAndGetPendingRegistration("APP-M3-REG-004A", "BC-M3-REG-004A");
+            receiveCaseAndGetPendingRegistration("APP-M3-REG-WORKBENCH-004A", "BC-M3-REG-WORKBENCH-004A");
 
         JsonNode workbench =
             technicalSpecimenRegistrationApplicationWorkbench(context.caseId(), USER_RECEIVE);
         assertThat(workbench.path("applicationId").asText()).isEqualTo(context.applicationId());
         assertThat(workbench.path("patientInfo").path("patientName").asText()).isEqualTo("Patient A");
-        assertThat(workbench.path("patientInfo").path("applicationNo").asText()).isEqualTo("APP-M3-REG-004A");
+        assertThat(workbench.path("patientInfo").path("applicationNo").asText()).isEqualTo("APP-M3-REG-WORKBENCH-004A");
 
-        JsonNode saved = saveTechnicalSpecimenRegistrationApplicationWorkbenchPatientInfo(context.caseId(), USER_RECEIVE, """
+        String savePayload = """
             {
               "contagiousSpecimen": {
                 "hepatitis": true,
@@ -191,7 +214,7 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
               "patientInfo": {
                 "age": "45",
                 "applicationDate": "2026-06-01T08:00:00",
-                "applicationNo": "APP-M3-REG-004A",
+                "applicationNo": "APP-M3-REG-WORKBENCH-004A",
                 "applyDept": "OR",
                 "applyDoctor": "Dr Test",
                 "bedNo": "18",
@@ -224,7 +247,12 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
                 "surgeryName": "甲状腺切除术"
               }
             }
-            """);
+            """;
+
+        JsonNode saved = saveTechnicalSpecimenRegistrationApplicationWorkbenchPatientInfo(
+            context.caseId(),
+            USER_RECEIVE,
+            savePayload);
 
         assertThat(saved.path("patientInfo").path("clinicalDiagnosis").asText()).isEqualTo("更新后的临床诊断");
         assertThat(saved.path("patientInfo").path("idNo").asText()).isEqualTo("ID-UPDATED-001");
@@ -235,6 +263,18 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
             technicalSpecimenRegistrationApplicationWorkbench(context.caseId(), USER_RECEIVE);
         assertThat(refreshed.path("patientInfo").path("clinicalDiagnosis").asText()).isEqualTo("更新后的临床诊断");
         assertThat(refreshed.path("patientInfo").path("inpatientNo").asText()).isEqualTo("IP-UPDATED-001");
+
+        completeTechnicalSpecimenRegistration(context.caseId(), "lock application workbench after completion");
+
+        mockMvc.perform(authorized(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
+                    "/api/v1/technical-specimen-registrations/{caseId}/application-workbench/patient-info",
+                    context.caseId()),
+                USER_RECEIVE)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(savePayload))
+            .andExpect(status().isConflict())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Technical specimen registration is completed")));
     }
 
     @Test
@@ -248,23 +288,36 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
               "materials": [
                 {
                   "specimenId": "%s",
-                  "specimenType": "CELL_BLOCK",
+                  "specimenType": "活体",
                   "specimenName": "Updated Tissue",
-                  "sourcePart": "Left Thyroid"
+                  "sourcePart": "Left Thyroid",
+                  "tissueCount": 3,
+                  "specimenSize": "大标本",
+                  "frozen": true,
+                  "evaluationItems": ["密封不严", "自定义评价项"]
                 },
                 {
-                  "specimenType": "BIOPSY",
+                  "specimenType": "细胞学",
                   "specimenName": "Added Tissue",
-                  "sourcePart": "Right Thyroid"
+                  "sourcePart": "Right Thyroid",
+                  "tissueCount": 2,
+                  "specimenSize": "小标本",
+                  "frozen": false,
+                  "evaluationItems": ["切面质量低"]
                 }
               ]
             }
             """.formatted(context.specimenId()));
 
         assertThat(saved.path("materials").size()).isEqualTo(2);
-        assertThat(saved.path("materials").get(0).path("specimenType").asText()).isEqualTo("CELL_BLOCK");
+        assertThat(saved.path("materials").get(0).path("specimenType").asText()).isEqualTo("活体");
         assertThat(saved.path("materials").get(0).path("specimenName").asText()).isEqualTo("Updated Tissue");
+        assertThat(saved.path("materials").get(0).path("tissueCount").asInt()).isEqualTo(3);
+        assertThat(saved.path("materials").get(0).path("specimenSize").asText()).isEqualTo("大标本");
+        assertThat(saved.path("materials").get(0).path("frozen").asBoolean()).isTrue();
+        assertThat(saved.path("materials").get(0).path("evaluationItems").get(0).asText()).isEqualTo("密封不严");
         assertThat(saved.path("materials").get(1).path("specimenName").asText()).isEqualTo("Added Tissue");
+        assertThat(saved.path("materials").get(1).path("evaluationItems").get(0).asText()).isEqualTo("切面质量低");
 
         String addedSpecimenId = saved.path("materials").get(1).path("specimenId").asText();
         JsonNode replaced = saveTechnicalSpecimenRegistrationMaterials(context.caseId(), USER_RECEIVE, """
@@ -273,7 +326,7 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
               "materials": [
                 {
                   "specimenId": "%s",
-                  "specimenType": "BIOPSY",
+                  "specimenType": "细胞学",
                   "specimenName": "Added Tissue",
                   "sourcePart": "Right Thyroid"
                 }
@@ -283,6 +336,10 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
 
         assertThat(replaced.path("materials").size()).isEqualTo(1);
         assertThat(replaced.path("materials").get(0).path("specimenId").asText()).isEqualTo(addedSpecimenId);
+        assertThat(replaced.path("materials").get(0).path("tissueCount").asInt()).isEqualTo(1);
+        assertThat(replaced.path("materials").get(0).path("specimenSize").asText()).isEqualTo("小标本");
+        assertThat(replaced.path("materials").get(0).path("frozen").asBoolean()).isFalse();
+        assertThat(replaced.path("materials").get(0).path("evaluationItems").isEmpty()).isTrue();
 
         String removedStatus = namedParameterJdbcTemplate.queryForObject("""
             select specimen_status
@@ -290,6 +347,47 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
             where id = :specimenId
             """, Map.of("specimenId", context.specimenId()), String.class);
         assertThat(removedStatus).isEqualTo("RETURNED");
+    }
+
+    @Test
+    void shouldVerifyAndCancelMaterialVerificationInWorkspace() throws Exception {
+        TechnicalCaseContext context =
+            receiveCaseAndGetPendingRegistration("APP-M3-REG-005A", "BC-M3-REG-005A");
+
+        JsonNode workspace = technicalSpecimenRegistrationWorkspace(context.caseId(), USER_RECEIVE);
+        assertThat(workspace.path("materials").get(0).path("verificationStatus").asText()).isEqualTo("VERIFIED");
+
+        JsonNode canceled = cancelTechnicalSpecimenRegistrationMaterialVerification(
+            context.caseId(),
+            context.specimenId(),
+            USER_RECEIVE,
+            """
+                {
+                  "terminalCode": "T-M3-REG-CANCEL",
+                  "remarks": "取消核对"
+                }
+                """);
+
+        JsonNode canceledMaterial = canceled.path("materials").get(0);
+        assertThat(canceledMaterial.path("verificationStatus").asText()).isEqualTo("UNVERIFIED");
+        assertThat(canceledMaterial.path("verificationCompletedAt").isNull()).isTrue();
+        assertThat(canceledMaterial.path("verifiedByName").isNull()).isTrue();
+
+        JsonNode verified = verifyTechnicalSpecimenRegistrationMaterial(
+            context.caseId(),
+            context.specimenId(),
+            USER_RECEIVE,
+            """
+                {
+                  "terminalCode": "T-M3-REG-VERIFY",
+                  "remarks": "标本核对"
+                }
+                """);
+
+        JsonNode verifiedMaterial = verified.path("materials").get(0);
+        assertThat(verifiedMaterial.path("verificationStatus").asText()).isEqualTo("VERIFIED");
+        assertThat(verifiedMaterial.path("verificationCompletedAt").asText()).isNotBlank();
+        assertThat(verifiedMaterial.path("verifiedByName").asText()).isEqualTo(userDisplayName(USER_RECEIVE));
     }
 
     @Test
@@ -325,6 +423,73 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
     void shouldSaveDetailSectionOverridesAndFallbackAfterClearing() throws Exception {
         TechnicalCaseContext context =
             receiveCaseAndGetPendingRegistration("APP-M3-REG-007", "BC-M3-REG-007");
+
+        saveTechnicalSpecimenRegistrationApplicationWorkbenchPatientInfo(context.caseId(), USER_RECEIVE, """
+            {
+              "contagiousSpecimen": {
+                "hepatitis": false,
+                "hiv": false,
+                "isolation": true,
+                "syphilis": false,
+                "tuberculosis": false
+              },
+              "gynecologyInfo": {
+                "additionalNotes": "既往甲状腺手术史",
+                "hpvResult": "",
+                "lastMenstrualPeriod": "",
+                "menopause": false,
+                "previousCytology": "",
+                "previousTreatment": "",
+                "specialConditions": {
+                  "abnormalBleeding": false,
+                  "birthControl": false,
+                  "hormoneReplacement": false,
+                  "hysterectomy": false,
+                  "iud": false,
+                  "lactation": false,
+                  "menopause": false,
+                  "other": "",
+                  "pregnancy": false,
+                  "radiotherapy": false
+                }
+              },
+              "patientInfo": {
+                "age": "35岁",
+                "applicationDate": "2026-05-27",
+                "applicationNo": "APP-M3-REG-007",
+                "applyDept": "OR",
+                "applyDoctor": "Dr A",
+                "bedNo": "16床",
+                "checkItem": "术中病理；免疫组化复核",
+                "clinicalDiagnosis": "Papillary thyroid carcinoma",
+                "clinicalHistory": "甲状腺结节病史，近一个月增大",
+                "deliveryRequirement": "立即送检",
+                "endoscopyDiagnosis": "",
+                "frozenReminder": false,
+                "gender": "女",
+                "idNo": "320101199001011234",
+                "imagingResult": "超声提示甲状腺左叶低回声结节",
+                "inpatientNo": "ZY-REG-007",
+                "patientName": "Patient A",
+                "patientVerified": true,
+                "phone": "13800001111",
+                "registrationStatus": "RECEIVED",
+                "remark": "detail section fallback",
+                "specimenType": "ROUTINE",
+                "wardName": "外科病区"
+              },
+              "surgeryInfo": {
+                "buildingId": "B001",
+                "clinicalFindings": "术中见甲状腺左叶结节样病灶",
+                "fixativeType": "福尔马林",
+                "fixationPerson": "护士甲",
+                "fixationTime": "2026-05-27T10:15:00",
+                "roomId": "OR-101",
+                "specimenRemovalTime": "2026-05-27T10:00:00",
+                "surgeryName": "甲状腺左叶切除术"
+              }
+            }
+            """);
 
         JsonNode saved = saveTechnicalSpecimenRegistrationDetailSections(context.caseId(), USER_RECEIVE, """
             {

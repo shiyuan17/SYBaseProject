@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.ResultActions;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -167,7 +168,8 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
     protected ResultActions postJson(String path, String userId, String content) throws Exception {
         return mockMvc.perform(authorized(post(path), userId)
             .contentType(MediaType.APPLICATION_JSON)
-            .content(content));
+            .characterEncoding(StandardCharsets.UTF_8.name())
+            .content(content.getBytes(StandardCharsets.UTF_8)));
     }
 
     protected String querySingleString(String sql, String parameterName, String parameterValue) {
@@ -204,7 +206,7 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
             .andExpect(status().is(expectedStatus))
             .andReturn()
             .getResponse()
-            .getContentAsString();
+            .getContentAsString(StandardCharsets.UTF_8);
         JsonNode root = objectMapper.readTree(response);
         assertThat(root.path("code").asText()).isEqualTo("SUCCESS");
         return root.path("data");

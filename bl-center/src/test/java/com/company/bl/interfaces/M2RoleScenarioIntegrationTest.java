@@ -112,6 +112,7 @@ class M2RoleScenarioIntegrationTest extends AbstractSpecimenWorkflowIntegrationT
             {
               "transportOrderId": "%s",
               "receivedByName": "receiver-role",
+              "logisticsStaffName": "物流员角色",
               "terminalCode": "T-REC",
               "items": [
                 {

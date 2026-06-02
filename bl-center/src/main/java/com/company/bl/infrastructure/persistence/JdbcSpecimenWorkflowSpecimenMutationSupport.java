@@ -44,12 +44,20 @@ abstract class JdbcSpecimenWorkflowSpecimenMutationSupport extends AbstractJdbcS
                                        String specimenType,
                                        String specimenNameStandardized,
                                        String specimenSite,
+                                       Integer specimenCount,
+                                       String specimenSize,
+                                       boolean frozen,
+                                       String registrationEvaluationItems,
                                        String remarks) {
         jdbcTemplate.update("""
             update specimens
             set specimen_type = :specimenType,
                 specimen_name_standardized = :specimenNameStandardized,
                 specimen_site = :specimenSite,
+                specimen_count = :specimenCount,
+                specimen_size = :specimenSize,
+                frozen_flag = :frozenFlag,
+                registration_evaluation_items = :registrationEvaluationItems,
                 remarks = :remarks,
                 updated_at = :updatedAt
             where id = :specimenId
@@ -58,6 +66,10 @@ abstract class JdbcSpecimenWorkflowSpecimenMutationSupport extends AbstractJdbcS
             .addValue("specimenType", specimenType)
             .addValue("specimenNameStandardized", specimenNameStandardized)
             .addValue("specimenSite", specimenSite)
+            .addValue("specimenCount", specimenCount)
+            .addValue("specimenSize", specimenSize)
+            .addValue("frozenFlag", frozen ? 1 : 0)
+            .addValue("registrationEvaluationItems", registrationEvaluationItems)
             .addValue("remarks", remarks)
             .addValue("updatedAt", LocalDateTime.now()));
     }
@@ -74,6 +86,9 @@ abstract class JdbcSpecimenWorkflowSpecimenMutationSupport extends AbstractJdbcS
             .addValue("specimenSite", specimen.specimenSite())
             .addValue("collectionMode", specimen.collectionMode())
             .addValue("specimenCount", specimen.specimenCount())
+            .addValue("specimenSize", specimen.specimenSize())
+            .addValue("frozenFlag", specimen.frozen() ? 1 : 0)
+            .addValue("registrationEvaluationItems", specimen.registrationEvaluationItems())
             .addValue("containerName", specimen.containerName())
             .addValue("containerCount", specimen.containerCount())
             .addValue("specimenStatus", specimen.specimenStatus().name())
@@ -99,7 +114,8 @@ abstract class JdbcSpecimenWorkflowSpecimenMutationSupport extends AbstractJdbcS
             jdbcTemplate.update("""
                 insert into specimens
                     (id, application_id, case_id, specimen_no, barcode, specimen_type, specimen_name_standardized,
-                     specimen_site, collection_mode, specimen_count, container_name, container_count,
+                     specimen_site, collection_mode, specimen_count, specimen_size, frozen_flag, registration_evaluation_items,
+                     container_name, container_count,
                      specimen_status, fixation_status, qualified_flag,
                      unqualified_reason, clinical_symptom, applicant_department_id, applicant_department_name,
                      applicant_doctor_user_id, applicant_doctor_name, submission_date, label_print_batch_no,
@@ -107,7 +123,8 @@ abstract class JdbcSpecimenWorkflowSpecimenMutationSupport extends AbstractJdbcS
                      remarks, created_at, updated_at)
                 values
                     (:id, :applicationId, :caseId, :specimenNo, :barcode, :specimenType, :specimenNameStandardized,
-                     :specimenSite, :collectionMode, :specimenCount, :containerName, :containerCount,
+                     :specimenSite, :collectionMode, :specimenCount, :specimenSize, :frozenFlag, :registrationEvaluationItems,
+                     :containerName, :containerCount,
                      :specimenStatus, :fixationStatus, :qualifiedFlag,
                      :unqualifiedReason, :clinicalSymptom, :applicantDepartmentId, :applicantDepartmentName,
                      :applicantDoctorUserId, :applicantDoctorName, :submissionDate, :labelPrintBatchNo,
@@ -118,7 +135,7 @@ abstract class JdbcSpecimenWorkflowSpecimenMutationSupport extends AbstractJdbcS
             jdbcTemplate.update("""
                 insert into specimens
                     (id, application_id, case_id, specimen_no, barcode, specimen_type, specimen_name_standardized,
-                     specimen_site, collection_mode, specimen_count,
+                     specimen_site, collection_mode, specimen_count, specimen_size, frozen_flag, registration_evaluation_items,
                      specimen_status, fixation_status, qualified_flag,
                      unqualified_reason, clinical_symptom, applicant_department_id, applicant_department_name,
                      applicant_doctor_user_id, applicant_doctor_name, submission_date, label_print_batch_no,
@@ -126,7 +143,7 @@ abstract class JdbcSpecimenWorkflowSpecimenMutationSupport extends AbstractJdbcS
                      remarks, created_at, updated_at)
                 values
                     (:id, :applicationId, :caseId, :specimenNo, :barcode, :specimenType, :specimenNameStandardized,
-                     :specimenSite, :collectionMode, :specimenCount,
+                     :specimenSite, :collectionMode, :specimenCount, :specimenSize, :frozenFlag, :registrationEvaluationItems,
                      :specimenStatus, :fixationStatus, :qualifiedFlag,
                      :unqualifiedReason, :clinicalSymptom, :applicantDepartmentId, :applicantDepartmentName,
                      :applicantDoctorUserId, :applicantDoctorName, :submissionDate, :labelPrintBatchNo,
@@ -316,6 +333,78 @@ abstract class JdbcSpecimenWorkflowSpecimenMutationSupport extends AbstractJdbcS
             .addValue("verificationCompletedAt", verificationCompletedAt)
             .addValue("verifiedByUserId", verifiedByUserId)
             .addValue("verifiedByName", verifiedByName)
+            .addValue("terminalCode", terminalCode)
+            .addValue("remarks", remarks));
+    }
+
+    public void verifySpecimenImmediately(String applicationId,
+                                          String specimenId,
+                                          String verifiedByUserId,
+                                          String verifiedByName,
+                                          LocalDateTime verificationCompletedAt,
+                                          String terminalCode,
+                                          String remarks) {
+        Long count = jdbcTemplate.queryForObject("""
+            select count(1)
+            from specimen_fixation_records
+            where specimen_id = :specimenId
+            """, Map.of("specimenId", specimenId), Long.class);
+        if (count != null && count > 0) {
+            jdbcTemplate.update("""
+                update specimen_fixation_records
+                set verification_started_at = :verificationCompletedAt,
+                    verification_completed_at = :verificationCompletedAt,
+                    verified_at = :verificationCompletedAt,
+                    verified_by_user_id = :verifiedByUserId,
+                    verified_by_name = :verifiedByName,
+                    terminal_code = :terminalCode,
+                    remarks = :remarks
+                where specimen_id = :specimenId
+                """, new MapSqlParameterSource()
+                .addValue("specimenId", specimenId)
+                .addValue("verificationCompletedAt", verificationCompletedAt)
+                .addValue("verifiedByUserId", verifiedByUserId)
+                .addValue("verifiedByName", verifiedByName)
+                .addValue("terminalCode", terminalCode)
+                .addValue("remarks", remarks));
+            return;
+        }
+        jdbcTemplate.update("""
+            insert into specimen_fixation_records
+                (id, application_id, specimen_id, fixation_status, verification_started_at,
+                 verification_completed_at, verified_at, verified_by_user_id, verified_by_name,
+                 terminal_code, remarks)
+            values
+                (:id, :applicationId, :specimenId, :fixationStatus, :verificationCompletedAt,
+                 :verificationCompletedAt, :verificationCompletedAt, :verifiedByUserId, :verifiedByName,
+                 :terminalCode, :remarks)
+            """, new MapSqlParameterSource()
+            .addValue("id", nextId("SFR"))
+            .addValue("applicationId", applicationId)
+            .addValue("specimenId", specimenId)
+            .addValue("fixationStatus", FixationStatus.COMPLETED.name())
+            .addValue("verificationCompletedAt", verificationCompletedAt)
+            .addValue("verifiedByUserId", verifiedByUserId)
+            .addValue("verifiedByName", verifiedByName)
+            .addValue("terminalCode", terminalCode)
+            .addValue("remarks", remarks));
+    }
+
+    public void cancelSpecimenVerification(String specimenId,
+                                           String terminalCode,
+                                           String remarks) {
+        jdbcTemplate.update("""
+            update specimen_fixation_records
+            set verification_started_at = null,
+                verification_completed_at = null,
+                verified_at = null,
+                verified_by_user_id = null,
+                verified_by_name = null,
+                terminal_code = :terminalCode,
+                remarks = :remarks
+            where specimen_id = :specimenId
+            """, new MapSqlParameterSource()
+            .addValue("specimenId", specimenId)
             .addValue("terminalCode", terminalCode)
             .addValue("remarks", remarks));
     }

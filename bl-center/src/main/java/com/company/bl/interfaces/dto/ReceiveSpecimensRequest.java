@@ -30,6 +30,11 @@ public class ReceiveSpecimensRequest {
     @Size(max = 100)
     private String receivedByName;
 
+    @Schema(description = "物流人员姓名", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotBlank
+    @Size(max = 100)
+    private String logisticsStaffName;
+
     @Schema(description = "终端编码")
     @Size(max = 64)
     private String terminalCode;

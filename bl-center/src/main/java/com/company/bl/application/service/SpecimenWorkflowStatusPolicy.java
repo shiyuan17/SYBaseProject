@@ -1,5 +1,6 @@
 package com.company.bl.application.service;
 
+import com.company.bl.domain.enums.FixationStatus;
 import com.company.bl.domain.enums.SpecimenStatus;
 import com.company.bl.domain.enums.TransportItemStatus;
 import com.company.bl.domain.enums.TransportOrderStatus;
@@ -78,6 +79,49 @@ class SpecimenWorkflowStatusPolicy {
 
     String commandCheckInStatus(Specimen specimen) {
         return blank(specimen.checkInStatus()) ? "NOT_CHECKED_IN" : specimen.checkInStatus().trim().toUpperCase();
+    }
+
+    boolean canCheckInApplication(List<Specimen> specimens) {
+        return !specimens.isEmpty() && specimens.stream().allMatch(this::isCheckInSatisfiedOrReady);
+    }
+
+    boolean canTransportApplication(List<Specimen> specimens) {
+        return !specimens.isEmpty() && specimens.stream().allMatch(this::isTransportReady);
+    }
+
+    private boolean isCheckInSatisfiedOrReady(Specimen specimen) {
+        if (isReceiptTerminalStatus(specimen.specimenStatus())) {
+            return false;
+        }
+        if ("CHECKED_IN".equals(commandCheckInStatus(specimen))) {
+            return true;
+        }
+        return isVerificationCompleted(specimen)
+            && specimen.fixationStatus() == FixationStatus.COMPLETED
+            && specimen.specimenConfirmedAt() != null;
+    }
+
+    private boolean isTransportReady(Specimen specimen) {
+        return !isReceiptTerminalStatus(specimen.specimenStatus())
+            && specimen.specimenStatus() == SpecimenStatus.CHECKED_IN
+            && "CHECKED_IN".equals(commandCheckInStatus(specimen));
+    }
+
+    private boolean isVerificationCompleted(Specimen specimen) {
+        if ("VERIFIED".equals(normalizeStatus(specimen.verificationStatus()))) {
+            return true;
+        }
+        if (specimen.verificationCompletedAt() != null) {
+            return true;
+        }
+        return specimen.specimenStatus() == SpecimenStatus.VERIFIED
+            || specimen.specimenStatus() == SpecimenStatus.FIXING
+            || specimen.specimenStatus() == SpecimenStatus.FIXED
+            || specimen.specimenStatus() == SpecimenStatus.CHECKED_IN
+            || specimen.specimenStatus() == SpecimenStatus.IN_TRANSIT
+            || specimen.specimenStatus() == SpecimenStatus.RECEIVED
+            || specimen.specimenStatus() == SpecimenStatus.REJECTED
+            || specimen.specimenStatus() == SpecimenStatus.RETURNED;
     }
 
     private int labelPrintStatusPriority(String status) {

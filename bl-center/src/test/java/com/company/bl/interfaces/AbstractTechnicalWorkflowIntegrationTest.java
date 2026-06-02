@@ -37,15 +37,18 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
                                                                  String submittingDepartmentName) throws Exception {
         TechnicalCaseContext registrationContext =
             receiveCaseAndGetPendingRegistration(applicationNo, barcode, submittingDepartmentId, submittingDepartmentName);
-        completeTechnicalSpecimenRegistration(registrationContext.caseId(), "auto registration");
+        JsonNode completionResult =
+            completeTechnicalSpecimenRegistration(registrationContext.caseId(), "auto registration");
+        String pathologyNo = completionResult.path("pathologyNo").asText();
 
-        JsonNode pendingTasks = listPendingTasks("GROSSING", registrationContext.pathologyNo(), USER_M3_GROSSING);
+        JsonNode pendingTasks = listPendingTasks("GROSSING", pathologyNo, USER_M3_GROSSING);
         String grossingTaskId = pendingTasks.path("items").get(0).path("id").asText();
 
         return new TechnicalCaseContext(
             registrationContext.applicationId(),
+            registrationContext.applicationNo(),
             registrationContext.caseId(),
-            registrationContext.pathologyNo(),
+            pathologyNo,
             registrationContext.specimenId(),
             registrationContext.barcode(),
             grossingTaskId);
@@ -84,8 +87,10 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
             """.formatted(actualBarcode)), 200);
 
         String caseId = receipt.path("caseId").asText();
-        String pathologyNo = receipt.path("pathologyNo").asText();
-        return new TechnicalCaseContext(applicationId, caseId, pathologyNo, specimenId, actualBarcode, null);
+        String pathologyNo = receipt.path("pathologyNo").isNull()
+            ? null
+            : receipt.path("pathologyNo").asText();
+        return new TechnicalCaseContext(applicationId, applicationNo, caseId, pathologyNo, specimenId, actualBarcode, null);
     }
 
     protected JsonNode listPendingTechnicalSpecimenRegistrations(String keyword, String userId) throws Exception {
@@ -146,6 +151,30 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
             .content(content)), 200);
     }
 
+    protected JsonNode verifyTechnicalSpecimenRegistrationMaterial(
+        String caseId,
+        String specimenId,
+        String userId,
+        String content
+    ) throws Exception {
+        return responseBody(postJson(
+            "/api/v1/technical-specimen-registrations/%s/materials/%s/verify".formatted(caseId, specimenId),
+            userId,
+            content), 200);
+    }
+
+    protected JsonNode cancelTechnicalSpecimenRegistrationMaterialVerification(
+        String caseId,
+        String specimenId,
+        String userId,
+        String content
+    ) throws Exception {
+        return responseBody(postJson(
+            "/api/v1/technical-specimen-registrations/%s/materials/%s/cancel-verification".formatted(caseId, specimenId),
+            userId,
+            content), 200);
+    }
+
     protected JsonNode saveTechnicalSpecimenRegistrationDetailSections(String caseId, String userId, String content) throws Exception {
         return responseBody(mockMvc.perform(authorized(
                 patch("/api/v1/technical-specimen-registrations/{caseId}/detail-sections", caseId),
@@ -161,11 +190,14 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
     }
 
     protected JsonNode listPendingTasks(String taskType, String pathologyNo, String userId) throws Exception {
-        ResultActions action = mockMvc.perform(authorized(get("/api/v1/technical-tasks/pending"), userId)
+        var requestBuilder = authorized(get("/api/v1/technical-tasks/pending"), userId)
             .param("page", "1")
             .param("size", "20")
-            .param("taskType", taskType)
-            .param("pathologyNo", pathologyNo));
+            .param("taskType", taskType);
+        if (pathologyNo != null && !pathologyNo.isBlank()) {
+            requestBuilder.param("pathologyNo", pathologyNo);
+        }
+        ResultActions action = mockMvc.perform(requestBuilder);
         return responseBody(action, 200);
     }
 
@@ -201,6 +233,7 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
 
     protected record TechnicalCaseContext(
         String applicationId,
+        String applicationNo,
         String caseId,
         String pathologyNo,
         String specimenId,

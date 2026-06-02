@@ -2,15 +2,18 @@ package com.company.bl.interfaces;
 
 import com.company.bl.BlCenterApplication;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -22,6 +25,57 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @SpringBootTest(classes = BlCenterApplication.class)
 class ApplicationCrudAndWorkflowLockIntegrationTest extends AbstractApplicationControllerIntegrationTest {
+
+    @BeforeEach
+    void seedPatients() {
+        insertPatient("P-1001", "P-1001", "P-1001", "P-1001", "Patient 1001");
+        insertPatient("P-UPDATE-001", "P-UPDATE-001", "P-UPDATE-001", "P-UPDATE-001", "Patient Update");
+        insertPatient("P-VOID-001", "P-VOID-001", "P-VOID-001", "P-VOID-001", "Patient Void");
+        insertPatient(
+            "P-DOWNSTREAM-LOCK",
+            "P-DOWNSTREAM-LOCK",
+            "P-DOWNSTREAM-LOCK",
+            "P-DOWNSTREAM-LOCK",
+            "Patient Locked");
+        insertPatient("P-AUTO-001", "P-AUTO-001", "P-AUTO-001", "P-AUTO-001", "Patient Auto");
+    }
+
+    private void insertPatient(
+        String id,
+        String patientNo,
+        String inpatientNo,
+        String outpatientNo,
+        String name
+    ) {
+        jdbcTemplate.getJdbcOperations().execute("""
+                create table if not exists patients (
+                    id varchar(64) primary key,
+                    patient_no varchar(64),
+                    name varchar(100),
+                    gender varchar(16),
+                    age varchar(32),
+                    inpatient_no varchar(64),
+                    outpatient_no varchar(64),
+                    created_at timestamp,
+                    updated_at timestamp
+                )
+                """);
+        jdbcTemplate.update(
+            "delete from patients where id = :id",
+            new MapSqlParameterSource().addValue("id", id));
+        jdbcTemplate.update("""
+                insert into patients
+                    (id, patient_no, name, gender, age, inpatient_no, outpatient_no, created_at, updated_at)
+                values
+                    (:id, :patientNo, :name, 'M', '45', :inpatientNo, :outpatientNo, current_timestamp, current_timestamp)
+                """,
+            new MapSqlParameterSource()
+                .addValue("id", id)
+                .addValue("patientNo", patientNo)
+                .addValue("name", name)
+                .addValue("inpatientNo", inpatientNo)
+                .addValue("outpatientNo", outpatientNo));
+    }
 
     @Test
     void shouldCreateApplicationWhenRequestIsValid() throws Exception {
@@ -66,6 +120,75 @@ class ApplicationCrudAndWorkflowLockIntegrationTest extends AbstractApplicationC
                 containsString("Application type must not be blank")
             )))
             .andExpect(jsonPath("$.traceId", notNullValue()));
+    }
+
+    @Test
+    void shouldResolvePatientIdentifierToPatientPrimaryKeyWhenCreatingApplication() throws Exception {
+        insertPatient(
+            "PATIENT-LINK-001",
+            "PATIENT-NO-001",
+            "INPATIENT-001",
+            "OUTPATIENT-001",
+            "关联患者");
+
+        JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "APP-LINK-%s",
+                      "applicationType": "ROUTINE",
+                      "patientId": "PATIENT-NO-001",
+                      "patientName": "关联患者",
+                      "applicationDate": "2026-05-21",
+                      "submissionDate": "2026-05-22",
+                      "applicationFormStatus": "PENDING",
+                      "clinicalDiagnosis": "identifier link"
+                    }
+                    """.formatted(System.nanoTime()))), 201);
+        String applicationId = created.path("id").asText();
+
+        mockMvc.perform(authorized(get("/api/v1/applications/{id}", applicationId), USER_TRACKING))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.patientId").value("PATIENT-LINK-001"))
+            .andExpect(jsonPath("$.data.patientIdentifier").value("PATIENT-NO-001"))
+            .andExpect(jsonPath("$.data.patientName").value("关联患者"));
+    }
+
+    @Test
+    void shouldAutoCreatePatientWhenIdentifierDoesNotExist() throws Exception {
+        JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "APP-AUTO-PATIENT-%s",
+                      "applicationType": "ROUTINE",
+                      "patientId": "PATIENT-NO-AUTO-001",
+                      "patientName": "自动建档患者",
+                      "patientGender": "F",
+                      "patientAge": "30",
+                      "applicationDate": "2026-05-21",
+                      "submissionDate": "2026-05-22",
+                      "applicationFormStatus": "PENDING",
+                      "clinicalDiagnosis": "auto create patient"
+                    }
+                    """.formatted(System.nanoTime()))), 201);
+        String applicationId = created.path("id").asText();
+
+        mockMvc.perform(authorized(get("/api/v1/applications/{id}", applicationId), USER_TRACKING))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.patientId", not("PATIENT-NO-AUTO-001")))
+            .andExpect(jsonPath("$.data.patientIdentifier").value("PATIENT-NO-AUTO-001"))
+            .andExpect(jsonPath("$.data.patientName").value("自动建档患者"))
+            .andExpect(jsonPath("$.data.patientGender").value("F"))
+            .andExpect(jsonPath("$.data.patientAge").value("30"));
+
+        jdbcTemplate.queryForObject("""
+                select id
+                from patients
+                where patient_no = :patientNo
+                """,
+            new MapSqlParameterSource().addValue("patientNo", "PATIENT-NO-AUTO-001"),
+            String.class);
     }
 
     @Test
@@ -125,6 +248,51 @@ class ApplicationCrudAndWorkflowLockIntegrationTest extends AbstractApplicationC
             .andExpect(jsonPath("$.data.editable").value(true))
             .andExpect(jsonPath("$.data.deletable").value(true))
             .andExpect(jsonPath("$.data.voided").value(false));
+    }
+
+    @Test
+    void shouldAutoCreatePatientWhenUpdatingApplicationToNewIdentifier() throws Exception {
+        JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "APP-UPDATE-AUTO-%s",
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-UPDATE-001",
+                      "patientName": "Patient Before Auto Update",
+                      "applicationDate": "2026-05-20",
+                      "submissionDate": "2026-05-21",
+                      "applicationFormStatus": "PENDING",
+                      "clinicalDiagnosis": "before auto update"
+                    }
+                    """.formatted(System.nanoTime()))), 201);
+        String applicationId = created.path("id").asText();
+
+        mockMvc.perform(authorized(patch("/api/v1/applications/{id}", applicationId), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "APP-UPDATE-AUTO-FINAL",
+                      "applicationType": "ROUTINE",
+                      "patientId": "PATIENT-NO-UPDATE-AUTO-001",
+                      "patientName": "Patient Auto Updated",
+                      "patientGender": "M",
+                      "patientAge": "41",
+                      "applicationDate": "2026-05-22",
+                      "submissionDate": "2026-05-23",
+                      "applicationFormStatus": "UPLOADED",
+                      "clinicalDiagnosis": "after auto update"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(applicationId));
+
+        mockMvc.perform(authorized(get("/api/v1/applications/{id}", applicationId), USER_TRACKING))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.patientId", not("PATIENT-NO-UPDATE-AUTO-001")))
+            .andExpect(jsonPath("$.data.patientIdentifier").value("PATIENT-NO-UPDATE-AUTO-001"))
+            .andExpect(jsonPath("$.data.patientName").value("Patient Auto Updated"))
+            .andExpect(jsonPath("$.data.patientAge").value("41"));
     }
 
     @Test

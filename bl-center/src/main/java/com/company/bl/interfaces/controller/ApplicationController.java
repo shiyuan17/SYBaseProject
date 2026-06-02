@@ -1,9 +1,12 @@
 package com.company.bl.interfaces.controller;
 
+import com.company.bl.application.service.ApplicationPatientIdentityResolver;
 import com.company.bl.application.service.CreateApplicationAppService;
 import com.company.bl.application.service.SpecimenWorkflowAppService;
 import com.company.bl.application.service.SpecimenWorkflowQueryModels;
 import com.company.bl.application.service.UpdateApplicationAppService;
+import com.company.bl.domain.enums.BlErrorCode;
+import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.domain.model.ApplicationTracking;
 import com.company.bl.domain.model.Specimen;
 import com.company.bl.interfaces.assembler.ApplicationRepresentationAssembler;
@@ -16,6 +19,7 @@ import com.company.bl.interfaces.vo.ApplicationDuplicateCheckItemResponse;
 import com.company.bl.interfaces.vo.ApplicationDuplicateCheckResponse;
 import com.company.bl.interfaces.vo.ApplicationIdResponse;
 import com.company.bl.interfaces.vo.ApplicationListItemResponse;
+import com.company.bl.interfaces.vo.ApplicationPatientLookupResponse;
 import com.company.bl.interfaces.vo.ApplicationPageResponse;
 import com.company.bl.interfaces.vo.SpecimenSummaryResponse;
 import com.company.bl.interfaces.vo.TrackingEventResponse;
@@ -54,6 +58,7 @@ public class ApplicationController {
     private final UpdateApplicationAppService updateApplicationAppService;
     private final SpecimenWorkflowAppService specimenWorkflowAppService;
     private final ApplicationRepresentationAssembler applicationRepresentationAssembler;
+    private final ApplicationPatientIdentityResolver patientIdentityResolver;
 
     @Operation(summary = "创建病理申请单", description = "创建新的病理申请单。")
     @ApiResponses(@ApiResponse(responseCode = "201", description = "创建成功", useReturnTypeSchema = true))
@@ -160,6 +165,23 @@ public class ApplicationController {
         return toDetailResponse(tracking);
     }
 
+    @Operation(summary = "按患者标识查询患者", description = "按患者编号、住院号、门诊号或患者主键查询患者基础信息。")
+    @RequirePermission(M2PermissionCodes.APPLICATION_CREATE)
+    @GetMapping("/patient-lookup")
+    public ApplicationPatientLookupResponse lookupPatient(
+        @Parameter(description = "患者编号、住院号、门诊号或患者主键 ID")
+        @RequestParam("identifier") String identifier
+    ) {
+        ApplicationPatientIdentityResolver.PatientSummary patient = patientIdentityResolver.lookup(identifier)
+            .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "未找到对应患者"));
+        return new ApplicationPatientLookupResponse(
+            patient.patientId(),
+            patient.patientIdentifier(),
+            patient.patientName(),
+            patient.patientGender(),
+            patient.patientAge());
+    }
+
     @Operation(summary = "查询申请单追踪", description = "查询申请单当前节点、标本列表与追踪事件。")
     @RequirePermission(M2PermissionCodes.SPECIMEN_TRACKING_QUERY)
     @GetMapping("/{id}/tracking")
@@ -173,10 +195,14 @@ public class ApplicationController {
             .collect(Collectors.toMap(SpecimenSummaryResponse::id, Function.identity()));
         SpecimenWorkflowQueryModels.ApplicationOperationState operationState =
             specimenWorkflowAppService.resolveApplicationOperationState(tracking.application());
+        String patientIdentifier = patientIdentityResolver.lookup(tracking.application().getPatientId())
+            .map(ApplicationPatientIdentityResolver.PatientSummary::patientIdentifier)
+            .orElse(tracking.application().getPatientId());
         return new ApplicationDetailResponse(
             tracking.application().getId().value(),
             tracking.application().getApplicationNo(),
             tracking.application().getPatientId(),
+            patientIdentifier,
             resolvePatientCheckStatus(tracking),
             tracking.application().getPatientName(),
             tracking.application().getPatientGender(),

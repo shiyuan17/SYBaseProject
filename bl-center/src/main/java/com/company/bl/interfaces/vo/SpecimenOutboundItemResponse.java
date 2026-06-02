@@ -12,6 +12,8 @@ public record SpecimenOutboundItemResponse(
     String applicationId,
     @Schema(description = "申请单号")
     String applicationNo,
+    @Schema(description = "标本条码")
+    String barcode,
     @Schema(description = "标本编号")
     String specimenNo,
     @Schema(description = "患者姓名")
@@ -28,6 +30,10 @@ public record SpecimenOutboundItemResponse(
     String specimenName,
     @Schema(description = "标本状态")
     String specimenStatus,
+    @Schema(description = "送检科室 ID")
+    String submittingDepartmentId,
+    @Schema(description = "送检科室")
+    String submittingDepartmentName,
     @Schema(description = "添加时间")
     String registeredAt,
     @Schema(description = "添加人")

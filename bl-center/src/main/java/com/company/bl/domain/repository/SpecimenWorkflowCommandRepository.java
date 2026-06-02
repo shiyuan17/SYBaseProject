@@ -23,6 +23,10 @@ public interface SpecimenWorkflowCommandRepository {
                                 String specimenType,
                                 String specimenNameStandardized,
                                 String specimenSite,
+                                Integer specimenCount,
+                                String specimenSize,
+                                boolean frozen,
+                                String registrationEvaluationItems,
                                 String remarks);
 
     Specimen insertSpecimen(Specimen specimen);
@@ -66,6 +70,18 @@ public interface SpecimenWorkflowCommandRepository {
                                       LocalDateTime verificationCompletedAt,
                                       String terminalCode,
                                       String remarks);
+
+    void verifySpecimenImmediately(String applicationId,
+                                   String specimenId,
+                                   String verifiedByUserId,
+                                   String verifiedByName,
+                                   LocalDateTime verificationCompletedAt,
+                                   String terminalCode,
+                                   String remarks);
+
+    void cancelSpecimenVerification(String specimenId,
+                                    String terminalCode,
+                                    String remarks);
 
     void confirmSpecimen(String specimenId,
                          LocalDateTime specimenConfirmedAt);
@@ -125,6 +141,8 @@ public interface SpecimenWorkflowCommandRepository {
 
     PathologyCase insertPathologyCase(PathologyCase pathologyCase);
 
+    void updatePathologyCasePathologyNo(String caseId, String pathologyNo);
+
     void insertSpecimenReceipt(String applicationId,
                                String caseId,
                                String specimenId,
@@ -136,6 +154,7 @@ public interface SpecimenWorkflowCommandRepository {
                                String barcode,
                                String receivedByUserId,
                                String receivedByName,
+                               String logisticsStaffName,
                                LocalDateTime receivedAt,
                                String terminalCode,
                                String rejectReason,

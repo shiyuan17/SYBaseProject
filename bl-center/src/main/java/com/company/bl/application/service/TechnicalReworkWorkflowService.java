@@ -30,10 +30,27 @@ class TechnicalReworkWorkflowService {
 
     @Transactional
     TechnicalWorkflowModels.ReworkOrderResult createReworkOrder(TechnicalWorkflowModels.CreateReworkOrderCommand command) {
+        createReworkOrderEntry(command);
+        return new TechnicalWorkflowModels.ReworkOrderResult(command.caseId(), command.reworkType(), TechnicalWorkflowConstants.TASK_PENDING);
+    }
+
+    @Transactional
+    TechnicalWorkflowModels.ReworkOrderResult createAndExecuteReworkOrder(TechnicalWorkflowModels.CreateReworkOrderCommand command) {
+        String reworkOrderId = createReworkOrderEntry(command);
+        return executeReworkOrder(new TechnicalWorkflowModels.ExecuteReworkOrderCommand(
+            reworkOrderId,
+            command.operatorUserId(),
+            command.operatorName(),
+            command.terminalCode(),
+            command.remarks()));
+    }
+
+    private String createReworkOrderEntry(TechnicalWorkflowModels.CreateReworkOrderCommand command) {
         PathologyCase pathologyCase = technicalWorkflowSupport.getCase(command.caseId());
         LocalDateTime now = LocalDateTime.now();
+        String reworkOrderId = technicalWorkflowSupport.nextId("RW");
         technicalWorkflowRepository.insertReworkOrder(new TechnicalWorkflowProcessingRecords.CreateReworkOrderCommand(
-            technicalWorkflowSupport.nextId("RW"),
+            reworkOrderId,
             command.caseId(),
             command.specimenId(),
             command.samplingBlockId(),
@@ -67,7 +84,7 @@ class TechnicalReworkWorkflowService {
         technicalWorkflowSupport.insertWorkflowEvent(pathologyCase.applicationId(), command.specimenId(), command.caseId(),
             TechnicalWorkflowConstants.NODE_REWORK, "CREATE", "SUCCESS", command.operatorUserId(),
             command.operatorName(), command.terminalCode(), command.reason());
-        return new TechnicalWorkflowModels.ReworkOrderResult(command.caseId(), command.reworkType(), TechnicalWorkflowConstants.TASK_PENDING);
+        return reworkOrderId;
     }
 
     @Transactional

@@ -52,6 +52,7 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
             {
               "transportOrderId": "%s",
               "receivedByName": "admin-receiver",
+              "logisticsStaffName": "物流员管理员",
               "terminalCode": "ADMIN-03",
               "items": [
                 {
@@ -100,6 +101,7 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
             {
               "transportOrderId": "TO-DENY-001",
               "receivedByName": "bad-role",
+              "logisticsStaffName": "物流员越权",
               "items": [
                 {
                   "specimenBarcode": "BC-DENY-001",

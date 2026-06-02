@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -49,10 +50,11 @@ class SpecimenWorkflowEndToEndIntegrationTest extends AbstractSpecimenWorkflowIn
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("HANDED_OVER"));
 
-        postJson("/api/v1/specimen-receipts", USER_RECEIVE, """
+        JsonNode receiptResult = responseBody(postJson("/api/v1/specimen-receipts", USER_RECEIVE, """
             {
               "transportOrderId": "%s",
               "receivedByName": "receiver-a",
+              "logisticsStaffName": "物流员甲",
               "terminalCode": "T-02",
               "items": [
                 {
@@ -72,14 +74,25 @@ class SpecimenWorkflowEndToEndIntegrationTest extends AbstractSpecimenWorkflowIn
             """.formatted(transportOrderId, barcode1, barcode2))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.caseId").isNotEmpty())
-            .andExpect(jsonPath("$.data.pathologyNo").isNotEmpty())
+            .andExpect(jsonPath("$.data.pathologyNo").value(nullValue()))
             .andExpect(jsonPath("$.data.receiptStatus").value("RECEIVED"))
-            .andExpect(jsonPath("$.data.unreceivedCount").value(0));
+            .andExpect(jsonPath("$.data.unreceivedCount").value(0)), 200);
+
+        String caseId = receiptResult.path("caseId").asText();
+        postJson("/api/v1/technical-specimen-registrations/%s/complete".formatted(caseId), USER_RECEIVE, """
+            {
+              "terminalCode": "T-M3-REG-E2E",
+              "remarks": "完成标本登记"
+            }
+            """)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.pathologyNo").isNotEmpty())
+            .andExpect(jsonPath("$.data.registrationStatus").value("COMPLETED"));
 
         mockMvc.perform(authorized(get("/api/v1/applications/{id}/tracking", applicationId), USER_TRACKING))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("RECEIVED"))
-            .andExpect(jsonPath("$.data.currentNode").value("RECEPTION"))
+            .andExpect(jsonPath("$.data.currentNode").value("GROSSING"))
             .andExpect(jsonPath("$.data.abnormalFlag").value(false))
             .andExpect(jsonPath("$.data.recentEvents[0].specimenId").isNotEmpty())
             .andExpect(jsonPath("$.data.recentEvents[0].specimenNo").isNotEmpty())
@@ -116,7 +129,7 @@ class SpecimenWorkflowEndToEndIntegrationTest extends AbstractSpecimenWorkflowIn
             """.formatted(barcode))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.caseId").isNotEmpty())
-            .andExpect(jsonPath("$.data.pathologyNo").isNotEmpty())
+            .andExpect(jsonPath("$.data.pathologyNo").value(nullValue()))
             .andExpect(jsonPath("$.data.receiptStatus").value("RECEIVED"))
             .andExpect(jsonPath("$.data.unreceivedCount").value(0));
 

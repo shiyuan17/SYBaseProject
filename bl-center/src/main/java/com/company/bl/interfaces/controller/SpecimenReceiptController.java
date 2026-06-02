@@ -43,6 +43,7 @@ public class SpecimenReceiptController {
                 request.getTransportOrderId(),
                 resolveUserId(request.getReceivedByUserId(), httpServletRequest),
                 request.getReceivedByName(),
+                request.getLogisticsStaffName(),
                 request.getTerminalCode(),
                 request.getItems().stream().map(item -> new SpecimenWorkflowModels.ReceiptItem(
                     item.getSpecimenBarcode(),

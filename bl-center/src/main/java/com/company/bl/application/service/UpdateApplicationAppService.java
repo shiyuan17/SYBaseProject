@@ -23,6 +23,7 @@ public class UpdateApplicationAppService {
     private final ApplicationDomainService applicationDomainService;
     private final ApplicationRepository applicationRepository;
     private final ApplicationRegistrationWorkbenchRepository workbenchRepository;
+    private final ApplicationPatientIdentityResolver patientIdentityResolver;
 
     @Transactional
     @ObservedOperation(
@@ -32,10 +33,15 @@ public class UpdateApplicationAppService {
         durationMetric = "application_update_duration")
     public Application update(String applicationId, UpdateApplicationCommand command) {
         Application application = loadEditableApplication(applicationId);
+        String resolvedPatientId = patientIdentityResolver.resolveOrCreate(
+            command.patientId(),
+            command.patientName(),
+            command.patientGender(),
+            command.patientAge());
         Application updated = applicationDomainService.revise(
             application,
             command.applicationNo(),
-            command.patientId(),
+            resolvedPatientId,
             command.patientName(),
             command.patientGender(),
             command.patientAge(),

@@ -156,6 +156,12 @@ class SpecimenVerificationService {
         if ("CHECKED_IN".equalsIgnoreCase(specimenWorkflowSupport.commandCheckInStatus(specimen))) {
             throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Specimen already checked in");
         }
+        if (!specimenWorkflowSupport.canCheckInApplication(specimen.applicationId())) {
+            throw new BlBusinessException(
+                BlErrorCode.OPERATION_NOT_ALLOWED,
+                409,
+                "All specimens of the application must complete verification, fixation, and confirmation before check-in");
+        }
         LocalDateTime now = LocalDateTime.now();
         specimenWorkflowRepository.checkInSpecimen(
             specimen.id(),

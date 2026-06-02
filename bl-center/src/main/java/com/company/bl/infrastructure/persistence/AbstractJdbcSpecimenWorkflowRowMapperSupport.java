@@ -33,6 +33,9 @@ abstract class AbstractJdbcSpecimenWorkflowRowMapperSupport extends AbstractJdbc
             rs.getString("specimen_site"),
             rs.getString("collection_mode"),
             rs.getObject("specimen_count", Integer.class),
+            JdbcResultSetUtils.getNullableString(rs, "specimen_size"),
+            rs.getInt("frozen_flag") != 0,
+            JdbcResultSetUtils.getNullableString(rs, "registration_evaluation_items"),
             JdbcResultSetUtils.getNullableString(rs, "container_name"),
             JdbcResultSetUtils.getNullableInteger(rs, "container_count"),
             SpecimenStatus.from(rs.getString("specimen_status")),
@@ -44,6 +47,8 @@ abstract class AbstractJdbcSpecimenWorkflowRowMapperSupport extends AbstractJdbc
             rs.getTimestamp("verification_completed_at") == null
                 ? null
                 : rs.getTimestamp("verification_completed_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableString(rs, "verified_by_user_id"),
+            JdbcResultSetUtils.getNullableString(rs, "verified_by_name"),
             JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_removal_at") == null
                 ? null
                 : JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_removal_at").toLocalDateTime(),

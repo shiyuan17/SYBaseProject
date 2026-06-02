@@ -45,5 +45,19 @@ public class TechnicalSpecimenRegistrationMaterialsSaveRequest {
         @Schema(description = "来源部位")
         @Size(max = 255)
         private String sourcePart;
+
+        @Schema(description = "组织数量，默认 1")
+        private Integer tissueCount;
+
+        @Schema(description = "标本大小：大标本、小标本")
+        @Size(max = 32)
+        private String specimenSize;
+
+        @Schema(description = "是否冰冻")
+        private Boolean frozen;
+
+        @Schema(description = "技术登记评价项")
+        @Size(max = 20)
+        private List<@Size(max = 100) String> evaluationItems;
     }
 }
