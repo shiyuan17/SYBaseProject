@@ -27,9 +27,9 @@
 
 推荐格式：
 
-- `feature/JIRA-123-user-authentication`
-- `fix/JIRA-456-order-status`
-- `hotfix/JIRA-789-payment-timeout`
+- `feature/ENG-123-user-authentication`
+- `fix/ENG-456-order-status`
+- `hotfix/ENG-789-payment-timeout`
 - `release/1.2.0`
 - `docs/refresh-engineering-rules`
 - `refactor/split-user-application-service`
@@ -37,6 +37,7 @@
 要求：
 
 - 使用英文小写短语，单词间用 `-`
+- 工单前缀以项目实际使用的工单系统为准（本项目为 Linear，示例 `ENG-123`，参见 `LINEAR_TASK.md`）
 - 如有工单号，必须带上工单号
 - 一个分支只承载一类目标，不得混合多项无关改动
 
@@ -73,6 +74,34 @@
 - `hotfix/*` 合入 `main` 后必须回合并到 `develop`
 - `release/*` 完成后必须同步回 `develop`
 
+### 6. 工作树（Worktree）与 Linear 任务
+
+- **Linear 任务必须在独立 `git worktree` 中处理**，一个 Linear issue 对应一个 worktree + 一个分支，避免在主工作区频繁切换分支、污染未提交改动或交叉影响其他任务
+- 工作树目录统一放在主仓库的同级目录 `../SYBaseProject-worktrees/<issue-id>`，不得置于仓库内部，防止被构建产物（`target/`）或脚本影响
+- 分支命名仍遵循「2. 分支命名」，从 `develop` 切出，例如 `feature/ENG-123-user-authentication`
+- 每个 worktree 是独立工作区，Maven 本地仓库 `~/.m2` 默认共享、无需重复下载依赖，但构建产物 `target/` 与验证（`./mvnw verify`，见 `CODING_RULES.md`）均在对应 worktree 内独立执行
+- 任务合并完成后必须清理：移除 worktree 并删除已合并分支，保持工作树列表整洁
+- 不得多个无关 Linear 任务共用同一 worktree，也不得在 `main`、`develop` 所在主工作区直接开发 Linear 任务
+
+标准操作：
+
+```bash
+# 1. 同步 develop 并为 Linear issue 创建 worktree + 分支
+git fetch origin
+git worktree add -b feature/ENG-123-user-authentication ../SYBaseProject-worktrees/ENG-123 origin/develop
+
+# 2. 进入 worktree 执行验证（Maven 依赖共享 ~/.m2，无需额外安装）
+cd ../SYBaseProject-worktrees/ENG-123
+./mvnw -pl <module> -am verify
+
+# 3. 查看当前所有工作树
+git worktree list
+
+# 4. 任务合并后清理 worktree 与分支
+git worktree remove ../SYBaseProject-worktrees/ENG-123
+git branch -d feature/ENG-123-user-authentication
+```
+
 ## 推荐实践
 
 - 保持分支短生命周期，尽量小步提交、频繁同步 `develop`
@@ -91,8 +120,10 @@
 
 ## 检查清单
 
+- [ ] Linear 任务已在独立 worktree 中处理，目录位于仓库同级 `../SYBaseProject-worktrees/<issue-id>`
 - [ ] 分支类型与命名符合 Git Flow 规范
 - [ ] 提交信息符合 Conventional Commits
+- [ ] 任务合并后已清理对应 worktree 与已合并分支
 - [ ] PR 描述包含目的、影响、验证和风险
 - [ ] 涉及依赖、基础设施、数据库、镜像的变更已附信创兼容说明
 - [ ] Review、CI、冲突处理已完成
