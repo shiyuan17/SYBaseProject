@@ -15,23 +15,25 @@
 开始任务前，必须按以下顺序读取上下文：
 
 1. `AGENTS.md`
-2. `rules/AI-CODE-HEALTH.md`
-3. `rules/CODING_RULES.md`
-4. `rules/XINCHUANG_RULES.md`
-5. `rules/OBSERVABILITY_RULES.md`
-6. `rules/JAVA_RULES.md`
-7. `rules/CLI_RULES.md`
-8. `rules/DDD_RULES.md`
-9. `rules/API_RULES.md`
-10. `rules/DB_RULES.md`
-11. `rules/GIT_RULES.md`
-12. `rules/RELEASE.md`
-13. 任务涉及模块的说明文档与现有源代码
+2. 若任务来源于 Linear issue，先阅读并填写 `rules/LINEAR_TASK.md`
+3. `rules/AI-CODE-HEALTH.md`
+4. `rules/CODING_RULES.md`
+5. `rules/XINCHUANG_RULES.md`
+6. `rules/OBSERVABILITY_RULES.md`
+7. `rules/JAVA_RULES.md`
+8. `rules/CLI_RULES.md`
+9. `rules/DDD_RULES.md`
+10. `rules/API_RULES.md`
+11. `rules/DB_RULES.md`
+12. `rules/GIT_RULES.md`
+13. `rules/RELEASE.md`
+14. 任务涉及模块的说明文档与现有源代码
 
 ### 2. 规范映射表
 
 | 场景 | 必读文档 |
 |---|---|
+| Linear 任务起始信息、验收标准、实施计划与风险回滚 | `rules/LINEAR_TASK.md`（仅 Linear 任务强制） |
 | AI 健康度、代码可维护性、文件健康 | `rules/AI-CODE-HEALTH.md` |
 | 通用编码与测试基线 | `rules/CODING_RULES.md` |
 | 国产化兼容、替代评估、例外审批 | `rules/XINCHUANG_RULES.md` |
@@ -47,6 +49,9 @@
 ### 3. 任务开始模板
 
 开始执行前，AI 必须先给出任务确认，至少包含以下内容：
+
+- 若任务来源于 Linear issue，开始执行前还必须先填写 `rules/LINEAR_TASK.md`，或在回复中完整覆盖其字段。
+- 两者关系：`任务确认` 适用于所有任务，`LINEAR_TASK` 仅用于补充 Linear 任务的来源、验收标准、实施计划与回滚信息。
 
 ```markdown
 ## 任务确认
@@ -139,6 +144,7 @@
 
 ## 关联文档
 
+- [LINEAR_TASK.md](./rules/LINEAR_TASK.md)
 - [AI-CODE-HEALTH.md](./rules/AI-CODE-HEALTH.md)
 - [CODING_RULES.md](./rules/CODING_RULES.md)
 - [XINCHUANG_RULES.md](./rules/XINCHUANG_RULES.md)

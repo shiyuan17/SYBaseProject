@@ -5,6 +5,7 @@
 ## 快速入口
 
 - [AGENTS 协作约定](./AGENTS.md)
+- [Linear 任务起始模板](./rules/LINEAR_TASK.md)
 - [项目目录说明](./guides/PROJECT_DIRECTORY.md)
 - [模板定制说明](./guides/TEMPLATE_CUSTOMIZATION.md)
 - [本地 GitLab 与测试流程](./guides/GITLAB_LOCAL_TEST_FLOW.md)
@@ -23,7 +24,7 @@
 
 ## 目录说明
 
-- `rules/`：工程规则、DDD/API/数据库/Git/CI 等协作规范
+- `rules/`：工程规则、DDD/API/数据库/Git/CI 等协作规范，包含 `LINEAR_TASK.md` 这类任务开工模板
 - `guides/`：项目结构、初始化、运行与操作说明
 - `plans/`：阶段规划、完成说明与治理收口记录
 - `database/`：数据库设计草案与辅助 SQL 资料
