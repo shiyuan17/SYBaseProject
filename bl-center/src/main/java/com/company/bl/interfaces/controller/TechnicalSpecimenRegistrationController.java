@@ -1,12 +1,16 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.GrossingMediaStorageService;
+import com.company.bl.application.service.ApplicationRegistrationWorkbenchAppService;
 import com.company.bl.application.service.TechnicalWorkflowAppService;
 import com.company.bl.application.service.TechnicalWorkflowModels;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
+import com.company.bl.interfaces.dto.SaveApplicationRegistrationPatientInfoRequest;
 import com.company.bl.interfaces.dto.TechnicalSpecimenRegistrationCompleteRequest;
+import com.company.bl.interfaces.dto.TechnicalSpecimenRegistrationDetailSectionsSaveRequest;
 import com.company.bl.interfaces.dto.TechnicalSpecimenRegistrationMaterialsSaveRequest;
+import com.company.bl.interfaces.vo.ApplicationRegistrationWorkbenchResponse;
 import com.company.bl.interfaces.vo.PendingTechnicalSpecimenRegistrationResponse;
 import com.company.bl.interfaces.vo.PendingTechnicalSpecimenRegistrationPageResponse;
 import com.company.bl.interfaces.vo.TechnicalSpecimenRegistrationActionFlagsResponse;
@@ -26,8 +30,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -186,9 +191,35 @@ public class TechnicalSpecimenRegistrationController extends TechnicalController
                 item.capturedAt())).toList(),
             new TechnicalSpecimenRegistrationActionFlagsResponse(
                 workspace.actionFlags().canCompleteRegistration(),
+                workspace.actionFlags().canSaveDetailSections(),
                 workspace.actionFlags().canSaveMaterials(),
                 workspace.actionFlags().canUploadMediaAssets(),
                 workspace.actionFlags().canDeleteMediaAssets()));
+    }
+
+    @Operation(summary = "查询技术登记申请工作台", description = "在接收权限下查询技术标本登记页右侧核对与编辑抽屉所需的申请富字段。")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_RECEIVE)
+    @GetMapping("/{caseId}/application-workbench")
+    public ApplicationRegistrationWorkbenchResponse applicationWorkbench(@PathVariable String caseId) {
+        return ApplicationRegistrationWorkbenchResponseAssembler.toResponse(
+            technicalWorkflowAppService.getTechnicalSpecimenRegistrationApplicationWorkbench(caseId));
+    }
+
+    @Operation(summary = "保存技术登记申请患者信息", description = "在接收权限下保存技术标本登记页编辑申请抽屉中的患者信息。")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_RECEIVE)
+    @PatchMapping("/{caseId}/application-workbench/patient-info")
+    public ApplicationRegistrationWorkbenchResponse saveApplicationWorkbenchPatientInfo(
+        @PathVariable String caseId,
+        @Valid @RequestBody SaveApplicationRegistrationPatientInfoRequest request
+    ) {
+        return ApplicationRegistrationWorkbenchResponseAssembler.toResponse(
+            technicalWorkflowAppService.saveTechnicalSpecimenRegistrationApplicationWorkbenchPatientInfo(
+                caseId,
+                new ApplicationRegistrationWorkbenchAppService.SavePatientInfoCommand(
+                    toContagiousSpecimen(request.getContagiousSpecimen()),
+                    toGynecologyInfo(request.getGynecologyInfo()),
+                    toPatientInfo(request.getPatientInfo()),
+                    toSurgeryInfo(request.getSurgeryInfo()))));
     }
 
     @Operation(summary = "保存技术标本登记材料", description = "批量替换技术登记阶段维护的材料列表。")
@@ -210,6 +241,30 @@ public class TechnicalSpecimenRegistrationController extends TechnicalController
                             item.getSpecimenType(),
                             item.getSpecimenName(),
                             item.getSourcePart())).toList()));
+        return workspace(caseId);
+    }
+
+    @Operation(summary = "保存技术标本登记摘要分区", description = "保存技术登记工作区 6 个摘要卡片的人工覆盖内容。")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_RECEIVE)
+    @PatchMapping("/{caseId}/detail-sections")
+    public TechnicalSpecimenRegistrationWorkspaceResponse saveDetailSections(
+        @PathVariable String caseId,
+        @Valid @RequestBody TechnicalSpecimenRegistrationDetailSectionsSaveRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        technicalWorkflowAppService.saveTechnicalSpecimenRegistrationDetailSections(
+            new TechnicalWorkflowModels.SaveTechnicalSpecimenRegistrationDetailSectionsCommand(
+                caseId,
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode(),
+                new TechnicalWorkflowModels.TechnicalSpecimenRegistrationDetailSections(
+                    request.getDetailSections().getHistorySummary(),
+                    request.getDetailSections().getClinicalExaminationAndSurgeryFindings(),
+                    request.getDetailSections().getLabAndImagingExaminations(),
+                    request.getDetailSections().getClinicalSubmissionRequirements(),
+                    request.getDetailSections().getInfectiousAndPastHistorySummary(),
+                    request.getDetailSections().getExternalPathologyDiagnosis())));
         return workspace(caseId);
     }
 
@@ -271,5 +326,82 @@ public class TechnicalSpecimenRegistrationController extends TechnicalController
             result.pathologyNo(),
             result.registrationStatus(),
             result.grossingTaskCreated());
+    }
+
+    private ApplicationRegistrationWorkbenchAppService.ContagiousSpecimen toContagiousSpecimen(
+        com.company.bl.interfaces.dto.SaveApplicationRegistrationWorkbenchRequest.ContagiousSpecimen request
+    ) {
+        return new ApplicationRegistrationWorkbenchAppService.ContagiousSpecimen(
+            request.isHepatitis(),
+            request.isHiv(),
+            request.isIsolation(),
+            request.isSyphilis(),
+            request.isTuberculosis());
+    }
+
+    private ApplicationRegistrationWorkbenchAppService.GynecologyInfo toGynecologyInfo(
+        com.company.bl.interfaces.dto.SaveApplicationRegistrationWorkbenchRequest.GynecologyInfo request
+    ) {
+        return new ApplicationRegistrationWorkbenchAppService.GynecologyInfo(
+            request.getAdditionalNotes(),
+            request.getHpvResult(),
+            request.getLastMenstrualPeriod(),
+            request.isMenopause(),
+            request.getPreviousCytology(),
+            request.getPreviousTreatment(),
+            new ApplicationRegistrationWorkbenchAppService.SpecialConditions(
+                request.getSpecialConditions().isAbnormalBleeding(),
+                request.getSpecialConditions().isBirthControl(),
+                request.getSpecialConditions().isHormoneReplacement(),
+                request.getSpecialConditions().isHysterectomy(),
+                request.getSpecialConditions().isIud(),
+                request.getSpecialConditions().isLactation(),
+                request.getSpecialConditions().isMenopause(),
+                request.getSpecialConditions().getOther(),
+                request.getSpecialConditions().isPregnancy(),
+                request.getSpecialConditions().isRadiotherapy()));
+    }
+
+    private ApplicationRegistrationWorkbenchAppService.PatientInfo toPatientInfo(
+        com.company.bl.interfaces.dto.SaveApplicationRegistrationWorkbenchRequest.PatientInfo request
+    ) {
+        return new ApplicationRegistrationWorkbenchAppService.PatientInfo(
+            request.getAge(),
+            request.getApplicationDate(),
+            request.getApplicationNo(),
+            request.getApplyDept(),
+            request.getApplyDoctor(),
+            request.getBedNo(),
+            request.getCheckItem(),
+            request.getClinicalDiagnosis(),
+            request.getClinicalHistory(),
+            request.getDeliveryRequirement(),
+            request.getEndoscopyDiagnosis(),
+            request.isFrozenReminder(),
+            request.getGender(),
+            request.getIdNo(),
+            request.getImagingResult(),
+            request.getInpatientNo(),
+            request.getPatientName(),
+            request.isPatientVerified(),
+            request.getPhone(),
+            request.getRegistrationStatus(),
+            request.getRemark(),
+            request.getSpecimenType(),
+            request.getWardName());
+    }
+
+    private ApplicationRegistrationWorkbenchAppService.SurgeryInfo toSurgeryInfo(
+        com.company.bl.interfaces.dto.SaveApplicationRegistrationWorkbenchRequest.SurgeryInfo request
+    ) {
+        return new ApplicationRegistrationWorkbenchAppService.SurgeryInfo(
+            request.getBuildingId(),
+            request.getClinicalFindings(),
+            request.getFixativeType(),
+            request.getFixationPerson(),
+            request.getFixationTime(),
+            request.getRoomId(),
+            request.getSpecimenRemovalTime(),
+            request.getSurgeryName());
     }
 }

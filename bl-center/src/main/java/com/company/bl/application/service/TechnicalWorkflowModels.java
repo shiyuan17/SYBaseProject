@@ -179,6 +179,7 @@ public final class TechnicalWorkflowModels {
 
     public record TechnicalSpecimenRegistrationActionFlags(
         boolean canCompleteRegistration,
+        boolean canSaveDetailSections,
         boolean canSaveMaterials,
         boolean canUploadMediaAssets,
         boolean canDeleteMediaAssets
@@ -370,6 +371,19 @@ public final class TechnicalWorkflowModels {
         String specimenName,
         String sourcePart
     ) {
+    }
+
+    public record SaveTechnicalSpecimenRegistrationDetailSectionsCommand(
+        String caseId,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        TechnicalSpecimenRegistrationDetailSections detailSections
+    ) implements OperatorCarrier {
+        @Override
+        public String remarks() {
+            return null;
+        }
     }
 
     public record UploadTechnicalSpecimenRegistrationMediaAssetCommand(

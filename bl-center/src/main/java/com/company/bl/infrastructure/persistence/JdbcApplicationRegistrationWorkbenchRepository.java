@@ -58,6 +58,12 @@ public class JdbcApplicationRegistrationWorkbenchRepository implements Applicati
             condition_pregnancy INTEGER DEFAULT 0,
             condition_radiotherapy INTEGER DEFAULT 0,
             other_special_condition VARCHAR(500),
+            technical_history_summary_override VARCHAR(1000),
+            technical_clinical_exam_surgery_override VARCHAR(1000),
+            technical_lab_imaging_override VARCHAR(1000),
+            technical_submission_requirement_override VARCHAR(1000),
+            technical_infectious_past_history_override VARCHAR(1000),
+            technical_external_pathology_diagnosis_override VARCHAR(1000),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             CONSTRAINT pk_application_registration_workbench PRIMARY KEY (application_id),
@@ -96,9 +102,27 @@ public class JdbcApplicationRegistrationWorkbenchRepository implements Applicati
     }
 
     @Override
+    public Optional<TechnicalRegistrationDetailSectionOverrides> findTechnicalRegistrationDetailSectionOverridesByApplicationId(
+        String applicationId) {
+        ensureWorkbenchTableExists();
+        return withWorkbenchTable(() ->
+            extensionSupport.findTechnicalRegistrationDetailSectionOverridesByApplicationId(applicationId));
+    }
+
+    @Override
     public void upsertExtension(SaveWorkbenchExtensionCommand command) {
         withWorkbenchTable(() -> {
             extensionSupport.upsertExtension(command);
+            return null;
+        });
+    }
+
+    @Override
+    public void upsertTechnicalRegistrationDetailSectionOverrides(
+        SaveTechnicalRegistrationDetailSectionOverridesCommand command) {
+        ensureWorkbenchTableExists();
+        withWorkbenchTable(() -> {
+            extensionSupport.upsertTechnicalRegistrationDetailSectionOverrides(command);
             return null;
         });
     }
@@ -238,6 +262,7 @@ public class JdbcApplicationRegistrationWorkbenchRepository implements Applicati
 
     private synchronized void ensureWorkbenchTableExists() {
         if (workbenchTableReady || canAccessWorkbenchTable()) {
+            ensureWorkbenchTableColumns();
             workbenchTableReady = true;
             return;
         }
@@ -261,7 +286,38 @@ public class JdbcApplicationRegistrationWorkbenchRepository implements Applicati
         } catch (DataAccessException ignored) {
             // Ignore duplicate-index style errors after the table is already accessible.
         }
+        ensureWorkbenchTableColumns();
         workbenchTableReady = true;
+    }
+
+    private void ensureWorkbenchTableColumns() {
+        ensureWorkbenchColumn(
+            "technical_history_summary_override",
+            "VARCHAR(1000)");
+        ensureWorkbenchColumn(
+            "technical_clinical_exam_surgery_override",
+            "VARCHAR(1000)");
+        ensureWorkbenchColumn(
+            "technical_lab_imaging_override",
+            "VARCHAR(1000)");
+        ensureWorkbenchColumn(
+            "technical_submission_requirement_override",
+            "VARCHAR(1000)");
+        ensureWorkbenchColumn(
+            "technical_infectious_past_history_override",
+            "VARCHAR(1000)");
+        ensureWorkbenchColumn(
+            "technical_external_pathology_diagnosis_override",
+            "VARCHAR(1000)");
+    }
+
+    private void ensureWorkbenchColumn(String columnName, String columnDefinition) {
+        try {
+            jdbcTemplate.getJdbcOperations().execute(
+                "alter table application_registration_workbench add " + columnName + " " + columnDefinition);
+        } catch (DataAccessException ignored) {
+            // Ignore duplicate-column style errors after the column is already accessible.
+        }
     }
 
     private boolean canAccessWorkbenchTable() {

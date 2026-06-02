@@ -11,7 +11,13 @@ public interface ApplicationRegistrationWorkbenchRepository {
 
     Optional<WorkbenchExtensionData> findExtensionByApplicationId(String applicationId);
 
+    Optional<TechnicalRegistrationDetailSectionOverrides> findTechnicalRegistrationDetailSectionOverridesByApplicationId(
+        String applicationId);
+
     void upsertExtension(SaveWorkbenchExtensionCommand command);
+
+    void upsertTechnicalRegistrationDetailSectionOverrides(
+        SaveTechnicalRegistrationDetailSectionOverridesCommand command);
 
     void updateApplicationEditableFields(String applicationId,
                                          String clinicalDiagnosis,
@@ -124,6 +130,27 @@ public interface ApplicationRegistrationWorkbenchRepository {
         boolean conditionPregnancy,
         boolean conditionRadiotherapy,
         String otherSpecialCondition
+    ) {
+    }
+
+    record TechnicalRegistrationDetailSectionOverrides(
+        String historySummaryOverride,
+        String clinicalExaminationAndSurgeryFindingsOverride,
+        String labAndImagingExaminationsOverride,
+        String clinicalSubmissionRequirementsOverride,
+        String infectiousAndPastHistorySummaryOverride,
+        String externalPathologyDiagnosisOverride
+    ) {
+    }
+
+    record SaveTechnicalRegistrationDetailSectionOverridesCommand(
+        String applicationId,
+        String historySummaryOverride,
+        String clinicalExaminationAndSurgeryFindingsOverride,
+        String labAndImagingExaminationsOverride,
+        String clinicalSubmissionRequirementsOverride,
+        String infectiousAndPastHistorySummaryOverride,
+        String externalPathologyDiagnosisOverride
     ) {
     }
 

@@ -44,6 +44,11 @@ public class ApplicationRegistrationWorkbenchAppService {
     }
 
     @Transactional(readOnly = true)
+    public WorkbenchRecord getByApplicationId(String applicationId) {
+        return loadByApplicationId(applicationId);
+    }
+
+    @Transactional(readOnly = true)
     public List<ApplicationRegistrationWorkbenchRepository.OperatingBuildingOption> listOperatingBuildingOptions() {
         return workbenchRepository.listOperatingBuildingOptions();
     }

@@ -51,9 +51,27 @@ public class TechnicalWorkflowAppService {
         return technicalSpecimenRegistrationService.getRegistrationWorkspace(caseId);
     }
 
+    public ApplicationRegistrationWorkbenchAppService.WorkbenchRecord getTechnicalSpecimenRegistrationApplicationWorkbench(
+        String caseId
+    ) {
+        return technicalSpecimenRegistrationService.getApplicationWorkbench(caseId);
+    }
+
+    public ApplicationRegistrationWorkbenchAppService.WorkbenchRecord saveTechnicalSpecimenRegistrationApplicationWorkbenchPatientInfo(
+        String caseId,
+        ApplicationRegistrationWorkbenchAppService.SavePatientInfoCommand command
+    ) {
+        return technicalSpecimenRegistrationService.saveApplicationWorkbenchPatientInfo(caseId, command);
+    }
+
     public TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace saveTechnicalSpecimenRegistrationMaterials(
         TechnicalWorkflowModels.SaveTechnicalSpecimenRegistrationMaterialsCommand command) {
         return technicalSpecimenRegistrationService.saveRegistrationMaterials(command);
+    }
+
+    public TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace saveTechnicalSpecimenRegistrationDetailSections(
+        TechnicalWorkflowModels.SaveTechnicalSpecimenRegistrationDetailSectionsCommand command) {
+        return technicalSpecimenRegistrationService.saveRegistrationDetailSections(command);
     }
 
     public TechnicalWorkflowModels.TechnicalSpecimenRegistrationMediaAsset uploadTechnicalSpecimenRegistrationMediaAsset(

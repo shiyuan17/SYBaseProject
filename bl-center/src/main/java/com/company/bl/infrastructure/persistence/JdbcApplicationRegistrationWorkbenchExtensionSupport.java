@@ -5,10 +5,14 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 class JdbcApplicationRegistrationWorkbenchExtensionSupport {
 
@@ -24,6 +28,17 @@ class JdbcApplicationRegistrationWorkbenchExtensionSupport {
                 from application_registration_workbench
                 where application_id = :applicationId
                 """, Map.of("applicationId", applicationId), this::mapWorkbenchExtensionData)
+            .stream()
+            .findFirst();
+    }
+
+    Optional<ApplicationRegistrationWorkbenchRepository.TechnicalRegistrationDetailSectionOverrides>
+    findTechnicalRegistrationDetailSectionOverridesByApplicationId(String applicationId) {
+        return jdbcTemplate.query("""
+                select *
+                from application_registration_workbench
+                where application_id = :applicationId
+                """, Map.of("applicationId", applicationId), this::mapTechnicalRegistrationDetailSectionOverrides)
             .stream()
             .findFirst();
     }
@@ -172,6 +187,55 @@ class JdbcApplicationRegistrationWorkbenchExtensionSupport {
             """, parameters);
     }
 
+    void upsertTechnicalRegistrationDetailSectionOverrides(
+        ApplicationRegistrationWorkbenchRepository.SaveTechnicalRegistrationDetailSectionOverridesCommand command) {
+        Long count = jdbcTemplate.queryForObject("""
+            select count(1)
+            from application_registration_workbench
+            where application_id = :applicationId
+            """, Map.of("applicationId", command.applicationId()), Long.class);
+        MapSqlParameterSource parameters = technicalRegistrationOverrideParameters(command)
+            .addValue("updatedAt", LocalDateTime.now())
+            .addValue("createdAt", LocalDateTime.now());
+        if (count != null && count > 0) {
+            jdbcTemplate.update("""
+                update application_registration_workbench
+                set technical_history_summary_override = :historySummaryOverride,
+                    technical_clinical_exam_surgery_override = :clinicalExaminationAndSurgeryFindingsOverride,
+                    technical_lab_imaging_override = :labAndImagingExaminationsOverride,
+                    technical_submission_requirement_override = :clinicalSubmissionRequirementsOverride,
+                    technical_infectious_past_history_override = :infectiousAndPastHistorySummaryOverride,
+                    technical_external_pathology_diagnosis_override = :externalPathologyDiagnosisOverride,
+                    updated_at = :updatedAt
+                where application_id = :applicationId
+                """, parameters);
+            return;
+        }
+        jdbcTemplate.update("""
+            insert into application_registration_workbench (
+                application_id,
+                technical_history_summary_override,
+                technical_clinical_exam_surgery_override,
+                technical_lab_imaging_override,
+                technical_submission_requirement_override,
+                technical_infectious_past_history_override,
+                technical_external_pathology_diagnosis_override,
+                created_at,
+                updated_at
+            ) values (
+                :applicationId,
+                :historySummaryOverride,
+                :clinicalExaminationAndSurgeryFindingsOverride,
+                :labAndImagingExaminationsOverride,
+                :clinicalSubmissionRequirementsOverride,
+                :infectiousAndPastHistorySummaryOverride,
+                :externalPathologyDiagnosisOverride,
+                :createdAt,
+                :updatedAt
+            )
+            """, parameters);
+    }
+
     void updateApplicationEditableFields(String applicationId, String clinicalDiagnosis, String remarks) {
         jdbcTemplate.update("""
             update applications
@@ -233,6 +297,28 @@ class JdbcApplicationRegistrationWorkbenchExtensionSupport {
         return value ? 1 : 0;
     }
 
+    private MapSqlParameterSource technicalRegistrationOverrideParameters(
+        ApplicationRegistrationWorkbenchRepository.SaveTechnicalRegistrationDetailSectionOverridesCommand command) {
+        return new MapSqlParameterSource()
+            .addValue("applicationId", command.applicationId())
+            .addValue("historySummaryOverride", command.historySummaryOverride())
+            .addValue(
+                "clinicalExaminationAndSurgeryFindingsOverride",
+                command.clinicalExaminationAndSurgeryFindingsOverride())
+            .addValue(
+                "labAndImagingExaminationsOverride",
+                command.labAndImagingExaminationsOverride())
+            .addValue(
+                "clinicalSubmissionRequirementsOverride",
+                command.clinicalSubmissionRequirementsOverride())
+            .addValue(
+                "infectiousAndPastHistorySummaryOverride",
+                command.infectiousAndPastHistorySummaryOverride())
+            .addValue(
+                "externalPathologyDiagnosisOverride",
+                command.externalPathologyDiagnosisOverride());
+    }
+
     private ApplicationRegistrationWorkbenchRepository.WorkbenchExtensionData mapWorkbenchExtensionData(ResultSet rs, int rowNum)
         throws SQLException {
         return new ApplicationRegistrationWorkbenchRepository.WorkbenchExtensionData(
@@ -274,5 +360,45 @@ class JdbcApplicationRegistrationWorkbenchExtensionSupport {
             rs.getInt("condition_pregnancy") == 1,
             rs.getInt("condition_radiotherapy") == 1,
             rs.getString("other_special_condition"));
+    }
+
+    private ApplicationRegistrationWorkbenchRepository.TechnicalRegistrationDetailSectionOverrides
+    mapTechnicalRegistrationDetailSectionOverrides(ResultSet rs, int rowNum) throws SQLException {
+        Set<String> availableColumns = resolveAvailableColumns(rs);
+        return new ApplicationRegistrationWorkbenchRepository.TechnicalRegistrationDetailSectionOverrides(
+            getNullableString(rs, availableColumns, "technical_history_summary_override"),
+            getNullableString(rs, availableColumns, "technical_clinical_exam_surgery_override"),
+            getNullableString(rs, availableColumns, "technical_lab_imaging_override"),
+            getNullableString(rs, availableColumns, "technical_submission_requirement_override"),
+            getNullableString(rs, availableColumns, "technical_infectious_past_history_override"),
+            getNullableString(rs, availableColumns, "technical_external_pathology_diagnosis_override"));
+    }
+
+    private Set<String> resolveAvailableColumns(ResultSet rs) throws SQLException {
+        ResultSetMetaData metadata = rs.getMetaData();
+        int columnCount = metadata.getColumnCount();
+        Set<String> availableColumns = new LinkedHashSet<>(columnCount);
+        for (int columnIndex = 1; columnIndex <= columnCount; columnIndex++) {
+            String columnLabel = metadata.getColumnLabel(columnIndex);
+            if (columnLabel == null || columnLabel.isBlank()) {
+                columnLabel = metadata.getColumnName(columnIndex);
+            }
+            if (columnLabel == null || columnLabel.isBlank()) {
+                continue;
+            }
+            availableColumns.add(normalizeColumnName(columnLabel));
+        }
+        return availableColumns;
+    }
+
+    private String getNullableString(ResultSet rs, Set<String> availableColumns, String columnName) throws SQLException {
+        if (!availableColumns.contains(normalizeColumnName(columnName))) {
+            return null;
+        }
+        return rs.getString(columnName);
+    }
+
+    private String normalizeColumnName(String columnName) {
+        return columnName.toLowerCase(Locale.ROOT);
     }
 }

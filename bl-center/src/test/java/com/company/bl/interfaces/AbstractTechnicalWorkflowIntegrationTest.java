@@ -10,6 +10,7 @@ import java.util.Map;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimenWorkflowIntegrationTest {
@@ -110,6 +111,24 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
             userId)), 200);
     }
 
+    protected JsonNode technicalSpecimenRegistrationApplicationWorkbench(String caseId, String userId) throws Exception {
+        return responseBody(mockMvc.perform(authorized(
+            get("/api/v1/technical-specimen-registrations/{caseId}/application-workbench", caseId),
+            userId)), 200);
+    }
+
+    protected JsonNode saveTechnicalSpecimenRegistrationApplicationWorkbenchPatientInfo(
+        String caseId,
+        String userId,
+        String content
+    ) throws Exception {
+        return responseBody(mockMvc.perform(authorized(
+                patch("/api/v1/technical-specimen-registrations/{caseId}/application-workbench/patient-info", caseId),
+                userId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(content)), 200);
+    }
+
     protected JsonNode completeTechnicalSpecimenRegistration(String caseId, String remarks) throws Exception {
         return responseBody(postJson("/api/v1/technical-specimen-registrations/%s/complete".formatted(caseId), USER_RECEIVE, """
             {
@@ -122,6 +141,14 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
     protected JsonNode saveTechnicalSpecimenRegistrationMaterials(String caseId, String userId, String content) throws Exception {
         return responseBody(mockMvc.perform(authorized(
                 put("/api/v1/technical-specimen-registrations/{caseId}/materials", caseId),
+                userId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(content)), 200);
+    }
+
+    protected JsonNode saveTechnicalSpecimenRegistrationDetailSections(String caseId, String userId, String content) throws Exception {
+        return responseBody(mockMvc.perform(authorized(
+                patch("/api/v1/technical-specimen-registrations/{caseId}/detail-sections", caseId),
                 userId)
             .contentType(MediaType.APPLICATION_JSON)
             .content(content)), 200);

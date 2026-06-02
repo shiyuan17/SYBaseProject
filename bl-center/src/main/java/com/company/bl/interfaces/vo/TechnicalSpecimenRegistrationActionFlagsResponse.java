@@ -6,6 +6,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record TechnicalSpecimenRegistrationActionFlagsResponse(
     @Schema(description = "是否可完成登记")
     boolean canCompleteRegistration,
+    @Schema(description = "是否可保存摘要分区")
+    boolean canSaveDetailSections,
     @Schema(description = "是否可保存材料")
     boolean canSaveMaterials,
     @Schema(description = "是否可上传图片")

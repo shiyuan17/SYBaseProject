@@ -43,6 +43,7 @@ class TechnicalSpecimenRegistrationService {
     private final TechnicalWorkflowRepository technicalWorkflowRepository;
     private final TechnicalWorkflowSupport technicalWorkflowSupport;
     private final ApplicationRepository applicationRepository;
+    private final ApplicationRegistrationWorkbenchAppService applicationRegistrationWorkbenchAppService;
     private final ApplicationRegistrationWorkbenchRepository workbenchRepository;
     private final MedicalOrderRepository medicalOrderRepository;
     private final SpecimenWorkflowCommandRepository specimenWorkflowCommandRepository;
@@ -51,6 +52,7 @@ class TechnicalSpecimenRegistrationService {
     TechnicalSpecimenRegistrationService(TechnicalWorkflowRepository technicalWorkflowRepository,
                                          TechnicalWorkflowSupport technicalWorkflowSupport,
                                          ApplicationRepository applicationRepository,
+                                         ApplicationRegistrationWorkbenchAppService applicationRegistrationWorkbenchAppService,
                                          ApplicationRegistrationWorkbenchRepository workbenchRepository,
                                          MedicalOrderRepository medicalOrderRepository,
                                          SpecimenWorkflowCommandRepository specimenWorkflowCommandRepository,
@@ -58,6 +60,7 @@ class TechnicalSpecimenRegistrationService {
         this.technicalWorkflowRepository = technicalWorkflowRepository;
         this.technicalWorkflowSupport = technicalWorkflowSupport;
         this.applicationRepository = applicationRepository;
+        this.applicationRegistrationWorkbenchAppService = applicationRegistrationWorkbenchAppService;
         this.workbenchRepository = workbenchRepository;
         this.medicalOrderRepository = medicalOrderRepository;
         this.specimenWorkflowCommandRepository = specimenWorkflowCommandRepository;
@@ -117,6 +120,23 @@ class TechnicalSpecimenRegistrationService {
         return buildRegistrationWorkspace(loadWorkspaceContext(caseId, true));
     }
 
+    @Transactional(readOnly = true)
+    ApplicationRegistrationWorkbenchAppService.WorkbenchRecord getApplicationWorkbench(String caseId) {
+        WorkspaceContext context = loadWorkspaceContext(caseId, false);
+        return applicationRegistrationWorkbenchAppService.getByApplicationId(context.application().getId().value());
+    }
+
+    @Transactional
+    ApplicationRegistrationWorkbenchAppService.WorkbenchRecord saveApplicationWorkbenchPatientInfo(
+        String caseId,
+        ApplicationRegistrationWorkbenchAppService.SavePatientInfoCommand command
+    ) {
+        WorkspaceContext context = loadEditableWorkspaceContext(caseId);
+        return applicationRegistrationWorkbenchAppService.savePatientInfo(
+            context.application().getId().value(),
+            command);
+    }
+
     private TechnicalWorkflowModels.TechnicalSpecimenRegistrationDetail buildRegistrationDetail(WorkspaceContext context) {
         TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace workspace = buildRegistrationWorkspace(context);
         return new TechnicalWorkflowModels.TechnicalSpecimenRegistrationDetail(
@@ -143,6 +163,16 @@ class TechnicalSpecimenRegistrationService {
         WorkspaceContext context
     ) {
         boolean editable = isEditable(context.registration());
+        String historySummary = valueOf(() -> context.extension().clinicalHistory());
+        String clinicalExaminationAndSurgeryFindings = joinLabeledSections(
+            labeledValue("临床检查", valueOf(() -> context.extension().clinicalFindings())),
+            labeledValue("手术名称", valueOf(() -> context.extension().surgeryName())));
+        String labAndImagingExaminations = joinLabeledSections(
+            labeledValue("影像检查", valueOf(() -> context.extension().imagingResult())),
+            labeledValue("内镜所见", valueOf(() -> context.extension().endoscopyDiagnosis())));
+        String clinicalSubmissionRequirements =
+            valueOf(() -> context.extension().deliveryRequirement());
+        String infectiousAndPastHistorySummary = buildInfectiousSummary(context.extension());
         return new TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace(
             toPendingSummary(context.registration()),
             new TechnicalWorkflowModels.TechnicalSpecimenRegistrationBasicInfo(
@@ -161,20 +191,28 @@ class TechnicalSpecimenRegistrationService {
                 context.pathologyCase().pathologyNo(),
                 context.registration().registrationStatus()),
             new TechnicalWorkflowModels.TechnicalSpecimenRegistrationDetailSections(
-                valueOf(() -> context.extension().clinicalHistory()),
-                joinLabeledSections(
-                    labeledValue("临床检查", valueOf(() -> context.extension().clinicalFindings())),
-                    labeledValue("手术名称", valueOf(() -> context.extension().surgeryName()))),
-                joinLabeledSections(
-                    labeledValue("影像检查", valueOf(() -> context.extension().imagingResult())),
-                    labeledValue("内镜所见", valueOf(() -> context.extension().endoscopyDiagnosis()))),
-                valueOf(() -> context.extension().deliveryRequirement()),
-                buildInfectiousSummary(context.extension()),
-                null),
+                overrideOrFallback(
+                    valueOf(() -> context.detailSectionOverrides().historySummaryOverride()),
+                    historySummary),
+                overrideOrFallback(
+                    valueOf(() -> context.detailSectionOverrides().clinicalExaminationAndSurgeryFindingsOverride()),
+                    clinicalExaminationAndSurgeryFindings),
+                overrideOrFallback(
+                    valueOf(() -> context.detailSectionOverrides().labAndImagingExaminationsOverride()),
+                    labAndImagingExaminations),
+                overrideOrFallback(
+                    valueOf(() -> context.detailSectionOverrides().clinicalSubmissionRequirementsOverride()),
+                    clinicalSubmissionRequirements),
+                overrideOrFallback(
+                    valueOf(() -> context.detailSectionOverrides().infectiousAndPastHistorySummaryOverride()),
+                    infectiousAndPastHistorySummary),
+                normalizeSectionValue(
+                    valueOf(() -> context.detailSectionOverrides().externalPathologyDiagnosisOverride()))),
             buildMaterials(context.specimens()),
             buildCheckItems(valueOf(() -> context.extension().checkItem()), context.registration().caseId()),
             buildMediaAssets(context.mediaAssets()),
             new TechnicalWorkflowModels.TechnicalSpecimenRegistrationActionFlags(
+                editable,
                 editable,
                 editable,
                 editable,
@@ -223,6 +261,35 @@ class TechnicalSpecimenRegistrationService {
             command.operatorName(),
             command.terminalCode(),
             "Technical specimen registration materials saved");
+        return getRegistrationWorkspace(command.caseId());
+    }
+
+    @Transactional
+    TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace saveRegistrationDetailSections(
+        TechnicalWorkflowModels.SaveTechnicalSpecimenRegistrationDetailSectionsCommand command
+    ) {
+        WorkspaceContext context = loadEditableWorkspaceContext(command.caseId());
+        TechnicalWorkflowModels.TechnicalSpecimenRegistrationDetailSections detailSections = command.detailSections();
+        workbenchRepository.upsertTechnicalRegistrationDetailSectionOverrides(
+            new ApplicationRegistrationWorkbenchRepository.SaveTechnicalRegistrationDetailSectionOverridesCommand(
+                context.application().getId().value(),
+                normalizeSectionValue(detailSections.historySummary()),
+                normalizeSectionValue(detailSections.clinicalExaminationAndSurgeryFindings()),
+                normalizeSectionValue(detailSections.labAndImagingExaminations()),
+                normalizeSectionValue(detailSections.clinicalSubmissionRequirements()),
+                normalizeSectionValue(detailSections.infectiousAndPastHistorySummary()),
+                normalizeSectionValue(detailSections.externalPathologyDiagnosis())));
+        technicalWorkflowSupport.insertWorkflowEvent(
+            context.application().getId().value(),
+            null,
+            context.pathologyCase().id(),
+            TechnicalWorkflowConstants.NODE_SPECIMEN_REGISTRATION,
+            "SAVE_DETAIL_SECTIONS",
+            "SUCCESS",
+            command.operatorUserId(),
+            command.operatorName(),
+            command.terminalCode(),
+            "Technical specimen registration detail sections saved");
         return getRegistrationWorkspace(command.caseId());
     }
 
@@ -374,6 +441,9 @@ class TechnicalSpecimenRegistrationService {
             .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Application not found"));
         ApplicationRegistrationWorkbenchRepository.WorkbenchExtensionData extension =
             workbenchRepository.findExtensionByApplicationId(application.getId().value()).orElse(null);
+        ApplicationRegistrationWorkbenchRepository.TechnicalRegistrationDetailSectionOverrides detailSectionOverrides =
+            workbenchRepository.findTechnicalRegistrationDetailSectionOverridesByApplicationId(application.getId().value())
+                .orElse(null);
         TechnicalWorkflowRecords.TechnicalSpecimenRegistration registration =
             resolveRegistration(caseId, pathologyCase, application, extension, allowRegistrationFallback);
         List<Specimen> specimens = technicalWorkflowRepository.findSpecimensByCaseId(caseId);
@@ -382,7 +452,14 @@ class TechnicalSpecimenRegistrationService {
             REGISTRATION_MEDIA_OBJECT_TYPE,
             caseId,
             REGISTRATION_MEDIA_TYPE);
-        return new WorkspaceContext(registration, pathologyCase, application, extension, specimens, mediaAssets);
+        return new WorkspaceContext(
+            registration,
+            pathologyCase,
+            application,
+            extension,
+            detailSectionOverrides,
+            specimens,
+            mediaAssets);
     }
 
     private TechnicalWorkflowRecords.TechnicalSpecimenRegistration resolveRegistration(
@@ -747,6 +824,15 @@ class TechnicalSpecimenRegistrationService {
         return label + ": " + normalized;
     }
 
+    private String overrideOrFallback(String overrideValue, String fallbackValue) {
+        String normalizedOverride = normalizeSectionValue(overrideValue);
+        return normalizedOverride != null ? normalizedOverride : trimToNull(fallbackValue);
+    }
+
+    private String normalizeSectionValue(String value) {
+        return trimToNull(value);
+    }
+
     private String trimToNull(String value) {
         if (value == null) {
             return null;
@@ -783,6 +869,7 @@ class TechnicalSpecimenRegistrationService {
         PathologyCase pathologyCase,
         Application application,
         ApplicationRegistrationWorkbenchRepository.WorkbenchExtensionData extension,
+        ApplicationRegistrationWorkbenchRepository.TechnicalRegistrationDetailSectionOverrides detailSectionOverrides,
         List<Specimen> specimens,
         List<TechnicalWorkflowRecords.CaseMediaAsset> mediaAssets
     ) {

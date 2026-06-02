@@ -4,6 +4,7 @@ import com.company.bl.BlCenterApplication;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -147,6 +149,95 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
     }
 
     @Test
+    void shouldExposeAndSaveReceiveScopedApplicationWorkbench() throws Exception {
+        TechnicalCaseContext context =
+            receiveCaseAndGetPendingRegistration("APP-M3-REG-004A", "BC-M3-REG-004A");
+
+        JsonNode workbench =
+            technicalSpecimenRegistrationApplicationWorkbench(context.caseId(), USER_RECEIVE);
+        assertThat(workbench.path("applicationId").asText()).isEqualTo(context.applicationId());
+        assertThat(workbench.path("patientInfo").path("patientName").asText()).isEqualTo("Patient A");
+        assertThat(workbench.path("patientInfo").path("applicationNo").asText()).isEqualTo("APP-M3-REG-004A");
+
+        JsonNode saved = saveTechnicalSpecimenRegistrationApplicationWorkbenchPatientInfo(context.caseId(), USER_RECEIVE, """
+            {
+              "contagiousSpecimen": {
+                "hepatitis": true,
+                "hiv": false,
+                "isolation": true,
+                "syphilis": false,
+                "tuberculosis": false
+              },
+              "gynecologyInfo": {
+                "additionalNotes": "补充备注",
+                "hpvResult": "未查",
+                "lastMenstrualPeriod": "2026-05-20",
+                "menopause": false,
+                "previousCytology": "无明显异常",
+                "previousTreatment": "无",
+                "specialConditions": {
+                  "abnormalBleeding": false,
+                  "birthControl": false,
+                  "hormoneReplacement": false,
+                  "hysterectomy": false,
+                  "iud": false,
+                  "lactation": false,
+                  "menopause": false,
+                  "other": "无",
+                  "pregnancy": false,
+                  "radiotherapy": false
+                }
+              },
+              "patientInfo": {
+                "age": "45",
+                "applicationDate": "2026-06-01T08:00:00",
+                "applicationNo": "APP-M3-REG-004A",
+                "applyDept": "OR",
+                "applyDoctor": "Dr Test",
+                "bedNo": "18",
+                "checkItem": "HE+免疫组化",
+                "clinicalDiagnosis": "更新后的临床诊断",
+                "clinicalHistory": "更新后的临床病史",
+                "deliveryRequirement": "立即送检",
+                "endoscopyDiagnosis": "无",
+                "frozenReminder": false,
+                "gender": "F",
+                "idNo": "ID-UPDATED-001",
+                "imagingResult": "更新后的影像结果",
+                "inpatientNo": "IP-UPDATED-001",
+                "patientName": "Patient A",
+                "patientVerified": true,
+                "phone": "13800138000",
+                "registrationStatus": "RECEIVED",
+                "remark": "技术登记补充备注",
+                "specimenType": "ROUTINE",
+                "wardName": "Ward-8"
+              },
+              "surgeryInfo": {
+                "buildingId": "BLDG-1",
+                "clinicalFindings": "更新后的临床及手术所见",
+                "fixativeType": "FORMALIN",
+                "fixationPerson": "Receiver A",
+                "fixationTime": "2026-06-01T09:30:00",
+                "roomId": "OR-02",
+                "specimenRemovalTime": "2026-06-01T08:45:00",
+                "surgeryName": "甲状腺切除术"
+              }
+            }
+            """);
+
+        assertThat(saved.path("patientInfo").path("clinicalDiagnosis").asText()).isEqualTo("更新后的临床诊断");
+        assertThat(saved.path("patientInfo").path("idNo").asText()).isEqualTo("ID-UPDATED-001");
+        assertThat(saved.path("surgeryInfo").path("fixationTime").asText()).isEqualTo("2026-06-01T09:30");
+        assertThat(saved.path("contagiousSpecimen").path("hepatitis").asBoolean()).isTrue();
+
+        JsonNode refreshed =
+            technicalSpecimenRegistrationApplicationWorkbench(context.caseId(), USER_RECEIVE);
+        assertThat(refreshed.path("patientInfo").path("clinicalDiagnosis").asText()).isEqualTo("更新后的临床诊断");
+        assertThat(refreshed.path("patientInfo").path("inpatientNo").asText()).isEqualTo("IP-UPDATED-001");
+    }
+
+    @Test
     void shouldSaveMaterialsByAddingUpdatingAndRemovingSpecimens() throws Exception {
         TechnicalCaseContext context =
             receiveCaseAndGetPendingRegistration("APP-M3-REG-005", "BC-M3-REG-005");
@@ -228,5 +319,120 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
 
         JsonNode refreshedWorkspace = technicalSpecimenRegistrationWorkspace(context.caseId(), USER_RECEIVE);
         assertThat(refreshedWorkspace.path("mediaAssets").size()).isZero();
+    }
+
+    @Test
+    void shouldSaveDetailSectionOverridesAndFallbackAfterClearing() throws Exception {
+        TechnicalCaseContext context =
+            receiveCaseAndGetPendingRegistration("APP-M3-REG-007", "BC-M3-REG-007");
+
+        JsonNode saved = saveTechnicalSpecimenRegistrationDetailSections(context.caseId(), USER_RECEIVE, """
+            {
+              "terminalCode": "T-M3-REG-DETAIL-01",
+              "detailSections": {
+                "historySummary": "人工病史摘要",
+                "clinicalExaminationAndSurgeryFindings": "人工临床检查及手术所见",
+                "labAndImagingExaminations": "人工检验和影像检查",
+                "clinicalSubmissionRequirements": "人工临床送检要求",
+                "infectiousAndPastHistorySummary": "人工传染/既往信息摘要",
+                "externalPathologyDiagnosis": "外院病理诊断结果"
+              }
+            }
+            """);
+
+        assertThat(saved.path("detailSections").path("historySummary").asText()).isEqualTo("人工病史摘要");
+        assertThat(saved.path("detailSections").path("clinicalExaminationAndSurgeryFindings").asText())
+            .isEqualTo("人工临床检查及手术所见");
+        assertThat(saved.path("detailSections").path("labAndImagingExaminations").asText())
+            .isEqualTo("人工检验和影像检查");
+        assertThat(saved.path("detailSections").path("clinicalSubmissionRequirements").asText())
+            .isEqualTo("人工临床送检要求");
+        assertThat(saved.path("detailSections").path("infectiousAndPastHistorySummary").asText())
+            .isEqualTo("人工传染/既往信息摘要");
+        assertThat(saved.path("detailSections").path("externalPathologyDiagnosis").asText())
+            .isEqualTo("外院病理诊断结果");
+
+        JsonNode cleared = saveTechnicalSpecimenRegistrationDetailSections(context.caseId(), USER_RECEIVE, """
+            {
+              "terminalCode": "T-M3-REG-DETAIL-02",
+              "detailSections": {
+                "historySummary": " ",
+                "clinicalExaminationAndSurgeryFindings": "",
+                "labAndImagingExaminations": "",
+                "clinicalSubmissionRequirements": "",
+                "infectiousAndPastHistorySummary": "",
+                "externalPathologyDiagnosis": ""
+              }
+            }
+            """);
+
+        assertThat(cleared.path("detailSections").path("historySummary").asText())
+            .isEqualTo("甲状腺结节病史，近一个月增大");
+        assertThat(cleared.path("detailSections").path("clinicalExaminationAndSurgeryFindings").asText())
+            .contains("临床检查: 术中见甲状腺左叶结节样病灶");
+        assertThat(cleared.path("detailSections").path("clinicalExaminationAndSurgeryFindings").asText())
+            .contains("手术名称: 甲状腺左叶切除术");
+        assertThat(cleared.path("detailSections").path("labAndImagingExaminations").asText())
+            .contains("影像检查: 超声提示甲状腺左叶低回声结节");
+        assertThat(cleared.path("detailSections").path("clinicalSubmissionRequirements").asText())
+            .isEqualTo("立即送检");
+        assertThat(cleared.path("detailSections").path("infectiousAndPastHistorySummary").asText())
+            .contains("传染信息: 隔离");
+        assertThat(cleared.path("detailSections").path("externalPathologyDiagnosis").isNull()).isTrue();
+    }
+
+    @Test
+    void shouldExposeDetailSectionOverridesInGrossingContextAndRejectEditingAfterCompletion() throws Exception {
+        TechnicalCaseContext context =
+            receiveCaseAndGetPendingRegistration("APP-M3-REG-008", "BC-M3-REG-008");
+
+        saveTechnicalSpecimenRegistrationDetailSections(context.caseId(), USER_RECEIVE, """
+            {
+              "terminalCode": "T-M3-REG-DETAIL-03",
+              "detailSections": {
+                "historySummary": "取材专用病史摘要",
+                "clinicalExaminationAndSurgeryFindings": "取材专用临床检查及手术所见",
+                "labAndImagingExaminations": "取材专用检验和影像检查",
+                "clinicalSubmissionRequirements": "取材专用送检要求",
+                "infectiousAndPastHistorySummary": "取材专用传染/既往摘要",
+                "externalPathologyDiagnosis": "取材专用外院病理诊断"
+              }
+            }
+            """);
+
+        JsonNode completeResult = completeTechnicalSpecimenRegistration(context.caseId(), "complete with overrides");
+        String pathologyNo = completeResult.path("pathologyNo").asText();
+        JsonNode grossingTasks = listPendingTasks("GROSSING", pathologyNo, USER_M3_GROSSING);
+        String grossingTaskId = grossingTasks.path("items").get(0).path("id").asText();
+
+        mockMvc.perform(authorized(get("/api/v1/grossings/{taskId}/context", grossingTaskId), USER_M3_GROSSING))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.clinicalHistory").value("取材专用病史摘要"))
+            .andExpect(jsonPath("$.data.relatedExaminations").value("取材专用检验和影像检查"))
+            .andExpect(jsonPath("$.data.contextSummary").value(org.hamcrest.Matchers.containsString("取材专用临床检查及手术所见")))
+            .andExpect(jsonPath("$.data.contextSummary").value(org.hamcrest.Matchers.containsString("取材专用送检要求")))
+            .andExpect(jsonPath("$.data.contextSummary").value(org.hamcrest.Matchers.containsString("取材专用传染/既往摘要")));
+
+        mockMvc.perform(authorized(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
+                    "/api/v1/technical-specimen-registrations/{caseId}/detail-sections",
+                    context.caseId()),
+                USER_RECEIVE)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "terminalCode": "T-M3-REG-DETAIL-04",
+                  "detailSections": {
+                    "historySummary": "完成后仍尝试修改",
+                    "clinicalExaminationAndSurgeryFindings": null,
+                    "labAndImagingExaminations": null,
+                    "clinicalSubmissionRequirements": null,
+                    "infectiousAndPastHistorySummary": null,
+                    "externalPathologyDiagnosis": null
+                  }
+                }
+                """))
+            .andExpect(status().isConflict())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Technical specimen registration is completed")));
     }
 }
