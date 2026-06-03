@@ -67,6 +67,8 @@ public interface TechnicalWorkflowRepository {
 
     TechnicalWorkflowRecords.PagedSlicingWorkbenchRows findCompletedSlicingWorkbenchRows(TechnicalWorkflowRecords.SlicingWorkbenchQuery query);
 
+    PagedTechnicalSpecimenRegistrations findTechnicalSpecimenRegistrations(PendingTechnicalSpecimenRegistrationQuery query);
+
     PagedTechnicalSpecimenRegistrations findPendingTechnicalSpecimenRegistrations(PendingTechnicalSpecimenRegistrationQuery query);
 
     Optional<TechnicalSpecimenRegistration> findTechnicalSpecimenRegistrationByCaseId(String caseId);

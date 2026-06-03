@@ -67,17 +67,56 @@ public class TechnicalSpecimenRegistrationController extends TechnicalController
         @Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
         @Parameter(description = "每页条数，默认 20") @RequestParam(defaultValue = "20") int size,
         @Parameter(description = "病人 ID、病理号、姓名、住院号关键字") @RequestParam(required = false) String keyword,
+        @Parameter(description = "申请类型") @RequestParam(required = false) String applicationType,
         @Parameter(description = "接收开始日期") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receivedFrom,
         @Parameter(description = "接收结束日期") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receivedTo
     ) {
         TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationPage result =
             technicalWorkflowAppService.listPendingTechnicalSpecimenRegistrations(
-                new TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationQuery(
-                    page,
-                    size,
-                    keyword,
-                    receivedFrom == null ? null : receivedFrom.atStartOfDay(),
-                    receivedTo == null ? null : receivedTo.plusDays(1).atStartOfDay()));
+                buildListQuery(page, size, keyword, applicationType, "PENDING", receivedFrom, receivedTo));
+        return toPageResponse(result);
+    }
+
+    @Operation(summary = "查询技术登记病例", description = "按登记状态分页查询技术标本登记病例。")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_RECEIVE)
+    @GetMapping
+    public PendingTechnicalSpecimenRegistrationPageResponse listRegistrations(
+        @Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
+        @Parameter(description = "每页条数，默认 20") @RequestParam(defaultValue = "20") int size,
+        @Parameter(description = "病人 ID、病理号、姓名、住院号关键字") @RequestParam(required = false) String keyword,
+        @Parameter(description = "申请类型") @RequestParam(required = false) String applicationType,
+        @Parameter(description = "登记状态，PENDING/COMPLETED") @RequestParam(defaultValue = "PENDING") String registrationStatus,
+        @Parameter(description = "接收开始日期") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receivedFrom,
+        @Parameter(description = "接收结束日期") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receivedTo
+    ) {
+        TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationPage result =
+            technicalWorkflowAppService.listTechnicalSpecimenRegistrations(
+                buildListQuery(page, size, keyword, applicationType, registrationStatus, receivedFrom, receivedTo));
+        return toPageResponse(result);
+    }
+
+    private TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationQuery buildListQuery(
+        int page,
+        int size,
+        String keyword,
+        String applicationType,
+        String registrationStatus,
+        LocalDate receivedFrom,
+        LocalDate receivedTo
+    ) {
+        return new TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationQuery(
+            page,
+            size,
+            keyword,
+            applicationType,
+            registrationStatus,
+            receivedFrom == null ? null : receivedFrom.atStartOfDay(),
+            receivedTo == null ? null : receivedTo.plusDays(1).atStartOfDay());
+    }
+
+    private PendingTechnicalSpecimenRegistrationPageResponse toPageResponse(
+        TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationPage result
+    ) {
         return new PendingTechnicalSpecimenRegistrationPageResponse(
             result.items().stream().map(item -> new PendingTechnicalSpecimenRegistrationResponse(
                 item.caseId(),
@@ -376,6 +415,7 @@ public class TechnicalSpecimenRegistrationController extends TechnicalController
                     caseId,
                     resolveUserId(httpServletRequest),
                     resolveOperatorName(httpServletRequest),
+                    request.getApplicationType(),
                     request.getTerminalCode(),
                     request.getRemarks()));
         return new TechnicalSpecimenRegistrationCompleteResponse(

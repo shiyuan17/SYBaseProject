@@ -14,6 +14,8 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
 
 @Service
 public class NumberingService {
@@ -39,6 +41,54 @@ public class NumberingService {
     public static final String BIZ_GUIDELINE_CATEGORY_CODE = "GUIDELINE_CATEGORY_CODE";
     public static final String BIZ_GUIDELINE_CODE = "GUIDELINE_CODE";
     public static final String BIZ_CONFIG_CATEGORY_CODE = "CONFIG_CATEGORY_CODE";
+    private static final PathologyNoRule DEFAULT_PATHOLOGY_NO_RULE =
+        new PathologyNoRule("BL", "yyyyMMdd", 4);
+    private static final Map<String, PathologyNoRule> PATHOLOGY_NO_RULES =
+        Map.ofEntries(
+            Map.entry("CONSULTATION", new PathologyNoRule("HZ", "yy", 5)),
+            Map.entry("CYTOLOGY", new PathologyNoRule("XB", "yy", 5)),
+            Map.entry(
+                "CYTOLOGY_CONSULTATION",
+                new PathologyNoRule("XH", "yy", 5)
+            ),
+            Map.entry("CYTOLOGY_SMEAR", new PathologyNoRule("GP", "yy", 5)),
+            Map.entry(
+                "DIFFICULT_CONSULTATION",
+                new PathologyNoRule("YN", "yy", 5)
+            ),
+            Map.entry("ELECTRON_MICROSCOPY", new PathologyNoRule("EM", "yy", 5)),
+            Map.entry("FISH", new PathologyNoRule("FISH", "yy", 5)),
+            Map.entry("FROZEN", new PathologyNoRule("BD", "yyyyMMdd", 4)),
+            Map.entry("GENE_TEST", new PathologyNoRule("JY", "yy", 5)),
+            Map.entry(
+                "GYNECOLOGY_LBC_CYTOLOGY",
+                new PathologyNoRule("FY", "yy", 5)
+            ),
+            Map.entry("GYNECOLOGY_LBC_DNA", new PathologyNoRule("FD", "yy", 5)),
+            Map.entry("GYNECOLOGY_LBC_HPV", new PathologyNoRule("FH", "yy", 5)),
+            Map.entry("HPV", new PathologyNoRule("HPV", "yy", 5)),
+            Map.entry("IHC", new PathologyNoRule("IH", "yy", 5)),
+            Map.entry(
+                "IMMUNE_FLUORESCENCE",
+                new PathologyNoRule("IF", "yy", 5)
+            ),
+            Map.entry("LIVER_BIOPSY", new PathologyNoRule("GC", "yy", 5)),
+            Map.entry(
+                "MOLECULAR_PATHOLOGY",
+                new PathologyNoRule("FZ", "yy", 5)
+            ),
+            Map.entry("NGS", new PathologyNoRule("NGS", "yy", 5)),
+            Map.entry(
+                "NON_GYNECOLOGY_LBC_CYTOLOGY",
+                new PathologyNoRule("NF", "yy", 5)
+            ),
+            Map.entry("PUNCTURE_BIOPSY", new PathologyNoRule("CC", "yy", 5)),
+            Map.entry("RAPID", new PathologyNoRule("KS", "yy", 5)),
+            Map.entry("RESEARCH", new PathologyNoRule("KY", "yy", 5)),
+            Map.entry("ROUTINE", DEFAULT_PATHOLOGY_NO_RULE),
+            Map.entry("SUPPLEMENTAL_REPORT", new PathologyNoRule("MS", "yy", 5)),
+            Map.entry("TECHNICAL_ORDER", new PathologyNoRule("JS", "yy", 5))
+        );
 
     private final SupportJdbcRepository supportJdbcRepository;
     private final OperationAuditService operationAuditService;
@@ -103,6 +153,24 @@ public class NumberingService {
     @Transactional
     public String generatePathologyNo() {
         return generate(BIZ_PATHOLOGY_NO, "GLOBAL");
+    }
+
+    @Transactional
+    public String generatePathologyNo(String applicationType) {
+        PathologyNoRule rule = resolvePathologyNoRule(applicationType);
+        return generatePathologyNoWithRule(rule);
+    }
+
+    public boolean matchesPathologyNoRule(String applicationType, String pathologyNo) {
+        if (blank(pathologyNo)) {
+            return false;
+        }
+        PathologyNoRule rule = resolvePathologyNoRule(applicationType);
+        String dateDigits = "yy".equals(rule.datePattern()) ? "\\d{2}" : "\\d{8}";
+        return Pattern.compile(
+            "^" + Pattern.quote(rule.prefix()) + dateDigits + "\\d{" + rule.seqLength() + "}$",
+            Pattern.CASE_INSENSITIVE
+        ).matcher(pathologyNo.trim()).matches();
     }
 
     @Transactional
@@ -220,6 +288,37 @@ public class NumberingService {
             + pad(nextValue, rule.seqLength());
     }
 
+    private String generatePathologyNoWithRule(PathologyNoRule rule) {
+        SupportJdbcRepository.NumberingRuleRow baseRule =
+            supportJdbcRepository.findNumberingRuleByBizType(BIZ_PATHOLOGY_NO);
+        if (baseRule == null || !baseRule.enabled()) {
+            throw new BlBusinessException(
+                BlErrorCode.NUMBERING_GENERATION_FAILED,
+                409,
+                "Enabled numbering rule not found for biz type " + BIZ_PATHOLOGY_NO
+            );
+        }
+        LocalDateTime now = LocalDateTime.now(clock);
+        String datePart = now.format(DateTimeFormatter.ofPattern(rule.datePattern()));
+        String periodKey = resolvePeriodKey(baseRule.resetPolicy(), now, datePart);
+        long nextValue = supportJdbcRepository.nextCounterValue(
+            baseRule.ruleCode(),
+            periodKey,
+            resolveScopeKey(baseRule, "PATHOLOGY:" + rule.prefix())
+        );
+        return rule.prefix() + datePart + pad(nextValue, rule.seqLength());
+    }
+
+    private PathologyNoRule resolvePathologyNoRule(String applicationType) {
+        if (blank(applicationType)) {
+            return DEFAULT_PATHOLOGY_NO_RULE;
+        }
+        return PATHOLOGY_NO_RULES.getOrDefault(
+            applicationType.trim().toUpperCase(),
+            DEFAULT_PATHOLOGY_NO_RULE
+        );
+    }
+
     private String resolveScopeKey(SupportJdbcRepository.NumberingRuleRow rule, String requestedScopeKey) {
         if ("GLOBAL".equalsIgnoreCase(rule.scopeType())) {
             return "GLOBAL";
@@ -309,5 +408,12 @@ public class NumberingService {
         private static String blankSafe(String value) {
             return value == null ? "" : value;
         }
+    }
+
+    private record PathologyNoRule(
+        String prefix,
+        String datePattern,
+        int seqLength
+    ) {
     }
 }

@@ -205,6 +205,14 @@ class SpecimenWorkflowSupport {
         return statusPolicy.commandCheckInStatus(specimen);
     }
 
+    boolean isVerificationCompleted(Specimen specimen) {
+        return statusPolicy.isVerificationCompleted(specimen);
+    }
+
+    boolean canCheckInSpecimen(Specimen specimen) {
+        return statusPolicy.canCheckInSpecimen(specimen);
+    }
+
     boolean canCheckInApplication(String applicationId) {
         return statusPolicy.canCheckInApplication(getSpecimensByApplicationId(applicationId));
     }

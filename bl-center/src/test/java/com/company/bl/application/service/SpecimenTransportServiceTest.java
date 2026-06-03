@@ -154,8 +154,6 @@ class SpecimenTransportServiceTest {
             "CHECKED_IN",
             null);
         when(queryRepository.findTransportOrderById("TO-2")).thenReturn(Optional.of(order));
-        when(queryRepository.findSpecimensByApplicationId("APP-2"))
-            .thenReturn(List.of(checkedInSpecimenA, checkedInSpecimenB));
         when(commandRepository.updateTransportOrderStatus(
             eq("TO-2"),
             eq(TransportOrderStatus.HANDED_OVER),
@@ -169,6 +167,8 @@ class SpecimenTransportServiceTest {
         when(queryRepository.findTransportOrderItems("TO-2")).thenReturn(List.of(
             new TransportOrderItem("TOI-3", "TO-2", "APP-2", "SP-3", TransportItemStatus.PENDING, "MATCHED", null, null, null, null),
             new TransportOrderItem("TOI-4", "TO-2", "APP-2", "SP-4", TransportItemStatus.PENDING, "MATCHED", null, null, null, null)));
+        when(queryRepository.findSpecimenById("SP-3")).thenReturn(Optional.of(checkedInSpecimenA));
+        when(queryRepository.findSpecimenById("SP-4")).thenReturn(Optional.of(checkedInSpecimenB));
         SpecimenTransportService service = new SpecimenTransportService(commandRepository, support, numberingService);
 
         TransportOrder updated = service.outboundTransportOrder(
@@ -233,7 +233,7 @@ class SpecimenTransportServiceTest {
     }
 
     @Test
-    void createTransportOrderShouldRejectWhenApplicationHasUncheckedInSpecimens() {
+    void createTransportOrderShouldAllowWhenApplicationHasUncheckedInSiblingSpecimens() {
         SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
         when(applicationRepository.findById(any(ApplicationId.class)))
             .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.application("APP-1", ApplicationStatus.SUBMITTED)));
@@ -258,12 +258,11 @@ class SpecimenTransportServiceTest {
             null,
             null);
         when(queryRepository.findSpecimenByBarcode("BC-1")).thenReturn(Optional.of(checkedInSpecimen));
-        when(queryRepository.findSpecimensByApplicationId("APP-1"))
-            .thenReturn(List.of(checkedInSpecimen, pendingSibling));
+        when(numberingService.generateTransportOrderNo()).thenReturn("TR-ALLOW-001");
 
         SpecimenTransportService service = new SpecimenTransportService(commandRepository, support, numberingService);
 
-        assertThatThrownBy(() -> service.createTransportOrder(
+        TransportOrder result = service.createTransportOrder(
             new CreateTransportOrderCommand(
                 "APP-1",
                 List.of("BC-1"),
@@ -274,9 +273,10 @@ class SpecimenTransportServiceTest {
                 "dept-2",
                 "Lab",
                 "TERM-1",
-                "remark")))
-            .isInstanceOf(BlBusinessException.class)
-            .hasMessageContaining("All specimens of the application must be checked in");
+                "remark"));
+
+        assertThat(result.status()).isEqualTo(TransportOrderStatus.PENDING);
+        verify(commandRepository).insertTransportOrder(any(TransportOrder.class));
     }
 
     @Test
@@ -298,8 +298,6 @@ class SpecimenTransportServiceTest {
             .thenReturn(List.of(checkedInSpecimen));
         when(queryRepository.findSpecimenByBarcode("BC-1"))
             .thenReturn(Optional.of(checkedInSpecimen));
-        when(queryRepository.findSpecimensByApplicationId("APP-1"))
-            .thenReturn(List.of(checkedInSpecimen));
         when(queryRepository.findActiveTransportOrderBySpecimenId("SP-1"))
             .thenReturn(Optional.empty());
         when(numberingService.generateTransportOrderNo()).thenReturn("TR-NEW-001");
@@ -335,6 +333,7 @@ class SpecimenTransportServiceTest {
                 null,
                 null,
                 null)));
+        when(queryRepository.findSpecimenById("SP-1")).thenReturn(Optional.of(checkedInSpecimen));
 
         SpecimenTransportService service = new SpecimenTransportService(commandRepository, support, numberingService);
 
@@ -368,8 +367,6 @@ class SpecimenTransportServiceTest {
             null);
         when(queryRepository.findSpecimensBySpecimenNo("SP-NO-1"))
             .thenReturn(List.of(checkedInSpecimen));
-        when(queryRepository.findSpecimensByApplicationId("APP-1"))
-            .thenReturn(List.of(checkedInSpecimen));
         when(queryRepository.findActiveTransportOrderBySpecimenId("SP-1"))
             .thenReturn(Optional.of(existingOrder));
         when(queryRepository.findTransportOrderById("TO-EXIST"))
@@ -396,6 +393,7 @@ class SpecimenTransportServiceTest {
                 null,
                 null,
                 null)));
+        when(queryRepository.findSpecimenById("SP-1")).thenReturn(Optional.of(checkedInSpecimen));
 
         SpecimenTransportService service = new SpecimenTransportService(commandRepository, support, numberingService);
 
@@ -422,32 +420,36 @@ class SpecimenTransportServiceTest {
     }
 
     @Test
-    void outboundTransportOrderShouldRejectWhenApplicationHasUncheckedInSpecimens() {
+    void outboundTransportOrderShouldRejectWhenTransportOrderContainsUncheckedInSpecimen() {
         SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
         TransportOrder order = SpecimenWorkflowServiceTestFixtures.transportOrder("TO-3", "APP-3", TransportOrderStatus.PRINTED);
         when(queryRepository.findTransportOrderById("TO-3")).thenReturn(Optional.of(order));
-        when(queryRepository.findSpecimensByApplicationId("APP-3"))
+        when(queryRepository.findTransportOrderItems("TO-3"))
             .thenReturn(List.of(
-                SpecimenWorkflowServiceTestFixtures.specimen(
-                    "APP-3",
-                    "SP-3",
-                    "BC-3",
-                    SpecimenStatus.CHECKED_IN,
-                    FixationStatus.COMPLETED,
-                    "VERIFIED",
-                    LocalDateTime.now(),
-                    "CHECKED_IN",
-                    null),
-                SpecimenWorkflowServiceTestFixtures.specimen(
-                    "APP-3",
-                    "SP-4",
-                    "BC-4",
-                    SpecimenStatus.FIXED,
-                    FixationStatus.COMPLETED,
-                    "VERIFIED",
-                    LocalDateTime.now(),
-                    null,
-                    null)));
+                new TransportOrderItem("TOI-3", "TO-3", "APP-3", "SP-3", TransportItemStatus.PENDING, "MATCHED", null, null, null, null),
+                new TransportOrderItem("TOI-4", "TO-3", "APP-3", "SP-4", TransportItemStatus.PENDING, "MATCHED", null, null, null, null)));
+        when(queryRepository.findSpecimenById("SP-3"))
+            .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.specimen(
+                "APP-3",
+                "SP-3",
+                "BC-3",
+                SpecimenStatus.CHECKED_IN,
+                FixationStatus.COMPLETED,
+                "VERIFIED",
+                LocalDateTime.now(),
+                "CHECKED_IN",
+                null)));
+        when(queryRepository.findSpecimenById("SP-4"))
+            .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.specimen(
+                "APP-3",
+                "SP-4",
+                "BC-4",
+                SpecimenStatus.FIXED,
+                FixationStatus.COMPLETED,
+                "VERIFIED",
+                LocalDateTime.now(),
+                null,
+                null)));
 
         SpecimenTransportService service = new SpecimenTransportService(commandRepository, support, numberingService);
 
@@ -455,7 +457,7 @@ class SpecimenTransportServiceTest {
             "TO-3",
             new OutboundTransportOrderCommand("outbound-3", "Outbound User 3", "TERM-3", "remark")))
             .isInstanceOf(BlBusinessException.class)
-            .hasMessageContaining("All specimens of the application must be checked in");
+            .hasMessageContaining("must be checked in before transport");
         verify(commandRepository, never()).updateTransportOrderStatus(
             any(String.class),
             any(TransportOrderStatus.class),

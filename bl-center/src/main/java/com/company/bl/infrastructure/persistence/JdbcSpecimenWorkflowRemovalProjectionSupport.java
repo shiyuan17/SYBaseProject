@@ -184,19 +184,23 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
                 where ranked.rn = 1
             ) latest_order on latest_order.specimen_id = s.id
             where 1 = 1
-              and (
-                latest_order.transport_order_id is not null
-                or (
-                    s.specimen_status = 'CHECKED_IN'
-                    and """);
-        builder.append(resolvedCheckInStatus);
-        builder.append("""
-                     = 'CHECKED_IN'
-                )
-              )
             """);
         if (query.applicationId() != null && !query.applicationId().isBlank()) {
             builder.append(" and a.id = :applicationId");
+        } else {
+            builder.append("""
+                  and (
+                    latest_order.transport_order_id is not null
+                    or (
+                        s.specimen_status = 'CHECKED_IN'
+                        and
+                """);
+            builder.append(resolvedCheckInStatus);
+            builder.append("""
+                         = 'CHECKED_IN'
+                    )
+                  )
+                """);
         }
         if (query.specimenNo() != null && !query.specimenNo().isBlank()) {
             builder.append(" and s.specimen_no = :specimenNo");
@@ -245,6 +249,9 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
     }
 
     private String specimenOutboundSelectSql(String whereClause) {
+        String resolvedCheckInStatus = hasSpecimenConfirmationColumns()
+            ? "coalesce(s.check_in_status, 'NOT_CHECKED_IN')"
+            : "cast('NOT_CHECKED_IN' as varchar(32))";
         return """
             select
                 s.id as specimen_id,
@@ -260,6 +267,10 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
                 coalesce(w.room_id, w.surgery_name) as surgery_name,
                 s.specimen_name_standardized as specimen_name,
                 s.specimen_status,
+                s.fixation_status,
+                """ + resolvedCheckInStatus + """
+                 as check_in_status,
+                s.specimen_confirmed_at,
                 a.submitting_department_id,
                 a.submitting_department_name,
                 s.registered_at,
@@ -423,6 +434,11 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
             JdbcResultSetUtils.getNullableString(rs, "surgery_name"),
             rs.getString("specimen_name"),
             rs.getString("specimen_status"),
+            rs.getString("fixation_status"),
+            JdbcResultSetUtils.getNullableString(rs, "check_in_status"),
+            JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_confirmed_at") == null
+                ? null
+                : JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_confirmed_at").toLocalDateTime(),
             JdbcResultSetUtils.getNullableString(rs, "submitting_department_id"),
             JdbcResultSetUtils.getNullableString(rs, "submitting_department_name"),
             rs.getTimestamp("registered_at") == null ? null : rs.getTimestamp("registered_at").toLocalDateTime(),

@@ -59,6 +59,53 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
     }
 
     @Test
+    void shouldHidePathologyNoForPendingRegistrationEvenWhenCaseAlreadyHasNumber() throws Exception {
+        TechnicalCaseContext context =
+            receiveCaseAndGetPendingRegistration("APP-M3-REG-LEGACY-001", "BC-M3-REG-LEGACY-001");
+        String legacyPathologyNo = "BL-LEGACY-" + context.caseId();
+        namedParameterJdbcTemplate.update("""
+            update pathology_cases
+            set pathology_no = :pathologyNo
+            where id = :caseId
+            """, Map.of("pathologyNo", legacyPathologyNo, "caseId", context.caseId()));
+
+        JsonNode pendingRegistrations =
+            listPendingTechnicalSpecimenRegistrations(context.applicationNo(), USER_RECEIVE);
+        JsonNode workspace =
+            technicalSpecimenRegistrationWorkspace(context.caseId(), USER_RECEIVE);
+
+        assertThat(pendingRegistrations.path("total").asInt()).isEqualTo(1);
+        assertThat(pendingRegistrations.path("items").get(0).path("pathologyNo").isNull()).isTrue();
+        assertThat(workspace.path("pendingSummary").path("pathologyNo").isNull()).isTrue();
+        assertThat(workspace.path("basicInfo").path("pathologyNo").isNull()).isTrue();
+    }
+
+    @Test
+    void shouldFilterPendingRegistrationsByApplicationType() throws Exception {
+        TechnicalCaseContext routineContext =
+            receiveCaseAndGetPendingRegistration("APP-M3-REG-TYPE-001", "BC-M3-REG-TYPE-001");
+        TechnicalCaseContext frozenContext =
+            receiveCaseAndGetPendingRegistration("APP-M3-REG-TYPE-002", "BC-M3-REG-TYPE-002");
+
+        namedParameterJdbcTemplate.update("""
+            update applications
+            set application_type = 'FROZEN'
+            where id = :applicationId
+            """, Map.of("applicationId", frozenContext.applicationId()));
+
+        JsonNode filteredRegistrations =
+            listPendingTechnicalSpecimenRegistrations(null, "FROZEN", null, null, USER_RECEIVE);
+
+        assertThat(filteredRegistrations.path("total").asInt()).isEqualTo(1);
+        assertThat(filteredRegistrations.path("items").get(0).path("caseId").asText())
+            .isEqualTo(frozenContext.caseId());
+        assertThat(filteredRegistrations.path("items").get(0).path("applicationType").asText())
+            .isEqualTo("FROZEN");
+        assertThat(filteredRegistrations.path("items").get(0).path("caseId").asText())
+            .isNotEqualTo(routineContext.caseId());
+    }
+
+    @Test
     void shouldCompleteRegistrationIdempotentlyAndCreateSingleGrossingTask() throws Exception {
         TechnicalCaseContext context =
             receiveCaseAndGetPendingRegistration("APP-M3-REG-002", "BC-M3-REG-002");
@@ -90,9 +137,21 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
             listPendingTechnicalSpecimenRegistrations(context.applicationNo(), USER_RECEIVE);
         assertThat(pendingRegistrations.path("total").asInt()).isZero();
 
+        JsonNode completedRegistrations =
+            listTechnicalSpecimenRegistrations(context.applicationNo(), null, "COMPLETED", null, null, USER_RECEIVE);
+        assertThat(completedRegistrations.path("total").asInt()).isEqualTo(1);
+        assertThat(completedRegistrations.path("items").get(0).path("caseId").asText())
+            .isEqualTo(context.caseId());
+        assertThat(completedRegistrations.path("items").get(0).path("registrationStatus").asText())
+            .isEqualTo("COMPLETED");
+        assertThat(completedRegistrations.path("items").get(0).path("registeredAt").asText())
+            .isNotBlank();
+
         JsonNode grossingTasks =
             listPendingTasks("GROSSING", pathologyNo, USER_M3_GROSSING);
         assertThat(grossingTasks.path("total").asInt()).isEqualTo(1);
+        assertThat(grossingTasks.path("items").get(0).path("patientName").asText()).isEqualTo("Patient A");
+        assertThat(grossingTasks.path("items").get(0).path("patientId").asText()).isEqualTo("P-001");
 
         String persistedPathologyNo = namedParameterJdbcTemplate.queryForObject("""
             select pathology_no
@@ -117,6 +176,71 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
             order by event_time asc, created_at asc
             """, Map.of("caseId", context.caseId()), String.class);
         assertThat(eventNodes).containsSequence("RECEPTION", "SPECIMEN_REGISTRATION", "GROSSING");
+    }
+
+    @Test
+    void shouldGenerateConsultationPathologyNoAndPersistApplicationType() throws Exception {
+        TechnicalCaseContext context =
+            receiveCaseAndGetPendingRegistration("APP-M3-REG-CONSULT-002A", "BC-M3-REG-CONSULT-002A");
+
+        JsonNode completion =
+            completeTechnicalSpecimenRegistration(context.caseId(), "consultation completion", "CONSULTATION");
+
+        String pathologyNo = completion.path("pathologyNo").asText();
+        assertThat(pathologyNo).matches("^HZ\\d{2}\\d{5}$");
+
+        String persistedPathologyNo = namedParameterJdbcTemplate.queryForObject("""
+            select pathology_no
+            from pathology_cases
+            where id = :caseId
+            """, Map.of("caseId", context.caseId()), String.class);
+        assertThat(persistedPathologyNo).isEqualTo(pathologyNo);
+
+        String persistedApplicationType = namedParameterJdbcTemplate.queryForObject("""
+            select application_type
+            from applications
+            where id = :applicationId
+            """, Map.of("applicationId", context.applicationId()), String.class);
+        assertThat(persistedApplicationType).isEqualTo("CONSULTATION");
+    }
+
+    @Test
+    void shouldRegeneratePathologyNoWhenSelectedTypeDoesNotMatchExistingRule() throws Exception {
+        TechnicalCaseContext context =
+            receiveCaseAndGetPendingRegistration("APP-M3-REG-SUP-002B", "BC-M3-REG-SUP-002B");
+
+        JsonNode firstCompletion =
+            completeTechnicalSpecimenRegistration(context.caseId(), "routine completion", "ROUTINE");
+        String routinePathologyNo = firstCompletion.path("pathologyNo").asText();
+        assertThat(routinePathologyNo).matches("^BL\\d{8}\\d{4}$");
+
+        namedParameterJdbcTemplate.update("""
+            update technical_specimen_registrations
+            set registration_status = 'PENDING',
+                registered_by_user_id = null,
+                registered_by_name = null,
+                registered_at = null,
+                remarks = null
+            where case_id = :caseId
+            """, Map.of("caseId", context.caseId()));
+
+        JsonNode secondCompletion =
+            completeTechnicalSpecimenRegistration(
+                context.caseId(),
+                "supplemental completion",
+                "SUPPLEMENTAL_REPORT"
+            );
+        String supplementalPathologyNo = secondCompletion.path("pathologyNo").asText();
+
+        assertThat(supplementalPathologyNo).matches("^MS\\d{2}\\d{5}$");
+        assertThat(supplementalPathologyNo).isNotEqualTo(routinePathologyNo);
+
+        String persistedApplicationType = namedParameterJdbcTemplate.queryForObject("""
+            select application_type
+            from applications
+            where id = :applicationId
+            """, Map.of("applicationId", context.applicationId()), String.class);
+        assertThat(persistedApplicationType).isEqualTo("SUPPLEMENTAL_REPORT");
     }
 
     @Test

@@ -96,13 +96,26 @@ class SpecimenWorkflowRemovalQuerySupport extends AbstractSpecimenWorkflowQueryS
     SpecimenOutboundPage listSpecimenOutbounds(SpecimenOutboundListQuery query) {
         int page = specimenWorkflowSupport.normalizePage(query.page());
         int size = specimenWorkflowSupport.normalizeSize(query.size());
+        String applicationId = specimenWorkflowSupport.trim(query.applicationId());
+        String specimenNo = specimenWorkflowSupport.trim(query.specimenNo());
+        if ((applicationId == null || applicationId.isBlank())
+            && specimenNo != null
+            && !specimenNo.isBlank()) {
+            var matchedSpecimens = specimenWorkflowRepository.findSpecimensBySpecimenNo(specimenNo);
+            if (matchedSpecimens.size() == 1) {
+                applicationId = matchedSpecimens.get(0).applicationId();
+                specimenNo = null;
+            }
+        } else if (applicationId != null && !applicationId.isBlank()) {
+            specimenNo = null;
+        }
         SpecimenWorkflowRepository.PagedSpecimenOutbounds result =
             specimenWorkflowRepository.findSpecimenOutbounds(
                 new SpecimenWorkflowRepository.SpecimenOutboundListQuery(
                     page,
                     size,
-                    specimenWorkflowSupport.trim(query.applicationId()),
-                    specimenWorkflowSupport.trim(query.specimenNo())));
+                    applicationId,
+                    specimenNo));
         return new SpecimenOutboundPage(
             result.items().stream().map(item -> new SpecimenOutboundItem(
                 item.specimenId(),
@@ -118,6 +131,9 @@ class SpecimenWorkflowRemovalQuerySupport extends AbstractSpecimenWorkflowQueryS
                 item.surgeryName(),
                 item.specimenName(),
                 item.specimenStatus(),
+                item.fixationStatus(),
+                item.checkInStatus(),
+                item.specimenConfirmedAt(),
                 item.submittingDepartmentId(),
                 item.submittingDepartmentName(),
                 item.registeredAt(),

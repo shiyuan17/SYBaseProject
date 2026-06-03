@@ -21,9 +21,22 @@ final class JdbcTechnicalWorkflowSpecimenRegistrationQueries {
     TechnicalWorkflowRecords.PagedTechnicalSpecimenRegistrations findPendingTechnicalSpecimenRegistrations(
         TechnicalWorkflowRecords.PendingTechnicalSpecimenRegistrationQuery query
     ) {
+        return findTechnicalSpecimenRegistrations(new TechnicalWorkflowRecords.PendingTechnicalSpecimenRegistrationQuery(
+            query.page(),
+            query.size(),
+            query.keyword(),
+            query.applicationType(),
+            "PENDING",
+            query.receivedFrom(),
+            query.receivedTo()));
+    }
+
+    TechnicalWorkflowRecords.PagedTechnicalSpecimenRegistrations findTechnicalSpecimenRegistrations(
+        TechnicalWorkflowRecords.PendingTechnicalSpecimenRegistrationQuery query
+    ) {
         String where = """
-             where tsr.registration_status = 'PENDING'
-            """ + buildKeywordFilter(query) + buildReceivedAtFilter(query);
+             where tsr.registration_status = :registrationStatus
+            """ + buildKeywordFilter(query) + buildApplicationTypeFilter(query) + buildReceivedAtFilter(query);
         Long total = jdbcTemplate.queryForObject("""
             select count(1)
             from technical_specimen_registrations tsr
@@ -152,6 +165,13 @@ final class JdbcTechnicalWorkflowSpecimenRegistrationQueries {
         if (query.keyword() != null && !query.keyword().isBlank()) {
             params.addValue("keyword", "%" + query.keyword().trim().toUpperCase() + "%");
         }
+        if (query.applicationType() != null && !query.applicationType().isBlank()) {
+            params.addValue("applicationType", query.applicationType().trim());
+        }
+        String registrationStatus = query.registrationStatus() == null || query.registrationStatus().isBlank()
+            ? "PENDING"
+            : query.registrationStatus().trim().toUpperCase();
+        params.addValue("registrationStatus", registrationStatus);
         if (query.receivedFrom() != null) {
             params.addValue("receivedFrom", query.receivedFrom());
         }
@@ -159,6 +179,13 @@ final class JdbcTechnicalWorkflowSpecimenRegistrationQueries {
             params.addValue("receivedTo", query.receivedTo());
         }
         return params;
+    }
+
+    private String buildApplicationTypeFilter(TechnicalWorkflowRecords.PendingTechnicalSpecimenRegistrationQuery query) {
+        if (query.applicationType() == null || query.applicationType().isBlank()) {
+            return "";
+        }
+        return " and a.application_type = :applicationType";
     }
 
     private String buildReceivedAtFilter(TechnicalWorkflowRecords.PendingTechnicalSpecimenRegistrationQuery query) {

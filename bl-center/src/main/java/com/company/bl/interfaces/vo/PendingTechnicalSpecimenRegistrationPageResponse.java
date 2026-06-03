@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 
-@Schema(name = "PendingTechnicalSpecimenRegistrationPageResponse", description = "待技术登记病例分页结果")
+@Schema(name = "PendingTechnicalSpecimenRegistrationPageResponse", description = "技术登记病例分页结果")
 public record PendingTechnicalSpecimenRegistrationPageResponse(
     @Schema(description = "分页数据")
     List<PendingTechnicalSpecimenRegistrationResponse> items,

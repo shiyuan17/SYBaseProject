@@ -101,6 +101,8 @@ public final class TechnicalWorkflowModels {
         int page,
         int size,
         String keyword,
+        String applicationType,
+        String registrationStatus,
         LocalDateTime receivedFrom,
         LocalDateTime receivedTo
     ) {
@@ -236,6 +238,8 @@ public final class TechnicalWorkflowModels {
         String id,
         String applicationId,
         String applicationNo,
+        String patientName,
+        String patientId,
         String caseId,
         String pathologyNo,
         String specimenId,
@@ -347,6 +351,7 @@ public final class TechnicalWorkflowModels {
         String caseId,
         String operatorUserId,
         String operatorName,
+        String applicationType,
         String terminalCode,
         String remarks
     ) implements OperatorCarrier {

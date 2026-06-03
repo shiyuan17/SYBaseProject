@@ -43,6 +43,11 @@ public class TechnicalWorkflowAppService {
         return technicalSpecimenRegistrationService.listPendingRegistrations(query);
     }
 
+    public TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationPage listTechnicalSpecimenRegistrations(
+        TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationQuery query) {
+        return technicalSpecimenRegistrationService.listRegistrations(query);
+    }
+
     public TechnicalWorkflowModels.TechnicalSpecimenRegistrationDetail getTechnicalSpecimenRegistrationDetail(String caseId) {
         return technicalSpecimenRegistrationService.getRegistrationDetail(caseId);
     }

@@ -30,6 +30,12 @@ public record SpecimenOutboundItemResponse(
     String specimenName,
     @Schema(description = "标本状态")
     String specimenStatus,
+    @Schema(description = "固定状态")
+    String fixationStatus,
+    @Schema(description = "入库状态")
+    String checkInStatus,
+    @Schema(description = "标本确认时间")
+    String specimenConfirmedAt,
     @Schema(description = "送检科室 ID")
     String submittingDepartmentId,
     @Schema(description = "送检科室")

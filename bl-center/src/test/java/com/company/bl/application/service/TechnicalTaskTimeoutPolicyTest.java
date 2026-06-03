@@ -39,6 +39,8 @@ class TechnicalTaskTimeoutPolicyTest {
             "TASK-1",
             "APP-1",
             "APP-NO-1",
+            "患者甲",
+            "P-1",
             "CASE-1",
             "PATH-1",
             "SP-1",

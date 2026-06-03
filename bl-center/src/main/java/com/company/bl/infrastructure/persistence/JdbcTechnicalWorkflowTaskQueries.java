@@ -195,6 +195,8 @@ final class JdbcTechnicalWorkflowTaskQueries {
                 t.id,
                 t.application_id,
                 a.application_no,
+                a.patient_name,
+                a.patient_id,
                 t.case_id,
                 pc.pathology_no,
                 t.specimen_id,

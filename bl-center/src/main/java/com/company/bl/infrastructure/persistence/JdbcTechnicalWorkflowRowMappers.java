@@ -99,6 +99,8 @@ final class JdbcTechnicalWorkflowRowMappers {
             rs.getString("id"),
             rs.getString("application_id"),
             rs.getString("application_no"),
+            JdbcResultSetUtils.getNullableString(rs, "patient_name"),
+            JdbcResultSetUtils.getNullableString(rs, "patient_id"),
             rs.getString("case_id"),
             rs.getString("pathology_no"),
             rs.getString("specimen_id"),

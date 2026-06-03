@@ -2,7 +2,7 @@ package com.company.bl.interfaces.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(name = "PendingTechnicalSpecimenRegistrationResponse", description = "待技术登记病例")
+@Schema(name = "PendingTechnicalSpecimenRegistrationResponse", description = "技术登记病例")
 public record PendingTechnicalSpecimenRegistrationResponse(
     @Schema(description = "病例 ID")
     String caseId,

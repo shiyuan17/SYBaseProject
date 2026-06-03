@@ -27,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -40,6 +41,8 @@ class TechnicalSpecimenRegistrationService {
     private static final String DEFAULT_SPECIMEN_SIZE = "小标本";
     private static final String DEFAULT_SPECIMEN_TYPE = "活体";
     private static final int DEFAULT_TISSUE_COUNT = 1;
+    private static final String REGISTRATION_STATUS_PENDING = "PENDING";
+    private static final Set<String> LIST_REGISTRATION_STATUSES = Set.of("PENDING", "COMPLETED");
     private static final String REGISTRATION_MEDIA_OBJECT_TYPE = "TECHNICAL_SPECIMEN_REGISTRATION";
     private static final String REGISTRATION_MEDIA_TYPE = "REGISTRATION_IMAGE";
 
@@ -74,12 +77,29 @@ class TechnicalSpecimenRegistrationService {
     TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationPage listPendingRegistrations(
         TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationQuery query
     ) {
+        return listRegistrations(new TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationQuery(
+            query.page(),
+            query.size(),
+            query.keyword(),
+            query.applicationType(),
+            REGISTRATION_STATUS_PENDING,
+            query.receivedFrom(),
+            query.receivedTo()));
+    }
+
+    @Transactional(readOnly = true)
+    TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationPage listRegistrations(
+        TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationQuery query
+    ) {
+        String registrationStatus = normalizeListRegistrationStatus(query.registrationStatus());
         TechnicalWorkflowRecords.PagedTechnicalSpecimenRegistrations paged =
-            technicalWorkflowRepository.findPendingTechnicalSpecimenRegistrations(
+            technicalWorkflowRepository.findTechnicalSpecimenRegistrations(
                 new TechnicalWorkflowRecords.PendingTechnicalSpecimenRegistrationQuery(
                     query.page(),
                     query.size(),
                     query.keyword(),
+                    query.applicationType(),
+                    registrationStatus,
                     query.receivedFrom(),
                     query.receivedTo()));
         return new TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationPage(
@@ -87,7 +107,7 @@ class TechnicalSpecimenRegistrationService {
                 item.caseId(),
                 item.applicationId(),
                 item.applicationNo(),
-                item.pathologyNo(),
+                visiblePathologyNo(item, item.pathologyNo()),
                 item.patientName(),
                 item.patientId(),
                 item.inpatientNo(),
@@ -191,7 +211,7 @@ class TechnicalSpecimenRegistrationService {
                 resolveSpecimenRemovalTime(context),
                 stringify(valueOf(() -> context.extension().fixationTime())),
                 context.application().getApplicationType(),
-                context.pathologyCase().pathologyNo(),
+                visiblePathologyNo(context.registration(), context.pathologyCase().pathologyNo()),
                 context.registration().registrationStatus()),
             new TechnicalWorkflowModels.TechnicalSpecimenRegistrationDetailSections(
                 overrideOrFallback(
@@ -438,6 +458,13 @@ class TechnicalSpecimenRegistrationService {
     ) {
         TechnicalWorkflowRecords.TechnicalSpecimenRegistration registration = getRegistration(command.caseId());
         PathologyCase pathologyCase = technicalWorkflowSupport.getCase(command.caseId());
+        Application application = applicationRepository.findById(
+            new ApplicationId(pathologyCase.applicationId())
+        ).orElseThrow(() -> new BlBusinessException(
+            BlErrorCode.RESOURCE_NOT_FOUND,
+            404,
+            "Application not found"
+        ));
         if (!"COMPLETED".equals(registration.registrationStatus())) {
             technicalWorkflowRepository.completeTechnicalSpecimenRegistration(
                 command.caseId(),
@@ -458,9 +485,49 @@ class TechnicalSpecimenRegistrationService {
                 "Technical specimen registration completed");
         }
 
+        String normalizedApplicationType = normalizeApplicationType(
+            command.applicationType(),
+            application.getApplicationType()
+        );
+        if (!normalizedApplicationType.equals(trimToEmpty(application.getApplicationType()))) {
+            Application updatedApplication = new Application(
+                application.getId(),
+                application.getApplicationNo(),
+                application.getPatientId(),
+                application.getPatientName(),
+                application.getPatientGender(),
+                application.getPatientAge(),
+                normalizedApplicationType,
+                application.getStatus(),
+                application.getApplicationFormStatus(),
+                application.getExternalOrderNo(),
+                application.getThirdPartySource(),
+                application.getSourceHospitalId(),
+                application.getSourceHospitalName(),
+                application.getSubmittingDepartmentId(),
+                application.getSubmittingDepartmentName(),
+                application.getSubmittingDoctorUserId(),
+                application.getSubmittingDoctorName(),
+                application.getClinicalDiagnosis(),
+                application.getClinicalSymptom(),
+                application.getSpecimenSite(),
+                application.getApplicationDate(),
+                application.getSubmissionDate(),
+                application.getSpecimenRemovalTime(),
+                application.getRemarks(),
+                application.getCreatedAt(),
+                LocalDateTime.now()
+            );
+            applicationRepository.update(updatedApplication);
+            application = updatedApplication;
+        }
+
         String pathologyNo = trimToNull(pathologyCase.pathologyNo());
-        if (pathologyNo == null) {
-            pathologyNo = numberingService.generatePathologyNo();
+        if (pathologyNo == null || !numberingService.matchesPathologyNoRule(
+            normalizedApplicationType,
+            pathologyNo
+        )) {
+            pathologyNo = numberingService.generatePathologyNo(normalizedApplicationType);
             specimenWorkflowCommandRepository.updatePathologyCasePathologyNo(command.caseId(), pathologyNo);
         }
 
@@ -605,6 +672,13 @@ class TechnicalSpecimenRegistrationService {
         return "PENDING".equalsIgnoreCase(registration.registrationStatus());
     }
 
+    private String visiblePathologyNo(
+        TechnicalWorkflowRecords.TechnicalSpecimenRegistration registration,
+        String pathologyNo
+    ) {
+        return isEditable(registration) ? null : pathologyNo;
+    }
+
     private TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationItem toPendingSummary(
         TechnicalWorkflowRecords.TechnicalSpecimenRegistration registration
     ) {
@@ -612,7 +686,7 @@ class TechnicalSpecimenRegistrationService {
             registration.caseId(),
             registration.applicationId(),
             registration.applicationNo(),
-            registration.pathologyNo(),
+            visiblePathologyNo(registration, registration.pathologyNo()),
             registration.patientName(),
             registration.patientId(),
             registration.inpatientNo(),
@@ -982,6 +1056,35 @@ class TechnicalSpecimenRegistrationService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String trimToEmpty(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private String normalizeApplicationType(String selectedApplicationType, String fallbackApplicationType) {
+        String normalizedSelectedApplicationType = trimToNull(selectedApplicationType);
+        if (normalizedSelectedApplicationType != null) {
+            return normalizedSelectedApplicationType;
+        }
+        String normalizedFallbackApplicationType = trimToNull(fallbackApplicationType);
+        return normalizedFallbackApplicationType == null ? "ROUTINE" : normalizedFallbackApplicationType;
+    }
+
+    private String normalizeListRegistrationStatus(String registrationStatus) {
+        String normalizedRegistrationStatus = trimToNull(registrationStatus);
+        if (normalizedRegistrationStatus == null) {
+            return REGISTRATION_STATUS_PENDING;
+        }
+        normalizedRegistrationStatus = normalizedRegistrationStatus.toUpperCase();
+        if (!LIST_REGISTRATION_STATUSES.contains(normalizedRegistrationStatus)) {
+            throw new BlBusinessException(
+                BlErrorCode.INVALID_ARGUMENT,
+                400,
+                "Unsupported technical specimen registration status"
+            );
+        }
+        return normalizedRegistrationStatus;
     }
 
     private boolean containsIgnoreCase(String source, String fragment) {

@@ -57,12 +57,6 @@ class SpecimenTransportService {
             requireTransportReadySpecimen(specimen, command.applicationId());
             requireNoActiveTransportOrder(specimen);
         });
-        if (!specimenWorkflowSupport.canTransportApplication(command.applicationId())) {
-            throw new BlBusinessException(
-                BlErrorCode.OPERATION_NOT_ALLOWED,
-                409,
-                "All specimens of the application must be checked in before transport");
-        }
         LocalDateTime now = LocalDateTime.now();
         TransportOrder order = new TransportOrder(
             "TO-" + UUID.randomUUID(),
@@ -207,12 +201,10 @@ class SpecimenTransportService {
         durationMetric = "transport_order_outbound_duration")
     TransportOrder outboundTransportOrder(String transportOrderId, OutboundTransportOrderCommand command) {
         TransportOrder order = specimenWorkflowSupport.getTransportOrder(transportOrderId);
-        if (!specimenWorkflowSupport.canTransportApplication(order.applicationId())) {
-            throw new BlBusinessException(
-                BlErrorCode.OPERATION_NOT_ALLOWED,
-                409,
-                "All specimens of the application must be checked in before transport");
-        }
+        List<TransportOrderItem> items = specimenWorkflowSupport.getTransportOrderItems(transportOrderId);
+        items.forEach(item -> requireTransportReadySpecimen(
+            specimenWorkflowSupport.getSpecimenById(item.specimenId()),
+            order.applicationId()));
         LocalDateTime now = LocalDateTime.now();
         TransportOrder updated = specimenWorkflowRepository.updateTransportOrderStatus(
             order.id(),
@@ -223,7 +215,6 @@ class SpecimenTransportService {
             command.outboundUserName(),
             null,
             now);
-        List<TransportOrderItem> items = specimenWorkflowSupport.getTransportOrderItems(transportOrderId);
         for (TransportOrderItem item : items) {
             specimenWorkflowRepository.updateTransportOrderItemStatus(
                 order.id(),
@@ -265,12 +256,6 @@ class SpecimenTransportService {
             command.identifierType(),
             command.identifier());
         requireTransportReadySpecimen(specimen, specimen.applicationId());
-        if (!specimenWorkflowSupport.canTransportApplication(specimen.applicationId())) {
-            throw new BlBusinessException(
-                BlErrorCode.OPERATION_NOT_ALLOWED,
-                409,
-                "All specimens of the application must be checked in before transport");
-        }
 
         TransportOrder activeOrder = specimenWorkflowSupport.findActiveTransportOrderBySpecimenId(specimen.id())
             .orElse(null);
@@ -317,13 +302,17 @@ class SpecimenTransportService {
         if (specimenWorkflowSupport.isReceiptTerminalStatus(specimen.specimenStatus())) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen already reached receipt terminal state");
         }
+        if (specimen.specimenStatus() == SpecimenStatus.IN_TRANSIT) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen already outbound");
+        }
         if (specimen.fixationStatus() != FixationStatus.COMPLETED) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must be fixed before transport");
         }
         if (specimen.specimenConfirmedAt() == null) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must be confirmed before transport");
         }
-        if (!"CHECKED_IN".equalsIgnoreCase(specimenWorkflowSupport.commandCheckInStatus(specimen))) {
+        if (specimen.specimenStatus() != SpecimenStatus.CHECKED_IN
+            || !"CHECKED_IN".equalsIgnoreCase(specimenWorkflowSupport.commandCheckInStatus(specimen))) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen must be checked in before transport");
         }
     }

@@ -10,6 +10,10 @@ public record PendingTechnicalTaskResponse(
     String applicationId,
     @Schema(description = "申请单号")
     String applicationNo,
+    @Schema(description = "患者姓名")
+    String patientName,
+    @Schema(description = "患者 ID")
+    String patientId,
     @Schema(description = "病例 ID")
     String caseId,
     @Schema(description = "病理号")

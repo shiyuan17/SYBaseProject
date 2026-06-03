@@ -127,6 +127,12 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     }
 
     @Override
+    public com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedTechnicalSpecimenRegistrations findTechnicalSpecimenRegistrations(
+        com.company.bl.domain.repository.TechnicalWorkflowRecords.PendingTechnicalSpecimenRegistrationQuery query) {
+        return specimenRegistrationQueries.findTechnicalSpecimenRegistrations(query);
+    }
+
+    @Override
     public com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedTechnicalSpecimenRegistrations findPendingTechnicalSpecimenRegistrations(
         com.company.bl.domain.repository.TechnicalWorkflowRecords.PendingTechnicalSpecimenRegistrationQuery query) {
         return specimenRegistrationQueries.findPendingTechnicalSpecimenRegistrations(query);

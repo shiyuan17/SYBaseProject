@@ -101,10 +101,36 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
                                                                  String receivedFrom,
                                                                  String receivedTo,
                                                                  String userId) throws Exception {
+        return listPendingTechnicalSpecimenRegistrations(keyword, null, receivedFrom, receivedTo, userId);
+    }
+
+    protected JsonNode listPendingTechnicalSpecimenRegistrations(String keyword,
+                                                                 String applicationType,
+                                                                 String receivedFrom,
+                                                                 String receivedTo,
+                                                                 String userId) throws Exception {
         ResultActions action = mockMvc.perform(authorized(get("/api/v1/technical-specimen-registrations/pending"), userId)
             .param("page", "1")
             .param("size", "20")
             .param("keyword", keyword == null ? "" : keyword)
+            .param("applicationType", applicationType == null ? "" : applicationType)
+            .param("receivedFrom", receivedFrom == null ? "" : receivedFrom)
+            .param("receivedTo", receivedTo == null ? "" : receivedTo));
+        return responseBody(action, 200);
+    }
+
+    protected JsonNode listTechnicalSpecimenRegistrations(String keyword,
+                                                          String applicationType,
+                                                          String registrationStatus,
+                                                          String receivedFrom,
+                                                          String receivedTo,
+                                                          String userId) throws Exception {
+        ResultActions action = mockMvc.perform(authorized(get("/api/v1/technical-specimen-registrations"), userId)
+            .param("page", "1")
+            .param("size", "20")
+            .param("keyword", keyword == null ? "" : keyword)
+            .param("applicationType", applicationType == null ? "" : applicationType)
+            .param("registrationStatus", registrationStatus == null ? "" : registrationStatus)
             .param("receivedFrom", receivedFrom == null ? "" : receivedFrom)
             .param("receivedTo", receivedTo == null ? "" : receivedTo));
         return responseBody(action, 200);
@@ -135,12 +161,22 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
     }
 
     protected JsonNode completeTechnicalSpecimenRegistration(String caseId, String remarks) throws Exception {
+        return completeTechnicalSpecimenRegistration(caseId, remarks, "ROUTINE");
+    }
+
+    protected JsonNode completeTechnicalSpecimenRegistration(String caseId,
+                                                             String remarks,
+                                                             String applicationType) throws Exception {
         return responseBody(postJson("/api/v1/technical-specimen-registrations/%s/complete".formatted(caseId), USER_RECEIVE, """
             {
+              "applicationType": "%s",
               "terminalCode": "T-M3-REG",
               "remarks": %s
             }
-            """.formatted(remarks == null ? "null" : "\"" + remarks + "\"")), 200);
+            """.formatted(
+            applicationType,
+            remarks == null ? "null" : "\"" + remarks + "\""
+        )), 200);
     }
 
     protected JsonNode saveTechnicalSpecimenRegistrationMaterials(String caseId, String userId, String content) throws Exception {

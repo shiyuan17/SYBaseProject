@@ -92,6 +92,8 @@ public final class TechnicalWorkflowRecords {
         int page,
         int size,
         String keyword,
+        String applicationType,
+        String registrationStatus,
         LocalDateTime receivedFrom,
         LocalDateTime receivedTo
     ) {
@@ -145,6 +147,8 @@ public final class TechnicalWorkflowRecords {
         String id,
         String applicationId,
         String applicationNo,
+        String patientName,
+        String patientId,
         String caseId,
         String pathologyNo,
         String specimenId,
