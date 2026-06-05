@@ -63,6 +63,7 @@ public class MedicalOrderPageJdbcRepository {
             select id, package_code, package_name, package_type, owner_user_id, enabled, remarks
             from medical_order_packages
             """ + conditions + """
+
             order by package_code
             offset :offset rows fetch next :size rows only
             """, params, this::mapPackage);

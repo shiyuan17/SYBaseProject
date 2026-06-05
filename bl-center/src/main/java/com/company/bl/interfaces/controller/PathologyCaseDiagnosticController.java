@@ -41,9 +41,18 @@ public class PathologyCaseDiagnosticController {
             result.pathologyNo(),
             result.caseStatus(),
             result.patientName(),
+            result.patientId(),
+            result.patientGender(),
+            result.patientAge(),
+            result.applicationType(),
+            result.inpatientNo(),
+            result.outpatientNo(),
+            result.bedNo(),
+            result.phone(),
             result.submittingDepartmentName(),
             result.submittingDoctorName(),
             result.clinicalDiagnosis(),
+            result.applicationRemarks(),
             result.applicationFormArchiveStatus(),
             result.applicationFormArchiveLocation(),
             result.applicationFormImageUrl(),
@@ -62,6 +71,11 @@ public class PathologyCaseDiagnosticController {
             result.revisions().stream().map(this::toRevisionSummary).toList(),
             result.medicalOrders().stream().map(this::toMedicalOrderSummary).toList(),
             result.consultations().stream().map(this::toConsultationSummary).toList(),
+            result.historicalPathologies().stream().map(this::toHistoricalPathologySummary).toList(),
+            result.pacsExaminations().stream().map(this::toPacsExaminationSummary).toList(),
+            result.reportTraces().stream().map(this::toReportTraceSummary).toList(),
+            result.remarkSections().stream().map(this::toRemarkSectionSummary).toList(),
+            result.chargeItems().stream().map(this::toChargeItemSummary).toList(),
             result.hasPendingRevision());
     }
 
@@ -188,5 +202,59 @@ public class PathologyCaseDiagnosticController {
             item.completedAt(),
             item.opinion(),
             item.participantCount());
+    }
+
+    private DiagnosticWorkbenchResponse.HistoricalPathologySummary toHistoricalPathologySummary(
+        DiagnosticReportViews.HistoricalPathologyView item
+    ) {
+        return new DiagnosticWorkbenchResponse.HistoricalPathologySummary(
+            item.age(),
+            item.inpatientNo(),
+            item.examinationNo(),
+            item.submissionType(),
+            item.reportTime(),
+            item.diagnosis());
+    }
+
+    private DiagnosticWorkbenchResponse.PacsExaminationSummary toPacsExaminationSummary(
+        DiagnosticReportViews.PacsExaminationView item
+    ) {
+        return new DiagnosticWorkbenchResponse.PacsExaminationSummary(
+            item.submissionType(),
+            item.imagingDiagnosis(),
+            item.reportTime(),
+            item.examinationNo(),
+            item.imagingDescription(),
+            item.reportStatus());
+    }
+
+    private DiagnosticWorkbenchResponse.ReportTraceSummary toReportTraceSummary(
+        DiagnosticReportViews.ReportTraceView item
+    ) {
+        return new DiagnosticWorkbenchResponse.ReportTraceSummary(
+            item.sequenceNo(),
+            item.reportDoctorName(),
+            item.reportTime(),
+            item.reportStatus(),
+            item.diagnosisInfo());
+    }
+
+    private DiagnosticWorkbenchResponse.RemarkSectionSummary toRemarkSectionSummary(
+        DiagnosticReportViews.RemarkSectionView item
+    ) {
+        return new DiagnosticWorkbenchResponse.RemarkSectionSummary(
+            item.sectionKey(),
+            item.title(),
+            item.relatedNo(),
+            item.content());
+    }
+
+    private DiagnosticWorkbenchResponse.ChargeItemSummary toChargeItemSummary(
+        DiagnosticReportViews.ChargeItemView item
+    ) {
+        return new DiagnosticWorkbenchResponse.ChargeItemSummary(
+            item.itemName(),
+            item.chargedAt(),
+            item.chargedByName());
     }
 }

@@ -20,9 +20,9 @@ INSERT INTO menus (id, parent_id, menu_code, menu_name, menu_type, path, compone
 ('MENU_NUMBERING', 'MENU_SYSTEM', 'NUMBERING_RULES', '编号规则', 'MENU', '/system/numbering-rules', 'NumberingRules', 'support:numbering', 100);
 
 INSERT INTO permissions (id, permission_code, permission_name, menu_id, action_key, http_method, resource_path, permission_group, sort_order) VALUES
-('PERM_SYS_USER_QUERY', 'PERM_SYS_USER_QUERY', '查询用户', 'MENU_SYS_USERS', 'QUERY', 'GET', '/api/v1/system-users', 'SYSTEM', 1),
-('PERM_SYS_USER_CREATE', 'PERM_SYS_USER_CREATE', '创建用户', 'MENU_SYS_USERS', 'CREATE', 'POST', '/api/v1/system-users', 'SYSTEM', 2),
-('PERM_SYS_USER_UPDATE', 'PERM_SYS_USER_UPDATE', '更新用户', 'MENU_SYS_USERS', 'UPDATE', 'PATCH', '/api/v1/system-users/{id}', 'SYSTEM', 3),
+('PERM_SYS_USER_QUERY', 'PERM_SYS_USER_QUERY', '查询系统用户', 'MENU_SYS_USERS', 'QUERY', 'GET', '/api/v1/system-users', 'SYSTEM', 1),
+('PERM_SYS_USER_CREATE', 'PERM_SYS_USER_CREATE', '创建系统用户', 'MENU_SYS_USERS', 'CREATE', 'POST', '/api/v1/system-users', 'SYSTEM', 2),
+('PERM_SYS_USER_UPDATE', 'PERM_SYS_USER_UPDATE', '更新系统用户', 'MENU_SYS_USERS', 'UPDATE', 'PATCH', '/api/v1/system-users/{id}', 'SYSTEM', 3),
 ('PERM_SYS_ROLE_QUERY', 'PERM_SYS_ROLE_QUERY', '查询角色', 'MENU_SYS_ROLES', 'QUERY', 'GET', '/api/v1/roles', 'SYSTEM', 4),
 ('PERM_SYS_ROLE_CREATE', 'PERM_SYS_ROLE_CREATE', '创建角色', 'MENU_SYS_ROLES', 'CREATE', 'POST', '/api/v1/roles', 'SYSTEM', 5),
 ('PERM_SYS_ROLE_ASSIGN', 'PERM_SYS_ROLE_ASSIGN', '角色授权', 'MENU_SYS_ROLES', 'ASSIGN', 'PUT', '/api/v1/roles/{id}/authorizations', 'SYSTEM', 6),

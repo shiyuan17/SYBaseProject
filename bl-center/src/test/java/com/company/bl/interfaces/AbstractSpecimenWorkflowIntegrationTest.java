@@ -93,23 +93,25 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
     }
 
     protected void confirmSpecimen(String barcode) throws Exception {
+        String operatorVerificationToken = operatorVerificationToken(USER_FIXATION, USER_TRANSPORT);
         postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(barcode), USER_FIXATION, """
             {
-              
+              "operatorVerificationToken": "%s",
               "terminalCode": "T-CONFIRM"
             }
-            """)
+            """.formatted(operatorVerificationToken))
             .andExpect(status().isOk());
     }
 
     protected void checkInSpecimen(String barcode) throws Exception {
+        String operatorVerificationToken = operatorVerificationToken(USER_FIXATION, USER_TRANSPORT);
         postJson("/api/v1/specimens/barcodes/%s/check-in".formatted(barcode), USER_FIXATION, """
             {
-              
+              "operatorVerificationToken": "%s",
               "specimenBarcode": "%s",
               "terminalCode": "T-CHECK-IN"
             }
-            """.formatted(barcode))
+            """.formatted(operatorVerificationToken, barcode))
             .andExpect(status().isOk());
     }
 
@@ -124,10 +126,12 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
             .map(code -> "\"" + code + "\"")
             .reduce((left, right) -> left + "," + right)
             .orElseThrow();
+        String operatorVerificationToken = operatorVerificationToken(USER_TRANSPORT, USER_FIXATION);
         return responseBody(postJson("/api/v1/transport-orders", USER_TRANSPORT, """
             {
               "applicationId": "%s",
               "specimenBarcodes": [%s],
+              "operatorVerificationToken": "%s",
               "handoverUserName": "handover-a",
               "handoverDepartmentId": "DEPT-OR",
               "handoverDepartmentName": "OR",
@@ -135,7 +139,7 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
               "receiverDepartmentName": "Pathology",
               "terminalCode": "OR-02"
             }
-            """.formatted(applicationId, joined)), 201);
+            """.formatted(applicationId, joined, operatorVerificationToken)), 201);
     }
 
     protected String registerSpecimenPayload(String applicationId, String printerCode, String... barcodes) {
@@ -199,6 +203,18 @@ abstract class AbstractSpecimenWorkflowIntegrationTest extends AuthenticatedWebI
                 """,
             "userId",
             userId);
+    }
+
+    protected String operatorVerificationToken(String currentUserId, String operatorUserId) throws Exception {
+        return responseBody(postJson("/api/v1/operator-verifications", currentUserId, """
+            {
+              "operatorUserId": "%s",
+              "loginName": "%s",
+              "password": "123456"
+            }
+            """.formatted(operatorUserId, userLoginName(operatorUserId))), 200)
+            .path("operatorVerificationToken")
+            .asText();
     }
 
     protected JsonNode responseBody(ResultActions resultActions, int expectedStatus) throws Exception {

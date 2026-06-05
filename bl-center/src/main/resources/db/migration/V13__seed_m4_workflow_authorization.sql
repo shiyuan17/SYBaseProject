@@ -1,29 +1,29 @@
 INSERT INTO menus (id, parent_id, menu_code, menu_name, menu_type, path, component_name, permission_prefix, sort_order) VALUES
-('MENU_M4_WORKFLOW', NULL, 'M4_WORKFLOW', 'M4 Workflow', 'DIRECTORY', '/doctor-workflow', 'DoctorWorkflowRoot', 'm4', 130),
-('MENU_M4_ASSIGN', 'MENU_M4_WORKFLOW', 'M4_ASSIGN', 'Diagnosis Assignment', 'MENU', '/api/v1/diagnostic-tasks/pending', 'DiagnosisAssignment', 'm4:assign', 131),
-('MENU_M4_WORKBENCH', 'MENU_M4_WORKFLOW', 'M4_WORKBENCH', 'Diagnosis Workbench', 'MENU', '/api/v1/pathology-cases/{id}/diagnostic-workbench', 'DiagnosisWorkbench', 'm4:workbench', 132),
-('MENU_M4_REPORT', 'MENU_M4_WORKFLOW', 'M4_REPORT', 'Pathology Report', 'MENU', '/api/v1/pathology-reports', 'PathologyReport', 'm4:report', 133),
-('MENU_M4_TRACKING', 'MENU_M4_WORKFLOW', 'M4_TRACKING', 'Report Tracking', 'MENU', '/api/v1/pathology-cases/{id}/report-tracking', 'ReportTracking', 'm4:tracking', 134);
+('MENU_M4_WORKFLOW', NULL, 'M4_WORKFLOW', '诊断管理', 'DIRECTORY', '/doctor-workflow', 'DoctorWorkflowRoot', 'm4', 130),
+('MENU_M4_ASSIGN', 'MENU_M4_WORKFLOW', 'M4_ASSIGN', '诊断分配', 'MENU', '/api/v1/diagnostic-tasks/pending', 'DiagnosisAssignment', 'm4:assign', 131),
+('MENU_M4_WORKBENCH', 'MENU_M4_WORKFLOW', 'M4_WORKBENCH', '诊断平台工作站', 'MENU', '/api/v1/pathology-cases/{id}/diagnostic-workbench', 'DiagnosisWorkbench', 'm4:workbench', 132),
+('MENU_M4_REPORT', 'MENU_M4_WORKFLOW', 'M4_REPORT', '病理报告', 'MENU', '/api/v1/pathology-reports', 'PathologyReport', 'm4:report', 133),
+('MENU_M4_TRACKING', 'MENU_M4_WORKFLOW', 'M4_TRACKING', '报告追踪', 'MENU', '/api/v1/pathology-cases/{id}/report-tracking', 'ReportTracking', 'm4:tracking', 134);
 
 INSERT INTO permissions (id, permission_code, permission_name, menu_id, action_key, http_method, resource_path, permission_group, sort_order) VALUES
-('PERM_M4_DIAG_TASK_QUERY', 'PERM_M4_DIAG_TASK_QUERY', 'Diagnosis task query', 'MENU_M4_ASSIGN', 'QUERY', 'GET', '/api/v1/diagnostic-tasks/pending', 'M4', 131),
-('PERM_M4_ASSIGN', 'PERM_M4_ASSIGN', 'Diagnosis assign', 'MENU_M4_ASSIGN', 'ASSIGN', 'POST', '/api/v1/diagnostic-tasks/{id}/assign', 'M4', 132),
-('PERM_M4_ACCEPT', 'PERM_M4_ACCEPT', 'Diagnosis accept', 'MENU_M4_WORKBENCH', 'ACCEPT', 'POST', '/api/v1/diagnostic-tasks/{id}/accept', 'M4', 133),
-('PERM_M4_START', 'PERM_M4_START', 'Diagnosis start', 'MENU_M4_WORKBENCH', 'START', 'POST', '/api/v1/diagnostic-tasks/{id}/start', 'M4', 134),
-('PERM_M4_WORKBENCH_QUERY', 'PERM_M4_WORKBENCH_QUERY', 'Diagnosis workbench query', 'MENU_M4_WORKBENCH', 'QUERY', 'GET', '/api/v1/pathology-cases/{id}/diagnostic-workbench', 'M4', 135),
-('PERM_M4_REPORT_CREATE', 'PERM_M4_REPORT_CREATE', 'Pathology report create', 'MENU_M4_REPORT', 'CREATE', 'POST', '/api/v1/pathology-reports', 'M4', 136),
-('PERM_M4_REPORT_SUBMIT', 'PERM_M4_REPORT_SUBMIT', 'Pathology report submit', 'MENU_M4_REPORT', 'SUBMIT', 'POST', '/api/v1/pathology-reports/{id}/submit', 'M4', 137),
-('PERM_M4_REPORT_REVIEW', 'PERM_M4_REPORT_REVIEW', 'Pathology report review', 'MENU_M4_REPORT', 'REVIEW', 'POST', '/api/v1/pathology-reports/{id}/review', 'M4', 138),
-('PERM_M4_REPORT_SIGN', 'PERM_M4_REPORT_SIGN', 'Pathology report sign', 'MENU_M4_REPORT', 'SIGN', 'POST', '/api/v1/pathology-reports/{id}/sign', 'M4', 139),
-('PERM_M4_REPORT_PUBLISH', 'PERM_M4_REPORT_PUBLISH', 'Pathology report publish', 'MENU_M4_REPORT', 'PUBLISH', 'POST', '/api/v1/pathology-reports/{id}/publish', 'M4', 140),
-('PERM_M4_REPORT_TRACKING_QUERY', 'PERM_M4_REPORT_TRACKING_QUERY', 'Pathology report tracking query', 'MENU_M4_TRACKING', 'QUERY', 'GET', '/api/v1/pathology-cases/{id}/report-tracking', 'M4', 141);
+('PERM_M4_DIAG_TASK_QUERY', 'PERM_M4_DIAG_TASK_QUERY', '诊断任务查询', 'MENU_M4_ASSIGN', 'QUERY', 'GET', '/api/v1/diagnostic-tasks/pending', 'M4', 131),
+('PERM_M4_ASSIGN', 'PERM_M4_ASSIGN', '诊断分配', 'MENU_M4_ASSIGN', 'ASSIGN', 'POST', '/api/v1/diagnostic-tasks/{id}/assign', 'M4', 132),
+('PERM_M4_ACCEPT', 'PERM_M4_ACCEPT', '诊断接收', 'MENU_M4_WORKBENCH', 'ACCEPT', 'POST', '/api/v1/diagnostic-tasks/{id}/accept', 'M4', 133),
+('PERM_M4_START', 'PERM_M4_START', '开始诊断', 'MENU_M4_WORKBENCH', 'START', 'POST', '/api/v1/diagnostic-tasks/{id}/start', 'M4', 134),
+('PERM_M4_WORKBENCH_QUERY', 'PERM_M4_WORKBENCH_QUERY', '诊断工作台查询', 'MENU_M4_WORKBENCH', 'QUERY', 'GET', '/api/v1/pathology-cases/{id}/diagnostic-workbench', 'M4', 135),
+('PERM_M4_REPORT_CREATE', 'PERM_M4_REPORT_CREATE', '创建病理报告', 'MENU_M4_REPORT', 'CREATE', 'POST', '/api/v1/pathology-reports', 'M4', 136),
+('PERM_M4_REPORT_SUBMIT', 'PERM_M4_REPORT_SUBMIT', '提交病理报告', 'MENU_M4_REPORT', 'SUBMIT', 'POST', '/api/v1/pathology-reports/{id}/submit', 'M4', 137),
+('PERM_M4_REPORT_REVIEW', 'PERM_M4_REPORT_REVIEW', '审核病理报告', 'MENU_M4_REPORT', 'REVIEW', 'POST', '/api/v1/pathology-reports/{id}/review', 'M4', 138),
+('PERM_M4_REPORT_SIGN', 'PERM_M4_REPORT_SIGN', '签发病理报告', 'MENU_M4_REPORT', 'SIGN', 'POST', '/api/v1/pathology-reports/{id}/sign', 'M4', 139),
+('PERM_M4_REPORT_PUBLISH', 'PERM_M4_REPORT_PUBLISH', '发布病理报告', 'MENU_M4_REPORT', 'PUBLISH', 'POST', '/api/v1/pathology-reports/{id}/publish', 'M4', 140),
+('PERM_M4_REPORT_TRACKING_QUERY', 'PERM_M4_REPORT_TRACKING_QUERY', '报告追踪查询', 'MENU_M4_TRACKING', 'QUERY', 'GET', '/api/v1/pathology-cases/{id}/report-tracking', 'M4', 141);
 
 INSERT INTO roles (id, role_code, role_name, role_type, data_scope, remarks) VALUES
-('ROLE_M4_ASSIGN', 'M4_ASSIGN', 'M4 Assign', 'BUSINESS', 'DEPARTMENT', 'M4 diagnosis assignment workstation'),
-('ROLE_M4_DIAGNOSIS', 'M4_DIAGNOSIS', 'M4 Diagnosis', 'BUSINESS', 'DEPARTMENT', 'M4 diagnosis workstation'),
-('ROLE_M4_REVIEW', 'M4_REVIEW', 'M4 Review', 'BUSINESS', 'DEPARTMENT', 'M4 review workstation'),
-('ROLE_M4_SIGN', 'M4_SIGN', 'M4 Sign', 'BUSINESS', 'DEPARTMENT', 'M4 sign workstation'),
-('ROLE_M4_TRACKING', 'M4_TRACKING', 'M4 Tracking', 'BUSINESS', 'DEPARTMENT', 'M4 report tracking workstation');
+('ROLE_M4_ASSIGN', 'M4_ASSIGN', 'M4 诊断分配员', 'BUSINESS', 'DEPARTMENT', 'M4 诊断分配工作站'),
+('ROLE_M4_DIAGNOSIS', 'M4_DIAGNOSIS', 'M4 诊断医生', 'BUSINESS', 'DEPARTMENT', 'M4 诊断工作站'),
+('ROLE_M4_REVIEW', 'M4_REVIEW', 'M4 审核医生', 'BUSINESS', 'DEPARTMENT', 'M4 审核工作站'),
+('ROLE_M4_SIGN', 'M4_SIGN', 'M4 签发医生', 'BUSINESS', 'DEPARTMENT', 'M4 签发工作站'),
+('ROLE_M4_TRACKING', 'M4_TRACKING', 'M4 报告追踪员', 'BUSINESS', 'DEPARTMENT', 'M4 报告追踪工作站');
 
 INSERT INTO role_permissions (id, role_id, permission_id, assigned_at) VALUES
 ('RP_M4_ADMIN_TASK_QUERY', 'ROLE_PATHOLOGY_ADMIN', 'PERM_M4_DIAG_TASK_QUERY', CURRENT_TIMESTAMP),

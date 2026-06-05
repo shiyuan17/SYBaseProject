@@ -79,6 +79,9 @@ class TechnicalGrossingWorkflowService {
                 workspace.detailSections().clinicalExaminationAndSurgeryFindings(),
                 workspace.detailSections().clinicalSubmissionRequirements(),
                 workspace.detailSections().infectiousAndPastHistorySummary()),
+            workspace.detailSections().clinicalSubmissionRequirements(),
+            workspace.detailSections().infectiousAndPastHistorySummary(),
+            workspace.detailSections().externalPathologyDiagnosis(),
             detail.checkItems(),
             mediaAssets);
     }

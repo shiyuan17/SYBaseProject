@@ -1,5 +1,6 @@
 package com.company.bl.interfaces.controller;
 
+import com.company.bl.application.service.OperatorVerificationService;
 import com.company.bl.application.service.SpecimenWorkflowAppService;
 import com.company.bl.application.service.SpecimenWorkflowTransportModels;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SpecimenOutboundController {
 
     private final SpecimenWorkflowAppService specimenWorkflowAppService;
+    private final OperatorVerificationService operatorVerificationService;
 
     @Operation(summary = "List specimen outbounds", description = "Query mixed pending/outbounded specimen outbound records with paging.")
     @RequirePermission(M2PermissionCodes.TRANSPORT_HANDOVER)
@@ -63,12 +65,15 @@ public class SpecimenOutboundController {
         @Valid @RequestBody QuickOutboundTransportOrderRequest request,
         HttpServletRequest httpServletRequest
     ) {
+        OperatorVerificationService.VerifiedOperator operator = resolveVerifiedOperator(
+            request.getOperatorVerificationToken(),
+            httpServletRequest);
         return toResponse(specimenWorkflowAppService.quickOutboundTransportOrder(
             new SpecimenWorkflowTransportModels.QuickOutboundTransportOrderCommand(
                 request.getIdentifierType(),
                 request.getIdentifier(),
-                resolveUserId(request.getOutboundUserId(), httpServletRequest),
-                resolveOperatorName(request.getOutboundUserName(), httpServletRequest),
+                operator.operatorUserId(),
+                operator.operatorName(),
                 request.getTerminalCode(),
                 request.getRemarks())));
     }
@@ -129,5 +134,14 @@ public class SpecimenOutboundController {
             return bodyOperatorName;
         }
         return RequestOperatorContext.currentOperatorName(request);
+    }
+
+    private OperatorVerificationService.VerifiedOperator resolveVerifiedOperator(
+        String operatorVerificationToken,
+        HttpServletRequest request
+    ) {
+        return operatorVerificationService.resolveVerifiedOperator(
+            operatorVerificationToken,
+            RequestOperatorContext.currentUserId(request));
     }
 }

@@ -106,6 +106,8 @@ public interface TechnicalWorkflowRepository {
 
     void updateTechnicalTaskPriority(String taskId, String priority, String productionRemarks);
 
+    void updateTechnicalTaskRemarks(String taskId, String remarks, String productionRemarks);
+
     void insertTechnicalTask(CreateTechnicalTaskCommand command);
 
     void ensureTechnicalSpecimenRegistrationPending(String applicationId, String caseId);

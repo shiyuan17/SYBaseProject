@@ -16,12 +16,30 @@ public record DiagnosticWorkbenchResponse(
     String caseStatus,
     @Schema(description = "Patient name")
     String patientName,
+    @Schema(description = "Patient ID")
+    String patientId,
+    @Schema(description = "Patient gender")
+    String patientGender,
+    @Schema(description = "Patient age")
+    String patientAge,
+    @Schema(description = "Application type")
+    String applicationType,
+    @Schema(description = "Inpatient number")
+    String inpatientNo,
+    @Schema(description = "Outpatient number")
+    String outpatientNo,
+    @Schema(description = "Bed number")
+    String bedNo,
+    @Schema(description = "Phone")
+    String phone,
     @Schema(description = "Submitting department")
     String submittingDepartmentName,
     @Schema(description = "Submitting doctor")
     String submittingDoctorName,
     @Schema(description = "Clinical diagnosis")
     String clinicalDiagnosis,
+    @Schema(description = "Application remarks")
+    String applicationRemarks,
     @Schema(description = "Application form archive status")
     String applicationFormArchiveStatus,
     @Schema(description = "Application form archive location")
@@ -46,6 +64,16 @@ public record DiagnosticWorkbenchResponse(
     List<MedicalOrderSummary> medicalOrders,
     @Schema(description = "Consultation summaries")
     List<ConsultationSummary> consultations,
+    @Schema(description = "Historical pathology summaries")
+    List<HistoricalPathologySummary> historicalPathologies,
+    @Schema(description = "PACS examination summaries")
+    List<PacsExaminationSummary> pacsExaminations,
+    @Schema(description = "Report trace summaries")
+    List<ReportTraceSummary> reportTraces,
+    @Schema(description = "Remark sections")
+    List<RemarkSectionSummary> remarkSections,
+    @Schema(description = "Charge item summaries")
+    List<ChargeItemSummary> chargeItems,
     @Schema(description = "Whether there is a pending revision request")
     boolean hasPendingRevision
 ) {
@@ -248,6 +276,79 @@ public record DiagnosticWorkbenchResponse(
         String opinion,
         @Schema(description = "Participant count")
         int participantCount
+    ) {
+    }
+
+    @Schema(name = "DiagnosticWorkbenchHistoricalPathologySummary", description = "Historical pathology summary in diagnostic workbench")
+    public record HistoricalPathologySummary(
+        @Schema(description = "Age")
+        String age,
+        @Schema(description = "Inpatient number")
+        String inpatientNo,
+        @Schema(description = "Examination number")
+        String examinationNo,
+        @Schema(description = "Submission type")
+        String submissionType,
+        @Schema(description = "Report time")
+        String reportTime,
+        @Schema(description = "Diagnosis")
+        String diagnosis
+    ) {
+    }
+
+    @Schema(name = "DiagnosticWorkbenchPacsExaminationSummary", description = "PACS examination summary in diagnostic workbench")
+    public record PacsExaminationSummary(
+        @Schema(description = "Submission type")
+        String submissionType,
+        @Schema(description = "Imaging diagnosis")
+        String imagingDiagnosis,
+        @Schema(description = "Report time")
+        String reportTime,
+        @Schema(description = "Examination number")
+        String examinationNo,
+        @Schema(description = "Imaging description")
+        String imagingDescription,
+        @Schema(description = "Report status")
+        String reportStatus
+    ) {
+    }
+
+    @Schema(name = "DiagnosticWorkbenchReportTraceSummary", description = "Report trace summary in diagnostic workbench")
+    public record ReportTraceSummary(
+        @Schema(description = "Sequence number")
+        int sequenceNo,
+        @Schema(description = "Report doctor")
+        String reportDoctorName,
+        @Schema(description = "Report time")
+        String reportTime,
+        @Schema(description = "Report status")
+        String reportStatus,
+        @Schema(description = "Diagnosis info")
+        String diagnosisInfo
+    ) {
+    }
+
+    @Schema(name = "DiagnosticWorkbenchRemarkSectionSummary", description = "Remark section in diagnostic workbench")
+    public record RemarkSectionSummary(
+        @Schema(description = "Section key")
+        String sectionKey,
+        @Schema(description = "Title")
+        String title,
+        @Schema(description = "Related number")
+        String relatedNo,
+        @Schema(description = "Content")
+        String content
+    ) {
+    }
+
+    @Schema(name = "DiagnosticWorkbenchChargeItemSummary", description = "Charge item summary in diagnostic workbench")
+    public record ChargeItemSummary(
+        @Schema(description = "Item name")
+        String itemName,
+        @Schema(description = "Charged at")
+        String chargedAt,
+        @Schema(description = "Charged by")
+        String chargedByName
     ) {
     }
 }

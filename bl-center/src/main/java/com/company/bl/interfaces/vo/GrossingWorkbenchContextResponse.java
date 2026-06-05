@@ -20,6 +20,12 @@ public record GrossingWorkbenchContextResponse(
     String relatedExaminations,
     @Schema(description = "上下文摘要")
     String contextSummary,
+    @Schema(description = "临床送检要求")
+    String clinicalSubmissionRequirements,
+    @Schema(description = "传染/既往信息摘要")
+    String infectiousAndPastHistorySummary,
+    @Schema(description = "外院病理诊断")
+    String externalPathologyDiagnosis,
     @Schema(description = "检查项目")
     List<TechnicalSpecimenRegistrationCheckItemResponse> checkItems,
     @Schema(description = "已采影像")

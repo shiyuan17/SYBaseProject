@@ -15,9 +15,18 @@ public interface DiagnosticTrackingQueryRepository {
         String pathologyNo,
         String caseStatus,
         String patientName,
+        String patientId,
+        String patientGender,
+        String patientAge,
+        String applicationType,
+        String inpatientNo,
+        String outpatientNo,
+        String bedNo,
+        String phone,
         String submittingDepartmentName,
         String submittingDoctorName,
         String clinicalDiagnosis,
+        String applicationRemarks,
         ArchiveRepository.ApplicationArchiveSummary applicationFormArchive,
         List<DiagnosticReportRepository.DiagnosticTask> diagnosticTasks,
         DiagnosticReportRepository.PathologyReport currentReport,
@@ -31,6 +40,8 @@ public interface DiagnosticTrackingQueryRepository {
         List<ReportRevisionRepository.ReportRevisionRequest> revisions,
         List<MedicalOrderRepository.MedicalOrder> medicalOrders,
         List<ConsultationView> consultations,
+        List<HistoricalPathology> historicalPathologies,
+        List<ChargeItem> chargeItems,
         boolean hasPendingRevision
     ) {
     }
@@ -58,6 +69,23 @@ public interface DiagnosticTrackingQueryRepository {
     record ConsultationView(
         ConsultationRepository.ConsultationCase consultationCase,
         List<ConsultationRepository.ConsultationParticipant> participants
+    ) {
+    }
+
+    record HistoricalPathology(
+        String age,
+        String inpatientNo,
+        String examinationNo,
+        String submissionType,
+        LocalDateTime reportTime,
+        String diagnosis
+    ) {
+    }
+
+    record ChargeItem(
+        String itemName,
+        LocalDateTime chargedAt,
+        String chargedByName
     ) {
     }
 }

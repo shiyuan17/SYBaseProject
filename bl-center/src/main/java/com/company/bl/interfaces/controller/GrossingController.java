@@ -62,6 +62,9 @@ public class GrossingController extends TechnicalControllerSupport {
             result.clinicalHistory(),
             result.relatedExaminations(),
             result.contextSummary(),
+            result.clinicalSubmissionRequirements(),
+            result.infectiousAndPastHistorySummary(),
+            result.externalPathologyDiagnosis(),
             result.checkItems().stream().map(item -> new TechnicalSpecimenRegistrationCheckItemResponse(
                 item.sequenceNo(),
                 item.name()))

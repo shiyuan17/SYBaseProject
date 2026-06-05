@@ -120,6 +120,10 @@ public class TechnicalWorkflowAppService {
         return technicalTaskManagementService.updateTechnicalTaskPriority(command);
     }
 
+    public TechnicalWorkflowModels.TaskView updateTechnicalTaskRemarks(TechnicalWorkflowModels.TechnicalTaskRemarksCommand command) {
+        return technicalTaskManagementService.updateTechnicalTaskRemarks(command);
+    }
+
     public TechnicalWorkflowModels.TaskStartResult startGrossing(TechnicalWorkflowModels.TaskStartCommand command) {
         return technicalGrossingWorkflowService.startGrossing(command);
     }

@@ -163,6 +163,7 @@ class MasterDataControllerIntegrationTest extends AuthenticatedWebIntegrationTes
         mockMvc.perform(asAdmin(get("/api/v1/medical-order-packages/page"))
                 .param("page", "1")
                 .param("size", "20")
+                .param("enabled", "true")
                 .param("keyword", packageCode))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.total", greaterThanOrEqualTo(1)))

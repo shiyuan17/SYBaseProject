@@ -15,10 +15,14 @@ import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRepository;
 import com.company.bl.domain.valueobject.ApplicationId;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 public class JdbcDiagnosticTrackingQueryRepository implements DiagnosticTrackingQueryRepository {
@@ -30,6 +34,7 @@ public class JdbcDiagnosticTrackingQueryRepository implements DiagnosticTracking
     private final TechnicalWorkflowRepository technicalWorkflowRepository;
     private final ApplicationRepository applicationRepository;
     private final ArchiveRepository archiveRepository;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public JdbcDiagnosticTrackingQueryRepository(DiagnosticReportRepository diagnosticReportRepository,
                                                  ReportRevisionRepository reportRevisionRepository,
@@ -37,7 +42,8 @@ public class JdbcDiagnosticTrackingQueryRepository implements DiagnosticTracking
                                                  ConsultationRepository consultationRepository,
                                                  TechnicalWorkflowRepository technicalWorkflowRepository,
                                                  ApplicationRepository applicationRepository,
-                                                 ArchiveRepository archiveRepository) {
+                                                 ArchiveRepository archiveRepository,
+                                                 NamedParameterJdbcTemplate jdbcTemplate) {
         this.diagnosticReportRepository = diagnosticReportRepository;
         this.reportRevisionRepository = reportRevisionRepository;
         this.medicalOrderRepository = medicalOrderRepository;
@@ -45,6 +51,7 @@ public class JdbcDiagnosticTrackingQueryRepository implements DiagnosticTracking
         this.technicalWorkflowRepository = technicalWorkflowRepository;
         this.applicationRepository = applicationRepository;
         this.archiveRepository = archiveRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Override
@@ -63,6 +70,11 @@ public class JdbcDiagnosticTrackingQueryRepository implements DiagnosticTracking
         List<ReportRevisionRepository.ReportRevisionRequest> revisions = reportRevisionRepository.findRevisionRequestsByCaseId(caseId);
         List<MedicalOrderRepository.MedicalOrder> medicalOrders = medicalOrderRepository.findMedicalOrdersByCaseId(caseId);
         List<ConsultationView> consultations = buildConsultationViews(caseId);
+        RegistrationPatientExtension registrationExtension = findRegistrationPatientExtension(application.getId().value());
+        List<HistoricalPathology> historicalPathologies = findHistoricalPathologies(
+            application.getPatientId(),
+            pathologyCase.pathologyNo());
+        List<ChargeItem> chargeItems = findChargeItems(caseId);
         ArchiveRepository.ApplicationArchiveSummary applicationFormArchive = archiveRepository
             .findApplicationArchiveSummary(caseId, application.getId().value())
             .orElse(null);
@@ -75,9 +87,18 @@ public class JdbcDiagnosticTrackingQueryRepository implements DiagnosticTracking
             pathologyCase.pathologyNo(),
             pathologyCase.caseStatus(),
             application.getPatientName(),
+            application.getPatientId(),
+            application.getPatientGender(),
+            application.getPatientAge(),
+            application.getApplicationType(),
+            registrationExtension.inpatientNo(),
+            null,
+            registrationExtension.bedNo(),
+            registrationExtension.phone(),
             application.getSubmittingDepartmentName(),
             application.getSubmittingDoctorName(),
             application.getClinicalDiagnosis(),
+            application.getRemarks(),
             applicationFormArchive,
             tasks,
             report,
@@ -91,6 +112,8 @@ public class JdbcDiagnosticTrackingQueryRepository implements DiagnosticTracking
             revisions,
             medicalOrders,
             consultations,
+            historicalPathologies,
+            chargeItems,
             hasPendingRevision);
     }
 
@@ -140,5 +163,66 @@ public class JdbcDiagnosticTrackingQueryRepository implements DiagnosticTracking
         return consultationRepository.findConsultationsByCaseId(caseId).stream()
             .map(item -> new ConsultationView(item, consultationRepository.findConsultationParticipants(item.id())))
             .toList();
+    }
+
+    private RegistrationPatientExtension findRegistrationPatientExtension(String applicationId) {
+        List<RegistrationPatientExtension> rows = jdbcTemplate.query("""
+            select inpatient_no, bed_no, phone
+            from application_registration_workbench
+            where application_id = :applicationId
+            order by updated_at desc, application_id desc
+            fetch first 1 rows only
+            """, Map.of("applicationId", applicationId), (rs, rowNum) -> new RegistrationPatientExtension(
+            rs.getString("inpatient_no"),
+            rs.getString("bed_no"),
+            rs.getString("phone")));
+        return rows.stream().findFirst().orElse(RegistrationPatientExtension.EMPTY);
+    }
+
+    private List<HistoricalPathology> findHistoricalPathologies(String patientId, String currentPathologyNo) {
+        if (patientId == null || patientId.isBlank()) {
+            return List.of();
+        }
+        return jdbcTemplate.query("""
+            select patient_id, external_report_no, source_system, report_date, final_diagnosis
+            from historical_reports
+            where patient_id = :patientId
+              and (pathology_no is null or pathology_no <> :currentPathologyNo)
+            order by report_date desc, created_at desc, id desc
+            fetch first 50 rows only
+            """, Map.of(
+            "patientId", patientId,
+            "currentPathologyNo", currentPathologyNo == null ? "" : currentPathologyNo
+        ), (rs, rowNum) -> new HistoricalPathology(
+            null,
+            null,
+            rs.getString("external_report_no"),
+            rs.getString("source_system"),
+            toLocalDateTime(rs.getTimestamp("report_date")),
+            rs.getString("final_diagnosis")));
+    }
+
+    private List<ChargeItem> findChargeItems(String caseId) {
+        return jdbcTemplate.query("""
+            select item_name, billed_at, operator_name
+            from billing_records
+            where case_id = :caseId
+            order by billed_at desc, created_at desc, id desc
+            """, Map.of("caseId", caseId), (rs, rowNum) -> new ChargeItem(
+            rs.getString("item_name"),
+            toLocalDateTime(rs.getTimestamp("billed_at")),
+            rs.getString("operator_name")));
+    }
+
+    private LocalDateTime toLocalDateTime(Timestamp timestamp) {
+        return timestamp == null ? null : timestamp.toLocalDateTime();
+    }
+
+    private record RegistrationPatientExtension(
+        String inpatientNo,
+        String bedNo,
+        String phone
+    ) {
+        private static final RegistrationPatientExtension EMPTY = new RegistrationPatientExtension(null, null, null);
     }
 }

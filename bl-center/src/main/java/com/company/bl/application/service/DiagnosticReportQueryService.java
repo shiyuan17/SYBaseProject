@@ -6,10 +6,12 @@ import com.company.bl.domain.repository.DiagnosticReportRepository;
 import com.company.bl.domain.repository.DiagnosticTrackingQueryRepository;
 import com.company.bl.domain.repository.MedicalOrderRepository;
 import com.company.bl.domain.repository.ReportRevisionRepository;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -67,9 +69,18 @@ class DiagnosticReportQueryService {
             aggregate.pathologyNo(),
             aggregate.caseStatus(),
             aggregate.patientName(),
+            aggregate.patientId(),
+            aggregate.patientGender(),
+            aggregate.patientAge(),
+            aggregate.applicationType(),
+            aggregate.inpatientNo(),
+            aggregate.outpatientNo(),
+            aggregate.bedNo(),
+            aggregate.phone(),
             aggregate.submittingDepartmentName(),
             aggregate.submittingDoctorName(),
             aggregate.clinicalDiagnosis(),
+            aggregate.applicationRemarks(),
             archiveStatus(aggregate.applicationFormArchive()),
             archiveLocation(aggregate.applicationFormArchive()),
             archiveImageUrl(aggregate.applicationFormArchive()),
@@ -83,6 +94,11 @@ class DiagnosticReportQueryService {
             aggregate.revisions().stream().map(this::toRevisionView).toList(),
             aggregate.medicalOrders().stream().map(this::toMedicalOrderView).toList(),
             aggregate.consultations().stream().map(this::toConsultationView).toList(),
+            aggregate.historicalPathologies().stream().map(this::toHistoricalPathologyView).toList(),
+            List.of(),
+            buildReportTraces(aggregate),
+            buildRemarkSections(aggregate),
+            buildChargeItemViews(aggregate),
             aggregate.hasPendingRevision());
     }
 
@@ -213,6 +229,119 @@ class DiagnosticReportQueryService {
             stringify(consultation.consultationCase().completedAt()),
             consultation.consultationCase().opinion(),
             consultation.participants().size());
+    }
+
+    private DiagnosticReportViews.HistoricalPathologyView toHistoricalPathologyView(
+        DiagnosticTrackingQueryRepository.HistoricalPathology item
+    ) {
+        return new DiagnosticReportViews.HistoricalPathologyView(
+            item.age(),
+            item.inpatientNo(),
+            item.examinationNo(),
+            item.submissionType(),
+            stringify(item.reportTime()),
+            item.diagnosis());
+    }
+
+    private DiagnosticReportViews.ChargeItemView toChargeItemView(
+        DiagnosticTrackingQueryRepository.ChargeItem item
+    ) {
+        return new DiagnosticReportViews.ChargeItemView(
+            item.itemName(),
+            stringify(item.chargedAt()),
+            item.chargedByName());
+    }
+
+    private List<DiagnosticReportViews.ChargeItemView> buildChargeItemViews(
+        DiagnosticTrackingQueryRepository.DiagnosticWorkbenchAggregate aggregate
+    ) {
+        if (!aggregate.chargeItems().isEmpty()) {
+            return aggregate.chargeItems().stream().map(this::toChargeItemView).toList();
+        }
+        return aggregate.medicalOrders().stream()
+            .filter(order -> order.billingStatus() != null && !order.billingStatus().isBlank())
+            .map(order -> new DiagnosticReportViews.ChargeItemView(
+                firstPresent(order.orderContent(), order.orderNumber()),
+                stringify(firstPresent(order.completedAt(), order.acceptedAt(), order.orderDate())),
+                firstPresent(order.executorName(), order.doctorName())))
+            .toList();
+    }
+
+    private List<DiagnosticReportViews.ReportTraceView> buildReportTraces(
+        DiagnosticTrackingQueryRepository.DiagnosticWorkbenchAggregate aggregate
+    ) {
+        List<DiagnosticReportViews.ReportTraceView> traces = new ArrayList<>();
+        DiagnosticReportRepository.PathologyReport report = aggregate.currentReport();
+        if (report != null) {
+            traces.add(new DiagnosticReportViews.ReportTraceView(
+                traces.size() + 1,
+                firstPresent(report.signedByName(), report.reviewerName()),
+                stringify(firstPresent(report.publishedAt(), report.signedAt(), report.reviewedAt(), report.submittedAt(), report.reportDate())),
+                report.reportStatus(),
+                report.finalDiagnosis()));
+        }
+        for (DiagnosticReportRepository.DiagnosticTask task : aggregate.diagnosticTasks()) {
+            traces.add(new DiagnosticReportViews.ReportTraceView(
+                traces.size() + 1,
+                firstPresent(task.primaryDoctorName(), task.diagnosisDoctorName(), task.reviewerName()),
+                stringify(firstPresent(task.completedAt(), task.reviewedAt(), task.primaryDiagnosedAt(), task.acceptedAt(), task.assignedAt())),
+                task.status(),
+                task.remarks()));
+        }
+        return traces;
+    }
+
+    private List<DiagnosticReportViews.RemarkSectionView> buildRemarkSections(
+        DiagnosticTrackingQueryRepository.DiagnosticWorkbenchAggregate aggregate
+    ) {
+        List<DiagnosticReportViews.RemarkSectionView> sections = new ArrayList<>();
+        sections.add(new DiagnosticReportViews.RemarkSectionView(
+            "APPLICATION",
+            "申请备注",
+            aggregate.applicationNo(),
+            aggregate.applicationRemarks()));
+        sections.add(new DiagnosticReportViews.RemarkSectionView(
+            "GROSSING",
+            "取材备注",
+            aggregate.pathologyNo(),
+            aggregate.blocks().stream()
+                .map(DiagnosticReportQueryService::firstNonBlankBlockRemark)
+                .filter(value -> value != null && !value.isBlank())
+                .findFirst()
+                .orElse(null)));
+        sections.add(new DiagnosticReportViews.RemarkSectionView(
+            "DIAGNOSIS",
+            "诊断备注",
+            aggregate.pathologyNo(),
+            aggregate.currentReport() == null ? null : aggregate.currentReport().remarks()));
+        aggregate.medicalOrders().stream()
+            .filter(order -> order.remarks() != null && !order.remarks().isBlank())
+            .forEach(order -> sections.add(new DiagnosticReportViews.RemarkSectionView(
+                "MEDICAL_ORDER",
+                "医嘱备注",
+                order.orderNumber(),
+                order.remarks())));
+        return sections;
+    }
+
+    private static String firstNonBlankBlockRemark(TechnicalWorkflowRecords.SamplingBlock block) {
+        if (block.specialRequirement() != null && !block.specialRequirement().isBlank()) {
+            return block.specialRequirement();
+        }
+        return block.grossDescription();
+    }
+
+    @SafeVarargs
+    private static <T> T firstPresent(T... values) {
+        for (T value : values) {
+            if (value instanceof String text && text.isBlank()) {
+                continue;
+            }
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private DiagnosticReportViews.WorkbenchBlockSummary toBlockSummary(

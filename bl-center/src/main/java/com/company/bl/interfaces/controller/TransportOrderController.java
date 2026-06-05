@@ -1,5 +1,6 @@
 package com.company.bl.interfaces.controller;
 
+import com.company.bl.application.service.OperatorVerificationService;
 import com.company.bl.application.service.SpecimenWorkflowAppService;
 import com.company.bl.application.service.SpecimenWorkflowTransportModels;
 import com.company.bl.domain.model.TransportOrder;
@@ -36,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TransportOrderController {
 
     private final SpecimenWorkflowAppService specimenWorkflowAppService;
+    private final OperatorVerificationService operatorVerificationService;
 
     @Operation(summary = "List pending transport orders", description = "Query pending transport orders with paging.")
     @RequirePermission(M2PermissionCodes.TRANSPORT_HANDOVER)
@@ -82,12 +84,15 @@ public class TransportOrderController {
     @PostMapping
     public ResponseEntity<TransportOrderResponse> create(@Valid @RequestBody CreateTransportOrderRequest request,
                                                          HttpServletRequest httpServletRequest) {
+        OperatorVerificationService.VerifiedOperator operator = resolveVerifiedOperator(
+            request.getOperatorVerificationToken(),
+            httpServletRequest);
         return ResponseEntity.status(201).body(toResponse(specimenWorkflowAppService.createTransportOrder(
             new SpecimenWorkflowTransportModels.CreateTransportOrderCommand(
                 request.getApplicationId(),
                 request.getSpecimenBarcodes(),
-                resolveUserId(httpServletRequest),
-                request.getHandoverUserName(),
+                operator.operatorUserId(),
+                operator.operatorName(),
                 request.getHandoverDepartmentId(),
                 request.getHandoverDepartmentName(),
                 request.getReceiverDepartmentId(),
@@ -133,11 +138,14 @@ public class TransportOrderController {
     public TransportOrderResponse outbound(@Parameter(description = "Transport order ID") @PathVariable("id") String id,
                                            @Valid @RequestBody OutboundTransportOrderRequest request,
                                            HttpServletRequest httpServletRequest) {
+        OperatorVerificationService.VerifiedOperator operator = resolveVerifiedOperator(
+            request.getOperatorVerificationToken(),
+            httpServletRequest);
         return toResponse(specimenWorkflowAppService.outboundTransportOrder(
             id,
             new SpecimenWorkflowTransportModels.OutboundTransportOrderCommand(
-                resolveUserId(request.getOutboundUserId(), httpServletRequest),
-                resolveOperatorName(request.getOutboundUserName(), httpServletRequest),
+                operator.operatorUserId(),
+                operator.operatorName(),
                 request.getTerminalCode(),
                 request.getRemarks())));
     }
@@ -201,5 +209,14 @@ public class TransportOrderController {
             return bodyOperatorName;
         }
         return resolveOperatorName(request);
+    }
+
+    private OperatorVerificationService.VerifiedOperator resolveVerifiedOperator(
+        String operatorVerificationToken,
+        HttpServletRequest request
+    ) {
+        return operatorVerificationService.resolveVerifiedOperator(
+            operatorVerificationToken,
+            RequestOperatorContext.currentUserId(request));
     }
 }

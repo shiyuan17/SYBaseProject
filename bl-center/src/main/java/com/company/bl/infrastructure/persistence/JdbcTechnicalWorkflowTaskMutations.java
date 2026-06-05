@@ -147,6 +147,20 @@ final class JdbcTechnicalWorkflowTaskMutations {
             .addValue("updatedAt", LocalDateTime.now()));
     }
 
+    void updateTechnicalTaskRemarks(String taskId, String remarks, String productionRemarks) {
+        jdbcTemplate.update("""
+            update technical_pending_tasks
+            set remarks = :remarks,
+                production_remarks = :productionRemarks,
+                updated_at = :updatedAt
+            where id = :taskId
+            """, new MapSqlParameterSource()
+            .addValue("taskId", taskId)
+            .addValue("remarks", remarks)
+            .addValue("productionRemarks", productionRemarks)
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
     void insertTechnicalTask(CreateTechnicalTaskCommand command) {
         jdbcTemplate.update("""
             insert into technical_pending_tasks

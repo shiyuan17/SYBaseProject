@@ -14,6 +14,10 @@ import java.util.List;
 @Schema(name = "CreateTransportOrderRequest", description = "转运单创建请求")
 public class CreateTransportOrderRequest {
 
+    @Schema(description = "核对操作人登录确认 token", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotBlank
+    private String operatorVerificationToken;
+
     @Schema(description = "申请单 ID", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank
     @Size(max = 64)

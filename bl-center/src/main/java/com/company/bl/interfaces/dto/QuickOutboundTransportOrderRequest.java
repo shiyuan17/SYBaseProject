@@ -15,6 +15,10 @@ import lombok.Setter;
 @RejectLegacyOperatorFields
 public class QuickOutboundTransportOrderRequest {
 
+    @Schema(description = "核对操作人登录确认 token", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotBlank
+    private String operatorVerificationToken;
+
     @Schema(description = "标识类型，仅支持 SPECIMEN_NO", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank
     @Pattern(regexp = "SPECIMEN_NO")

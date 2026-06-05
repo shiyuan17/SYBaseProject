@@ -7,6 +7,7 @@ import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.TechnicalTaskAssignRequest;
 import com.company.bl.interfaces.dto.TechnicalTaskClaimRequest;
 import com.company.bl.interfaces.dto.TechnicalTaskPriorityRequest;
+import com.company.bl.interfaces.dto.TechnicalTaskRemarksRequest;
 import com.company.bl.interfaces.dto.TechnicalTaskReleaseRequest;
 import com.company.bl.interfaces.vo.PendingTechnicalTaskPageResponse;
 import com.company.bl.interfaces.vo.PendingTechnicalTaskResponse;
@@ -17,6 +18,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -135,6 +137,22 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
             new TechnicalWorkflowModels.TechnicalTaskPriorityCommand(
                 id,
                 request.getPriority(),
+                request.getProductionRemarks(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode())));
+    }
+
+    @Operation(summary = "更新技术任务备注", description = "更新任务备注和主班备注。")
+    @RequirePermission(M3PermissionCodes.TECHNICAL_TASK_QUERY)
+    @PatchMapping("/{id}/remarks")
+    public PendingTechnicalTaskResponse remarks(@PathVariable String id,
+                                                @Valid @RequestBody TechnicalTaskRemarksRequest request,
+                                                HttpServletRequest httpServletRequest) {
+        return toResponse(technicalWorkflowAppService.updateTechnicalTaskRemarks(
+            new TechnicalWorkflowModels.TechnicalTaskRemarksCommand(
+                id,
+                request.getRemarks(),
                 request.getProductionRemarks(),
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest),

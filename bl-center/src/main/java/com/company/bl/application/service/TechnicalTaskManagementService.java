@@ -130,6 +130,18 @@ class TechnicalTaskManagementService {
         return view;
     }
 
+    @Transactional
+    TechnicalWorkflowModels.TaskView updateTechnicalTaskRemarks(TechnicalWorkflowModels.TechnicalTaskRemarksCommand command) {
+        TechnicalWorkflowRecords.TechnicalTask task = requireTask(command.taskId());
+        technicalWorkflowRepository.updateTechnicalTaskRemarks(
+            task.id(),
+            trimToNull(command.remarks()),
+            trimToNull(command.productionRemarks()));
+        technicalWorkflowSupport.insertWorkflowEvent(task, task.currentNode(), "REMARKS", "SUCCESS",
+            command.operatorUserId(), command.operatorName(), command.terminalCode(), "Technical task remarks updated");
+        return reloadTaskView(task.id());
+    }
+
     private TechnicalWorkflowRecords.TechnicalTask requireTask(String taskId) {
         TechnicalWorkflowRecords.TechnicalTask task = technicalWorkflowRepository.findTechnicalTaskById(taskId)
             .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Technical task not found"));
@@ -162,6 +174,10 @@ class TechnicalTaskManagementService {
             throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, message);
         }
         return value.trim();
+    }
+
+    private String trimToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private Map<String, String> buildTaskQuery(TechnicalWorkflowModels.TaskView task) {

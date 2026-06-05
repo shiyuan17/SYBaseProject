@@ -114,21 +114,21 @@ class SpecimenWorkflowQueueAndVerificationIntegrationTest extends AbstractSpecim
 
         postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(barcode), USER_FIXATION, """
             {
-              
+              "operatorVerificationToken": "%s",
               "terminalCode": "T-CONFIRM"
             }
-            """)
+            """.formatted(operatorVerificationToken(USER_FIXATION, USER_TRANSPORT)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.specimenConfirmedAt").isNotEmpty())
             .andExpect(jsonPath("$.data.checkInStatus").value("NOT_CHECKED_IN"));
 
         postJson("/api/v1/specimens/barcodes/%s/check-in".formatted(barcode), USER_FIXATION, """
             {
-              
+              "operatorVerificationToken": "%s",
               "specimenBarcode": "%s",
               "terminalCode": "T-CHECK-IN"
             }
-            """.formatted(barcode))
+            """.formatted(operatorVerificationToken(USER_FIXATION, USER_TRANSPORT), barcode))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.checkInStatus").value("CHECKED_IN"))
             .andExpect(jsonPath("$.data.checkedInAt").isNotEmpty());
@@ -345,18 +345,19 @@ class SpecimenWorkflowQueueAndVerificationIntegrationTest extends AbstractSpecim
 
         postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(barcode), USER_FIXATION, """
             {
+              "operatorVerificationToken": "%s"
               }
-            """)
+            """.formatted(operatorVerificationToken(USER_FIXATION, USER_TRANSPORT)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.specimenConfirmedAt").isNotEmpty())
             .andExpect(jsonPath("$.data.checkInStatus").value("NOT_CHECKED_IN"));
 
         postJson("/api/v1/specimens/barcodes/%s/check-in".formatted(barcode), USER_FIXATION, """
             {
-              
+              "operatorVerificationToken": "%s",
               "specimenBarcode": "%s"
             }
-            """.formatted(barcode))
+            """.formatted(operatorVerificationToken(USER_FIXATION, USER_TRANSPORT), barcode))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.checkInStatus").value("CHECKED_IN"))
             .andExpect(jsonPath("$.data.checkedInAt").isNotEmpty());

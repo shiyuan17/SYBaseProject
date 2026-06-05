@@ -194,6 +194,11 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     }
 
     @Override
+    public void updateTechnicalTaskRemarks(String taskId, String remarks, String productionRemarks) {
+        taskMutations.updateTechnicalTaskRemarks(taskId, remarks, productionRemarks);
+    }
+
+    @Override
     public void insertTechnicalTask(CreateTechnicalTaskCommand command) {
         taskMutations.insertTechnicalTask(command);
     }

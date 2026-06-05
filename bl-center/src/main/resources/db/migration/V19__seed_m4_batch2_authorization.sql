@@ -1,22 +1,22 @@
 INSERT INTO menus (id, parent_id, menu_code, menu_name, menu_type, path, component_name, permission_prefix, sort_order) VALUES
-('MENU_M4_REVISION', 'MENU_M4_WORKFLOW', 'M4_REVISION', 'Report Revision', 'MENU', '/api/v1/report-revision-requests', 'ReportRevision', 'm4:revision', 135),
-('MENU_M4_MEDICAL_ORDER', 'MENU_M4_WORKFLOW', 'M4_MEDICAL_ORDER', 'Medical Order', 'MENU', '/api/v1/medical-orders/pending', 'MedicalOrder', 'm4:order', 136),
-('MENU_M4_CONSULTATION', 'MENU_M4_WORKFLOW', 'M4_CONSULTATION', 'Consultation', 'MENU', '/api/v1/consultations', 'Consultation', 'm4:consultation', 137);
+('MENU_M4_REVISION', 'MENU_M4_WORKFLOW', 'M4_REVISION', '报告修订', 'MENU', '/api/v1/report-revision-requests', 'ReportRevision', 'm4:revision', 135),
+('MENU_M4_MEDICAL_ORDER', 'MENU_M4_WORKFLOW', 'M4_MEDICAL_ORDER', '病理医嘱执行', 'MENU', '/api/v1/medical-orders/pending', 'MedicalOrder', 'm4:order', 136),
+('MENU_M4_CONSULTATION', 'MENU_M4_WORKFLOW', 'M4_CONSULTATION', '会诊管理', 'MENU', '/api/v1/consultations', 'Consultation', 'm4:consultation', 137);
 
 INSERT INTO permissions (id, permission_code, permission_name, menu_id, action_key, http_method, resource_path, permission_group, sort_order) VALUES
-('PERM_M4_REVISION_REQUEST_CREATE', 'PERM_M4_REVISION_REQUEST_CREATE', 'Revision request create', 'MENU_M4_REVISION', 'CREATE', 'POST', '/api/v1/report-revision-requests', 'M4', 142),
-('PERM_M4_REVISION_APPROVE', 'PERM_M4_REVISION_APPROVE', 'Revision approve', 'MENU_M4_REVISION', 'APPROVE', 'POST', '/api/v1/report-revision-requests/{id}/approve', 'M4', 143),
-('PERM_M4_MEDICAL_ORDER_CREATE', 'PERM_M4_MEDICAL_ORDER_CREATE', 'Medical order create', 'MENU_M4_MEDICAL_ORDER', 'CREATE', 'POST', '/api/v1/medical-orders', 'M4', 144),
-('PERM_M4_MEDICAL_ORDER_CANCEL', 'PERM_M4_MEDICAL_ORDER_CANCEL', 'Medical order cancel', 'MENU_M4_MEDICAL_ORDER', 'CANCEL', 'POST', '/api/v1/medical-orders/{id}/cancel', 'M4', 145),
-('PERM_M4_MEDICAL_ORDER_QUERY', 'PERM_M4_MEDICAL_ORDER_QUERY', 'Medical order query', 'MENU_M4_MEDICAL_ORDER', 'QUERY', 'GET', '/api/v1/medical-orders/pending', 'M4', 146),
-('PERM_M4_MEDICAL_ORDER_ACCEPT', 'PERM_M4_MEDICAL_ORDER_ACCEPT', 'Medical order accept', 'MENU_M4_MEDICAL_ORDER', 'ACCEPT', 'POST', '/api/v1/medical-orders/{id}/accept', 'M4', 147),
-('PERM_M4_MEDICAL_ORDER_COMPLETE', 'PERM_M4_MEDICAL_ORDER_COMPLETE', 'Medical order complete', 'MENU_M4_MEDICAL_ORDER', 'COMPLETE', 'POST', '/api/v1/medical-orders/{id}/complete', 'M4', 148),
-('PERM_M4_CONSULTATION_CREATE', 'PERM_M4_CONSULTATION_CREATE', 'Consultation create', 'MENU_M4_CONSULTATION', 'CREATE', 'POST', '/api/v1/consultations', 'M4', 149),
-('PERM_M4_CONSULTATION_COMMENT', 'PERM_M4_CONSULTATION_COMMENT', 'Consultation comment', 'MENU_M4_CONSULTATION', 'COMMENT', 'POST', '/api/v1/consultations/{id}/participants/{participantId}/comment', 'M4', 150),
-('PERM_M4_CONSULTATION_COMPLETE', 'PERM_M4_CONSULTATION_COMPLETE', 'Consultation complete', 'MENU_M4_CONSULTATION', 'COMPLETE', 'POST', '/api/v1/consultations/{id}/complete', 'M4', 151);
+('PERM_M4_REVISION_REQUEST_CREATE', 'PERM_M4_REVISION_REQUEST_CREATE', '创建报告修订', 'MENU_M4_REVISION', 'CREATE', 'POST', '/api/v1/report-revision-requests', 'M4', 142),
+('PERM_M4_REVISION_APPROVE', 'PERM_M4_REVISION_APPROVE', '审批报告修订', 'MENU_M4_REVISION', 'APPROVE', 'POST', '/api/v1/report-revision-requests/{id}/approve', 'M4', 143),
+('PERM_M4_MEDICAL_ORDER_CREATE', 'PERM_M4_MEDICAL_ORDER_CREATE', '创建病理医嘱', 'MENU_M4_MEDICAL_ORDER', 'CREATE', 'POST', '/api/v1/medical-orders', 'M4', 144),
+('PERM_M4_MEDICAL_ORDER_CANCEL', 'PERM_M4_MEDICAL_ORDER_CANCEL', '取消病理医嘱', 'MENU_M4_MEDICAL_ORDER', 'CANCEL', 'POST', '/api/v1/medical-orders/{id}/cancel', 'M4', 145),
+('PERM_M4_MEDICAL_ORDER_QUERY', 'PERM_M4_MEDICAL_ORDER_QUERY', '查询病理医嘱', 'MENU_M4_MEDICAL_ORDER', 'QUERY', 'GET', '/api/v1/medical-orders/pending', 'M4', 146),
+('PERM_M4_MEDICAL_ORDER_ACCEPT', 'PERM_M4_MEDICAL_ORDER_ACCEPT', '接收病理医嘱', 'MENU_M4_MEDICAL_ORDER', 'ACCEPT', 'POST', '/api/v1/medical-orders/{id}/accept', 'M4', 147),
+('PERM_M4_MEDICAL_ORDER_COMPLETE', 'PERM_M4_MEDICAL_ORDER_COMPLETE', '完成病理医嘱', 'MENU_M4_MEDICAL_ORDER', 'COMPLETE', 'POST', '/api/v1/medical-orders/{id}/complete', 'M4', 148),
+('PERM_M4_CONSULTATION_CREATE', 'PERM_M4_CONSULTATION_CREATE', '创建会诊', 'MENU_M4_CONSULTATION', 'CREATE', 'POST', '/api/v1/consultations', 'M4', 149),
+('PERM_M4_CONSULTATION_COMMENT', 'PERM_M4_CONSULTATION_COMMENT', '填写会诊意见', 'MENU_M4_CONSULTATION', 'COMMENT', 'POST', '/api/v1/consultations/{id}/participants/{participantId}/comment', 'M4', 150),
+('PERM_M4_CONSULTATION_COMPLETE', 'PERM_M4_CONSULTATION_COMPLETE', '完成会诊', 'MENU_M4_CONSULTATION', 'COMPLETE', 'POST', '/api/v1/consultations/{id}/complete', 'M4', 151);
 
 INSERT INTO roles (id, role_code, role_name, role_type, data_scope, remarks) VALUES
-('ROLE_M4_MEDICAL_ORDER_EXECUTE', 'M4_MEDICAL_ORDER_EXECUTE', 'M4 Medical Order Execute', 'BUSINESS', 'DEPARTMENT', 'M4 medical order execution workstation');
+('ROLE_M4_MEDICAL_ORDER_EXECUTE', 'M4_MEDICAL_ORDER_EXECUTE', 'M4 医嘱执行员', 'BUSINESS', 'DEPARTMENT', 'M4 病理医嘱执行工作站');
 
 INSERT INTO role_permissions (id, role_id, permission_id, assigned_at) VALUES
 ('RP_M4_ADMIN_REVISION_CREATE', 'ROLE_PATHOLOGY_ADMIN', 'PERM_M4_REVISION_REQUEST_CREATE', CURRENT_TIMESTAMP),

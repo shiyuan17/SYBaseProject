@@ -35,9 +35,18 @@ public final class DiagnosticReportViews {
         String pathologyNo,
         String caseStatus,
         String patientName,
+        String patientId,
+        String patientGender,
+        String patientAge,
+        String applicationType,
+        String inpatientNo,
+        String outpatientNo,
+        String bedNo,
+        String phone,
         String submittingDepartmentName,
         String submittingDoctorName,
         String clinicalDiagnosis,
+        String applicationRemarks,
         String applicationFormArchiveStatus,
         String applicationFormArchiveLocation,
         String applicationFormImageUrl,
@@ -50,6 +59,11 @@ public final class DiagnosticReportViews {
         List<RevisionRequestView> revisions,
         List<MedicalOrderView> medicalOrders,
         List<ConsultationView> consultations,
+        List<HistoricalPathologyView> historicalPathologies,
+        List<PacsExaminationView> pacsExaminations,
+        List<ReportTraceView> reportTraces,
+        List<RemarkSectionView> remarkSections,
+        List<ChargeItemView> chargeItems,
         boolean hasPendingRevision
     ) {
     }
@@ -142,6 +156,50 @@ public final class DiagnosticReportViews {
         String completedAt,
         String opinion,
         int participantCount
+    ) {
+    }
+
+    public record HistoricalPathologyView(
+        String age,
+        String inpatientNo,
+        String examinationNo,
+        String submissionType,
+        String reportTime,
+        String diagnosis
+    ) {
+    }
+
+    public record PacsExaminationView(
+        String submissionType,
+        String imagingDiagnosis,
+        String reportTime,
+        String examinationNo,
+        String imagingDescription,
+        String reportStatus
+    ) {
+    }
+
+    public record ReportTraceView(
+        int sequenceNo,
+        String reportDoctorName,
+        String reportTime,
+        String reportStatus,
+        String diagnosisInfo
+    ) {
+    }
+
+    public record RemarkSectionView(
+        String sectionKey,
+        String title,
+        String relatedNo,
+        String content
+    ) {
+    }
+
+    public record ChargeItemView(
+        String itemName,
+        String chargedAt,
+        String chargedByName
     ) {
     }
 

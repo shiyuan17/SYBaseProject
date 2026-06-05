@@ -347,6 +347,16 @@ public final class TechnicalWorkflowModels {
         }
     }
 
+    public record TechnicalTaskRemarksCommand(
+        String taskId,
+        String remarks,
+        String productionRemarks,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode
+    ) implements OperatorCarrier {
+    }
+
     public record CompleteTechnicalSpecimenRegistrationCommand(
         String caseId,
         String operatorUserId,
@@ -525,6 +535,9 @@ public final class TechnicalWorkflowModels {
         String clinicalHistory,
         String relatedExaminations,
         String contextSummary,
+        String clinicalSubmissionRequirements,
+        String infectiousAndPastHistorySummary,
+        String externalPathologyDiagnosis,
         List<TechnicalSpecimenRegistrationCheckItem> checkItems,
         List<GrossingWorkbenchMediaAsset> mediaAssets
     ) {

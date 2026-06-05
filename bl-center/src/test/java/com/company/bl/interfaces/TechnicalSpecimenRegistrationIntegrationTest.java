@@ -698,6 +698,9 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.clinicalHistory").value("取材专用病史摘要"))
             .andExpect(jsonPath("$.data.relatedExaminations").value("取材专用检验和影像检查"))
+            .andExpect(jsonPath("$.data.clinicalSubmissionRequirements").value("取材专用送检要求"))
+            .andExpect(jsonPath("$.data.infectiousAndPastHistorySummary").value("取材专用传染/既往摘要"))
+            .andExpect(jsonPath("$.data.externalPathologyDiagnosis").value("取材专用外院病理诊断"))
             .andExpect(jsonPath("$.data.contextSummary").value(org.hamcrest.Matchers.containsString("取材专用临床检查及手术所见")))
             .andExpect(jsonPath("$.data.contextSummary").value(org.hamcrest.Matchers.containsString("取材专用送检要求")))
             .andExpect(jsonPath("$.data.contextSummary").value(org.hamcrest.Matchers.containsString("取材专用传染/既往摘要")));

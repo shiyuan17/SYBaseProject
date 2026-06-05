@@ -276,7 +276,8 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
         if (query.keyword() != null && !query.keyword().isBlank()) {
             builder.append("""
                  and (
-                    s.specimen_no like :keyword
+                    s.id like :keyword
+                    or s.specimen_no like :keyword
                     or s.barcode like :keyword
                     or a.application_no like :keyword
                     or a.patient_name like :keyword

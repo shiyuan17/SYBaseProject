@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.ApplicationPatientIdentityResolver;
+import com.company.bl.application.service.OperatorVerificationService;
 import com.company.bl.application.service.SpecimenWorkflowAppService;
 import com.company.bl.application.service.SpecimenWorkflowModels;
 import com.company.bl.domain.model.ApplicationTracking;
@@ -40,6 +41,7 @@ import static com.company.bl.application.service.SpecimenWorkflowQueryModels.*;
 class SpecimenControllerAssembler {
 
     private final ApplicationPatientIdentityResolver patientIdentityResolver;
+    private final OperatorVerificationService operatorVerificationService;
 
     RegisterSpecimensCommand toRegisterSpecimensCommand(RegisterSpecimensRequest request, HttpServletRequest httpServletRequest) {
         return new RegisterSpecimensCommand(
@@ -126,19 +128,25 @@ class SpecimenControllerAssembler {
     }
 
     ConfirmSpecimenCommand toConfirmSpecimenCommand(String barcode, SpecimenConfirmRequest request, HttpServletRequest httpServletRequest) {
+        OperatorVerificationService.VerifiedOperator operator = resolveVerifiedOperator(
+            request.getOperatorVerificationToken(),
+            httpServletRequest);
         return new ConfirmSpecimenCommand(
             barcode,
-            resolveUserId(request.getOperatorUserId(), httpServletRequest),
-            resolveOperatorName(request.getOperatorName(), httpServletRequest),
+            operator.operatorUserId(),
+            operator.operatorName(),
             request.getTerminalCode(),
             request.getRemarks());
     }
 
     CheckInSpecimenCommand toCheckInSpecimenCommand(String barcode, SpecimenCheckInRequest request, HttpServletRequest httpServletRequest) {
+        OperatorVerificationService.VerifiedOperator operator = resolveVerifiedOperator(
+            request.getOperatorVerificationToken(),
+            httpServletRequest);
         return new CheckInSpecimenCommand(
             barcode,
-            resolveUserId(request.getOperatorUserId(), httpServletRequest),
-            resolveOperatorName(request.getOperatorName(), httpServletRequest),
+            operator.operatorUserId(),
+            operator.operatorName(),
             request.getTerminalCode(),
             request.getRemarks());
     }
@@ -402,6 +410,15 @@ class SpecimenControllerAssembler {
             return bodyOperatorName;
         }
         return RequestOperatorContext.currentOperatorName(request);
+    }
+
+    private OperatorVerificationService.VerifiedOperator resolveVerifiedOperator(
+        String operatorVerificationToken,
+        HttpServletRequest request
+    ) {
+        return operatorVerificationService.resolveVerifiedOperator(
+            operatorVerificationToken,
+            RequestOperatorContext.currentUserId(request));
     }
 
     private String resolvePatientCheckStatus(ApplicationTracking tracking) {

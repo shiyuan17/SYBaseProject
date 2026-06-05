@@ -1,32 +1,32 @@
 INSERT INTO menus (id, parent_id, menu_code, menu_name, menu_type, path, component_name, permission_prefix, sort_order) VALUES
-('MENU_M3_WORKFLOW', NULL, 'M3_WORKFLOW', 'M3 Workflow', 'DIRECTORY', '/technical-workflow', 'TechnicalWorkflowRoot', 'm3', 120),
-('MENU_M3_GROSSING', 'MENU_M3_WORKFLOW', 'M3_GROSSING', 'Grossing', 'MENU', '/api/v1/grossings', 'Grossing', 'm3:grossing', 121),
-('MENU_M3_DEHYDRATION', 'MENU_M3_WORKFLOW', 'M3_DEHYDRATION', 'Dehydration', 'MENU', '/api/v1/dehydration-batches', 'Dehydration', 'm3:dehydration', 122),
-('MENU_M3_EMBEDDING', 'MENU_M3_WORKFLOW', 'M3_EMBEDDING', 'Embedding', 'MENU', '/api/v1/embeddings', 'Embedding', 'm3:embedding', 123),
-('MENU_M3_SLICING', 'MENU_M3_WORKFLOW', 'M3_SLICING', 'Slicing', 'MENU', '/api/v1/slicings', 'Slicing', 'm3:slicing', 124),
-('MENU_M3_STAINING', 'MENU_M3_WORKFLOW', 'M3_STAINING', 'Staining', 'MENU', '/api/v1/slide-stainings', 'Staining', 'm3:staining', 125),
-('MENU_M3_REWORK', 'MENU_M3_WORKFLOW', 'M3_REWORK', 'Rework', 'MENU', '/api/v1/rework-orders', 'Rework', 'm3:rework', 126),
-('MENU_M3_TRACKING', 'MENU_M3_WORKFLOW', 'M3_TRACKING', 'Technical Tracking', 'MENU', '/api/v1/pathology-cases/{id}/technical-tracking', 'TechnicalTracking', 'm3:tracking', 127),
-('MENU_M3_TASKS', 'MENU_M3_WORKFLOW', 'M3_TASKS', 'Technical Tasks', 'MENU', '/api/v1/technical-tasks/pending', 'TechnicalTasks', 'm3:tasks', 128);
+('MENU_M3_WORKFLOW', NULL, 'M3_WORKFLOW', '制片管理', 'DIRECTORY', '/technical-workflow', 'TechnicalWorkflowRoot', 'm3', 120),
+('MENU_M3_GROSSING', 'MENU_M3_WORKFLOW', 'M3_GROSSING', '取材描写工作站', 'MENU', '/api/v1/grossings', 'Grossing', 'm3:grossing', 121),
+('MENU_M3_DEHYDRATION', 'MENU_M3_WORKFLOW', 'M3_DEHYDRATION', '脱水工作站', 'MENU', '/api/v1/dehydration-batches', 'Dehydration', 'm3:dehydration', 122),
+('MENU_M3_EMBEDDING', 'MENU_M3_WORKFLOW', 'M3_EMBEDDING', '包埋工作站', 'MENU', '/api/v1/embeddings', 'Embedding', 'm3:embedding', 123),
+('MENU_M3_SLICING', 'MENU_M3_WORKFLOW', 'M3_SLICING', '切片工作站', 'MENU', '/api/v1/slicings', 'Slicing', 'm3:slicing', 124),
+('MENU_M3_STAINING', 'MENU_M3_WORKFLOW', 'M3_STAINING', '染色出片工作站', 'MENU', '/api/v1/slide-stainings', 'Staining', 'm3:staining', 125),
+('MENU_M3_REWORK', 'MENU_M3_WORKFLOW', 'M3_REWORK', '返工工作站', 'MENU', '/api/v1/rework-orders', 'Rework', 'm3:rework', 126),
+('MENU_M3_TRACKING', 'MENU_M3_WORKFLOW', 'M3_TRACKING', '技术追踪', 'MENU', '/api/v1/pathology-cases/{id}/technical-tracking', 'TechnicalTracking', 'm3:tracking', 127),
+('MENU_M3_TASKS', 'MENU_M3_WORKFLOW', 'M3_TASKS', '任务池', 'MENU', '/api/v1/technical-tasks/pending', 'TechnicalTasks', 'm3:tasks', 128);
 
 INSERT INTO permissions (id, permission_code, permission_name, menu_id, action_key, http_method, resource_path, permission_group, sort_order) VALUES
-('PERM_M3_GROSSING', 'PERM_M3_GROSSING', 'Grossing operate', 'MENU_M3_GROSSING', 'OPERATE', 'POST', '/api/v1/grossings', 'M3', 121),
-('PERM_M3_DEHYDRATION', 'PERM_M3_DEHYDRATION', 'Dehydration operate', 'MENU_M3_DEHYDRATION', 'OPERATE', 'POST', '/api/v1/dehydration-batches', 'M3', 122),
-('PERM_M3_EMBEDDING', 'PERM_M3_EMBEDDING', 'Embedding operate', 'MENU_M3_EMBEDDING', 'OPERATE', 'POST', '/api/v1/embeddings', 'M3', 123),
-('PERM_M3_SLICING', 'PERM_M3_SLICING', 'Slicing operate', 'MENU_M3_SLICING', 'OPERATE', 'POST', '/api/v1/slicings', 'M3', 124),
-('PERM_M3_STAINING', 'PERM_M3_STAINING', 'Staining operate', 'MENU_M3_STAINING', 'OPERATE', 'POST', '/api/v1/slide-stainings', 'M3', 125),
-('PERM_M3_REWORK', 'PERM_M3_REWORK', 'Rework operate', 'MENU_M3_REWORK', 'OPERATE', 'POST', '/api/v1/rework-orders', 'M3', 126),
-('PERM_M3_TECH_TRACKING_QUERY', 'PERM_M3_TECH_TRACKING_QUERY', 'Technical tracking query', 'MENU_M3_TRACKING', 'QUERY', 'GET', '/api/v1/pathology-cases/{id}/technical-tracking', 'M3', 127),
-('PERM_M3_TECH_TASK_QUERY', 'PERM_M3_TECH_TASK_QUERY', 'Technical task query', 'MENU_M3_TASKS', 'QUERY', 'GET', '/api/v1/technical-tasks/pending', 'M3', 128);
+('PERM_M3_GROSSING', 'PERM_M3_GROSSING', '取材描写操作', 'MENU_M3_GROSSING', 'OPERATE', 'POST', '/api/v1/grossings', 'M3', 121),
+('PERM_M3_DEHYDRATION', 'PERM_M3_DEHYDRATION', '脱水操作', 'MENU_M3_DEHYDRATION', 'OPERATE', 'POST', '/api/v1/dehydration-batches', 'M3', 122),
+('PERM_M3_EMBEDDING', 'PERM_M3_EMBEDDING', '包埋操作', 'MENU_M3_EMBEDDING', 'OPERATE', 'POST', '/api/v1/embeddings', 'M3', 123),
+('PERM_M3_SLICING', 'PERM_M3_SLICING', '切片操作', 'MENU_M3_SLICING', 'OPERATE', 'POST', '/api/v1/slicings', 'M3', 124),
+('PERM_M3_STAINING', 'PERM_M3_STAINING', '染色操作', 'MENU_M3_STAINING', 'OPERATE', 'POST', '/api/v1/slide-stainings', 'M3', 125),
+('PERM_M3_REWORK', 'PERM_M3_REWORK', '返工操作', 'MENU_M3_REWORK', 'OPERATE', 'POST', '/api/v1/rework-orders', 'M3', 126),
+('PERM_M3_TECH_TRACKING_QUERY', 'PERM_M3_TECH_TRACKING_QUERY', '技术追踪查询', 'MENU_M3_TRACKING', 'QUERY', 'GET', '/api/v1/pathology-cases/{id}/technical-tracking', 'M3', 127),
+('PERM_M3_TECH_TASK_QUERY', 'PERM_M3_TECH_TASK_QUERY', '技术任务查询', 'MENU_M3_TASKS', 'QUERY', 'GET', '/api/v1/technical-tasks/pending', 'M3', 128);
 
 INSERT INTO roles (id, role_code, role_name, role_type, data_scope, remarks) VALUES
-('ROLE_M3_GROSSING', 'M3_GROSSING', 'M3 Grossing', 'BUSINESS', 'DEPARTMENT', 'M3 grossing workstation'),
-('ROLE_M3_DEHYDRATION', 'M3_DEHYDRATION', 'M3 Dehydration', 'BUSINESS', 'DEPARTMENT', 'M3 dehydration workstation'),
-('ROLE_M3_EMBEDDING', 'M3_EMBEDDING', 'M3 Embedding', 'BUSINESS', 'DEPARTMENT', 'M3 embedding workstation'),
-('ROLE_M3_SLICING', 'M3_SLICING', 'M3 SLICING', 'BUSINESS', 'DEPARTMENT', 'M3 slicing workstation'),
-('ROLE_M3_STAINING', 'M3_STAINING', 'M3 Staining', 'BUSINESS', 'DEPARTMENT', 'M3 staining workstation'),
-('ROLE_M3_REWORK', 'M3_REWORK', 'M3 Rework', 'BUSINESS', 'DEPARTMENT', 'M3 rework workstation'),
-('ROLE_M3_TRACKING', 'M3_TRACKING', 'M3 Tracking', 'BUSINESS', 'DEPARTMENT', 'M3 technical tracking workstation');
+('ROLE_M3_GROSSING', 'M3_GROSSING', 'M3 取材描写员', 'BUSINESS', 'DEPARTMENT', 'M3 取材描写工作站'),
+('ROLE_M3_DEHYDRATION', 'M3_DEHYDRATION', 'M3 脱水员', 'BUSINESS', 'DEPARTMENT', 'M3 脱水工作站'),
+('ROLE_M3_EMBEDDING', 'M3_EMBEDDING', 'M3 包埋员', 'BUSINESS', 'DEPARTMENT', 'M3 包埋工作站'),
+('ROLE_M3_SLICING', 'M3_SLICING', 'M3 切片员', 'BUSINESS', 'DEPARTMENT', 'M3 切片工作站'),
+('ROLE_M3_STAINING', 'M3_STAINING', 'M3 染色员', 'BUSINESS', 'DEPARTMENT', 'M3 染色工作站'),
+('ROLE_M3_REWORK', 'M3_REWORK', 'M3 返工处理员', 'BUSINESS', 'DEPARTMENT', 'M3 返工工作站'),
+('ROLE_M3_TRACKING', 'M3_TRACKING', 'M3 技术追踪员', 'BUSINESS', 'DEPARTMENT', 'M3 技术追踪工作站');
 
 INSERT INTO role_permissions (id, role_id, permission_id, assigned_at) VALUES
 ('RP_M3_ADMIN_GROSSING', 'ROLE_PATHOLOGY_ADMIN', 'PERM_M3_GROSSING', CURRENT_TIMESTAMP),
