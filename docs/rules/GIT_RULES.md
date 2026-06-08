@@ -102,7 +102,7 @@ git worktree remove ../SYBaseProject-worktrees/ENG-123
 git branch -d feature/ENG-123-user-authentication
 ```
 
-### 7. Git Hooks 与动态 MR 审查路由
+### 7. Git Hooks 与动态 MR Workflow 剧本
 
 仓库通过 `scripts/hooks/` 提供版本化的原生 Git hook 脚本，开发者需在本地执行安装脚本接入 `.git/hooks`：
 
@@ -110,19 +110,26 @@ git branch -d feature/ENG-123-user-authentication
 - `commit-msg`：校验 Conventional Commits，不符合 `type(scope): subject` 的提交信息直接拦截
 - `pre-push`：执行 `./mvnw -B -ntp clean test -Dsurefire.excludedGroups=slow`，对齐 GitLab CI `verify_fast` 的快速反馈口径
 
-MR 必须根据任务类型选择对应审查路径，不得所有任务套用同一套 AI 流程：
+MR 必须根据任务类型填写 Workflow Packet，并参考 `docs/rules/DYNAMIC_WORKFLOW_RULES.md` 选择专家 Agent、动态测试、动态模拟、安全/数据库修饰器与红队对抗点。不得所有任务套用同一套 AI 流程：
 
-- 接口任务：执行 API Review，重点检查 REST 契约、错误码、兼容性与前后端字段映射
-- 数据库任务：执行 DB Review，重点检查迁移、回滚、索引/约束、种子数据与数据兼容
-- 权限、患者信息、报告信息：执行 Security Review，重点检查认证授权、数据范围、脱敏、审计与敏感日志
-- 大文件重构、DDD 边界、共享模块：执行 Architecture Review，重点检查分层依赖、领域模型与仓储契约
-- 生产问题：执行 Execution Driven Debug，必须先读日志、复现问题、确认修复证据与回滚路径
-- 高风险变更：执行 Red Team Review，主动攻击代码并证明是否存在越权、数据破坏、错误吞噬、迁移失败或回滚缺口
+- 接口任务：启用 API Contract Agent，检查 REST 契约、错误码、兼容性、前后端字段映射和失败响应
+- 数据库任务：启用 DB/Migration Agent，检查迁移、回滚、索引/约束、种子数据、兼容查询和幂等
+- 权限、患者信息、报告信息：叠加 Security 修饰器，检查认证授权、数据范围、脱敏、审计和敏感日志
+- 大文件重构、DDD 边界、共享模块：启用 Architecture Agent，检查分层依赖、领域模型、仓储契约和测试面
+- 生产问题：启用 Execution Driven Debug，必须先读日志、复现问题、建立反馈环、确认修复证据与回滚路径
+- 高风险变更：叠加 Red Team，主动攻击代码并证明是否存在越权、数据破坏、错误吞噬、迁移失败或回滚缺口
+
+MR 合入前还必须填写 Memory Update Packet：
+
+- AI / 开发者交付前按需更新根目录 `PROJECT_STATE.md`、`TECH_DEBT.md`、`KNOWN_BUGS.md`、`DECISIONS.md`、`ARCHITECTURE.md`
+- MR 必须说明已更新文件、未更新文件及原因、相关记忆项 ID、跨仓引用和剩余风险
+- CI 与 hook 只负责机器门禁；动态 Workflow 和 AI Memory Update 负责任务级治理与长期上下文维护
+- 跨仓事项必须双向引用前端 `SYBaseProjectWeb` 的记忆项或验证证据
 
 Hook 与 MR 审查边界：
 
 - 本地 hook 只提供快速阻断，不替代 `./mvnw -pl <module> -am verify`、完整 `./mvnw clean verify` 或 GitLab CI
-- MR 模板提供动态审查路由，不替代人工 Review、红区人工确认和目标环境验收
+- MR 模板提供动态 Workflow Packet，不替代人工 Review、红区人工确认和目标环境验收
 - 禁止使用 `--no-verify` 绕过 hook；确有特殊情况必须在 MR 中说明原因并人工确认
 
 ## 推荐实践
@@ -149,7 +156,8 @@ Hook 与 MR 审查边界：
 - [ ] 本地 Git hooks 已安装或已在 MR 中说明未安装原因
 - [ ] 任务合并后已清理对应 worktree 与已合并分支
 - [ ] PR 描述包含目的、影响、验证和风险
-- [ ] MR 已按任务类型选择动态审查路由，高风险变更已执行 Red Team Review
+- [ ] MR 已填写 Workflow Packet，高风险变更已执行 Red Team
+- [ ] MR 已填写 Memory Update Packet，并引用相关记忆项 ID 或说明未更新原因
 - [ ] 涉及依赖、基础设施、数据库、镜像的变更已附信创兼容说明
 - [ ] Review、CI、冲突处理已完成
 - [ ] `release/*` 与 `hotfix/*` 的回合并路径已执行

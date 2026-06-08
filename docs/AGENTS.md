@@ -42,6 +42,7 @@
 - **始终必读**：`AGENTS.md` 本文件，以及下方「2. 规范映射表」中本次任务场景命中的文档；Linear 任务还须先填写 `rules/LINEAR_TASK.md`。
 - **日常任务（绿区小改动）**：读 `AGENTS.md` + 映射表命中的专项文档即可开工。
 - **首次进入项目 / 中大型改动 / 跨层（领域 + 接口 + 持久化 + 基础设施等）改动**：按以下顺序一次性通读全部规范，建立完整上下文：
+- **续接历史任务 / 接手脏工作区**：先读根目录 `PROJECT_STATE.md`、`DECISIONS.md`、`KNOWN_BUGS.md`，再结合 `git status`、agentmemory 技能与任务相关规范恢复上下文。
 
 1. `AGENTS.md`
 2. 若任务来源于 Linear issue，先阅读并填写 `rules/LINEAR_TASK.md`
@@ -128,6 +129,7 @@
 - 变更摘要：做了什么、为什么这样做。
 - 影响说明：是否涉及配置、数据、接口、兼容性。
 - 验证结果：已执行的测试、检查或未验证项。
+- AI Memory Update：本次更新了哪些记忆文件、哪些未更新及原因、是否存在跨仓引用。
 - 风险提示：需要人工继续跟进的事项。
 
 执行后验证是强制回路，不得只声称完成：
@@ -149,16 +151,43 @@
 - 建议下一步:
 ```
 
-- 续接历史任务前，可借助会话记忆恢复上下文：查阅 `agent-transcripts/` 历史会话，或使用 `handoff` / `recall` / `session-history` 等 skill，再结合当前 `git status` 还原“上次进行到哪里”，避免重复探索或丢失关键决策。
+- 续接历史任务前，先读取 `PROJECT_STATE.md`、`DECISIONS.md`、`KNOWN_BUGS.md`，再借助会话记忆恢复上下文：查阅 `agent-transcripts/` 历史会话，或使用 `handoff` / `recall` / `session-history` 等 skill，并结合当前 `git status` 还原“上次进行到哪里”，避免重复探索或丢失关键决策。
 
-### 7. 语言与提交约束
+### 7. AI Memory Update
+
+根目录五类记忆文件是仓内长期上下文层，不替代 agentmemory、MR 描述、测试报告或 ADR：
+
+- `PROJECT_STATE.md`：当前阶段、活跃任务、最新验证状态、跨仓依赖、交接重点。
+- `TECH_DEBT.md`：技术债台账，记录 ID、严重度、来源、影响、建议动作、状态。
+- `KNOWN_BUGS.md`：已知问题台账，记录 ID、复现方式、影响范围、临时规避、验证状态。
+- `DECISIONS.md`：决策日志，记录日期、上下文、选项、决策、理由、影响、回看条件。
+- `ARCHITECTURE.md`：稳定架构快照，记录模块边界、核心依赖、跨仓接口、当前约束和禁止事项。
+
+交付前 AI 必须检查本次任务是否产生以下变化，并按需更新对应记忆文件：
+
+- 项目阶段、活跃任务、验证基线或交接重点变化：更新 `PROJECT_STATE.md`。
+- 发现或解决持久技术债：追加或更新 `TECH_DEBT.md`。
+- 发现、复现或修复已知 bug：追加或更新 `KNOWN_BUGS.md`。
+- 做出影响后续协作的技术或流程决策：追加 `DECISIONS.md`。
+- 改变稳定模块边界、跨仓接口、共享约束或禁止事项：更新 `ARCHITECTURE.md`。
+
+更新规则：
+
+- 按需更新，不写“无变化”流水账；未更新的文件只在交付摘要和 MR Workflow Packet 中说明原因。
+- `PROJECT_STATE.md` 可覆盖当前状态，保持短小、最新。
+- `TECH_DEBT.md`、`KNOWN_BUGS.md`、`DECISIONS.md` 采用台账式追加或更新状态，不删除历史项。
+- `ARCHITECTURE.md` 只记录稳定架构事实和边界约束，不记录临时实现细节。
+- 跨仓事项必须双向引用：后端记忆文件引用前端路径/验证，前端记忆文件引用后端路径/验证。
+- MR 中必须填写 Memory Update Packet，并引用相关记忆项 ID，例如 `TD-20260608-001`、`BUG-20260608-001`、`DEC-20260608-001`。
+
+### 8. 语言与提交约束
 
 - 与用户沟通：默认使用用户当前语言。
 - 代码注释：遵循模块既有风格，无统一风格时优先中文。
 - Git 提交信息：遵循 `rules/GIT_RULES.md` 中的 Conventional Commits。
 - 发布说明：遵循 `rules/RELEASE.md` 的版本与变更说明要求。
 
-### 8. 多 Agent 与子 Agent 协作
+### 9. 多 Agent 与子 Agent 协作
 
 针对大型或可并行任务，推荐按“探索 → 规划 → 并行执行 → 汇总核验”组织协作：
 
@@ -168,7 +197,7 @@
 - **汇总核验**：子 Agent 产出必须由主 Agent 汇总、去重并完成交付前验证（`./mvnw verify`）后才允许进入主线，不得直接把多个子 Agent 的结果未经核验拼接提交。
 - **边界继承**：子 Agent 同样受绿/黄/红区与「5. 必须升级人工确认的场景」约束；涉及红区时一律升级人工确认，不因“由子 Agent 执行”而放宽。
 
-### 9. 与工具规则的关系
+### 10. 与工具规则的关系
 
 - 仓库内 `.cursor/rules/*`（如 `codegraph.mdc`）与 `.codegraph/` 索引等属于 IDE / AI 工具的执行辅助规则，用于提升检索与编码效率
 - 工具规则不改变本协作规范的约束力：协作边界、风险分区、升级确认、交付与交接要求一律以 `AGENTS.md` 体系与 `rules/` 专项规范为准
@@ -202,6 +231,7 @@
 - [ ] 已阅读本文件及相关专项规范
 - [ ] 已输出任务确认和关键假设
 - [ ] 已识别本次修改属于绿区、黄区还是红区
+- [ ] 已检查五类 AI 记忆文件，并按需更新或说明未更新原因
 - [ ] 涉及高风险变更时已人工确认
 - [ ] 交付内容包含变更摘要、验证结果和风险提示
 - [ ] 如需交接，已附带完整交接摘要
@@ -209,6 +239,11 @@
 ## 关联文档
 
 - [LINEAR_TASK.md](./rules/LINEAR_TASK.md)
+- [PROJECT_STATE.md](../PROJECT_STATE.md)
+- [TECH_DEBT.md](../TECH_DEBT.md)
+- [KNOWN_BUGS.md](../KNOWN_BUGS.md)
+- [DECISIONS.md](../DECISIONS.md)
+- [ARCHITECTURE.md](../ARCHITECTURE.md)
 - [AI-CODE-HEALTH.md](./rules/AI-CODE-HEALTH.md)
 - [CODING_RULES.md](./rules/CODING_RULES.md)
 - [XINCHUANG_RULES.md](./rules/XINCHUANG_RULES.md)
