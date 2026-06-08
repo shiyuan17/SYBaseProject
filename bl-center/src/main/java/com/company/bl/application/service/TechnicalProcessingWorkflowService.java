@@ -18,6 +18,9 @@ import java.util.UUID;
 @Service
 class TechnicalProcessingWorkflowService {
 
+    private static final int MAX_EMBEDDING_BOX_NO_LENGTH = 64;
+    private static final int MAX_EMBEDDING_BOX_NO_RETRY = 100;
+
     private final TechnicalWorkflowRepository technicalWorkflowRepository;
     private final TechnicalWorkflowSupport technicalWorkflowSupport;
     private final DiagnosticReportAppService diagnosticReportAppService;
@@ -50,6 +53,7 @@ class TechnicalProcessingWorkflowService {
         TechnicalWorkflowRecords.SamplingBlock block = technicalWorkflowSupport.getSamplingBlock(command.samplingBlockId());
         technicalWorkflowSupport.validateTaskObject(task, block.id());
         LocalDateTime now = LocalDateTime.now();
+        String embeddingBoxNo = resolveEmbeddingBoxNo(command, task, block);
         String embeddingId = technicalWorkflowSupport.nextId("EMB");
         technicalWorkflowRepository.insertEmbedding(new TechnicalWorkflowRecords.CreateEmbeddingCommand(
             embeddingId,
@@ -65,9 +69,6 @@ class TechnicalProcessingWorkflowService {
             command.operatorUserId(),
             command.operatorName(),
             command.remarks()));
-        String embeddingBoxNo = command.embeddingBoxNo() == null || command.embeddingBoxNo().isBlank()
-            ? block.embeddingBoxNo()
-            : command.embeddingBoxNo().trim();
         String embeddingBoxId = technicalWorkflowSupport.nextId("BOX");
         technicalWorkflowRepository.insertEmbeddingBox(new TechnicalWorkflowRecords.CreateEmbeddingBoxCommand(
             embeddingBoxId,
@@ -102,6 +103,87 @@ class TechnicalProcessingWorkflowService {
             "embeddingBoxNo=" + embeddingBoxNo);
         return new TechnicalWorkflowModels.EmbeddingResult(
             task.id(), embeddingId, embeddingBoxId, "EMBEDDING", markingResult.success(), markingResult.message());
+    }
+
+    private String resolveEmbeddingBoxNo(TechnicalWorkflowModels.EmbeddingCompleteCommand command,
+                                         TechnicalWorkflowRecords.TechnicalTask task,
+                                         TechnicalWorkflowRecords.SamplingBlock block) {
+        String requestedEmbeddingBoxNo = trimToNull(command.embeddingBoxNo());
+        if (requestedEmbeddingBoxNo != null) {
+            ensureEmbeddingBoxNoAvailable(requestedEmbeddingBoxNo);
+            return requestedEmbeddingBoxNo;
+        }
+
+        String grossingEmbeddingBoxNo = trimToNull(block.embeddingBoxNo());
+        if (grossingEmbeddingBoxNo != null
+            && technicalWorkflowRepository.findEmbeddingBoxByNo(grossingEmbeddingBoxNo).isEmpty()) {
+            return grossingEmbeddingBoxNo;
+        }
+
+        return generateAvailableEmbeddingBoxNo(task, block);
+    }
+
+    private void ensureEmbeddingBoxNoAvailable(String embeddingBoxNo) {
+        if (technicalWorkflowRepository.findEmbeddingBoxByNo(embeddingBoxNo).isPresent()) {
+            throw new BlBusinessException(
+                BlErrorCode.RESOURCE_CONFLICT,
+                409,
+                "Embedding box number already exists");
+        }
+    }
+
+    private String generateAvailableEmbeddingBoxNo(TechnicalWorkflowRecords.TechnicalTask task,
+                                                   TechnicalWorkflowRecords.SamplingBlock block) {
+        String scopeToken = normalizeEmbeddingBoxNoToken(firstNonBlank(task.pathologyNo(), task.caseId()), "CASE");
+        String blockToken = normalizeEmbeddingBoxNoToken(firstNonBlank(task.samplingBlockCode(), block.blockCode(), block.id()), "BLOCK");
+        String baseEmbeddingBoxNo = truncateEmbeddingBoxNo("BX-" + scopeToken + "-" + blockToken, "");
+
+        for (int retryIndex = 0; retryIndex < MAX_EMBEDDING_BOX_NO_RETRY; retryIndex++) {
+            String suffix = retryIndex == 0 ? "" : "-" + retryIndex;
+            String candidate = truncateEmbeddingBoxNo(baseEmbeddingBoxNo, suffix);
+            if (technicalWorkflowRepository.findEmbeddingBoxByNo(candidate).isEmpty()) {
+                return candidate;
+            }
+        }
+
+        throw new BlBusinessException(
+            BlErrorCode.NUMBERING_GENERATION_FAILED,
+            500,
+            "Failed to generate available embedding box number");
+    }
+
+    private String truncateEmbeddingBoxNo(String baseEmbeddingBoxNo, String suffix) {
+        int maxBaseLength = Math.max(1, MAX_EMBEDDING_BOX_NO_LENGTH - suffix.length());
+        String truncatedBase = baseEmbeddingBoxNo.length() <= maxBaseLength
+            ? baseEmbeddingBoxNo
+            : baseEmbeddingBoxNo.substring(0, maxBaseLength).replaceAll("-+$", "");
+        return (truncatedBase.isBlank() ? "BX-CASE-BLOCK" : truncatedBase) + suffix;
+    }
+
+    private String normalizeEmbeddingBoxNoToken(String value, String fallback) {
+        String normalizedValue = trimToNull(value);
+        if (normalizedValue == null) {
+            return fallback;
+        }
+        normalizedValue = normalizedValue
+            .toUpperCase()
+            .replaceAll("[^A-Z0-9]+", "-")
+            .replaceAll("^-+|-+$", "");
+        return normalizedValue.isBlank() ? fallback : normalizedValue;
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            String normalizedValue = trimToNull(value);
+            if (normalizedValue != null) {
+                return normalizedValue;
+            }
+        }
+        return null;
+    }
+
+    private String trimToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     @Transactional

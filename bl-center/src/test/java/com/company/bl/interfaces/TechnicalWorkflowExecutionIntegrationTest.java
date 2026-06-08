@@ -492,6 +492,36 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
     }
 
     @Test
+    void shouldGenerateScopedEmbeddingBoxNoWhenLegacyGrossingBoxNoAlreadyExists() throws Exception {
+        String legacyEmbeddingBoxNo = "LEGACY-BOX-DUP-001";
+        TechnicalCaseContext firstContext =
+            completeGrossingWithEmbeddingBoxNo("APP-M3-BOX-LEGACY-001", "BC-M3-BOX-LEGACY-001", legacyEmbeddingBoxNo);
+        String firstSamplingBlockId = completeFirstDehydrationTask(firstContext);
+        completeFirstEmbeddingTask(firstContext, firstSamplingBlockId);
+
+        TechnicalCaseContext secondContext =
+            completeGrossingWithDefaultEmbeddingBoxNo("APP-M3-BOX-LEGACY-002", "BC-M3-BOX-LEGACY-002");
+        String secondSamplingBlockId = completeFirstDehydrationTask(secondContext);
+        namedParameterJdbcTemplate.update("""
+            update sampling_blocks
+            set embedding_box_no = :embeddingBoxNo
+            where id = :samplingBlockId
+            """, java.util.Map.of(
+            "embeddingBoxNo", legacyEmbeddingBoxNo,
+            "samplingBlockId", secondSamplingBlockId));
+        completeFirstEmbeddingTask(secondContext, secondSamplingBlockId);
+
+        java.util.List<String> embeddingBoxNos = namedParameterJdbcTemplate.queryForList("""
+            select embedding_box_no
+            from embedding_boxes
+            where case_id = :caseId
+            """, java.util.Map.of("caseId", secondContext.caseId()), String.class);
+        assertThat(embeddingBoxNos).hasSize(1);
+        assertThat(embeddingBoxNos.get(0)).startsWith("BX-");
+        assertThat(embeddingBoxNos.get(0)).isNotEqualTo(legacyEmbeddingBoxNo);
+    }
+
+    @Test
     void shouldStartAndCompleteDehydrationTaskWithoutBatch() throws Exception {
         TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-TASK-DEHY-001", "BC-M3-TASK-DEHY-001");
 
@@ -721,6 +751,131 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
 
     private void dropTechnicalSpecimenRegistrationsTable() {
         namedParameterJdbcTemplate.getJdbcOperations().execute("drop table technical_specimen_registrations");
+    }
+
+    private TechnicalCaseContext completeGrossingWithEmbeddingBoxNo(String applicationNo,
+                                                                    String barcode,
+                                                                    String embeddingBoxNo) throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask(applicationNo, barcode);
+        postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
+            {
+              "taskId": "%s",
+              "terminalCode": "TG-BOX-LEGACY-01"
+            }
+            """.formatted(context.grossingTaskId()))
+            .andExpect(status().isOk());
+
+        postJson("/api/v1/grossings/complete", USER_M3_GROSSING, """
+            {
+              "taskId": "%s",
+              "caseId": "%s",
+              "terminalCode": "TG-BOX-LEGACY-02",
+              "specimens": [
+                {
+                  "specimenId": "%s",
+                  "specimenType": "ROUTINE",
+                  "grossDescription": "legacy box no",
+                  "blocks": [
+                    {
+                      "blockSite": "A",
+                      "blockDescription": "legacy block"
+                    }
+                  ],
+                  "embeddingBoxes": [
+                    {
+                      "sequenceNo": 1,
+                      "boxName": "包埋盒 1",
+                      "embeddingBoxNo": "%s",
+                      "status": "CONFIRMED"
+                    }
+                  ]
+                }
+              ]
+            }
+            """.formatted(context.grossingTaskId(), context.caseId(), context.specimenId(), embeddingBoxNo))
+            .andExpect(status().isOk());
+        return context;
+    }
+
+    private TechnicalCaseContext completeGrossingWithDefaultEmbeddingBoxNo(String applicationNo,
+                                                                           String barcode) throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask(applicationNo, barcode);
+        postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
+            {
+              "taskId": "%s",
+              "terminalCode": "TG-BOX-DEFAULT-01"
+            }
+            """.formatted(context.grossingTaskId()))
+            .andExpect(status().isOk());
+
+        postJson("/api/v1/grossings/complete", USER_M3_GROSSING, """
+            {
+              "taskId": "%s",
+              "caseId": "%s",
+              "terminalCode": "TG-BOX-DEFAULT-02",
+              "specimens": [
+                {
+                  "specimenId": "%s",
+                  "specimenType": "ROUTINE",
+                  "grossDescription": "default box no",
+                  "blocks": [
+                    {
+                      "blockSite": "A",
+                      "blockDescription": "default block"
+                    }
+                  ]
+                }
+              ]
+            }
+            """.formatted(context.grossingTaskId(), context.caseId(), context.specimenId()))
+            .andExpect(status().isOk());
+        return context;
+    }
+
+    private String completeFirstDehydrationTask(TechnicalCaseContext context) throws Exception {
+        JsonNode dehydrationTask = listPendingTasks("DEHYDRATION", context.pathologyNo(), USER_M3_DEHYDRATION)
+            .path("items")
+            .get(0);
+        String dehydrationTaskId = dehydrationTask.path("id").asText();
+        String samplingBlockId = dehydrationTask.path("objectId").asText();
+
+        postJson("/api/v1/dehydrations/start", USER_M3_DEHYDRATION, """
+            {
+              "taskId": "%s"
+            }
+            """.formatted(dehydrationTaskId))
+            .andExpect(status().isOk());
+        postJson("/api/v1/dehydrations/complete", USER_M3_DEHYDRATION, """
+            {
+              "taskId": "%s"
+            }
+            """.formatted(dehydrationTaskId))
+            .andExpect(status().isOk());
+        return samplingBlockId;
+    }
+
+    private void completeFirstEmbeddingTask(TechnicalCaseContext context,
+                                            String samplingBlockId) throws Exception {
+        String embeddingTaskId = listPendingTasks("EMBEDDING", context.pathologyNo(), USER_M3_EMBEDDING)
+            .path("items")
+            .get(0)
+            .path("id")
+            .asText();
+
+        postJson("/api/v1/embeddings/start", USER_M3_EMBEDDING, """
+            {
+              "taskId": "%s"
+            }
+            """.formatted(embeddingTaskId))
+            .andExpect(status().isOk());
+        postJson("/api/v1/embeddings/complete", USER_M3_EMBEDDING, """
+            {
+              "taskId": "%s",
+              "samplingBlockId": "%s",
+              "blockCount": 1
+            }
+            """.formatted(embeddingTaskId, samplingBlockId))
+            .andExpect(status().isOk());
     }
 
     private void recreateTechnicalSpecimenRegistrationsTable() {
