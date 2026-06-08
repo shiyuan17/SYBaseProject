@@ -68,6 +68,52 @@ public class BillingManagementService {
     }
 
     @Transactional
+    public BillingRecordView executeSpecialOrderBilling(String caseId,
+                                                        String orderId,
+                                                        String orderNumber,
+                                                        String itemType,
+                                                        String itemName,
+                                                        String operatorUserId,
+                                                        String operatorName) {
+        BillingRecordView latest = findLatestSpecialOrderBilling(orderId);
+        if (latest == null) {
+            return submitBilling(new SubmitBillingCommand(
+                caseId,
+                orderId,
+                "SPECIAL_ORDER",
+                itemType == null ? orderNumber : itemType,
+                itemName == null ? orderNumber : itemName,
+                BigDecimal.ONE,
+                BigDecimal.ONE,
+                operatorUserId,
+                operatorName));
+        }
+        if ("FAILED".equals(latest.billingStatus())) {
+            return retryBilling(latest.id(), operatorUserId, operatorName);
+        }
+        return latest;
+    }
+
+    @Transactional
+    public BillingRecordView confirmSpecialOrderBilling(String caseId,
+                                                        String orderId,
+                                                        String orderNumber,
+                                                        String itemType,
+                                                        String itemName,
+                                                        String operatorUserId,
+                                                        String operatorName,
+                                                        String remarks) {
+        BillingRecordView latest = findLatestSpecialOrderBilling(orderId);
+        if (latest == null) {
+            latest = executeSpecialOrderBilling(caseId, orderId, orderNumber, itemType, itemName, operatorUserId, operatorName);
+        }
+        if ("SUCCESS".equals(latest.billingStatus())) {
+            return latest;
+        }
+        return receiveBillingReceipt(latest.id(), latest.externalBillNo(), "SUCCESS", operatorUserId, operatorName, remarks);
+    }
+
+    @Transactional
     public void triggerReportPublishBilling(String caseId,
                                             String reportId,
                                             String reportNo,
@@ -217,12 +263,12 @@ public class BillingManagementService {
         }
     }
 
-    private void submitBilling(SubmitBillingCommand command) {
+    private BillingRecordView submitBilling(SubmitBillingCommand command) {
         Timer.Sample sample = Timer.start(meterRegistry);
         LocalDateTime now = LocalDateTime.now();
+        String recordId = "BR-" + UUID.randomUUID();
+        String billingNo = "BL-" + UUID.randomUUID();
         try {
-            String recordId = "BR-" + UUID.randomUUID();
-            String billingNo = "BL-" + UUID.randomUUID();
             repository.insertBillingRecord(new M6BillingRows.CreateBillingRecordRow(
                 recordId,
                 command.caseId(),
@@ -288,6 +334,15 @@ public class BillingManagementService {
         } finally {
             stopTimer(sample, "billing_submit_duration", "billing_submit");
         }
+        return toView(requireBillingRecord(recordId));
+    }
+
+    private BillingRecordView findLatestSpecialOrderBilling(String orderId) {
+        if (orderId == null || orderId.isBlank()) {
+            return null;
+        }
+        List<BillingRecordView> rows = listBillingRecords(null, "SPECIAL_ORDER", null, null, orderId, null, null);
+        return rows.isEmpty() ? null : rows.get(0);
     }
 
     private BillingGateway.BillingSubmitRequest toGatewayRequest(M6BillingRows.BillingRecordRow row,

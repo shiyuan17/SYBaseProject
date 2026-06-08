@@ -10,6 +10,8 @@ public interface MedicalOrderRepository {
 
     Optional<MedicalOrder> findMedicalOrderById(String orderId);
 
+    Optional<MedicalOrderItemSnapshot> findMedicalOrderItemSnapshotById(String orderItemId);
+
     List<MedicalOrder> findMedicalOrdersByCaseId(String caseId);
 
     PagedMedicalOrders findMedicalOrders(PendingMedicalOrderQuery query);
@@ -28,7 +30,8 @@ public interface MedicalOrderRepository {
         int page,
         int size,
         String pathologyNo,
-        String status
+        String status,
+        String orderCategoryCode
     ) {
     }
 
@@ -41,6 +44,12 @@ public interface MedicalOrderRepository {
         String orderNumber,
         String orderContent,
         String orderType,
+        String orderItemId,
+        String orderItemCode,
+        String orderItemName,
+        String orderCategoryId,
+        String orderCategoryCode,
+        String orderCategoryName,
         String executionScope,
         String billingStatus,
         String status,
@@ -48,6 +57,19 @@ public interface MedicalOrderRepository {
         String doctorName,
         LocalDateTime orderDate,
         String remarks
+    ) {
+    }
+
+    record MedicalOrderItemSnapshot(
+        String orderItemId,
+        String orderItemCode,
+        String orderItemName,
+        String orderCategoryId,
+        String orderCategoryCode,
+        String orderCategoryName,
+        String orderType,
+        String defaultContent,
+        String executionScope
     ) {
     }
 
@@ -60,6 +82,12 @@ public interface MedicalOrderRepository {
         String orderNumber,
         String orderContent,
         String orderType,
+        String orderItemId,
+        String orderItemCode,
+        String orderItemName,
+        String orderCategoryId,
+        String orderCategoryCode,
+        String orderCategoryName,
         String executionScope,
         String billingStatus,
         String status,

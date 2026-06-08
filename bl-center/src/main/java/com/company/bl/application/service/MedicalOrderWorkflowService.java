@@ -8,6 +8,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 @Service
 class MedicalOrderWorkflowService {
@@ -27,7 +31,12 @@ class MedicalOrderWorkflowService {
     @Transactional(readOnly = true)
     DiagnosticReportModels.PendingMedicalOrderPage listPendingMedicalOrders(DiagnosticReportModels.PendingMedicalOrderQuery query) {
         MedicalOrderRepository.PagedMedicalOrders paged = medicalOrderRepository.findMedicalOrders(
-            new MedicalOrderRepository.PendingMedicalOrderQuery(query.page(), query.size(), query.pathologyNo(), query.status()));
+            new MedicalOrderRepository.PendingMedicalOrderQuery(
+                query.page(),
+                query.size(),
+                query.pathologyNo(),
+                query.status(),
+                query.orderCategoryCode()));
         return new DiagnosticReportModels.PendingMedicalOrderPage(
             paged.items().stream().map(this::toView).toList(),
             query.page(),
@@ -41,13 +50,21 @@ class MedicalOrderWorkflowService {
         diagnosticReportSupport.ensureAssignedDoctor(diagnosticReportSupport.getLatestDiagnosticTask(command.caseId()), command.operatorUserId());
         LocalDateTime now = LocalDateTime.now();
         String orderId = diagnosticReportSupport.nextId("MO");
+        MedicalOrderRepository.MedicalOrderItemSnapshot orderItemSnapshot =
+            medicalOrderRepository.findMedicalOrderItemSnapshotById(command.orderItemId()).orElse(null);
         medicalOrderRepository.insertMedicalOrder(new MedicalOrderRepository.CreateMedicalOrderCommand(
             orderId,
             command.caseId(),
             orderId,
             command.orderContent(),
             command.orderType(),
-            DiagnosticReportConstants.ORDER_SCOPE_TECHNICAL,
+            orderItemSnapshot == null ? null : orderItemSnapshot.orderItemId(),
+            orderItemSnapshot == null ? null : orderItemSnapshot.orderItemCode(),
+            orderItemSnapshot == null ? null : orderItemSnapshot.orderItemName(),
+            orderItemSnapshot == null ? null : orderItemSnapshot.orderCategoryId(),
+            orderItemSnapshot == null ? null : orderItemSnapshot.orderCategoryCode(),
+            orderItemSnapshot == null ? null : orderItemSnapshot.orderCategoryName(),
+            firstPresent(orderItemSnapshot == null ? null : orderItemSnapshot.executionScope(), DiagnosticReportConstants.ORDER_SCOPE_TECHNICAL),
             DiagnosticReportConstants.ORDER_BILLING_PENDING,
             DiagnosticReportConstants.ORDER_PENDING,
             command.operatorUserId(),
@@ -114,9 +131,128 @@ class MedicalOrderWorkflowService {
         return new DiagnosticReportModels.MedicalOrderResult(updated.id(), updated.caseId(), updated.orderNumber(), updated.status());
     }
 
+    DiagnosticReportModels.MedicalOrderBillingResult executeMedicalOrderBilling(DiagnosticReportModels.MedicalOrderBillingCommand command) {
+        List<MedicalOrderRepository.MedicalOrder> orders = resolveBillingTargetOrders(command);
+        List<DiagnosticReportModels.MedicalOrderBillingItemResult> items = new ArrayList<>();
+        int failureCount = 0;
+        for (MedicalOrderRepository.MedicalOrder order : orders) {
+            BillingManagementService.BillingRecordView billingRecord =
+                billingManagementService.executeSpecialOrderBilling(
+                    order.caseId(),
+                    order.id(),
+                    order.orderNumber(),
+                    order.orderType(),
+                    order.orderContent(),
+                    command.operatorUserId(),
+                    command.operatorName());
+            if (isFailedBillingStatus(billingRecord.billingStatus())) {
+                failureCount++;
+            }
+            items.add(toBillingItemResult(order.id(), billingRecord, "执行收费完成"));
+        }
+        return new DiagnosticReportModels.MedicalOrderBillingResult(
+            items.size(),
+            items.size() - failureCount,
+            failureCount,
+            items);
+    }
+
+    DiagnosticReportModels.MedicalOrderBillingResult confirmMedicalOrderBilling(DiagnosticReportModels.MedicalOrderBillingCommand command) {
+        List<MedicalOrderRepository.MedicalOrder> orders = resolveBillingTargetOrders(command);
+        List<DiagnosticReportModels.MedicalOrderBillingItemResult> items = new ArrayList<>();
+        int failureCount = 0;
+        for (MedicalOrderRepository.MedicalOrder order : orders) {
+            BillingManagementService.BillingRecordView billingRecord =
+                billingManagementService.confirmSpecialOrderBilling(
+                    order.caseId(),
+                    order.id(),
+                    order.orderNumber(),
+                    order.orderType(),
+                    order.orderContent(),
+                    command.operatorUserId(),
+                    command.operatorName(),
+                    command.remarks());
+            if (isFailedBillingStatus(billingRecord.billingStatus())) {
+                failureCount++;
+            }
+            items.add(toBillingItemResult(order.id(), billingRecord, "确认完成收费"));
+        }
+        return new DiagnosticReportModels.MedicalOrderBillingResult(
+            items.size(),
+            items.size() - failureCount,
+            failureCount,
+            items);
+    }
+
     private MedicalOrderRepository.MedicalOrder getOrder(String orderId) {
         return medicalOrderRepository.findMedicalOrderById(orderId)
             .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Medical order not found"));
+    }
+
+    private List<MedicalOrderRepository.MedicalOrder> resolveBillingTargetOrders(DiagnosticReportModels.MedicalOrderBillingCommand command) {
+        String caseId = command.caseId();
+        if (caseId == null || caseId.isBlank()) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Case ID is required");
+        }
+        diagnosticReportSupport.getCase(caseId);
+        diagnosticReportSupport.ensureAssignedDoctor(diagnosticReportSupport.getLatestDiagnosticTask(caseId), command.operatorUserId());
+
+        List<String> targetOrderIds = normalizeOrderIds(command.orderIds());
+        if (!targetOrderIds.isEmpty()) {
+            return targetOrderIds.stream()
+                .map(this::getOrder)
+                .peek(order -> ensureOrderInCase(order, caseId))
+                .filter(order -> !isChargedBillingStatus(order.billingStatus()))
+                .toList();
+        }
+        return medicalOrderRepository.findMedicalOrdersByCaseId(caseId).stream()
+            .filter(order -> !isChargedBillingStatus(order.billingStatus()))
+            .toList();
+    }
+
+    private List<String> normalizeOrderIds(List<String> orderIds) {
+        if (orderIds == null || orderIds.isEmpty()) {
+            return List.of();
+        }
+        Set<String> seen = new HashSet<>();
+        List<String> normalized = new ArrayList<>();
+        for (String orderId : orderIds) {
+            if (orderId == null || orderId.isBlank()) {
+                continue;
+            }
+            String trimmed = orderId.trim();
+            if (seen.add(trimmed)) {
+                normalized.add(trimmed);
+            }
+        }
+        return normalized;
+    }
+
+    private void ensureOrderInCase(MedicalOrderRepository.MedicalOrder order, String caseId) {
+        if (!caseId.equals(order.caseId())) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Medical order does not belong to the selected case");
+        }
+    }
+
+    private DiagnosticReportModels.MedicalOrderBillingItemResult toBillingItemResult(String orderId,
+                                                                                     BillingManagementService.BillingRecordView billingRecord,
+                                                                                     String fallbackMessage) {
+        String message = billingRecord.lastErrorMessage() == null || billingRecord.lastErrorMessage().isBlank()
+            ? fallbackMessage
+            : billingRecord.lastErrorMessage();
+        return new DiagnosticReportModels.MedicalOrderBillingItemResult(
+            orderId,
+            billingRecord.billingStatus(),
+            billingRecord.id(),
+            message);
+    }
+
+    private boolean isChargedBillingStatus(String billingStatus) {
+        return billingStatus != null && Set.of("CHARGED", "PAID", "SETTLED", "SUCCESS").contains(billingStatus.trim().toUpperCase());
+    }
+
+    private boolean isFailedBillingStatus(String billingStatus) {
+        return billingStatus != null && "FAILED".equals(billingStatus.trim().toUpperCase());
     }
 
     private DiagnosticReportViews.MedicalOrderView toView(MedicalOrderRepository.MedicalOrder order) {
@@ -129,6 +265,12 @@ class MedicalOrderWorkflowService {
             order.orderNumber(),
             order.orderType(),
             order.orderContent(),
+            order.orderItemId(),
+            order.orderItemCode(),
+            order.orderItemName(),
+            order.orderCategoryId(),
+            order.orderCategoryCode(),
+            order.orderCategoryName(),
             order.executionScope(),
             order.billingStatus(),
             order.status(),
@@ -143,5 +285,9 @@ class MedicalOrderWorkflowService {
 
     private String stringify(LocalDateTime time) {
         return time == null ? null : time.toString();
+    }
+
+    private static String firstPresent(String first, String fallback) {
+        return first == null || first.isBlank() ? fallback : first;
     }
 }

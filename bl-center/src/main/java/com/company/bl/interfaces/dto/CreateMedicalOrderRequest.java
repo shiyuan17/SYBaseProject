@@ -28,6 +28,10 @@ public class CreateMedicalOrderRequest {
     @Size(max = 1000)
     private String orderContent;
 
+    @Schema(description = "Medical order dictionary item ID")
+    @Size(max = 64)
+    private String orderItemId;
+
     @Schema(description = "Terminal code")
     @Size(max = 64)
     private String terminalCode;

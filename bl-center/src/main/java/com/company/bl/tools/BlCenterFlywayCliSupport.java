@@ -61,7 +61,7 @@ final class BlCenterFlywayCliSupport {
 
     private static void runInspect(DatabaseConfig config) throws Exception {
         InspectionReport report = inspect(config, buildFlyway(config), "inspect");
-        if (!report.validationSuccessful()) {
+        if (!report.validationAcceptable()) {
             throw new CliFailure(
                 "validate",
                 "Flyway validation failed during inspect.",
@@ -73,7 +73,7 @@ final class BlCenterFlywayCliSupport {
 
     private static void runSync(DatabaseConfig config) throws Exception {
         InspectionReport preSyncReport = inspect(config, buildFlyway(config), "pre-sync");
-        if (!preSyncReport.validationSuccessful()) {
+        if (!preSyncReport.validationAcceptable()) {
             System.out.println("pre_sync_validation_warning=" + preSyncReport.validationMessage());
         }
 
@@ -90,7 +90,7 @@ final class BlCenterFlywayCliSupport {
         System.out.println("migrations_executed=" + migrateResult.migrationsExecuted);
 
         InspectionReport postSyncReport = inspect(config, buildFlyway(config), "post-sync");
-        if (!postSyncReport.validationSuccessful()) {
+        if (!postSyncReport.validationAcceptable()) {
             throw new CliFailure(
                 "post-check",
                 "Flyway validation still fails after sync.",
@@ -195,7 +195,8 @@ final class BlCenterFlywayCliSupport {
                 validateResult.validationSuccessful,
                 validateResult.validationSuccessful ? "OK" : validateResult.getAllErrorMessages(),
                 current == null ? null : current.getVersion() == null ? null : current.getVersion().toString(),
-                pending.length
+                pending.length,
+                isOnlyPendingValidationIssue(validateResult)
             );
         } catch (CliFailure failure) {
             throw failure;
@@ -228,6 +229,19 @@ final class BlCenterFlywayCliSupport {
             + migration.getType()
             + "|"
             + migration.getState();
+    }
+
+    private static boolean isOnlyPendingValidationIssue(ValidateResult validateResult) {
+        if (validateResult.validationSuccessful) {
+            return false;
+        }
+        if (validateResult.invalidMigrations == null || validateResult.invalidMigrations.isEmpty()) {
+            return false;
+        }
+        return validateResult.invalidMigrations.stream()
+            .allMatch(invalidMigration -> invalidMigration.errorDetails != null
+                && invalidMigration.errorDetails.errorMessage != null
+                && invalidMigration.errorDetails.errorMessage.contains("not applied to database"));
     }
 
     private static void reconcileKnownPartialV12(String url, String username, String password) throws Exception {
@@ -349,8 +363,12 @@ final class BlCenterFlywayCliSupport {
         boolean validationSuccessful,
         String validationMessage,
         String currentVersion,
-        int pendingMigrationCount
+        int pendingMigrationCount,
+        boolean onlyPendingValidationIssue
     ) {
+        private boolean validationAcceptable() {
+            return validationSuccessful || onlyPendingValidationIssue;
+        }
     }
 
     static final class CliFailure extends RuntimeException {

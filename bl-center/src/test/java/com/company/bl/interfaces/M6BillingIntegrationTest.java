@@ -99,6 +99,61 @@ class M6BillingIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTest
     }
 
     @Test
+    void shouldExecuteDiagnosisWorkbenchBillingForSelectedMedicalOrders() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M6-BILL-004", "BC-M6-BILL-004");
+        JsonNode selectedOrder = createMedicalOrder(context.caseId(), "manual selected billing");
+        JsonNode untouchedOrder = createMedicalOrder(context.caseId(), "manual unselected billing");
+
+        JsonNode result = responseBody(postJson("/api/v1/medical-orders/billing/execute", USER_M4_DIAGNOSIS, """
+            {
+              "caseId":"%s",
+              "orderIds":["%s"],
+              "terminalCode":"M6-B-21"
+            }
+            """.formatted(context.caseId(), selectedOrder.path("orderId").asText())), 200);
+
+        assertThat(result.path("totalCount").asInt()).isEqualTo(1);
+        assertThat(result.path("successCount").asInt()).isEqualTo(1);
+        assertThat(result.path("items").get(0).path("billingStatus").asText()).isEqualTo("SUCCESS");
+        assertThat(result.path("items").get(0).path("billingRecordId").asText()).isNotBlank();
+
+        JsonNode selectedRecords = responseBody(mockMvc.perform(authorized(get("/api/v1/billing-records"), USER_M1_ADMIN)
+            .param("billingStage", "SPECIAL_ORDER")
+            .param("orderId", selectedOrder.path("orderId").asText())), 200);
+        assertThat(selectedRecords).hasSize(1);
+
+        JsonNode untouchedRecords = responseBody(mockMvc.perform(authorized(get("/api/v1/billing-records"), USER_M1_ADMIN)
+            .param("billingStage", "SPECIAL_ORDER")
+            .param("orderId", untouchedOrder.path("orderId").asText())), 200);
+        assertThat(untouchedRecords).isEmpty();
+    }
+
+    @Test
+    void shouldConfirmDiagnosisWorkbenchBillingForAllUnchargedOrders() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M6-BILL-005", "BC-M6-BILL-005");
+        JsonNode firstOrder = createMedicalOrder(context.caseId(), "manual confirm billing one");
+        JsonNode secondOrder = createMedicalOrder(context.caseId(), "manual confirm billing two");
+
+        JsonNode result = responseBody(postJson("/api/v1/medical-orders/billing/confirm", USER_M4_DIAGNOSIS, """
+            {
+              "caseId":"%s",
+              "remarks":"诊断工作站确认完成收费",
+              "terminalCode":"M6-B-22"
+            }
+            """.formatted(context.caseId())), 200);
+
+        assertThat(result.path("totalCount").asInt()).isEqualTo(2);
+        assertThat(result.path("successCount").asInt()).isEqualTo(2);
+        assertThat(result.path("failureCount").asInt()).isZero();
+
+        JsonNode workbench = diagnosticWorkbench(context.caseId(), USER_M4_DIAGNOSIS);
+        assertThat(findByField(workbench.path("medicalOrders"), "orderId", firstOrder.path("orderId").asText())
+            .path("billingStatus").asText()).isEqualTo("SUCCESS");
+        assertThat(findByField(workbench.path("medicalOrders"), "orderId", secondOrder.path("orderId").asText())
+            .path("billingStatus").asText()).isEqualTo("SUCCESS");
+    }
+
+    @Test
     void shouldRejectLegacyOperatorFieldsOnBillingRetry() throws Exception {
         StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M6-BILL-003", "BC-M6-BILL-003");
 
@@ -129,6 +184,17 @@ class M6BillingIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTest
             """)
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message", containsString("operatorUserId")));
+    }
+
+    private JsonNode createMedicalOrder(String caseId, String content) throws Exception {
+        return responseBody(postJson("/api/v1/medical-orders", USER_M4_DIAGNOSIS, """
+            {
+              "caseId":"%s",
+              "orderType":"RE_STAIN",
+              "orderContent":"%s",
+              "terminalCode":"M6-B-20"
+            }
+            """.formatted(caseId, content)), 200);
     }
 
     private JsonNode findByField(JsonNode items, String fieldName, String expectedValue) {

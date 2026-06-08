@@ -114,6 +114,14 @@ public class DiagnosticReportAppService {
         return medicalOrderWorkflowService.cancelMedicalOrder(command);
     }
 
+    public DiagnosticReportModels.MedicalOrderBillingResult executeMedicalOrderBilling(DiagnosticReportModels.MedicalOrderBillingCommand command) {
+        return medicalOrderWorkflowService.executeMedicalOrderBilling(command);
+    }
+
+    public DiagnosticReportModels.MedicalOrderBillingResult confirmMedicalOrderBilling(DiagnosticReportModels.MedicalOrderBillingCommand command) {
+        return medicalOrderWorkflowService.confirmMedicalOrderBilling(command);
+    }
+
     public DiagnosticReportModels.ConsultationResult createConsultation(DiagnosticReportModels.CreateConsultationCommand command) {
         return internalConsultationWorkflowService.createConsultation(command);
     }

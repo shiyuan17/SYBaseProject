@@ -20,6 +20,18 @@ public record PendingMedicalOrderResponse(
     String orderType,
     @Schema(description = "Order content")
     String orderContent,
+    @Schema(description = "Medical order dictionary item ID")
+    String orderItemId,
+    @Schema(description = "Medical order dictionary item code")
+    String orderItemCode,
+    @Schema(description = "Medical order dictionary item name")
+    String orderItemName,
+    @Schema(description = "Medical order category ID")
+    String orderCategoryId,
+    @Schema(description = "Medical order category code")
+    String orderCategoryCode,
+    @Schema(description = "Medical order category name")
+    String orderCategoryName,
     @Schema(description = "Execution scope")
     String executionScope,
     @Schema(description = "Billing status")

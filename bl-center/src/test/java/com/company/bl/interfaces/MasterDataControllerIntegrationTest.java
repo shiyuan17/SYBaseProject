@@ -2,6 +2,7 @@ package com.company.bl.interfaces;
 
 import com.company.bl.BlCenterApplication;
 import com.company.bl.support.infrastructure.SupportJdbcRepository;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import db.migration.V38__normalize_seed_department_names;
 import org.flywaydb.core.api.configuration.Configuration;
@@ -57,6 +58,30 @@ class MasterDataControllerIntegrationTest extends AuthenticatedWebIntegrationTes
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.id", is("ST_HE_STOMACH")))
             .andExpect(jsonPath("$.data.bodyParts.length()", greaterThanOrEqualTo(1)));
+    }
+
+    @Test
+    void shouldSeedMedicalOrderDictionaryCatalog() throws Exception {
+        MvcResult result = mockMvc.perform(asAdmin(get("/api/v1/medical-order-dicts")))
+            .andExpect(status().isOk())
+            .andReturn();
+        JsonNode categories = objectMapper.readTree(result.getResponse().getContentAsByteArray()).path("data");
+
+        JsonNode dnaCategory = findCategoryByCode(categories, "DNA");
+        JsonNode ihcCategory = findCategoryByCode(categories, "IHC");
+        JsonNode specialStainCategory = findCategoryByCode(categories, "TSRS");
+
+        assertNotNull(dnaCategory);
+        assertEquals("基因检测", dnaCategory.path("categoryName").asText());
+        assertNotNull(findItemByName(dnaCategory, "EGFR基因突变"));
+
+        assertNotNull(ihcCategory);
+        assertEquals("免疫组化", ihcCategory.path("categoryName").asText());
+        assertNotNull(findItemByName(ihcCategory, "Ki-67"));
+
+        assertNotNull(specialStainCategory);
+        assertEquals("特殊染色", specialStainCategory.path("categoryName").asText());
+        assertNotNull(findItemByName(specialStainCategory, "PAS染色"));
     }
 
     @Test
@@ -465,5 +490,34 @@ class MasterDataControllerIntegrationTest extends AuthenticatedWebIntegrationTes
 
     private MockHttpServletRequestBuilder asAdmin(MockHttpServletRequestBuilder requestBuilder) {
         return authorized(requestBuilder, USER_M1_ADMIN);
+    }
+
+    private static JsonNode findCategoryByCode(JsonNode nodes, String categoryCode) {
+        if (nodes == null || !nodes.isArray()) {
+            return null;
+        }
+        for (JsonNode node : nodes) {
+            if (categoryCode.equals(node.path("categoryCode").asText())) {
+                return node;
+            }
+            JsonNode childNode = findCategoryByCode(node.path("children"), categoryCode);
+            if (childNode != null) {
+                return childNode;
+            }
+        }
+        return null;
+    }
+
+    private static JsonNode findItemByName(JsonNode category, String orderItemName) {
+        JsonNode items = category.path("items");
+        if (!items.isArray()) {
+            return null;
+        }
+        for (JsonNode item : items) {
+            if (orderItemName.equals(item.path("orderItemName").asText())) {
+                return item;
+            }
+        }
+        return null;
     }
 }

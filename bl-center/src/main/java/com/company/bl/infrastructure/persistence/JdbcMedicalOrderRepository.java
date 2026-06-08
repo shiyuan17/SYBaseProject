@@ -9,6 +9,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -26,10 +28,16 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
     public void insertMedicalOrder(CreateMedicalOrderCommand command) {
         jdbcTemplate.update("""
             insert into medical_orders
-                (id, case_id, order_number, order_content, order_type, execution_scope, billing_status, status,
+                (id, case_id, order_number, order_content, order_type,
+                 order_item_id, order_item_code, order_item_name,
+                 order_category_id, order_category_code, order_category_name,
+                 execution_scope, billing_status, status,
                  doctor_user_id, doctor_name, order_date, remarks, created_at, updated_at)
             values
-                (:id, :caseId, :orderNumber, :orderContent, :orderType, :executionScope, :billingStatus, :status,
+                (:id, :caseId, :orderNumber, :orderContent, :orderType,
+                 :orderItemId, :orderItemCode, :orderItemName,
+                 :orderCategoryId, :orderCategoryCode, :orderCategoryName,
+                 :executionScope, :billingStatus, :status,
                  :doctorUserId, :doctorName, :orderDate, :remarks, :createdAt, :updatedAt)
             """, new MapSqlParameterSource()
             .addValue("id", command.id())
@@ -37,6 +45,12 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
             .addValue("orderNumber", command.orderNumber())
             .addValue("orderContent", command.orderContent())
             .addValue("orderType", command.orderType())
+            .addValue("orderItemId", command.orderItemId())
+            .addValue("orderItemCode", command.orderItemCode())
+            .addValue("orderItemName", command.orderItemName())
+            .addValue("orderCategoryId", command.orderCategoryId())
+            .addValue("orderCategoryCode", command.orderCategoryCode())
+            .addValue("orderCategoryName", command.orderCategoryName())
             .addValue("executionScope", command.executionScope())
             .addValue("billingStatus", command.billingStatus())
             .addValue("status", command.status())
@@ -46,6 +60,29 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
             .addValue("remarks", command.remarks())
             .addValue("createdAt", command.orderDate())
             .addValue("updatedAt", command.orderDate()));
+    }
+
+    @Override
+    public Optional<MedicalOrderItemSnapshot> findMedicalOrderItemSnapshotById(String orderItemId) {
+        if (orderItemId == null || orderItemId.isBlank()) {
+            return Optional.empty();
+        }
+        List<MedicalOrderItemSnapshot> rows = jdbcTemplate.query("""
+            select
+                item.id as order_item_id,
+                item.order_item_code,
+                item.order_item_name,
+                category.id as order_category_id,
+                category.category_code,
+                category.category_name,
+                item.order_type,
+                item.default_content,
+                item.execution_scope
+            from medical_order_dict_items item
+            join medical_order_dict_categories category on category.id = item.category_id
+            where item.id = :orderItemId
+            """, new MapSqlParameterSource().addValue("orderItemId", orderItemId), this::mapMedicalOrderItemSnapshot);
+        return rows.stream().findFirst();
     }
 
     @Override
@@ -159,6 +196,15 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
         } else {
             builder.append(" and mo.status in ('PENDING', 'IN_PROGRESS')");
         }
+        List<String> categoryCodes = parseOrderCategoryCodes(query.orderCategoryCode());
+        if (!categoryCodes.isEmpty()) {
+            builder.append(" and (upper(mo.order_category_code) in (:orderCategoryCodes)");
+            String fallback = buildLegacyCategoryFallback(categoryCodes);
+            if (!fallback.isBlank()) {
+                builder.append(" or (mo.order_category_code is null and (").append(fallback).append("))");
+            }
+            builder.append(")");
+        }
         return builder.toString();
     }
 
@@ -169,6 +215,10 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
         }
         if (query.status() != null && !query.status().isBlank()) {
             params.addValue("status", query.status());
+        }
+        List<String> categoryCodes = parseOrderCategoryCodes(query.orderCategoryCode());
+        if (!categoryCodes.isEmpty()) {
+            params.addValue("orderCategoryCodes", categoryCodes);
         }
         return params;
     }
@@ -189,6 +239,12 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
             rs.getString("order_number"),
             rs.getString("order_content"),
             rs.getString("order_type"),
+            rs.getString("order_item_id"),
+            rs.getString("order_item_code"),
+            rs.getString("order_item_name"),
+            rs.getString("order_category_id"),
+            rs.getString("order_category_code"),
+            rs.getString("order_category_name"),
             rs.getString("execution_scope"),
             rs.getString("billing_status"),
             rs.getString("status"),
@@ -203,6 +259,62 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
             rs.getString("remarks"),
             toLocalDateTime(rs.getTimestamp("created_at")),
             toLocalDateTime(rs.getTimestamp("updated_at")));
+    }
+
+    private MedicalOrderItemSnapshot mapMedicalOrderItemSnapshot(ResultSet rs, int rowNum) throws SQLException {
+        return new MedicalOrderItemSnapshot(
+            rs.getString("order_item_id"),
+            rs.getString("order_item_code"),
+            rs.getString("order_item_name"),
+            rs.getString("order_category_id"),
+            rs.getString("category_code"),
+            rs.getString("category_name"),
+            rs.getString("order_type"),
+            rs.getString("default_content"),
+            rs.getString("execution_scope"));
+    }
+
+    private List<String> parseOrderCategoryCodes(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(value.split(","))
+            .map(String::trim)
+            .filter(item -> !item.isBlank())
+            .map(String::toUpperCase)
+            .distinct()
+            .toList();
+    }
+
+    private String buildLegacyCategoryFallback(List<String> categoryCodes) {
+        List<String> filters = new ArrayList<>();
+        for (String categoryCode : categoryCodes) {
+            switch (categoryCode) {
+                case "EXAM", "CGRS", "BLOCK", "QP" -> filters.add("""
+                    upper(mo.order_type) in ('ROUTINE', 'RE_STAIN', 'RESTAIN', 'DEEP_CUT', 'RECUT', 'SLICE', 'SECTION')
+                    """);
+                case "TSRS" -> filters.add("""
+                    upper(mo.order_type) in ('SPECIAL_STAIN', 'SPECIAL_STAINING')
+                    or lower(mo.order_content) like '%特殊染色%'
+                    """);
+                case "IHC" -> filters.add("""
+                    upper(mo.order_type) in ('IHC', 'IMMUNOHISTOCHEMISTRY')
+                    or lower(mo.order_content) like '%免疫组化%'
+                    """);
+                case "CYTOLOGY" -> filters.add("""
+                    upper(mo.order_type) in ('CYTOLOGY', 'CYTOLOGY_CONSULTATION', 'CYTOLOGY_SMEAR')
+                    or lower(mo.order_content) like '%细胞学%'
+                    """);
+                case "LIQUID_CYTOLOGY" -> filters.add("""
+                    upper(mo.order_type) in ('LIQUID_CYTOLOGY', 'GYNECOLOGY_LBC_CYTOLOGY', 'NON_GYNECOLOGY_LBC_CYTOLOGY')
+                    or lower(mo.order_content) like '%液基%'
+                    """);
+                default -> {
+                    // Unknown category codes cannot be inferred safely from legacy fields.
+                }
+            }
+        }
+        return String.join(" or ", filters);
     }
 
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {

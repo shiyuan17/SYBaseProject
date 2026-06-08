@@ -7,6 +7,8 @@ import com.company.bl.interfaces.auth.M4PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.CreateMedicalOrderRequest;
 import com.company.bl.interfaces.dto.MedicalOrderActionRequest;
+import com.company.bl.interfaces.dto.MedicalOrderBillingRequest;
+import com.company.bl.interfaces.vo.MedicalOrderBillingResponse;
 import com.company.bl.interfaces.vo.MedicalOrderOperationResponse;
 import com.company.bl.interfaces.vo.PendingMedicalOrderPageResponse;
 import com.company.bl.interfaces.vo.PendingMedicalOrderResponse;
@@ -44,6 +46,7 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
                 request.getCaseId(),
                 request.getOrderType(),
                 request.getOrderContent(),
+                request.getOrderItemId(),
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
@@ -57,14 +60,47 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
     public PendingMedicalOrderPageResponse listPending(@Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
                                                        @Parameter(description = "每页条数") @RequestParam(defaultValue = "20") int size,
                                                        @Parameter(description = "病理号") @RequestParam(required = false) String pathologyNo,
-                                                       @Parameter(description = "医嘱状态") @RequestParam(required = false) String status) {
+                                                       @Parameter(description = "医嘱状态") @RequestParam(required = false) String status,
+                                                       @Parameter(description = "医嘱分类码，多个分类用英文逗号分隔") @RequestParam(required = false) String orderCategoryCode) {
         DiagnosticReportModels.PendingMedicalOrderPage result = diagnosticReportAppService.listPendingMedicalOrders(
-            new DiagnosticReportModels.PendingMedicalOrderQuery(page, size, pathologyNo, status));
+            new DiagnosticReportModels.PendingMedicalOrderQuery(page, size, pathologyNo, status, orderCategoryCode));
         return new PendingMedicalOrderPageResponse(
             result.items().stream().map(this::toResponse).toList(),
             result.page(),
             result.size(),
             result.total());
+    }
+
+    @Operation(summary = "执行医嘱收费", description = "为诊断工作站医嘱触发真实收费；未指定医嘱时处理当前病例全部未收费医嘱。")
+    @RequirePermission(M4PermissionCodes.MEDICAL_ORDER_CREATE)
+    @PostMapping("/billing/execute")
+    public MedicalOrderBillingResponse executeBilling(@Valid @RequestBody MedicalOrderBillingRequest request,
+                                                      HttpServletRequest httpServletRequest) {
+        DiagnosticReportModels.MedicalOrderBillingResult result = diagnosticReportAppService.executeMedicalOrderBilling(
+            new DiagnosticReportModels.MedicalOrderBillingCommand(
+                request.getCaseId(),
+                request.getOrderIds(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode(),
+                request.getRemarks()));
+        return toBillingResponse(result);
+    }
+
+    @Operation(summary = "确认医嘱收费完成", description = "为诊断工作站医嘱登记收费完成回执；未指定医嘱时处理当前病例全部未收费医嘱。")
+    @RequirePermission(M4PermissionCodes.MEDICAL_ORDER_CREATE)
+    @PostMapping("/billing/confirm")
+    public MedicalOrderBillingResponse confirmBilling(@Valid @RequestBody MedicalOrderBillingRequest request,
+                                                      HttpServletRequest httpServletRequest) {
+        DiagnosticReportModels.MedicalOrderBillingResult result = diagnosticReportAppService.confirmMedicalOrderBilling(
+            new DiagnosticReportModels.MedicalOrderBillingCommand(
+                request.getCaseId(),
+                request.getOrderIds(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode(),
+                request.getRemarks()));
+        return toBillingResponse(result);
     }
 
     @Operation(summary = "接收病理医嘱", description = "由技术执行角色接收待处理病理医嘱。")
@@ -125,6 +161,12 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
             item.orderNumber(),
             item.orderType(),
             item.orderContent(),
+            item.orderItemId(),
+            item.orderItemCode(),
+            item.orderItemName(),
+            item.orderCategoryId(),
+            item.orderCategoryCode(),
+            item.orderCategoryName(),
             item.executionScope(),
             item.billingStatus(),
             item.status(),
@@ -135,5 +177,19 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
             item.completedAt(),
             item.cancelledAt(),
             item.remarks());
+    }
+
+    private MedicalOrderBillingResponse toBillingResponse(DiagnosticReportModels.MedicalOrderBillingResult result) {
+        return new MedicalOrderBillingResponse(
+            result.totalCount(),
+            result.successCount(),
+            result.failureCount(),
+            result.items().stream()
+                .map(item -> new MedicalOrderBillingResponse.MedicalOrderBillingItemResponse(
+                    item.orderId(),
+                    item.billingStatus(),
+                    item.billingRecordId(),
+                    item.message()))
+                .toList());
     }
 }

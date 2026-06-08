@@ -160,7 +160,8 @@ public final class DiagnosticReportModels {
         int page,
         int size,
         String pathologyNo,
-        String status
+        String status,
+        String orderCategoryCode
     ) {
     }
 
@@ -171,6 +172,7 @@ public final class DiagnosticReportModels {
         String caseId,
         String orderType,
         String orderContent,
+        String orderItemId,
         String operatorUserId,
         String operatorName,
         String terminalCode,
@@ -192,6 +194,32 @@ public final class DiagnosticReportModels {
         String caseId,
         String orderNumber,
         String status
+    ) {
+    }
+
+    public record MedicalOrderBillingCommand(
+        String caseId,
+        List<String> orderIds,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
+    public record MedicalOrderBillingResult(
+        int totalCount,
+        int successCount,
+        int failureCount,
+        List<MedicalOrderBillingItemResult> items
+    ) {
+    }
+
+    public record MedicalOrderBillingItemResult(
+        String orderId,
+        String billingStatus,
+        String billingRecordId,
+        String message
     ) {
     }
 

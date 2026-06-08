@@ -6,6 +6,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.LocalDateTime;
+import java.util.Map;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -83,6 +86,102 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
     }
 
     @Test
+    void shouldSnapshotOrderDictionaryItemAndFilterBySingleCategory() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-IHC", "BC-M4-ORDER-IHC");
+
+        responseBody(postJson("/api/v1/medical-orders", USER_M4_DIAGNOSIS, """
+            {
+              "caseId":"%s",
+              "orderType":"SPECIAL",
+              "orderContent":"CK",
+              "orderItemId":"ODI_IHC_CK",
+              "terminalCode":"M4-ORD-IHC"
+            }
+            """.formatted(context.caseId())), 200);
+
+        JsonNode pending = responseBody(mockMvc.perform(authorized(get("/api/v1/medical-orders/pending"), USER_M4_ORDER_EXECUTE)
+            .param("page", "1")
+            .param("size", "20")
+            .param("pathologyNo", context.pathologyNo())
+            .param("orderCategoryCode", "IHC")), 200);
+
+        assertThat(pending.path("total").asInt()).isEqualTo(1);
+        JsonNode item = pending.path("items").get(0);
+        assertThat(item.path("orderItemId").asText()).isEqualTo("ODI_IHC_CK");
+        assertThat(item.path("orderItemCode").asText()).isEqualTo("IHC_CK");
+        assertThat(item.path("orderItemName").asText()).isEqualTo("CK");
+        assertThat(item.path("orderCategoryCode").asText()).isEqualTo("IHC");
+        assertThat(item.path("orderCategoryName").asText()).isEqualTo("免疫组化");
+    }
+
+    @Test
+    void shouldFilterPendingOrdersByMultipleCategoriesAndDefaultStatuses() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-MULTI", "BC-M4-ORDER-MULTI");
+        JsonNode examOrder = createMedicalOrder(context.caseId(), "ODI_EXAM_DECALCIFICATION", "ROUTINE", "脱钙");
+        createMedicalOrder(context.caseId(), "ODI_CGRS_HE_STAIN", "ROUTINE", "HE染色");
+        createMedicalOrder(context.caseId(), "ODI_TSRS_PAS", "SPECIAL", "PAS染色");
+
+        postJson("/api/v1/medical-orders/%s/accept".formatted(examOrder.path("orderId").asText()), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M4-ORD-MULTI-A"}
+            """).andExpect(status().isOk());
+        postJson("/api/v1/medical-orders/%s/complete".formatted(examOrder.path("orderId").asText()), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M4-ORD-MULTI-C","remarks":"done"}
+            """).andExpect(status().isOk());
+
+        JsonNode routinePending = responseBody(mockMvc.perform(authorized(get("/api/v1/medical-orders/pending"), USER_M4_ORDER_EXECUTE)
+            .param("page", "1")
+            .param("size", "20")
+            .param("pathologyNo", context.pathologyNo())
+            .param("orderCategoryCode", "EXAM,CGRS,BLOCK,QP")), 200);
+        assertThat(routinePending.path("total").asInt()).isEqualTo(1);
+        assertThat(routinePending.path("items").get(0).path("orderCategoryCode").asText()).isEqualTo("CGRS");
+
+        JsonNode specialPending = responseBody(mockMvc.perform(authorized(get("/api/v1/medical-orders/pending"), USER_M4_ORDER_EXECUTE)
+            .param("page", "1")
+            .param("size", "20")
+            .param("pathologyNo", context.pathologyNo())
+            .param("orderCategoryCode", "TSRS")), 200);
+        assertThat(specialPending.path("total").asInt()).isEqualTo(1);
+        assertThat(specialPending.path("items").get(0).path("orderCategoryCode").asText()).isEqualTo("TSRS");
+    }
+
+    @Test
+    void shouldMatchLegacyOrdersByConservativeFallbackWhenSnapshotMissing() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-LEGACY", "BC-M4-ORDER-LEGACY");
+        LocalDateTime now = LocalDateTime.now();
+        namedParameterJdbcTemplate.update("""
+            insert into medical_orders
+                (id, case_id, order_number, order_content, order_type, execution_scope, billing_status, status,
+                 doctor_user_id, doctor_name, order_date, remarks, created_at, updated_at)
+            values
+                (:id, :caseId, :orderNumber, :orderContent, :orderType, 'TECHNICIAN', 'PENDING', 'PENDING',
+                 :doctorUserId, :doctorName, :orderDate, :remarks, :createdAt, :updatedAt)
+            """, Map.ofEntries(
+            Map.entry("id", "MO-LEGACY-IHC"),
+            Map.entry("caseId", context.caseId()),
+            Map.entry("orderNumber", "MO-LEGACY-IHC"),
+            Map.entry("orderContent", "legacy ihc"),
+            Map.entry("orderType", "IHC"),
+            Map.entry("doctorUserId", USER_M4_DIAGNOSIS),
+            Map.entry("doctorName", "M4 Diagnosis"),
+            Map.entry("orderDate", now),
+            Map.entry("remarks", "legacy"),
+            Map.entry("createdAt", now),
+            Map.entry("updatedAt", now)));
+
+        JsonNode pending = responseBody(mockMvc.perform(authorized(get("/api/v1/medical-orders/pending"), USER_M4_ORDER_EXECUTE)
+            .param("page", "1")
+            .param("size", "20")
+            .param("pathologyNo", context.pathologyNo())
+            .param("orderCategoryCode", "IHC")), 200);
+
+        assertThat(pending.path("total").asInt()).isEqualTo(1);
+        assertThat(pending.path("items").get(0).path("orderId").asText()).isEqualTo("MO-LEGACY-IHC");
+        assertThat(pending.path("items").get(0).path("orderCategoryCode").isMissingNode()).isFalse();
+        assertThat(pending.path("items").get(0).path("orderCategoryCode").isNull()).isTrue();
+    }
+
+    @Test
     void shouldRejectLegacyOperatorFieldsOnMedicalOrderRequests() throws Exception {
         StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-003", "BC-M4-ORDER-003");
 
@@ -98,5 +197,17 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
             """.formatted(context.caseId()))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message", containsString("operatorUserId")));
+    }
+
+    private JsonNode createMedicalOrder(String caseId, String orderItemId, String orderType, String orderContent) throws Exception {
+        return responseBody(postJson("/api/v1/medical-orders", USER_M4_DIAGNOSIS, """
+            {
+              "caseId":"%s",
+              "orderType":"%s",
+              "orderContent":"%s",
+              "orderItemId":"%s",
+              "terminalCode":"M4-ORD-DICT"
+            }
+            """.formatted(caseId, orderType, orderContent, orderItemId)), 200);
     }
 }
