@@ -1,3 +1,33 @@
+DELETE FROM medical_order_dict_items
+WHERE category_id IN (
+    'ODC_DNA',
+    'ODC_IHC',
+    'ODC_TSRS',
+    'ODC_EXAM',
+    'ODC_CGRS',
+    'ODC_BLOCK',
+    'ODC_FISH',
+    'ODC_QP',
+    'ODC_MYYG',
+    'ODC_KSQP',
+    'ODC_FZBL'
+);
+
+DELETE FROM medical_order_dict_categories
+WHERE id IN (
+    'ODC_DNA',
+    'ODC_IHC',
+    'ODC_TSRS',
+    'ODC_EXAM',
+    'ODC_CGRS',
+    'ODC_BLOCK',
+    'ODC_FISH',
+    'ODC_QP',
+    'ODC_MYYG',
+    'ODC_KSQP',
+    'ODC_FZBL'
+);
+
 INSERT INTO medical_order_dict_categories (id, parent_id, category_code, category_name, sort_order, enabled) VALUES
 ('ODC_DNA', 'ODC_ROOT', 'DNA', '基因检测', 30, 1),
 ('ODC_IHC', 'ODC_ROOT', 'IHC', '免疫组化', 40, 1),
