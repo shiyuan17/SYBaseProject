@@ -7,7 +7,7 @@ JAR_NAME="${AUTH_CENTER_JAR_NAME:-auth-center-0.1.0-SNAPSHOT-exec.jar}"
 JAR_PATH="${AUTH_CENTER_JAR_PATH:-$ROOT_DIR/auth-center/target/$JAR_NAME}"
 RUNTIME_DIR="${AUTH_CENTER_RUNTIME_DIR:-$ROOT_DIR/tmp/dev-services}"
 PID_FILE="$RUNTIME_DIR/$APP_NAME.pid"
-LOG_FILE="${AUTH_CENTER_LOG_FILE:-$RUNTIME_DIR/$APP_NAME.log}"
+LOG_FILE="${AUTH_CENTER_LOG_FILE:-$ROOT_DIR/.logs/backend.log}"
 ACTION="${1:-start}"
 
 if [ "$#" -gt 0 ]; then
@@ -39,6 +39,7 @@ require_jar() {
 
 ensure_runtime_dir() {
   mkdir -p "$RUNTIME_DIR"
+  mkdir -p "$(dirname "$LOG_FILE")"
 }
 
 running_pid() {

@@ -4,6 +4,7 @@ target/
 *.iml
 .DS_Store
 *.log
+.logs/
 out/
 .mvn/wrapper/maven-wrapper.jar
 .m2/

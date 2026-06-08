@@ -102,6 +102,29 @@ git worktree remove ../SYBaseProject-worktrees/ENG-123
 git branch -d feature/ENG-123-user-authentication
 ```
 
+### 7. Git Hooks 与动态 MR 审查路由
+
+仓库通过 `scripts/hooks/` 提供版本化的原生 Git hook 脚本，开发者需在本地执行安装脚本接入 `.git/hooks`：
+
+- `pre-commit`：检查暂存文本文件，拦截 UTF-8 解码、BOM 与换行符问题；全仓文件健康度仍由 `RepositoryFileHealthGateTest` 与 CI 兜底
+- `commit-msg`：校验 Conventional Commits，不符合 `type(scope): subject` 的提交信息直接拦截
+- `pre-push`：执行 `./mvnw -B -ntp clean test -Dsurefire.excludedGroups=slow`，对齐 GitLab CI `verify_fast` 的快速反馈口径
+
+MR 必须根据任务类型选择对应审查路径，不得所有任务套用同一套 AI 流程：
+
+- 接口任务：执行 API Review，重点检查 REST 契约、错误码、兼容性与前后端字段映射
+- 数据库任务：执行 DB Review，重点检查迁移、回滚、索引/约束、种子数据与数据兼容
+- 权限、患者信息、报告信息：执行 Security Review，重点检查认证授权、数据范围、脱敏、审计与敏感日志
+- 大文件重构、DDD 边界、共享模块：执行 Architecture Review，重点检查分层依赖、领域模型与仓储契约
+- 生产问题：执行 Execution Driven Debug，必须先读日志、复现问题、确认修复证据与回滚路径
+- 高风险变更：执行 Red Team Review，主动攻击代码并证明是否存在越权、数据破坏、错误吞噬、迁移失败或回滚缺口
+
+Hook 与 MR 审查边界：
+
+- 本地 hook 只提供快速阻断，不替代 `./mvnw -pl <module> -am verify`、完整 `./mvnw clean verify` 或 GitLab CI
+- MR 模板提供动态审查路由，不替代人工 Review、红区人工确认和目标环境验收
+- 禁止使用 `--no-verify` 绕过 hook；确有特殊情况必须在 MR 中说明原因并人工确认
+
 ## 推荐实践
 
 - 保持分支短生命周期，尽量小步提交、频繁同步 `develop`
@@ -123,8 +146,10 @@ git branch -d feature/ENG-123-user-authentication
 - [ ] Linear 任务已在独立 worktree 中处理，目录位于仓库同级 `../SYBaseProject-worktrees/<issue-id>`
 - [ ] 分支类型与命名符合 Git Flow 规范
 - [ ] 提交信息符合 Conventional Commits
+- [ ] 本地 Git hooks 已安装或已在 MR 中说明未安装原因
 - [ ] 任务合并后已清理对应 worktree 与已合并分支
 - [ ] PR 描述包含目的、影响、验证和风险
+- [ ] MR 已按任务类型选择动态审查路由，高风险变更已执行 Red Team Review
 - [ ] 涉及依赖、基础设施、数据库、镜像的变更已附信创兼容说明
 - [ ] Review、CI、冲突处理已完成
 - [ ] `release/*` 与 `hotfix/*` 的回合并路径已执行
