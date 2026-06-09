@@ -27,23 +27,39 @@ class SlicingWorkbenchIntegrationTest extends AbstractTechnicalWorkflowIntegrati
         String slideId = completeSlicingCase(completedContext);
 
         mockMvc.perform(authorized(get("/api/v1/slicings/workbench"), USER_M3_SLICING)
+                .param("keyword", completedContext.baseContext().pathologyNo())
+                .param("pendingPage", "1")
+                .param("pendingSize", "20")
+                .param("completedPage", "1")
+                .param("completedSize", "20"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.stats.pendingTodayCount").value(0))
+            .andExpect(jsonPath("$.data.stats.pendingTomorrowCount").value(0))
+            .andExpect(jsonPath("$.data.stats.completedMineTodayCount").value(1))
+            .andExpect(jsonPath("$.data.stats.completedDeptTodayCount").value(1))
+            .andExpect(jsonPath("$.data.stats.overdueCount").value(0))
+            .andExpect(jsonPath("$.data.pendingTotal").value(0))
+            .andExpect(jsonPath("$.data.pendingPrintTotal").value(0))
+            .andExpect(jsonPath("$.data.pendingSliceTotal").value(0))
+            .andExpect(jsonPath("$.data.completedTotal").value(1))
+            .andExpect(jsonPath("$.data.completedTodayList[0].slideId").value(slideId));
+
+        mockMvc.perform(authorized(get("/api/v1/slicings/workbench"), USER_M3_SLICING)
                 .param("keyword", freshContext.baseContext().pathologyNo())
                 .param("pendingPage", "1")
                 .param("pendingSize", "20")
                 .param("completedPage", "1")
                 .param("completedSize", "20"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.stats.pendingTodayCount").value(1))
-            .andExpect(jsonPath("$.data.stats.pendingTomorrowCount").value(0))
-            .andExpect(jsonPath("$.data.stats.completedMineTodayCount").value(1))
-            .andExpect(jsonPath("$.data.stats.completedDeptTodayCount").value(1))
-            .andExpect(jsonPath("$.data.stats.overdueCount").value(1))
             .andExpect(jsonPath("$.data.pendingTotal").value(1))
-            .andExpect(jsonPath("$.data.completedTotal").value(1))
+            .andExpect(jsonPath("$.data.pendingPrintTotal").value(1))
+            .andExpect(jsonPath("$.data.pendingSliceTotal").value(0))
+            .andExpect(jsonPath("$.data.completedTotal").value(0))
             .andExpect(jsonPath("$.data.pendingList[0].pathologyNo").value(freshContext.baseContext().pathologyNo()))
-            .andExpect(jsonPath("$.data.completedTodayList[0].slideId").value(slideId));
+            .andExpect(jsonPath("$.data.pendingPrintList[0].slidePrintStatus").value("PENDING"));
 
         mockMvc.perform(authorized(get("/api/v1/slicings/workbench"), USER_M3_SLICING)
+                .param("keyword", overdueContext.baseContext().pathologyNo())
                 .param("overdueOnly", "true")
                 .param("pendingPage", "1")
                 .param("pendingSize", "20")
@@ -55,6 +71,7 @@ class SlicingWorkbenchIntegrationTest extends AbstractTechnicalWorkflowIntegrati
             .andExpect(jsonPath("$.data.pendingList[0].timedOut").value(true));
 
         mockMvc.perform(authorized(get("/api/v1/slicings/workbench"), USER_M3_SLICING)
+                .param("keyword", freshContext.baseContext().pathologyNo())
                 .param("pendingTodayOnly", "true")
                 .param("pendingPage", "1")
                 .param("pendingSize", "20")
@@ -98,6 +115,55 @@ class SlicingWorkbenchIntegrationTest extends AbstractTechnicalWorkflowIntegrati
             where case_id = :caseId
             """, new MapSqlParameterSource().addValue("caseId", context.baseContext().caseId()), Long.class);
         assertThat(qualityCount).isEqualTo(1L);
+    }
+
+    @Test
+    void shouldPrintMergedSlidesBeforeSlicingAndRejectDuplicatePrint() throws Exception {
+        SlicingReadyContext context = prepareSlicingReadyContext("APP-M3-SLICE-004", "BC-M3-SLICE-004");
+        postJson("/api/v1/slicings/start", USER_M3_SLICING, """
+            {
+              "taskId": "%s",
+              "terminalCode": "TS-MERGE"
+            }
+            """.formatted(context.slicingTaskId()))
+            .andExpect(status().isOk());
+
+        JsonNode printResult = responseBody(postJson("/api/v1/slicings/slide-print", USER_M3_SLICING, """
+            {
+              "taskId": "%s",
+              "embeddingBoxId": "%s",
+              "sourceSlideCount": 5,
+              "mergeAdjacent": true,
+              "printerCode": "PRN-1",
+              "terminalCode": "TS-MERGE"
+            }
+            """.formatted(context.slicingTaskId(), context.embeddingBoxId())), 200);
+
+        assertThat(printResult.path("printedSlideCount").asInt()).isEqualTo(3);
+        assertThat(printResult.path("slideNos").get(0).asText()).contains("-");
+        assertThat(printResult.path("slideNos").get(2).asText()).doesNotContain("-");
+
+        postJson("/api/v1/slicings/slide-print", USER_M3_SLICING, """
+            {
+              "taskId": "%s",
+              "embeddingBoxId": "%s",
+              "sourceSlideCount": 2,
+              "mergeAdjacent": true
+            }
+            """.formatted(context.slicingTaskId(), context.embeddingBoxId()))
+            .andExpect(status().isConflict());
+
+        mockMvc.perform(authorized(get("/api/v1/slicings/workbench"), USER_M3_SLICING)
+                .param("keyword", context.baseContext().pathologyNo())
+                .param("pendingPage", "1")
+                .param("pendingSize", "20")
+                .param("completedPage", "1")
+                .param("completedSize", "20"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.pendingPrintTotal").value(0))
+            .andExpect(jsonPath("$.data.pendingSliceTotal").value(1))
+            .andExpect(jsonPath("$.data.pendingSliceList[0].printedSlideCount").value(3))
+            .andExpect(jsonPath("$.data.pendingSliceList[0].combinedSlide").value(true));
     }
 
     private SlicingReadyContext prepareSlicingReadyContext(String applicationNo, String barcode) throws Exception {
@@ -203,11 +269,20 @@ class SlicingWorkbenchIntegrationTest extends AbstractTechnicalWorkflowIntegrati
             """.formatted(context.slicingTaskId()))
             .andExpect(status().isOk());
 
+        postJson("/api/v1/slicings/slide-print", USER_M3_SLICING, """
+            {
+              "taskId": "%s",
+              "embeddingBoxId": "%s",
+              "sourceSlideCount": 1,
+              "terminalCode": "TS-COMPLETE"
+            }
+            """.formatted(context.slicingTaskId(), context.embeddingBoxId()))
+            .andExpect(status().isOk());
+
         JsonNode slicing = responseBody(postJson("/api/v1/slicings/complete", USER_M3_SLICING, """
             {
               "taskId": "%s",
               "embeddingBoxId": "%s",
-              "slideCount": 1,
               "terminalCode": "TS-COMPLETE"
             }
             """.formatted(context.slicingTaskId(), context.embeddingBoxId())), 200);

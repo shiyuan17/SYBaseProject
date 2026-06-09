@@ -140,8 +140,10 @@ class SpecimenControllerAssembler {
     }
 
     CheckInSpecimenCommand toCheckInSpecimenCommand(String barcode, SpecimenCheckInRequest request, HttpServletRequest httpServletRequest) {
-        OperatorVerificationService.VerifiedOperator operator = resolveVerifiedOperator(
+        OperatorVerificationService.VerifiedOperator operator = resolveVerifiedOrCurrentOperator(
             request.getOperatorVerificationToken(),
+            request.getOperatorUserId(),
+            request.getOperatorName(),
             httpServletRequest);
         return new CheckInSpecimenCommand(
             barcode,
@@ -187,6 +189,7 @@ class SpecimenControllerAssembler {
         return new ApplicationListItemResponse(
             item.id(),
             item.applicationNo(),
+            item.pathologyNo(),
             item.patientName(),
             item.patientGender(),
             item.patientAge(),
@@ -419,6 +422,27 @@ class SpecimenControllerAssembler {
         return operatorVerificationService.resolveVerifiedOperator(
             operatorVerificationToken,
             RequestOperatorContext.currentUserId(request));
+    }
+
+    private OperatorVerificationService.VerifiedOperator resolveVerifiedOrCurrentOperator(
+        String operatorVerificationToken,
+        String bodyUserId,
+        String bodyOperatorName,
+        HttpServletRequest request
+    ) {
+        if (operatorVerificationToken == null || operatorVerificationToken.isBlank()) {
+            String currentUserId = resolveUserId(null, request);
+            String operatorName = currentUserId != null
+                && bodyUserId != null
+                && currentUserId.equals(bodyUserId.trim())
+                ? resolveOperatorName(bodyOperatorName, request)
+                : resolveOperatorName(null, request);
+            return new OperatorVerificationService.VerifiedOperator(
+                currentUserId,
+                null,
+                operatorName);
+        }
+        return resolveVerifiedOperator(operatorVerificationToken, request);
     }
 
     private String resolvePatientCheckStatus(ApplicationTracking tracking) {

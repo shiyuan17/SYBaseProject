@@ -14,8 +14,7 @@ import java.util.List;
 @Schema(name = "CreateTransportOrderRequest", description = "转运单创建请求")
 public class CreateTransportOrderRequest {
 
-    @Schema(description = "核对操作人登录确认 token", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotBlank
+    @Schema(description = "核对操作人登录确认 token；非当前登录人操作时传入")
     private String operatorVerificationToken;
 
     @Schema(description = "申请单 ID", requiredMode = Schema.RequiredMode.REQUIRED)

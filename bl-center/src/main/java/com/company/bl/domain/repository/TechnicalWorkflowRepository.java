@@ -65,6 +65,10 @@ public interface TechnicalWorkflowRepository {
 
     TechnicalWorkflowRecords.PagedSlicingWorkbenchRows findPendingSlicingWorkbenchRows(TechnicalWorkflowRecords.SlicingWorkbenchQuery query);
 
+    TechnicalWorkflowRecords.PagedSlicingWorkbenchRows findPendingSlicingPrintRows(TechnicalWorkflowRecords.SlicingWorkbenchQuery query);
+
+    TechnicalWorkflowRecords.PagedSlicingWorkbenchRows findPendingSlicingProcessRows(TechnicalWorkflowRecords.SlicingWorkbenchQuery query);
+
     TechnicalWorkflowRecords.PagedSlicingWorkbenchRows findCompletedSlicingWorkbenchRows(TechnicalWorkflowRecords.SlicingWorkbenchQuery query);
 
     PagedTechnicalSpecimenRegistrations findTechnicalSpecimenRegistrations(PendingTechnicalSpecimenRegistrationQuery query);
@@ -175,6 +179,20 @@ public interface TechnicalWorkflowRepository {
     void insertSlicing(CreateSlicingCommand command);
 
     Optional<Slicing> findSlicingById(String slicingId);
+
+    Optional<Slicing> findSlicingByTaskId(String taskId);
+
+    Optional<Slicing> findSlicingByTaskIdAndEmbeddingBoxId(String taskId, String embeddingBoxId);
+
+    void completeSlicingRecord(String slicingId,
+                               String slicingStatus,
+                               Integer sliceCountPerSlide,
+                               String sliceThickness,
+                               String slicedByUserId,
+                               String slicedByName,
+                               LocalDateTime slicedAt,
+                               String qualityIssue,
+                               String remarks);
 
     void insertSlide(CreateSlideCommand command);
 

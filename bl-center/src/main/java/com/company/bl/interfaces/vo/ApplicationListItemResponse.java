@@ -8,6 +8,8 @@ public record ApplicationListItemResponse(
     String id,
     @Schema(description = "申请单号")
     String applicationNo,
+    @Schema(description = "病理号")
+    String pathologyNo,
     @Schema(description = "患者姓名")
     String patientName,
     @Schema(description = "患者性别")

@@ -18,6 +18,10 @@ public class TechnicalSpecimenRegistrationCompleteRequest {
     @Size(max = 64)
     private String applicationType;
 
+    @Schema(description = "候选病理号，不传则由系统按送检类型生成")
+    @Size(max = 64)
+    private String pathologyNo;
+
     @Schema(description = "终端编码")
     @Size(max = 64)
     private String terminalCode;

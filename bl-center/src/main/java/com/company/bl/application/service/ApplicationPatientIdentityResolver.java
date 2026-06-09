@@ -85,7 +85,7 @@ public class ApplicationPatientIdentityResolver {
                 .addValue("patientNo", normalizedIdentifier)
                 .addValue("name", normalize(patientName))
                 .addValue("gender", normalize(patientGender))
-                .addValue("age", normalize(patientAge))
+                .addValue("age", normalizePatientAge(patientAge))
                 .addValue("createdAt", now)
                 .addValue("updatedAt", now));
         return patientId;
@@ -197,6 +197,22 @@ public class ApplicationPatientIdentityResolver {
         }
         String normalized = value.trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String normalizePatientAge(String value) {
+        String normalized = normalize(value);
+        if (normalized == null) {
+            return null;
+        }
+        int index = 0;
+        while (index < normalized.length() && isAsciiDigit(normalized.charAt(index))) {
+            index++;
+        }
+        return index == 0 ? null : normalized.substring(0, index);
+    }
+
+    private boolean isAsciiDigit(char value) {
+        return value >= '0' && value <= '9';
     }
 
     public record PatientSummary(

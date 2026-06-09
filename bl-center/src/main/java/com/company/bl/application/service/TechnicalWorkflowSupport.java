@@ -52,6 +52,7 @@ class TechnicalWorkflowSupport {
             task.taskStatus(),
             task.objectType(),
             task.objectId(),
+            task.objectDisplayNo(),
             task.samplingBlockCode(),
             task.samplingBlockDescription(),
             task.sampledByName(),

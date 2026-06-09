@@ -114,6 +114,7 @@ public final class SpecimenWorkflowQueryModels {
     public record ApplicationListItem(
         String id,
         String applicationNo,
+        String pathologyNo,
         String patientName,
         String patientGender,
         String patientAge,

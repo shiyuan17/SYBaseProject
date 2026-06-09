@@ -205,6 +205,119 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
     }
 
     @Test
+    void shouldCompleteRegistrationWithManualPathologyNoWhenCandidateIsValidAndUnique() throws Exception {
+        TechnicalCaseContext context =
+            receiveCaseAndGetPendingRegistration("APP-M3-REG-MANUAL-002C", "BC-M3-REG-MANUAL-002C");
+
+        JsonNode completion =
+            completeTechnicalSpecimenRegistration(
+                context.caseId(),
+                "manual pathology no completion",
+                "CONSULTATION",
+                "HZ2601234"
+            );
+
+        assertThat(completion.path("pathologyNo").asText()).isEqualTo("HZ2601234");
+
+        String persistedPathologyNo = namedParameterJdbcTemplate.queryForObject("""
+            select pathology_no
+            from pathology_cases
+            where id = :caseId
+            """, Map.of("caseId", context.caseId()), String.class);
+        assertThat(persistedPathologyNo).isEqualTo("HZ2601234");
+    }
+
+    @Test
+    void shouldRejectManualPathologyNoWhenCandidateDoesNotMatchSelectedApplicationType() throws Exception {
+        TechnicalCaseContext context =
+            receiveCaseAndGetPendingRegistration("APP-M3-REG-MISMATCH-002D", "BC-M3-REG-MISMATCH-002D");
+
+        mockMvc.perform(authorized(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
+                    "/api/v1/technical-specimen-registrations/{caseId}/complete",
+                    context.caseId()),
+                USER_RECEIVE)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "applicationType": "CONSULTATION",
+                  "pathologyNo": "BL202606080001",
+                  "terminalCode": "T-M3-REG",
+                  "remarks": "mismatched candidate"
+                }
+                """))
+            .andExpect(status().isBadRequest())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                "Pathology number does not match selected application type")));
+
+        String persistedPathologyNo = namedParameterJdbcTemplate.queryForObject("""
+            select pathology_no
+            from pathology_cases
+            where id = :caseId
+            """, Map.of("caseId", context.caseId()), String.class);
+        assertThat(persistedPathologyNo).isNull();
+    }
+
+    @Test
+    void shouldRejectManualPathologyNoWhenCandidateAlreadyBelongsToAnotherCase() throws Exception {
+        TechnicalCaseContext existingContext =
+            receiveCaseAndGetPendingRegistration("APP-M3-REG-DUP-002E", "BC-M3-REG-DUP-002E");
+        TechnicalCaseContext targetContext =
+            receiveCaseAndGetPendingRegistration("APP-M3-REG-DUP-002F", "BC-M3-REG-DUP-002F");
+        namedParameterJdbcTemplate.update("""
+            update pathology_cases
+            set pathology_no = 'HZ2605678'
+            where id = :caseId
+            """, Map.of("caseId", existingContext.caseId()));
+
+        mockMvc.perform(authorized(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
+                    "/api/v1/technical-specimen-registrations/{caseId}/complete",
+                    targetContext.caseId()),
+                USER_RECEIVE)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "applicationType": "CONSULTATION",
+                  "pathologyNo": "HZ2605678",
+                  "terminalCode": "T-M3-REG",
+                  "remarks": "duplicate candidate"
+                }
+                """))
+            .andExpect(status().isConflict())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                "Pathology number already exists")));
+
+        String persistedPathologyNo = namedParameterJdbcTemplate.queryForObject("""
+            select pathology_no
+            from pathology_cases
+            where id = :caseId
+            """, Map.of("caseId", targetContext.caseId()), String.class);
+        assertThat(persistedPathologyNo).isNull();
+    }
+
+    @Test
+    void shouldAllowManualPathologyNoWhenCandidateAlreadyBelongsToCurrentCase() throws Exception {
+        TechnicalCaseContext context =
+            receiveCaseAndGetPendingRegistration("APP-M3-REG-SAME-002G", "BC-M3-REG-SAME-002G");
+        namedParameterJdbcTemplate.update("""
+            update pathology_cases
+            set pathology_no = 'HZ2606789'
+            where id = :caseId
+            """, Map.of("caseId", context.caseId()));
+
+        JsonNode completion =
+            completeTechnicalSpecimenRegistration(
+                context.caseId(),
+                "same case manual pathology no",
+                "CONSULTATION",
+                "HZ2606789"
+            );
+
+        assertThat(completion.path("pathologyNo").asText()).isEqualTo("HZ2606789");
+    }
+
+    @Test
     void shouldRegeneratePathologyNoWhenSelectedTypeDoesNotMatchExistingRule() throws Exception {
         TechnicalCaseContext context =
             receiveCaseAndGetPendingRegistration("APP-M3-REG-SUP-002B", "BC-M3-REG-SUP-002B");

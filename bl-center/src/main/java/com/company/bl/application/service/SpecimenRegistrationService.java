@@ -49,12 +49,15 @@ class SpecimenRegistrationService {
         LocalDateTime now = LocalDateTime.now();
         String labelPrintBatchNo = "LP-" + UUID.randomUUID();
         List<Specimen> specimens = new ArrayList<>();
+        List<Specimen> specimensReadyToPrint = new ArrayList<>();
         for (SpecimenRegistrationItem item : command.items()) {
             String specimenNo = numberingService.generateSpecimenNo(null);
             String barcode = specimenWorkflowSupport.blank(item.barcode())
-                ? application.getApplicationNo() + "-" + specimenNo
+                ? null
                 : item.barcode().trim();
-            specimenWorkflowSupport.ensureBarcodeAvailable(barcode);
+            if (!specimenWorkflowSupport.blank(barcode)) {
+                specimenWorkflowSupport.ensureBarcodeAvailable(barcode);
+            }
             Specimen specimen = new Specimen(
                 "SP-" + UUID.randomUUID(),
                 command.applicationId(),
@@ -104,6 +107,9 @@ class SpecimenRegistrationService {
                 specimenWorkflowSupport.trim(command.terminalCode()),
                 specimenWorkflowSupport.trim(command.remarks()));
             specimenWorkflowRepository.insertSpecimen(specimen);
+            if (!specimenWorkflowSupport.blank(specimen.barcode())) {
+                specimensReadyToPrint.add(specimen);
+            }
             specimenWorkflowRepository.insertCollectionRecord(
                 command.applicationId(),
                 specimen.id(),
@@ -134,34 +140,44 @@ class SpecimenRegistrationService {
             specimens.add(specimen);
         }
 
-        LabelPrintGateway.LabelPrintResult printResult = labelPrintGateway.print(
-            new LabelPrintGateway.LabelPrintRequest(
-                command.applicationId(),
-                labelPrintBatchNo,
-                command.printerCode(),
-                specimens.stream().map(Specimen::barcode).toList()));
-        String labelPrintStatus = printResult.success() ? "SUCCESS" : "FAILED";
+        LabelPrintGateway.LabelPrintResult printResult = specimensReadyToPrint.isEmpty()
+            ? new LabelPrintGateway.LabelPrintResult(false, "Awaiting barcode binding before label printing")
+            : labelPrintGateway.print(
+                new LabelPrintGateway.LabelPrintRequest(
+                    command.applicationId(),
+                    labelPrintBatchNo,
+                    command.printerCode(),
+                    specimensReadyToPrint.stream().map(Specimen::barcode).toList()));
+        String printedLabelStatus = printResult.success() ? "SUCCESS" : "FAILED";
         List<Specimen> updatedSpecimens = new ArrayList<>();
         for (Specimen specimen : specimens) {
+            String labelPrintStatus = specimenWorkflowSupport.blank(specimen.barcode())
+                ? "PENDING"
+                : printedLabelStatus;
             specimenWorkflowRepository.updateSpecimenLabelPrintStatus(specimen.id(), labelPrintStatus);
-            specimenWorkflowRepository.insertWorkflowEvent(new TrackingEvent(
-                "EVT-" + UUID.randomUUID(),
-                command.applicationId(),
-                specimen.id(),
-                null,
-                null,
-                "LABEL_PRINT",
-                "PRINTED",
-                printResult.success() ? "SUCCESS" : "FAILED",
-                now,
-                command.operatorUserId(),
-                command.operatorName(),
-                command.terminalCode(),
-                printResult.message()));
+            if (!specimenWorkflowSupport.blank(specimen.barcode())) {
+                specimenWorkflowRepository.insertWorkflowEvent(new TrackingEvent(
+                    "EVT-" + UUID.randomUUID(),
+                    command.applicationId(),
+                    specimen.id(),
+                    null,
+                    null,
+                    "LABEL_PRINT",
+                    "PRINTED",
+                    printResult.success() ? "SUCCESS" : "FAILED",
+                    now,
+                    command.operatorUserId(),
+                    command.operatorName(),
+                    command.terminalCode(),
+                    printResult.message()));
+            }
             updatedSpecimens.add(specimenWorkflowSupport.copyWithLabelPrintStatus(specimen, labelPrintStatus));
         }
         specimenWorkflowRepository.updateApplicationStatus(command.applicationId(), "SUBMITTED");
-        return new SpecimenRegistrationResult(updatedSpecimens, labelPrintBatchNo, printResult.success(), printResult.message());
+        boolean allLabelsPrinted = !specimensReadyToPrint.isEmpty()
+            && specimensReadyToPrint.size() == specimens.size()
+            && printResult.success();
+        return new SpecimenRegistrationResult(updatedSpecimens, labelPrintBatchNo, allLabelsPrinted, printResult.message());
     }
 
     @Transactional

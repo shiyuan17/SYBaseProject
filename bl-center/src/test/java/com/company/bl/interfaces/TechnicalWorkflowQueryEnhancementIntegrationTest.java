@@ -139,6 +139,17 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
                 .param("pathologyNo", context.pathologyNo()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.total").value(0));
+
+        mockMvc.perform(authorized(get("/api/v1/technical-tasks/pending"), USER_M3_GROSSING)
+                .param("page", "1")
+                .param("size", "20")
+                .param("taskType", "GROSSING")
+                .param("pathologyNo", context.pathologyNo())
+                .param("includeAllStatuses", "true"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].id").value(context.grossingTaskId()))
+            .andExpect(jsonPath("$.data.items[0].taskStatus").value("COMPLETED"));
     }
 
     @Test

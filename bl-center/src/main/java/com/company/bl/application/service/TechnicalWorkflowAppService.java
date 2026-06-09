@@ -175,6 +175,11 @@ public class TechnicalWorkflowAppService {
         return technicalProcessingWorkflowService.startSlicing(command);
     }
 
+    public TechnicalWorkflowModels.SlicingSlidePrintResult printSlicingSlides(
+        TechnicalWorkflowModels.SlicingSlidePrintCommand command) {
+        return technicalProcessingWorkflowService.printSlicingSlides(command);
+    }
+
     public TechnicalWorkflowModels.SlicingResult completeSlicing(TechnicalWorkflowModels.SlicingCompleteCommand command) {
         return technicalProcessingWorkflowService.completeSlicing(command);
     }

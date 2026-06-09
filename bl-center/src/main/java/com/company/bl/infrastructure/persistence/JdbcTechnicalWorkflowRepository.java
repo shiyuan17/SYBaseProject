@@ -122,6 +122,16 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     }
 
     @Override
+    public PagedSlicingWorkbenchRows findPendingSlicingPrintRows(SlicingWorkbenchQuery query) {
+        return processingQueries.findPendingSlicingPrintRows(query);
+    }
+
+    @Override
+    public PagedSlicingWorkbenchRows findPendingSlicingProcessRows(SlicingWorkbenchQuery query) {
+        return processingQueries.findPendingSlicingProcessRows(query);
+    }
+
+    @Override
     public PagedSlicingWorkbenchRows findCompletedSlicingWorkbenchRows(SlicingWorkbenchQuery query) {
         return processingQueries.findCompletedSlicingWorkbenchRows(query);
     }
@@ -345,6 +355,38 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     @Override
     public Optional<Slicing> findSlicingById(String slicingId) {
         return processingQueries.findSlicingById(slicingId);
+    }
+
+    @Override
+    public Optional<Slicing> findSlicingByTaskId(String taskId) {
+        return processingQueries.findSlicingByTaskId(taskId);
+    }
+
+    @Override
+    public Optional<Slicing> findSlicingByTaskIdAndEmbeddingBoxId(String taskId, String embeddingBoxId) {
+        return processingQueries.findSlicingByTaskIdAndEmbeddingBoxId(taskId, embeddingBoxId);
+    }
+
+    @Override
+    public void completeSlicingRecord(String slicingId,
+                                      String slicingStatus,
+                                      Integer sliceCountPerSlide,
+                                      String sliceThickness,
+                                      String slicedByUserId,
+                                      String slicedByName,
+                                      LocalDateTime slicedAt,
+                                      String qualityIssue,
+                                      String remarks) {
+        processingMutations.completeSlicingRecord(
+            slicingId,
+            slicingStatus,
+            sliceCountPerSlide,
+            sliceThickness,
+            slicedByUserId,
+            slicedByName,
+            slicedAt,
+            qualityIssue,
+            remarks);
     }
 
     @Override

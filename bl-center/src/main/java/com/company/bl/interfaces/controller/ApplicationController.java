@@ -296,6 +296,7 @@ public class ApplicationController {
         return new ApplicationListItemResponse(
             item.id(),
             item.applicationNo(),
+            item.pathologyNo(),
             item.patientName(),
             item.patientGender(),
             item.patientAge(),

@@ -319,29 +319,86 @@ class TechnicalProcessingWorkflowService {
             command.taskId(), TechnicalWorkflowConstants.NODE_SLICING, TechnicalWorkflowConstants.OBJECT_EMBEDDING_BOX);
         TechnicalWorkflowRecords.EmbeddingBox box = technicalWorkflowSupport.getEmbeddingBox(command.embeddingBoxId());
         technicalWorkflowSupport.validateTaskObject(task, box.id());
+        TechnicalWorkflowProcessingRecords.Slicing slicing = technicalWorkflowRepository
+            .findSlicingByTaskIdAndEmbeddingBoxId(task.id(), box.id())
+            .orElseThrow(() -> new BlBusinessException(
+                BlErrorCode.RESOURCE_CONFLICT,
+                409,
+                "Slide printing must be completed before slicing"));
+        List<TechnicalWorkflowProcessingRecords.Slide> slides =
+            technicalWorkflowRepository.findSlidesBySlicingId(slicing.id());
+        if (slides.isEmpty()) {
+            throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Printed slides are required before slicing");
+        }
         LocalDateTime now = LocalDateTime.now();
-        String slicingId = technicalWorkflowSupport.nextId("SLC");
-        String slicingBatchNo = "SLC-" + UUID.randomUUID().toString().substring(0, 8);
-        technicalWorkflowRepository.insertSlicing(new TechnicalWorkflowProcessingRecords.CreateSlicingCommand(
-            slicingId,
-            task.caseId(),
-            box.specimenId(),
-            box.embeddingId(),
-            box.id(),
-            slicingBatchNo,
+        technicalWorkflowRepository.completeSlicingRecord(
+            slicing.id(),
             TechnicalWorkflowConstants.TASK_COMPLETED,
-            command.slideCount(),
             command.sliceCountPerSlide(),
             command.sliceThickness(),
             command.operatorUserId(),
             command.operatorName(),
             now,
             command.qualityIssue(),
-            command.remarks()));
+            command.remarks());
         List<String> slideIds = new ArrayList<>();
-        for (int i = 0; i < command.slideCount(); i++) {
+        for (TechnicalWorkflowProcessingRecords.Slide slide : slides) {
+            technicalWorkflowSupport.createTechnicalTaskIfAbsent(
+                task.applicationId(),
+                task.caseId(),
+                box.specimenId(),
+                TechnicalWorkflowConstants.NODE_STAINING,
+                TechnicalWorkflowConstants.OBJECT_SLIDE,
+                slide.id(),
+                task.id(),
+                "slideNo=" + slide.slideNo());
+            slideIds.add(slide.id());
+        }
+        technicalWorkflowRepository.completeTechnicalTask(task.id(), TechnicalWorkflowConstants.TASK_COMPLETED, command.remarks(), now);
+        technicalWorkflowSupport.insertWorkflowEvent(task.applicationId(), box.specimenId(), task.caseId(),
+            TechnicalWorkflowConstants.NODE_SLICING, "COMPLETE", "SUCCESS", command.operatorUserId(),
+            command.operatorName(), command.terminalCode(), "Slicing completed");
+        return new TechnicalWorkflowModels.SlicingResult(task.id(), slicing.id(), slideIds, "SLICING");
+    }
+
+    @Transactional
+    TechnicalWorkflowModels.SlicingSlidePrintResult printSlicingSlides(
+        TechnicalWorkflowModels.SlicingSlidePrintCommand command
+    ) {
+        TechnicalWorkflowRecords.TechnicalTask task = technicalWorkflowSupport.requireActiveTask(
+            command.taskId(), TechnicalWorkflowConstants.NODE_SLICING, TechnicalWorkflowConstants.OBJECT_EMBEDDING_BOX);
+        TechnicalWorkflowRecords.EmbeddingBox box = technicalWorkflowSupport.getEmbeddingBox(command.embeddingBoxId());
+        technicalWorkflowSupport.validateTaskObject(task, box.id());
+        if (technicalWorkflowRepository.findSlicingByTaskIdAndEmbeddingBoxId(task.id(), box.id()).isPresent()) {
+            throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Slide labels have already been printed");
+        }
+
+        List<String> slideNos = buildSlideNos(command.sourceSlideCount(), command.mergeAdjacent());
+        LocalDateTime now = LocalDateTime.now();
+        String slicingId = technicalWorkflowSupport.nextId("SLC");
+        String slicingBatchNo = "SLC-" + UUID.randomUUID().toString().substring(0, 8);
+        technicalWorkflowRepository.insertSlicing(new TechnicalWorkflowProcessingRecords.CreateSlicingCommand(
+            slicingId,
+            task.id(),
+            task.caseId(),
+            box.specimenId(),
+            box.embeddingId(),
+            box.id(),
+            slicingBatchNo,
+            "PRINTED",
+            slideNos.size(),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            command.remarks()));
+
+        List<String> slideIds = new ArrayList<>();
+        for (String slideNo : slideNos) {
             String slideId = technicalWorkflowSupport.nextId("SLD");
-            String slideNo = technicalWorkflowSupport.generateSlideNo();
+            boolean combined = slideNo.contains("-");
             technicalWorkflowRepository.insertSlide(new TechnicalWorkflowProcessingRecords.CreateSlideCommand(
                 slideId,
                 task.caseId(),
@@ -351,15 +408,15 @@ class TechnicalProcessingWorkflowService {
                 box.samplingBlockId(),
                 slideNo,
                 slideNo,
-                false,
+                combined,
                 "PENDING",
-                "CREATED",
-                command.sliceCountPerSlide()));
+                "PRINTED",
+                null));
             TechnicalMarkingGateway.MarkingResult result = technicalWorkflowSupport.markObject(
                 task.caseId(),
                 TechnicalWorkflowConstants.OBJECT_SLIDE,
                 slideId,
-                command.deviceCode(),
+                command.printerCode(),
                 slideNo,
                 command.operatorUserId(),
                 command.operatorName(),
@@ -371,29 +428,49 @@ class TechnicalProcessingWorkflowService {
                     box.specimenId(),
                     task.caseId(),
                     TechnicalWorkflowConstants.NODE_SLICING,
-                    "MARK",
+                    "SLIDE_PRINT",
                     "FAILED",
                     command.operatorUserId(),
                     command.operatorName(),
                     command.terminalCode(),
                     result.message());
+                throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, result.message());
             }
-            technicalWorkflowSupport.createTechnicalTaskIfAbsent(
-                task.applicationId(),
-                task.caseId(),
-                box.specimenId(),
-                TechnicalWorkflowConstants.NODE_STAINING,
-                TechnicalWorkflowConstants.OBJECT_SLIDE,
-                slideId,
-                task.id(),
-                "slideNo=" + slideNo);
             slideIds.add(slideId);
         }
-        technicalWorkflowRepository.completeTechnicalTask(task.id(), TechnicalWorkflowConstants.TASK_COMPLETED, command.remarks(), now);
         technicalWorkflowSupport.insertWorkflowEvent(task.applicationId(), box.specimenId(), task.caseId(),
-            TechnicalWorkflowConstants.NODE_SLICING, "COMPLETE", "SUCCESS", command.operatorUserId(),
-            command.operatorName(), command.terminalCode(), "Slicing completed");
-        return new TechnicalWorkflowModels.SlicingResult(task.id(), slicingId, slideIds, "SLICING");
+            TechnicalWorkflowConstants.NODE_SLICING, "SLIDE_PRINT", "SUCCESS", command.operatorUserId(),
+            command.operatorName(), command.terminalCode(), "Slide labels printed");
+        return new TechnicalWorkflowModels.SlicingSlidePrintResult(
+            task.id(),
+            slicingId,
+            slideIds,
+            slideNos,
+            command.mergeAdjacent(),
+            slideNos.size());
+    }
+
+    private List<String> buildSlideNos(int sourceSlideCount, boolean mergeAdjacent) {
+        if (sourceSlideCount < 1) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Slide count must be at least 1");
+        }
+        List<String> baseSlideNos = new ArrayList<>();
+        for (int i = 0; i < sourceSlideCount; i++) {
+            baseSlideNos.add(technicalWorkflowSupport.generateSlideNo());
+        }
+        if (!mergeAdjacent) {
+            return baseSlideNos;
+        }
+        List<String> mergedSlideNos = new ArrayList<>();
+        for (int i = 0; i < baseSlideNos.size(); i += 2) {
+            String current = baseSlideNos.get(i);
+            if (i + 1 >= baseSlideNos.size()) {
+                mergedSlideNos.add(current);
+            } else {
+                mergedSlideNos.add(current + "-" + baseSlideNos.get(i + 1));
+            }
+        }
+        return mergedSlideNos;
     }
 
     @Transactional

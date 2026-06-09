@@ -49,6 +49,7 @@ class SpecimenWorkflowApplicationQuerySupport extends AbstractSpecimenWorkflowQu
             result.items().stream().map(item -> new ApplicationListItem(
                 item.id(),
                 item.applicationNo(),
+                item.pathologyNo(),
                 item.patientName(),
                 item.patientGender(),
                 item.patientAge(),

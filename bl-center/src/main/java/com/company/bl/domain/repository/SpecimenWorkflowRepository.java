@@ -150,6 +150,7 @@ public interface SpecimenWorkflowRepository extends SpecimenWorkflowQueryReposit
     record ApplicationListRow(
         String id,
         String applicationNo,
+        String pathologyNo,
         String patientName,
         String patientGender,
         String patientAge,

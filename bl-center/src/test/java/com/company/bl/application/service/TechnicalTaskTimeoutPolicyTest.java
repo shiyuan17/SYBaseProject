@@ -48,6 +48,7 @@ class TechnicalTaskTimeoutPolicyTest {
             TechnicalWorkflowConstants.TASK_IN_PROGRESS,
             "SPECIMEN",
             "OBJ-1",
+            "OBJ-1",
             null,
             null,
             null,

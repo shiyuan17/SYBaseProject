@@ -217,6 +217,7 @@ final class BlCenterFlywayCliSupport {
             .baselineOnMigrate(config.baselineOnMigrate())
             .baselineVersion(config.baselineVersion())
             .baselineDescription(config.baselineDescription())
+            .outOfOrder(config.outOfOrder())
             .load();
     }
 
@@ -344,7 +345,8 @@ final class BlCenterFlywayCliSupport {
         String password,
         boolean baselineOnMigrate,
         String baselineVersion,
-        String baselineDescription
+        String baselineDescription,
+        boolean outOfOrder
     ) {
         private static DatabaseConfig fromEnv() {
             return new DatabaseConfig(
@@ -354,7 +356,11 @@ final class BlCenterFlywayCliSupport {
                 env("BL_CENTER_DATASOURCE_PASSWORD", DEFAULT_PASSWORD),
                 Boolean.parseBoolean(env("SPRING_FLYWAY_BASELINE_ON_MIGRATE", "false")),
                 env("SPRING_FLYWAY_BASELINE_VERSION", "1"),
-                env("SPRING_FLYWAY_BASELINE_DESCRIPTION", DEFAULT_BASELINE_DESCRIPTION)
+                env("SPRING_FLYWAY_BASELINE_DESCRIPTION", DEFAULT_BASELINE_DESCRIPTION),
+                Boolean.parseBoolean(env(
+                    "BL_CENTER_FLYWAY_OUT_OF_ORDER",
+                    env("SPRING_FLYWAY_OUT_OF_ORDER", "false")
+                ))
             );
         }
     }

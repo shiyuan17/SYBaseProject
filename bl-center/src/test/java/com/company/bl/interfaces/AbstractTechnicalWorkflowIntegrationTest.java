@@ -167,14 +167,24 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
     protected JsonNode completeTechnicalSpecimenRegistration(String caseId,
                                                              String remarks,
                                                              String applicationType) throws Exception {
+        return completeTechnicalSpecimenRegistration(caseId, remarks, applicationType, null);
+    }
+
+    protected JsonNode completeTechnicalSpecimenRegistration(String caseId,
+                                                             String remarks,
+                                                             String applicationType,
+                                                             String pathologyNo) throws Exception {
+        String pathologyNoField = pathologyNo == null ? "" : "\"pathologyNo\": \"%s\",".formatted(pathologyNo);
         return responseBody(postJson("/api/v1/technical-specimen-registrations/%s/complete".formatted(caseId), USER_RECEIVE, """
             {
               "applicationType": "%s",
+              %s
               "terminalCode": "T-M3-REG",
               "remarks": %s
             }
             """.formatted(
             applicationType,
+            pathologyNoField,
             remarks == null ? "null" : "\"" + remarks + "\""
         )), 200);
     }

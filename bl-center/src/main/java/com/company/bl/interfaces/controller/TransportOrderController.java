@@ -84,8 +84,10 @@ public class TransportOrderController {
     @PostMapping
     public ResponseEntity<TransportOrderResponse> create(@Valid @RequestBody CreateTransportOrderRequest request,
                                                          HttpServletRequest httpServletRequest) {
-        OperatorVerificationService.VerifiedOperator operator = resolveVerifiedOperator(
+        OperatorVerificationService.VerifiedOperator operator = resolveVerifiedOrCurrentOperator(
             request.getOperatorVerificationToken(),
+            request.getHandoverUserId(),
+            request.getHandoverUserName(),
             httpServletRequest);
         return ResponseEntity.status(201).body(toResponse(specimenWorkflowAppService.createTransportOrder(
             new SpecimenWorkflowTransportModels.CreateTransportOrderCommand(
@@ -138,8 +140,10 @@ public class TransportOrderController {
     public TransportOrderResponse outbound(@Parameter(description = "Transport order ID") @PathVariable("id") String id,
                                            @Valid @RequestBody OutboundTransportOrderRequest request,
                                            HttpServletRequest httpServletRequest) {
-        OperatorVerificationService.VerifiedOperator operator = resolveVerifiedOperator(
+        OperatorVerificationService.VerifiedOperator operator = resolveVerifiedOrCurrentOperator(
             request.getOperatorVerificationToken(),
+            request.getOutboundUserId(),
+            request.getOutboundUserName(),
             httpServletRequest);
         return toResponse(specimenWorkflowAppService.outboundTransportOrder(
             id,
@@ -218,5 +222,26 @@ public class TransportOrderController {
         return operatorVerificationService.resolveVerifiedOperator(
             operatorVerificationToken,
             RequestOperatorContext.currentUserId(request));
+    }
+
+    private OperatorVerificationService.VerifiedOperator resolveVerifiedOrCurrentOperator(
+        String operatorVerificationToken,
+        String bodyUserId,
+        String bodyOperatorName,
+        HttpServletRequest request
+    ) {
+        if (operatorVerificationToken == null || operatorVerificationToken.isBlank()) {
+            String currentUserId = resolveUserId(request);
+            String operatorName = currentUserId != null
+                && bodyUserId != null
+                && currentUserId.equals(bodyUserId.trim())
+                ? resolveOperatorName(bodyOperatorName, request)
+                : resolveOperatorName(request);
+            return new OperatorVerificationService.VerifiedOperator(
+                currentUserId,
+                null,
+                operatorName);
+        }
+        return resolveVerifiedOperator(operatorVerificationToken, request);
     }
 }

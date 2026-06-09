@@ -23,13 +23,15 @@ public final class TechnicalWorkflowModels {
         String priority,
         String assignedToUserId,
         String currentNode,
+        String taskId,
         String applicationNo,
         String pathologyNo,
         String keyword,
         String objectType,
         LocalDateTime createdFrom,
         LocalDateTime createdTo,
-        boolean timedOutOnly
+        boolean timedOutOnly,
+        boolean includeAllStatuses
     ) {
     }
 
@@ -38,6 +40,7 @@ public final class TechnicalWorkflowModels {
 
     public record SlicingWorkbenchQuery(
         String keyword,
+        String applicationType,
         boolean pendingTodayOnly,
         boolean overdueOnly,
         int pendingPage,
@@ -51,9 +54,13 @@ public final class TechnicalWorkflowModels {
     public record SlicingWorkbenchView(
         SlicingWorkbenchStats stats,
         List<SlicingWorkbenchRow> pendingList,
+        List<SlicingWorkbenchRow> pendingPrintList,
+        List<SlicingWorkbenchRow> pendingSliceList,
         int pendingPage,
         int pendingSize,
         long pendingTotal,
+        long pendingPrintTotal,
+        long pendingSliceTotal,
         List<SlicingWorkbenchRow> completedTodayList,
         int completedPage,
         int completedSize,
@@ -74,6 +81,7 @@ public final class TechnicalWorkflowModels {
     public record SlicingWorkbenchRow(
         String taskId,
         String caseId,
+        String applicationType,
         String pathologyNo,
         String patientName,
         String patientId,
@@ -92,6 +100,9 @@ public final class TechnicalWorkflowModels {
         String shiftRemark,
         String sliceNotice,
         String taskStatus,
+        String slidePrintStatus,
+        int printedSlideCount,
+        boolean combinedSlide,
         boolean timedOut,
         boolean selectable
     ) {
@@ -122,6 +133,8 @@ public final class TechnicalWorkflowModels {
         String applicationNo,
         String pathologyNo,
         String patientName,
+        String patientGender,
+        String patientAge,
         String patientId,
         String inpatientNo,
         String applicationType,
@@ -247,6 +260,7 @@ public final class TechnicalWorkflowModels {
         String taskStatus,
         String objectType,
         String objectId,
+        String objectDisplayNo,
         String samplingBlockCode,
         String samplingBlockDescription,
         String sampledByName,
@@ -362,6 +376,7 @@ public final class TechnicalWorkflowModels {
         String operatorUserId,
         String operatorName,
         String applicationType,
+        String pathologyNo,
         String terminalCode,
         String remarks
     ) implements OperatorCarrier {
@@ -629,7 +644,6 @@ public final class TechnicalWorkflowModels {
     public record SlicingCompleteCommand(
         String taskId,
         String embeddingBoxId,
-        int slideCount,
         Integer sliceCountPerSlide,
         String sliceThickness,
         String qualityIssue,
@@ -642,6 +656,29 @@ public final class TechnicalWorkflowModels {
     }
 
     public record SlicingResult(String taskId, String slicingId, List<String> slideIds, String caseStatus) {
+    }
+
+    public record SlicingSlidePrintCommand(
+        String taskId,
+        String embeddingBoxId,
+        int sourceSlideCount,
+        boolean mergeAdjacent,
+        String printerCode,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) implements OperatorCarrier {
+    }
+
+    public record SlicingSlidePrintResult(
+        String taskId,
+        String slicingId,
+        List<String> slideIds,
+        List<String> slideNos,
+        boolean merged,
+        int printedSlideCount
+    ) {
     }
 
     public record CreateSlideQcEvaluationCommand(

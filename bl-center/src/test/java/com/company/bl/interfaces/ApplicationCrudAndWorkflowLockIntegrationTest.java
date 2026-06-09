@@ -192,6 +192,43 @@ class ApplicationCrudAndWorkflowLockIntegrationTest extends AbstractApplicationC
     }
 
     @Test
+    void shouldNormalizeDisplayAgeWhenAutoCreatingPatient() throws Exception {
+        String patientNo = "PATIENT-NO-AUTO-AGE-" + System.nanoTime();
+        JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "APP-AUTO-PATIENT-AGE-%s",
+                      "applicationType": "ROUTINE",
+                      "patientId": "%s",
+                      "patientName": "展示年龄建档患者",
+                      "patientGender": "F",
+                      "patientAge": "35岁0月0天",
+                      "applicationDate": "2026-05-21",
+                      "submissionDate": "2026-05-22",
+                      "applicationFormStatus": "PENDING",
+                      "clinicalDiagnosis": "auto create patient display age"
+                    }
+                    """.formatted(System.nanoTime(), patientNo))), 201);
+        String applicationId = created.path("id").asText();
+
+        mockMvc.perform(authorized(get("/api/v1/applications/{id}", applicationId), USER_TRACKING))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.patientId", not(patientNo)))
+            .andExpect(jsonPath("$.data.patientIdentifier").value(patientNo))
+            .andExpect(jsonPath("$.data.patientAge").value("35岁0月0天"));
+
+        String savedAge = jdbcTemplate.queryForObject("""
+                select age
+                from patients
+                where patient_no = :patientNo
+                """,
+            new MapSqlParameterSource().addValue("patientNo", patientNo),
+            String.class);
+        org.assertj.core.api.Assertions.assertThat(savedAge).isEqualTo("35");
+    }
+
+    @Test
     void shouldReturnValidationErrorWhenRequestBodyIsMissing() throws Exception {
         mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
                 .contentType(MediaType.APPLICATION_JSON))

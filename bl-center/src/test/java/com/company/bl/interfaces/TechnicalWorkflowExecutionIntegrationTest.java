@@ -298,7 +298,10 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
         String slideId = slicing.path("slideIds").get(0).asText();
 
         JsonNode stainingTasks = listPendingTasks("STAINING", context.pathologyNo(), USER_M3_STAINING);
-        String stainingTaskId = stainingTasks.path("items").get(0).path("id").asText();
+        JsonNode stainingTask = stainingTasks.path("items").get(0);
+        String stainingTaskId = stainingTask.path("id").asText();
+        assertThat(stainingTask.path("objectId").asText()).isEqualTo(slideId);
+        assertThat(stainingTask.path("objectDisplayNo").asText()).isEqualTo("A1");
 
         postJson("/api/v1/slide-stainings/start", USER_M3_STAINING, """
             {

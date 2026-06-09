@@ -38,7 +38,7 @@ public class PathologyCaseTechnicalTrackingController {
                 task.id(), task.applicationId(), task.applicationNo(), task.patientName(), task.patientId(),
                 task.caseId(), task.pathologyNo(),
                 task.specimenId(), task.taskType(), task.taskStatus(), task.objectType(), task.objectId(),
-                task.samplingBlockCode(), task.samplingBlockDescription(), task.sampledByName(), task.sampledAt(),
+                task.objectDisplayNo(), task.samplingBlockCode(), task.samplingBlockDescription(), task.sampledByName(), task.sampledAt(),
                 task.payload(), task.priority(), task.currentNode(), task.stationCode(), task.stationName(),
                 task.assignedToUserId(), task.assignedToName(), task.expectedCompletedAt(), task.productionRemarks(),
                 task.receivedAt(), task.remarks(), task.createdAt(), task.startedAt(), task.completedAt(),

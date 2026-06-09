@@ -28,6 +28,8 @@ public record PendingTechnicalTaskResponse(
     String objectType,
     @Schema(description = "对象 ID")
     String objectId,
+    @Schema(description = "对象展示编号")
+    String objectDisplayNo,
     @Schema(description = "蜡块号")
     String samplingBlockCode,
     @Schema(description = "蜡块名称")

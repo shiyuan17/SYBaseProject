@@ -204,6 +204,7 @@ final class JdbcTechnicalWorkflowTaskQueries {
                 t.task_status,
                 t.object_type,
                 t.object_id,
+                coalesce(slide_box.embedding_box_no, slide_block.embedding_box_no, slide_block.block_code, slide.slide_no, sb.embedding_box_no, sb.block_code, t.object_id) as object_display_no,
                 sb.block_code as sampling_block_code,
                 sb.block_description as sampling_block_description,
                 sm.sampled_by_name,
@@ -229,6 +230,13 @@ final class JdbcTechnicalWorkflowTaskQueries {
             left join sampling_blocks sb
               on t.object_type = 'SAMPLING_BLOCK'
              and t.object_id = sb.id
+            left join slides slide
+              on t.object_type = 'SLIDE'
+             and t.object_id = slide.id
+            left join sampling_blocks slide_block
+              on slide.sampling_block_id = slide_block.id
+            left join embedding_boxes slide_box
+              on slide.embedding_box_id = slide_box.id
             left join samplings sm on sb.sampling_id = sm.id
             """;
     }
@@ -264,7 +272,7 @@ final class JdbcTechnicalWorkflowTaskQueries {
         }
         if (hasText(query.taskStatus())) {
             builder.append(" and t.task_status = :taskStatus");
-        } else {
+        } else if (!query.includeAllStatuses()) {
             builder.append(" and t.task_status in (:activeStatuses)");
         }
         if (hasText(query.priority())) {
@@ -275,6 +283,9 @@ final class JdbcTechnicalWorkflowTaskQueries {
         }
         if (hasText(query.currentNode())) {
             builder.append(" and t.current_node = :currentNode");
+        }
+        if (hasText(query.taskId())) {
+            builder.append(" and t.id = :taskId");
         }
         if (hasText(query.applicationNo())) {
             builder.append(" and a.application_no = :applicationNo");
@@ -319,7 +330,10 @@ final class JdbcTechnicalWorkflowTaskQueries {
         }
         if (hasText(query.taskStatus())) {
             params.addValue("taskStatus", query.taskStatus());
-        } else {
+        } else if (!query.includeAllStatuses()) {
+            params.addValue("activeStatuses", ACTIVE_TASK_STATUSES);
+        }
+        if (query.timedOutOnly() && !params.hasValue("activeStatuses")) {
             params.addValue("activeStatuses", ACTIVE_TASK_STATUSES);
         }
         if (hasText(query.priority())) {
@@ -330,6 +344,9 @@ final class JdbcTechnicalWorkflowTaskQueries {
         }
         if (hasText(query.currentNode())) {
             params.addValue("currentNode", query.currentNode());
+        }
+        if (hasText(query.taskId())) {
+            params.addValue("taskId", query.taskId());
         }
         if (hasText(query.applicationNo())) {
             params.addValue("applicationNo", query.applicationNo());

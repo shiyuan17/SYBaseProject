@@ -46,6 +46,7 @@ class TechnicalWorkflowQueryService {
                 query.priority(),
                 query.assignedToUserId(),
                 query.currentNode(),
+                query.taskId(),
                 query.applicationNo(),
                 query.pathologyNo(),
                 query.keyword(),
@@ -53,6 +54,7 @@ class TechnicalWorkflowQueryService {
                 query.createdFrom(),
                 query.createdTo(),
                 query.timedOutOnly(),
+                query.includeAllStatuses(),
                 timeoutSnapshot.thresholdFor(TechnicalWorkflowConstants.NODE_GROSSING),
                 timeoutSnapshot.thresholdFor(TechnicalWorkflowConstants.NODE_DEHYDRATION),
                 timeoutSnapshot.thresholdFor(TechnicalWorkflowConstants.NODE_SLICING),
@@ -104,6 +106,7 @@ class TechnicalWorkflowQueryService {
         TechnicalWorkflowRecords.SlicingWorkbenchQuery repositoryQuery =
             new TechnicalWorkflowRecords.SlicingWorkbenchQuery(
                 query.keyword(),
+                query.applicationType(),
                 query.pendingTodayOnly(),
                 query.overdueOnly(),
                 query.pendingPage(),
@@ -118,9 +121,15 @@ class TechnicalWorkflowQueryService {
         TechnicalWorkflowRecords.SlicingWorkbenchStats stats =
             technicalWorkflowRepository.summarizeSlicingWorkbench(repositoryQuery);
         TechnicalWorkflowRecords.PagedSlicingWorkbenchRows pendingRows =
-            technicalWorkflowRepository.findPendingSlicingWorkbenchRows(repositoryQuery);
+            technicalWorkflowRepository.findPendingSlicingPrintRows(repositoryQuery);
+        TechnicalWorkflowRecords.PagedSlicingWorkbenchRows pendingSliceRows =
+            technicalWorkflowRepository.findPendingSlicingProcessRows(repositoryQuery);
         TechnicalWorkflowRecords.PagedSlicingWorkbenchRows completedRows =
             technicalWorkflowRepository.findCompletedSlicingWorkbenchRows(repositoryQuery);
+        List<TechnicalWorkflowModels.SlicingWorkbenchRow> pendingPrintItems =
+            pendingRows.items().stream().map(this::toSlicingWorkbenchRow).toList();
+        List<TechnicalWorkflowModels.SlicingWorkbenchRow> pendingSliceItems =
+            pendingSliceRows.items().stream().map(this::toSlicingWorkbenchRow).toList();
         return new TechnicalWorkflowModels.SlicingWorkbenchView(
             new TechnicalWorkflowModels.SlicingWorkbenchStats(
                 stats.pendingTodayCount(),
@@ -129,10 +138,14 @@ class TechnicalWorkflowQueryService {
                 stats.completedDeptTodayCount(),
                 stats.overdueCount(),
                 stats.pendingPrintCount()),
-            pendingRows.items().stream().map(this::toSlicingWorkbenchRow).toList(),
+            pendingPrintItems,
+            pendingPrintItems,
+            pendingSliceItems,
             query.pendingPage(),
             query.pendingSize(),
             pendingRows.total(),
+            pendingRows.total(),
+            pendingSliceRows.total(),
             completedRows.items().stream().map(this::toSlicingWorkbenchRow).toList(),
             query.completedPage(),
             query.completedSize(),
@@ -223,6 +236,7 @@ class TechnicalWorkflowQueryService {
         return new TechnicalWorkflowModels.SlicingWorkbenchRow(
             row.taskId(),
             row.caseId(),
+            row.applicationType(),
             row.pathologyNo(),
             row.patientName(),
             row.patientId(),
@@ -241,6 +255,9 @@ class TechnicalWorkflowQueryService {
             row.shiftRemark(),
             row.sliceNotice(),
             row.taskStatus(),
+            row.slidePrintStatus(),
+            row.printedSlideCount(),
+            row.combinedSlide(),
             row.timedOut(),
             row.selectable());
     }

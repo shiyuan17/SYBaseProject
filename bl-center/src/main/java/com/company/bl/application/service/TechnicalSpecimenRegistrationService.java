@@ -109,6 +109,8 @@ class TechnicalSpecimenRegistrationService {
                 item.applicationNo(),
                 visiblePathologyNo(item, item.pathologyNo()),
                 item.patientName(),
+                item.patientGender(),
+                item.patientAge(),
                 item.patientId(),
                 item.inpatientNo(),
                 item.applicationType(),
@@ -465,6 +467,10 @@ class TechnicalSpecimenRegistrationService {
             404,
             "Application not found"
         ));
+        String normalizedApplicationType = normalizeApplicationType(
+            command.applicationType(),
+            application.getApplicationType()
+        );
         if (!"COMPLETED".equals(registration.registrationStatus())) {
             technicalWorkflowRepository.completeTechnicalSpecimenRegistration(
                 command.caseId(),
@@ -485,10 +491,6 @@ class TechnicalSpecimenRegistrationService {
                 "Technical specimen registration completed");
         }
 
-        String normalizedApplicationType = normalizeApplicationType(
-            command.applicationType(),
-            application.getApplicationType()
-        );
         if (!normalizedApplicationType.equals(trimToEmpty(application.getApplicationType()))) {
             Application updatedApplication = new Application(
                 application.getId(),
@@ -522,14 +524,11 @@ class TechnicalSpecimenRegistrationService {
             application = updatedApplication;
         }
 
-        String pathologyNo = trimToNull(pathologyCase.pathologyNo());
-        if (pathologyNo == null || !numberingService.matchesPathologyNoRule(
+        String pathologyNo = resolveCompletionPathologyNo(
+            command.caseId(),
             normalizedApplicationType,
-            pathologyNo
-        )) {
-            pathologyNo = numberingService.generatePathologyNo(normalizedApplicationType);
-            specimenWorkflowCommandRepository.updatePathologyCasePathologyNo(command.caseId(), pathologyNo);
-        }
+            pathologyCase.pathologyNo(),
+            command.pathologyNo());
 
         boolean grossingTaskCreated = false;
         if (technicalWorkflowRepository.findActiveTechnicalTasksByObject(
@@ -645,6 +644,8 @@ class TechnicalSpecimenRegistrationService {
             pathologyCase.pathologyNo(),
             application.getApplicationNo(),
             application.getPatientName(),
+            application.getPatientGender(),
+            application.getPatientAge(),
             application.getPatientId(),
             valueOf(() -> extension.inpatientNo()),
             application.getApplicationType(),
@@ -688,6 +689,8 @@ class TechnicalSpecimenRegistrationService {
             registration.applicationNo(),
             visiblePathologyNo(registration, registration.pathologyNo()),
             registration.patientName(),
+            registration.patientGender(),
+            registration.patientAge(),
             registration.patientId(),
             registration.inpatientNo(),
             registration.applicationType(),
@@ -1069,6 +1072,48 @@ class TechnicalSpecimenRegistrationService {
         }
         String normalizedFallbackApplicationType = trimToNull(fallbackApplicationType);
         return normalizedFallbackApplicationType == null ? "ROUTINE" : normalizedFallbackApplicationType;
+    }
+
+    private String resolveCompletionPathologyNo(
+        String caseId,
+        String applicationType,
+        String existingPathologyNo,
+        String candidatePathologyNo
+    ) {
+        String normalizedCandidatePathologyNo = trimToNull(candidatePathologyNo);
+        if (normalizedCandidatePathologyNo != null) {
+            validateCandidatePathologyNo(caseId, applicationType, normalizedCandidatePathologyNo);
+            specimenWorkflowCommandRepository.updatePathologyCasePathologyNo(caseId, normalizedCandidatePathologyNo);
+            return normalizedCandidatePathologyNo;
+        }
+
+        String pathologyNo = trimToNull(existingPathologyNo);
+        if (pathologyNo == null || !numberingService.matchesPathologyNoRule(applicationType, pathologyNo)) {
+            pathologyNo = numberingService.generatePathologyNo(applicationType);
+            specimenWorkflowCommandRepository.updatePathologyCasePathologyNo(caseId, pathologyNo);
+        }
+        return pathologyNo;
+    }
+
+    private void validateCandidatePathologyNo(
+        String caseId,
+        String applicationType,
+        String pathologyNo
+    ) {
+        if (!numberingService.matchesPathologyNoRule(applicationType, pathologyNo)) {
+            throw new BlBusinessException(
+                BlErrorCode.INVALID_ARGUMENT,
+                400,
+                "Pathology number does not match selected application type");
+        }
+        technicalWorkflowRepository.findPathologyCaseByPathologyNo(pathologyNo)
+            .filter(existingCase -> !caseId.equals(existingCase.id()))
+            .ifPresent(existingCase -> {
+                throw new BlBusinessException(
+                    BlErrorCode.RESOURCE_CONFLICT,
+                    409,
+                    "Pathology number already exists");
+            });
     }
 
     private String normalizeListRegistrationStatus(String registrationStatus) {

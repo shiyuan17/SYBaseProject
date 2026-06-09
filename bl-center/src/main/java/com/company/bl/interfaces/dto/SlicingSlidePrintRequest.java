@@ -3,6 +3,7 @@ package com.company.bl.interfaces.dto;
 import com.company.bl.interfaces.auth.RejectLegacyOperatorFields;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -10,9 +11,9 @@ import lombok.Setter;
 
 @Getter
 @Setter
-@Schema(name = "SlicingCompleteRequest", description = "切片完成请求")
+@Schema(name = "SlicingSlidePrintRequest", description = "切片工作站玻片打印确认请求")
 @RejectLegacyOperatorFields
-public class SlicingCompleteRequest {
+public class SlicingSlidePrintRequest {
 
     @Schema(description = "技术任务 ID", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank
@@ -24,20 +25,16 @@ public class SlicingCompleteRequest {
     @Size(max = 64)
     private String embeddingBoxId;
 
-    @Schema(description = "单张切片切片数")
-    private Integer sliceCountPerSlide;
+    @Schema(description = "打印前原始玻片数量", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Min(1)
+    private int sourceSlideCount;
 
-    @Schema(description = "切片厚度")
+    @Schema(description = "是否按近邻两两合并")
+    private boolean mergeAdjacent;
+
+    @Schema(description = "打印机编码")
     @Size(max = 64)
-    private String sliceThickness;
-
-    @Schema(description = "质量问题")
-    @Size(max = 500)
-    private String qualityIssue;
-
-    @Schema(description = "设备编码")
-    @Size(max = 64)
-    private String deviceCode;
+    private String printerCode;
 
     @Schema(description = "终端编码")
     @Size(max = 64)

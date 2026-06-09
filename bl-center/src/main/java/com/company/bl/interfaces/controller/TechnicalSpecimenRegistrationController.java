@@ -124,6 +124,8 @@ public class TechnicalSpecimenRegistrationController extends TechnicalController
                 item.applicationNo(),
                 item.pathologyNo(),
                 item.patientName(),
+                item.patientGender(),
+                item.patientAge(),
                 item.patientId(),
                 item.inpatientNo(),
                 item.applicationType(),
@@ -192,6 +194,8 @@ public class TechnicalSpecimenRegistrationController extends TechnicalController
                 workspace.pendingSummary().applicationNo(),
                 workspace.pendingSummary().pathologyNo(),
                 workspace.pendingSummary().patientName(),
+                workspace.pendingSummary().patientGender(),
+                workspace.pendingSummary().patientAge(),
                 workspace.pendingSummary().patientId(),
                 workspace.pendingSummary().inpatientNo(),
                 workspace.pendingSummary().applicationType(),
@@ -416,6 +420,7 @@ public class TechnicalSpecimenRegistrationController extends TechnicalController
                     resolveUserId(httpServletRequest),
                     resolveOperatorName(httpServletRequest),
                     request.getApplicationType(),
+                    request.getPathologyNo(),
                     request.getTerminalCode(),
                     request.getRemarks()));
         return new TechnicalSpecimenRegistrationCompleteResponse(

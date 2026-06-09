@@ -65,8 +65,10 @@ public class SpecimenOutboundController {
         @Valid @RequestBody QuickOutboundTransportOrderRequest request,
         HttpServletRequest httpServletRequest
     ) {
-        OperatorVerificationService.VerifiedOperator operator = resolveVerifiedOperator(
+        OperatorVerificationService.VerifiedOperator operator = resolveVerifiedOrCurrentOperator(
             request.getOperatorVerificationToken(),
+            request.getOutboundUserId(),
+            request.getOutboundUserName(),
             httpServletRequest);
         return toResponse(specimenWorkflowAppService.quickOutboundTransportOrder(
             new SpecimenWorkflowTransportModels.QuickOutboundTransportOrderCommand(
@@ -143,5 +145,26 @@ public class SpecimenOutboundController {
         return operatorVerificationService.resolveVerifiedOperator(
             operatorVerificationToken,
             RequestOperatorContext.currentUserId(request));
+    }
+
+    private OperatorVerificationService.VerifiedOperator resolveVerifiedOrCurrentOperator(
+        String operatorVerificationToken,
+        String bodyUserId,
+        String bodyOperatorName,
+        HttpServletRequest request
+    ) {
+        if (operatorVerificationToken == null || operatorVerificationToken.isBlank()) {
+            String currentUserId = resolveUserId(null, request);
+            String operatorName = currentUserId != null
+                && bodyUserId != null
+                && currentUserId.equals(bodyUserId.trim())
+                ? resolveOperatorName(bodyOperatorName, request)
+                : resolveOperatorName(null, request);
+            return new OperatorVerificationService.VerifiedOperator(
+                currentUserId,
+                null,
+                operatorName);
+        }
+        return resolveVerifiedOperator(operatorVerificationToken, request);
     }
 }

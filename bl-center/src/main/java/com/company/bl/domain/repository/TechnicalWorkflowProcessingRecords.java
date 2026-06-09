@@ -9,6 +9,7 @@ public final class TechnicalWorkflowProcessingRecords {
 
     public record CreateSlicingCommand(
         String id,
+        String taskId,
         String caseId,
         String specimenId,
         String embeddingId,
@@ -28,6 +29,7 @@ public final class TechnicalWorkflowProcessingRecords {
 
     public record Slicing(
         String id,
+        String taskId,
         String caseId,
         String specimenId,
         String embeddingId,
@@ -62,6 +64,7 @@ public final class TechnicalWorkflowProcessingRecords {
         String embeddingBoxId,
         String samplingBlockId,
         String slideNo,
+        boolean combinedSlideFlag,
         String qualityStatus,
         String slideStatus,
         Integer sliceCount

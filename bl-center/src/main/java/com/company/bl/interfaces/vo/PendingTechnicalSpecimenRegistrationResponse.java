@@ -14,6 +14,10 @@ public record PendingTechnicalSpecimenRegistrationResponse(
     String pathologyNo,
     @Schema(description = "患者姓名")
     String patientName,
+    @Schema(description = "患者性别")
+    String patientGender,
+    @Schema(description = "患者年龄")
+    String patientAge,
     @Schema(description = "患者 ID")
     String patientId,
     @Schema(description = "住院号")

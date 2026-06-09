@@ -50,6 +50,7 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
         @Parameter(description = "任务优先级") @RequestParam(required = false) String priority,
         @Parameter(description = "责任技师用户 ID") @RequestParam(required = false) String assignedToUserId,
         @Parameter(description = "当前节点") @RequestParam(required = false) String currentNode,
+        @Parameter(description = "任务 ID") @RequestParam(required = false) String taskId,
         @Parameter(description = "申请单号") @RequestParam(required = false) String applicationNo,
         @Parameter(description = "病理号") @RequestParam(required = false) String pathologyNo,
         @Parameter(description = "病人 ID 或病理号关键字") @RequestParam(required = false) String keyword,
@@ -58,13 +59,14 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdFrom,
         @Parameter(description = "创建时间终点，ISO-8601") @RequestParam(required = false)
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdTo,
-        @Parameter(description = "是否只查询超时任务") @RequestParam(defaultValue = "false") boolean timedOutOnly
+        @Parameter(description = "是否只查询超时任务") @RequestParam(defaultValue = "false") boolean timedOutOnly,
+        @Parameter(description = "是否包含全部任务状态") @RequestParam(defaultValue = "false") boolean includeAllStatuses
     ) {
         TechnicalWorkflowModels.PendingTechnicalTaskPage result = technicalWorkflowAppService.listPendingTasks(
             new TechnicalWorkflowModels.PendingTechnicalTaskQuery(
-                page, size, taskType, taskStatus, priority, assignedToUserId, currentNode, applicationNo, pathologyNo,
+                page, size, taskType, taskStatus, priority, assignedToUserId, currentNode, taskId, applicationNo, pathologyNo,
                 keyword,
-                objectType, createdFrom, createdTo, timedOutOnly));
+                objectType, createdFrom, createdTo, timedOutOnly, includeAllStatuses));
         return new PendingTechnicalTaskPageResponse(
             result.items().stream().map(this::toResponse).toList(),
             result.page(),
@@ -173,6 +175,7 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
             item.taskStatus(),
             item.objectType(),
             item.objectId(),
+            item.objectDisplayNo(),
             item.samplingBlockCode(),
             item.samplingBlockDescription(),
             item.sampledByName(),

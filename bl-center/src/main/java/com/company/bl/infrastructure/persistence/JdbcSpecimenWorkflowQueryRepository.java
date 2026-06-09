@@ -38,6 +38,13 @@ public class JdbcSpecimenWorkflowQueryRepository
             select
                 a.id,
                 a.application_no,
+                (
+                    select pc.pathology_no
+                    from pathology_cases pc
+                    where pc.application_id = a.id
+                    order by coalesce(pc.updated_at, pc.created_at) desc, pc.id desc
+                    fetch next 1 rows only
+                ) as pathology_no,
                 a.patient_name,
                 a.patient_gender,
                 a.patient_age,
@@ -320,6 +327,7 @@ public class JdbcSpecimenWorkflowQueryRepository
         return new SpecimenWorkflowRepository.ApplicationListRow(
             rs.getString("id"),
             rs.getString("application_no"),
+            JdbcResultSetUtils.getNullableString(rs, "pathology_no"),
             rs.getString("patient_name"),
             rs.getString("patient_gender"),
             rs.getString("patient_age"),

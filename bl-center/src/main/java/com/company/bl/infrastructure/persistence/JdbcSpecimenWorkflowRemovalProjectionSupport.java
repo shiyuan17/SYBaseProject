@@ -185,9 +185,13 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
             ) latest_order on latest_order.specimen_id = s.id
             where 1 = 1
             """);
+        boolean hasExplicitCondition =
+            query.applicationId() != null && !query.applicationId().isBlank()
+                || query.specimenNo() != null && !query.specimenNo().isBlank();
         if (query.applicationId() != null && !query.applicationId().isBlank()) {
             builder.append(" and a.id = :applicationId");
-        } else {
+        }
+        if (!hasExplicitCondition) {
             builder.append("""
                   and (
                     latest_order.transport_order_id is not null

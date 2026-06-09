@@ -11,8 +11,7 @@ import lombok.Setter;
 @Schema(name = "OutboundTransportOrderRequest", description = "转运单出库请求")
 public class OutboundTransportOrderRequest {
 
-    @Schema(description = "核对操作人登录确认 token", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotBlank
+    @Schema(description = "核对操作人登录确认 token；非当前登录人操作时传入")
     private String operatorVerificationToken;
 
     @Schema(description = "出库人用户 ID")

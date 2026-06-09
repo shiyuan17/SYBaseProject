@@ -124,9 +124,53 @@ class ApplicationQueryAndDetailIntegrationTest extends AbstractApplicationContro
             .andExpect(jsonPath("$.data.items[0].patientName").value("Patient List Alpha"))
             .andExpect(jsonPath("$.data.items[0].status").value("DRAFT"))
             .andExpect(jsonPath("$.data.items[0].currentNode").isNotEmpty())
+            .andExpect(jsonPath("$.data.items[0].pathologyNo").value(nullValue()))
             .andExpect(jsonPath("$.data.items[0].registeredSpecimenCount").value(0))
             .andExpect(jsonPath("$.data.items[0].latestLabelPrintStatus").value(nullValue()))
             .andExpect(jsonPath("$.data.items[0].abnormalFlag").value(false));
+    }
+
+    @Test
+    void shouldExposePathologyNoInApplicationListWhenCaseExists() throws Exception {
+        String applicationNo = "APP-LIST-PATHOLOGY-" + System.nanoTime();
+        JsonNode application = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "%s",
+                      "applicationType": "ROUTINE",
+                      "applicationDate": "2026-06-08",
+                      "patientId": "P-LIST-PATHOLOGY",
+                      "patientName": "Patient Pathology",
+                      "submittingDepartmentId": "DEPT-LIST",
+                      "submittingDepartmentName": "List Department",
+                      "submittingDoctorUserId": "DOC-LIST-PATHOLOGY",
+                      "submittingDoctorName": "Dr Pathology",
+                      "clinicalDiagnosis": "pathology no diagnosis",
+                      "specimenSite": "Lung"
+                    }
+                    """.formatted(applicationNo))), 201);
+        String applicationId = application.path("id").asText();
+
+        jdbcTemplate.update("""
+                insert into pathology_cases
+                    (id, application_id, pathology_no, case_status, created_at, updated_at)
+                values
+                    (:id, :applicationId, :pathologyNo, 'RECEIVED', current_timestamp, current_timestamp)
+                """,
+            new MapSqlParameterSource()
+                .addValue("id", "CASE-LIST-PATHOLOGY-" + System.nanoTime())
+                .addValue("applicationId", applicationId)
+                .addValue("pathologyNo", "BL202606080001"));
+
+        mockMvc.perform(authorized(get("/api/v1/applications"), USER_TRACKING)
+                .param("page", "1")
+                .param("size", "20")
+                .param("applicationNo", applicationNo))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].applicationNo").value(applicationNo))
+            .andExpect(jsonPath("$.data.items[0].pathologyNo").value("BL202606080001"));
     }
 
     @Test

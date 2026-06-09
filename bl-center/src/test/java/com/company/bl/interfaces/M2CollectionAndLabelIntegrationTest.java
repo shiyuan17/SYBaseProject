@@ -109,6 +109,111 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
     }
 
     @Test
+    void shouldKeepNewSpecimensUnboundUntilBarcodeBinding() throws Exception {
+        String applicationIdOne = createApplication("APP-M2-UNBOUND-001", "DEPT-MGMT", "Specimen Department");
+        String applicationIdTwo = createApplication("APP-M2-UNBOUND-002", "DEPT-MGMT", "Specimen Department");
+
+        JsonNode registrationOne = responseBody(postJson("/api/v1/specimens/register", USER_REGISTER, """
+            {
+              "applicationId": "%s",
+              "printerCode": "P-01",
+              "terminalCode": "OR-UNBOUND-01",
+              "items": [
+                {
+                  "specimenNameStandardized": "Biopsy Tissue",
+                  "specimenType": "ROUTINE",
+                  "specimenSite": "Lung",
+                  "collectionMode": "BIOPSY",
+                  "containerName": "Specimen Bottle",
+                  "containerCount": 1,
+                  "specimenCount": 1
+                }
+              ]
+            }
+            """.formatted(applicationIdOne)), 201);
+        JsonNode registrationTwo = responseBody(postJson("/api/v1/specimens/register", USER_REGISTER, """
+            {
+              "applicationId": "%s",
+              "printerCode": "P-01",
+              "terminalCode": "OR-UNBOUND-02",
+              "items": [
+                {
+                  "specimenNameStandardized": "Biopsy Tissue",
+                  "specimenType": "ROUTINE",
+                  "specimenSite": "Lung",
+                  "collectionMode": "BIOPSY",
+                  "containerName": "Specimen Bottle",
+                  "containerCount": 1,
+                  "specimenCount": 1
+                }
+              ]
+            }
+            """.formatted(applicationIdTwo)), 201);
+
+        String specimenIdOne = registrationOne.path("specimens").get(0).path("id").asText();
+        String specimenIdTwo = registrationTwo.path("specimens").get(0).path("id").asText();
+
+        assertThat(registrationOne.path("labelPrintSuccess").asBoolean()).isFalse();
+        assertThat(registrationOne.path("specimens").get(0).path("barcode").isNull()).isTrue();
+        assertThat(registrationOne.path("specimens").get(0).path("barcodeBindingStatus").asText()).isEqualTo("UNBOUND");
+        assertThat(registrationOne.path("specimens").get(0).path("labelPrintStatus").asText()).isEqualTo("PENDING");
+        assertThat(querySingleString(
+            """
+                select barcode
+                from specimens
+                where id = :specimenId
+                """,
+            "specimenId",
+            specimenIdOne)).isNull();
+        assertThat(querySingleString(
+            """
+                select barcode
+                from specimens
+                where id = :specimenId
+                """,
+            "specimenId",
+            specimenIdTwo)).isNull();
+
+        JsonNode unboundList = responseBody(
+            mockMvc.perform(authorized(get("/api/v1/specimens"), USER_REGISTER)
+                .param("page", "1")
+                .param("size", "20")
+                .param("keyword", "APP-M2-UNBOUND")),
+            200);
+        assertThat(unboundList.path("total").asInt()).isEqualTo(2);
+        assertThat(unboundList.path("summary").path("unboundCount").asInt()).isEqualTo(2);
+        assertThat(unboundList.path("items").get(0).path("barcode").isNull()).isTrue();
+        assertThat(unboundList.path("items").get(0).path("barcodeBindingStatus").asText()).isEqualTo("UNBOUND");
+
+        responseBody(postJson("/api/v1/specimens/%s/barcode-binding".formatted(specimenIdOne), USER_REGISTER, """
+            {
+              "targetBarcode": "BC-M2-UNBOUND-001",
+              "terminalCode": "OR-BIND-01"
+            }
+            """), 200);
+
+        JsonNode boundList = responseBody(
+            mockMvc.perform(authorized(get("/api/v1/specimens"), USER_REGISTER)
+                .param("page", "1")
+                .param("size", "20")
+                .param("keyword", "APP-M2-UNBOUND")),
+            200);
+        assertThat(boundList.path("total").asInt()).isEqualTo(2);
+        assertThat(boundList.path("summary").path("unboundCount").asInt()).isEqualTo(1);
+        JsonNode boundItem = findSpecimenItem(boundList, specimenIdOne);
+        assertThat(boundItem.path("barcode").asText()).isEqualTo("BC-M2-UNBOUND-001");
+        assertThat(boundItem.path("barcodeBindingStatus").asText()).isEqualTo("BOUND");
+
+        postJson("/api/v1/specimens/%s/barcode-binding".formatted(specimenIdTwo), USER_REGISTER, """
+            {
+              "targetBarcode": "BC-M2-UNBOUND-001",
+              "terminalCode": "OR-BIND-02"
+            }
+            """)
+            .andExpect(status().isConflict());
+    }
+
+    @Test
     void shouldRetryPendingLabelsAndListSpecimensForManagement() throws Exception {
         String applicationIdPrinted = createApplication("APP-M2-MGMT-001", "DEPT-MGMT", "Specimen Department");
         String applicationIdPending = createApplication("APP-M2-MGMT-002", "DEPT-MGMT", "Specimen Department");
@@ -425,5 +530,14 @@ class M2CollectionAndLabelIntegrationTest extends AbstractSpecimenWorkflowIntegr
                     """.formatted(applicationId)))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    private JsonNode findSpecimenItem(JsonNode page, String specimenId) {
+        for (JsonNode item : page.path("items")) {
+            if (specimenId.equals(item.path("specimenId").asText())) {
+                return item;
+            }
+        }
+        throw new AssertionError("Specimen item not found: " + specimenId);
     }
 }

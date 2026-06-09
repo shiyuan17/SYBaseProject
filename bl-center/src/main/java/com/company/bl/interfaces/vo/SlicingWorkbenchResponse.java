@@ -10,12 +10,20 @@ public record SlicingWorkbenchResponse(
     Stats stats,
     @Schema(description = "待切列表")
     List<Row> pendingList,
+    @Schema(description = "待打印玻片列表")
+    List<Row> pendingPrintList,
+    @Schema(description = "已打印待切列表")
+    List<Row> pendingSliceList,
     @Schema(description = "待切页码")
     int pendingPage,
     @Schema(description = "待切分页大小")
     int pendingSize,
     @Schema(description = "待切总数")
     long pendingTotal,
+    @Schema(description = "待打印总数")
+    long pendingPrintTotal,
+    @Schema(description = "已打印待切总数")
+    long pendingSliceTotal,
     @Schema(description = "今日已完成列表")
     List<Row> completedTodayList,
     @Schema(description = "已完成页码")
@@ -48,6 +56,8 @@ public record SlicingWorkbenchResponse(
         String taskId,
         @Schema(description = "病例 ID")
         String caseId,
+        @Schema(description = "申请类型")
+        String applicationType,
         @Schema(description = "病理号")
         String pathologyNo,
         @Schema(description = "患者姓名")
@@ -84,6 +94,12 @@ public record SlicingWorkbenchResponse(
         String sliceNotice,
         @Schema(description = "任务状态")
         String taskStatus,
+        @Schema(description = "玻片打印状态")
+        String slidePrintStatus,
+        @Schema(description = "已打印玻片数量")
+        int printedSlideCount,
+        @Schema(description = "是否包含近邻合并玻片")
+        boolean combinedSlide,
         @Schema(description = "是否超时")
         boolean timedOut,
         @Schema(description = "是否可选")

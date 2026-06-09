@@ -16,6 +16,7 @@ public final class TechnicalWorkflowRecords {
         String priority,
         String assignedToUserId,
         String currentNode,
+        String taskId,
         String applicationNo,
         String pathologyNo,
         String keyword,
@@ -23,6 +24,7 @@ public final class TechnicalWorkflowRecords {
         LocalDateTime createdFrom,
         LocalDateTime createdTo,
         boolean timedOutOnly,
+        boolean includeAllStatuses,
         LocalDateTime grossingTimedOutBefore,
         LocalDateTime dehydrationTimedOutBefore,
         LocalDateTime slicingTimedOutBefore,
@@ -35,6 +37,7 @@ public final class TechnicalWorkflowRecords {
 
     public record SlicingWorkbenchQuery(
         String keyword,
+        String applicationType,
         boolean pendingTodayOnly,
         boolean overdueOnly,
         int pendingPage,
@@ -62,6 +65,7 @@ public final class TechnicalWorkflowRecords {
     public record SlicingWorkbenchRow(
         String taskId,
         String caseId,
+        String applicationType,
         String pathologyNo,
         String patientName,
         String patientId,
@@ -80,6 +84,9 @@ public final class TechnicalWorkflowRecords {
         String shiftRemark,
         String sliceNotice,
         String taskStatus,
+        String slidePrintStatus,
+        int printedSlideCount,
+        boolean combinedSlide,
         boolean timedOut,
         boolean selectable
     ) {
@@ -111,6 +118,8 @@ public final class TechnicalWorkflowRecords {
         String pathologyNo,
         String applicationNo,
         String patientName,
+        String patientGender,
+        String patientAge,
         String patientId,
         String inpatientNo,
         String applicationType,
@@ -156,6 +165,7 @@ public final class TechnicalWorkflowRecords {
         String taskStatus,
         String objectType,
         String objectId,
+        String objectDisplayNo,
         String samplingBlockCode,
         String samplingBlockDescription,
         String sampledByName,

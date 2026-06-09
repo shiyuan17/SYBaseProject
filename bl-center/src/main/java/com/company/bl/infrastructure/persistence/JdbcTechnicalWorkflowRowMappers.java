@@ -108,6 +108,7 @@ final class JdbcTechnicalWorkflowRowMappers {
             rs.getString("task_status"),
             rs.getString("object_type"),
             rs.getString("object_id"),
+            JdbcResultSetUtils.getNullableString(rs, "object_display_no"),
             rs.getString("sampling_block_code"),
             rs.getString("sampling_block_description"),
             rs.getString("sampled_by_name"),
@@ -206,6 +207,7 @@ final class JdbcTechnicalWorkflowRowMappers {
     Slicing mapSlicing(ResultSet rs, int rowNum) throws SQLException {
         return new Slicing(
             rs.getString("id"),
+            JdbcResultSetUtils.getNullableString(rs, "task_id"),
             rs.getString("case_id"),
             rs.getString("specimen_id"),
             rs.getString("embedding_id"),
@@ -224,6 +226,7 @@ final class JdbcTechnicalWorkflowRowMappers {
             rs.getString("embedding_box_id"),
             rs.getString("sampling_block_id"),
             rs.getString("slide_no"),
+            rs.getInt("combined_slide_flag") == 1,
             rs.getString("quality_status"),
             rs.getString("slide_status"),
             rs.getObject("slice_count") == null ? null : rs.getInt("slice_count"));

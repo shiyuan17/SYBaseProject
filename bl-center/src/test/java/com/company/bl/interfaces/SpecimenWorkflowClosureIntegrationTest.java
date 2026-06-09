@@ -112,27 +112,31 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
         String confirmUserName = userDisplayName(confirmUserId);
         String checkInUserId = USER_RECEIVE;
         String checkInUserName = userDisplayName(checkInUserId);
+        String confirmVerificationToken = operatorVerificationToken(USER_FIXATION, confirmUserId);
+        String checkInVerificationToken = operatorVerificationToken(USER_FIXATION, checkInUserId);
 
         completeFixation(barcode);
 
         postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(barcode), USER_FIXATION, """
             {
+              "operatorVerificationToken": "%s",
               "operatorUserId": "%s",
               "operatorName": "%s",
               "terminalCode": "T-CONFIRM-SELECTED"
             }
-            """.formatted(confirmUserId, confirmUserName))
+            """.formatted(confirmVerificationToken, confirmUserId, confirmUserName))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.specimenConfirmedAt").isNotEmpty());
 
         postJson("/api/v1/specimens/barcodes/%s/check-in".formatted(barcode), USER_FIXATION, """
             {
+              "operatorVerificationToken": "%s",
               "operatorUserId": "%s",
               "operatorName": "%s",
               "specimenBarcode": "%s",
               "terminalCode": "T-CHECK-IN-SELECTED"
             }
-            """.formatted(checkInUserId, checkInUserName, barcode))
+            """.formatted(checkInVerificationToken, checkInUserId, checkInUserName, barcode))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.checkedInByName").value(checkInUserName));
 
@@ -154,6 +158,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
         String barcode = registration.path("specimens").get(0).path("barcode").asText();
         String outboundUserId = USER_RECEIVE;
         String outboundUserName = userDisplayName(outboundUserId);
+        String outboundVerificationToken = operatorVerificationToken(USER_TRANSPORT, outboundUserId);
 
         prepareTransportReadySpecimen(barcode);
         String transportOrderId = createTransportOrder(applicationId, barcode).path("id").asText();
@@ -167,12 +172,13 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
 
         postJson("/api/v1/transport-orders/%s/outbound".formatted(transportOrderId), USER_TRANSPORT, """
             {
+              "operatorVerificationToken": "%s",
               "outboundUserId": "%s",
               "outboundUserName": "%s",
               "terminalCode": "T-OUTBOUND-01",
               "remarks": "扫码直接出库"
             }
-            """.formatted(outboundUserId, outboundUserName))
+            """.formatted(outboundVerificationToken, outboundUserId, outboundUserName))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("HANDED_OVER"))
             .andExpect(jsonPath("$.data.outboundUserId").value(outboundUserId))
@@ -227,6 +233,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
         String specimenNo = registration.path("specimens").get(0).path("specimenNo").asText();
         String outboundUserId = USER_RECEIVE;
         String outboundUserName = userDisplayName(outboundUserId);
+        String outboundVerificationToken = operatorVerificationToken(USER_TRANSPORT, outboundUserId);
 
         prepareTransportReadySpecimen(barcode);
 
@@ -234,12 +241,13 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             {
               "identifierType": "SPECIMEN_NO",
               "identifier": "%s",
+              "operatorVerificationToken": "%s",
               "outboundUserId": "%s",
               "outboundUserName": "%s",
               "terminalCode": "T-QUICK-OUTBOUND-01",
               "remarks": "自动补建并出库"
             }
-            """.formatted(specimenNo, outboundUserId, outboundUserName)), 200);
+            """.formatted(specimenNo, outboundVerificationToken, outboundUserId, outboundUserName)), 200);
 
         String transportOrderId = quickOutbound.path("id").asText();
         assertThat(transportOrderId).isNotBlank();
@@ -353,6 +361,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
         String candidateBarcode = candidateRegistration.path("specimens").get(0).path("barcode").asText();
         String candidateSpecimenNo = candidateRegistration.path("specimens").get(0).path("specimenNo").asText();
         String candidateSpecimenId = candidateRegistration.path("specimens").get(0).path("id").asText();
+        String candidatePatientId = applicationPatientId(candidateApplicationId);
         prepareTransportReadySpecimen(candidateBarcode);
         insertWorkbenchExtension(candidateApplicationId, "ZY-OUT-000", "手术间候选");
 
@@ -362,6 +371,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
         String pendingBarcode = pendingRegistration.path("specimens").get(0).path("barcode").asText();
         String pendingSpecimenNo = pendingRegistration.path("specimens").get(0).path("specimenNo").asText();
         String pendingSpecimenId = pendingRegistration.path("specimens").get(0).path("id").asText();
+        String pendingPatientId = applicationPatientId(pendingApplicationId);
 
         prepareTransportReadySpecimen(pendingBarcode);
         String pendingTransportOrderId = createTransportOrder(pendingApplicationId, pendingBarcode).path("id").asText();
@@ -374,17 +384,25 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
         String completedSpecimenNo = completedRegistration.path("specimens").get(0).path("specimenNo").asText();
         String outboundUserName = userDisplayName(USER_RECEIVE);
 
+        String historicalApplicationId = createApplication("APP-M2-OUTBOUND-LIST-HISTORY-001");
+        JsonNode historicalRegistration = registerSpecimens(
+            historicalApplicationId, USER_REGISTER, "P-01", "/api/v1/specimens/register", "BC-OUTBOUND-LIST-HISTORY-001");
+        String historicalSpecimenId = historicalRegistration.path("specimens").get(0).path("id").asText();
+        String historicalSpecimenNo = historicalRegistration.path("specimens").get(0).path("specimenNo").asText();
+
         prepareTransportReadySpecimen(completedBarcode);
         String completedTransportOrderId = createTransportOrder(completedApplicationId, completedBarcode).path("id").asText();
         insertWorkbenchExtension(completedApplicationId, "ZY-OUT-002", "手术间B");
+        String outboundVerificationToken = operatorVerificationToken(USER_TRANSPORT, USER_RECEIVE);
 
         postJson("/api/v1/transport-orders/%s/outbound".formatted(completedTransportOrderId), USER_TRANSPORT, """
             {
+              "operatorVerificationToken": "%s",
               "outboundUserId": "%s",
               "outboundUserName": "%s",
               "terminalCode": "T-OUTBOUND-LIST"
             }
-            """.formatted(USER_RECEIVE, outboundUserName))
+            """.formatted(outboundVerificationToken, USER_RECEIVE, outboundUserName))
             .andExpect(status().isOk());
 
         JsonNode outboundPage = responseBody(
@@ -398,7 +416,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
         assertThat(pendingItem).isNotNull();
         assertThat(pendingItem.path("transportOrderId").asText()).isEqualTo(pendingTransportOrderId);
         assertThat(pendingItem.path("specimenNo").asText()).isEqualTo(pendingSpecimenNo);
-        assertThat(pendingItem.path("patientId").asText()).isEqualTo("P-001");
+        assertThat(pendingItem.path("patientId").asText()).isEqualTo(pendingPatientId);
         assertThat(pendingItem.path("inpatientNo").asText()).isEqualTo("ZY-OUT-001");
         assertThat(pendingItem.path("surgeryName").asText()).isEqualTo("手术间A");
         assertThat(pendingItem.path("registeredByName").asText()).isEqualTo(userDisplayName(USER_REGISTER));
@@ -409,7 +427,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
         assertThat(candidateItem).isNotNull();
         assertBlankJsonField(candidateItem, "transportOrderId");
         assertThat(candidateItem.path("specimenNo").asText()).isEqualTo(candidateSpecimenNo);
-        assertThat(candidateItem.path("patientId").asText()).isEqualTo("P-001");
+        assertThat(candidateItem.path("patientId").asText()).isEqualTo(candidatePatientId);
         assertThat(candidateItem.path("inpatientNo").asText()).isEqualTo("ZY-OUT-000");
         assertThat(candidateItem.path("surgeryName").asText()).isEqualTo("手术间候选");
         assertBlankJsonField(candidateItem, "outboundAt");
@@ -452,6 +470,17 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             .andExpect(jsonPath("$.data.items[0].transportOrderId").value(completedTransportOrderId))
             .andExpect(jsonPath("$.data.items[0].outboundAt").isNotEmpty())
             .andExpect(jsonPath("$.data.items[0].outboundUserName").value(outboundUserName));
+
+        mockMvc.perform(authorized(get("/api/v1/specimen-outbounds"), USER_TRANSPORT)
+                .param("page", "1")
+                .param("size", "20")
+                .param("specimenNo", historicalSpecimenNo))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].transportOrderId").isEmpty())
+            .andExpect(jsonPath("$.data.items[0].specimenId").value(historicalSpecimenId))
+            .andExpect(jsonPath("$.data.items[0].specimenNo").value(historicalSpecimenNo))
+            .andExpect(jsonPath("$.data.items[0].specimenStatus").value("REGISTERED"));
     }
 
     @Test
@@ -1033,6 +1062,17 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             }
         }
         return null;
+    }
+
+    private String applicationPatientId(String applicationId) {
+        return querySingleString(
+            """
+                select patient_id
+                from applications
+                where id = :applicationId
+                """,
+            "applicationId",
+            applicationId);
     }
 
     private void assertBlankJsonField(JsonNode node, String fieldName) {

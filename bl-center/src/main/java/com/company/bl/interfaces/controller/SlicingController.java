@@ -5,8 +5,10 @@ import com.company.bl.application.service.TechnicalWorkflowModels;
 import com.company.bl.interfaces.auth.M3PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.SlicingCompleteRequest;
+import com.company.bl.interfaces.dto.SlicingSlidePrintRequest;
 import com.company.bl.interfaces.dto.TechnicalTaskStartRequest;
 import com.company.bl.interfaces.vo.SlicingResponse;
+import com.company.bl.interfaces.vo.SlicingSlidePrintResponse;
 import com.company.bl.interfaces.vo.SlicingWorkbenchResponse;
 import com.company.bl.interfaces.vo.TaskOperationResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,6 +40,8 @@ public class SlicingController extends TechnicalControllerSupport {
     public SlicingWorkbenchResponse getWorkbench(
         @Parameter(description = "病人 ID / 病理号 / 患者姓名 / 标本名称关键词")
         @RequestParam(required = false) String keyword,
+        @Parameter(description = "申请类型：ROUTINE / FROZEN")
+        @RequestParam(required = false) String applicationType,
         @Parameter(description = "是否仅查看今天待切")
         @RequestParam(defaultValue = "false") boolean pendingTodayOnly,
         @Parameter(description = "是否仅查看过期任务")
@@ -56,6 +60,7 @@ public class SlicingController extends TechnicalControllerSupport {
             technicalWorkflowAppService.getSlicingWorkbench(
                 new TechnicalWorkflowModels.SlicingWorkbenchQuery(
                     keyword,
+                    applicationType,
                     pendingTodayOnly,
                     overdueOnly,
                     pendingPage,
@@ -74,6 +79,7 @@ public class SlicingController extends TechnicalControllerSupport {
             result.pendingList().stream().map(item -> new SlicingWorkbenchResponse.Row(
                 item.taskId(),
                 item.caseId(),
+                item.applicationType(),
                 item.pathologyNo(),
                 item.patientName(),
                 item.patientId(),
@@ -92,14 +98,74 @@ public class SlicingController extends TechnicalControllerSupport {
                 item.shiftRemark(),
                 item.sliceNotice(),
                 item.taskStatus(),
+                item.slidePrintStatus(),
+                item.printedSlideCount(),
+                item.combinedSlide(),
+                item.timedOut(),
+                item.selectable())).toList(),
+            result.pendingPrintList().stream().map(item -> new SlicingWorkbenchResponse.Row(
+                item.taskId(),
+                item.caseId(),
+                item.applicationType(),
+                item.pathologyNo(),
+                item.patientName(),
+                item.patientId(),
+                item.specimenId(),
+                item.specimenName(),
+                item.embeddingBoxId(),
+                item.slideId(),
+                item.slideNo(),
+                item.slicingOperatorName(),
+                item.slicingRemark(),
+                item.completedAt(),
+                item.grossingEvaluation(),
+                item.embeddingEvaluation(),
+                item.embeddingOperatorName(),
+                item.embeddingClearRemark(),
+                item.shiftRemark(),
+                item.sliceNotice(),
+                item.taskStatus(),
+                item.slidePrintStatus(),
+                item.printedSlideCount(),
+                item.combinedSlide(),
+                item.timedOut(),
+                item.selectable())).toList(),
+            result.pendingSliceList().stream().map(item -> new SlicingWorkbenchResponse.Row(
+                item.taskId(),
+                item.caseId(),
+                item.applicationType(),
+                item.pathologyNo(),
+                item.patientName(),
+                item.patientId(),
+                item.specimenId(),
+                item.specimenName(),
+                item.embeddingBoxId(),
+                item.slideId(),
+                item.slideNo(),
+                item.slicingOperatorName(),
+                item.slicingRemark(),
+                item.completedAt(),
+                item.grossingEvaluation(),
+                item.embeddingEvaluation(),
+                item.embeddingOperatorName(),
+                item.embeddingClearRemark(),
+                item.shiftRemark(),
+                item.sliceNotice(),
+                item.taskStatus(),
+                item.slidePrintStatus(),
+                item.printedSlideCount(),
+                item.combinedSlide(),
                 item.timedOut(),
                 item.selectable())).toList(),
             result.pendingPage(),
             result.pendingSize(),
             result.pendingTotal(),
+            result.pendingPrintTotal(),
+            result.pendingSliceTotal(),
             result.completedTodayList().stream().map(item -> new SlicingWorkbenchResponse.Row(
                 item.taskId(),
                 item.caseId(),
+                item.applicationType(),
                 item.pathologyNo(),
                 item.patientName(),
                 item.patientId(),
@@ -118,6 +184,9 @@ public class SlicingController extends TechnicalControllerSupport {
                 item.shiftRemark(),
                 item.sliceNotice(),
                 item.taskStatus(),
+                item.slidePrintStatus(),
+                item.printedSlideCount(),
+                item.combinedSlide(),
                 item.timedOut(),
                 item.selectable())).toList(),
             result.completedPage(),
@@ -146,11 +215,10 @@ public class SlicingController extends TechnicalControllerSupport {
     public SlicingResponse complete(@Valid @RequestBody SlicingCompleteRequest request,
                                     HttpServletRequest httpServletRequest) {
         TechnicalWorkflowModels.SlicingResult result = technicalWorkflowAppService.completeSlicing(
-            new TechnicalWorkflowModels.SlicingCompleteCommand(
-                request.getTaskId(),
-                request.getEmbeddingBoxId(),
-                request.getSlideCount(),
-                request.getSliceCountPerSlide(),
+                new TechnicalWorkflowModels.SlicingCompleteCommand(
+                    request.getTaskId(),
+                    request.getEmbeddingBoxId(),
+                    request.getSliceCountPerSlide(),
                 request.getSliceThickness(),
                 request.getQualityIssue(),
                 request.getDeviceCode(),
@@ -159,5 +227,30 @@ public class SlicingController extends TechnicalControllerSupport {
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new SlicingResponse(result.taskId(), result.slicingId(), result.slideIds(), result.caseStatus());
+    }
+
+    @Operation(summary = "完成玻片打印", description = "为切片任务预生成玻片并确认打印，打印后任务进入切片处理列表。")
+    @RequirePermission(M3PermissionCodes.SLICING)
+    @PostMapping("/slide-print")
+    public SlicingSlidePrintResponse printSlides(@Valid @RequestBody SlicingSlidePrintRequest request,
+                                                 HttpServletRequest httpServletRequest) {
+        TechnicalWorkflowModels.SlicingSlidePrintResult result = technicalWorkflowAppService.printSlicingSlides(
+            new TechnicalWorkflowModels.SlicingSlidePrintCommand(
+                request.getTaskId(),
+                request.getEmbeddingBoxId(),
+                request.getSourceSlideCount(),
+                request.isMergeAdjacent(),
+                request.getPrinterCode(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode(),
+                request.getRemarks()));
+        return new SlicingSlidePrintResponse(
+            result.taskId(),
+            result.slicingId(),
+            result.slideIds(),
+            result.slideNos(),
+            result.merged(),
+            result.printedSlideCount());
     }
 }

@@ -24,15 +24,16 @@ final class JdbcTechnicalWorkflowProcessingMutations {
         LocalDateTime createdAt = command.slicedAt() == null ? LocalDateTime.now() : command.slicedAt();
         jdbcTemplate.update("""
             insert into slicings
-                (id, case_id, specimen_id, embedding_id, embedding_box_id, slicing_batch_no, slicing_status,
+                (id, task_id, case_id, specimen_id, embedding_id, embedding_box_id, slicing_batch_no, slicing_status,
                  slide_count, slice_count_per_slide, slice_thickness, sliced_by_user_id, sliced_by_name, sliced_at,
                  quality_issue, remarks, created_at, updated_at)
             values
-                (:id, :caseId, :specimenId, :embeddingId, :embeddingBoxId, :slicingBatchNo, :slicingStatus,
+                (:id, :taskId, :caseId, :specimenId, :embeddingId, :embeddingBoxId, :slicingBatchNo, :slicingStatus,
                  :slideCount, :sliceCountPerSlide, :sliceThickness, :slicedByUserId, :slicedByName, :slicedAt,
                  :qualityIssue, :remarks, :createdAt, :updatedAt)
             """, new MapSqlParameterSource()
             .addValue("id", command.id())
+            .addValue("taskId", command.taskId())
             .addValue("caseId", command.caseId())
             .addValue("specimenId", command.specimenId())
             .addValue("embeddingId", command.embeddingId())
@@ -49,6 +50,40 @@ final class JdbcTechnicalWorkflowProcessingMutations {
             .addValue("remarks", command.remarks())
             .addValue("createdAt", createdAt)
             .addValue("updatedAt", createdAt));
+    }
+
+    void completeSlicingRecord(String slicingId,
+                               String slicingStatus,
+                               Integer sliceCountPerSlide,
+                               String sliceThickness,
+                               String slicedByUserId,
+                               String slicedByName,
+                               LocalDateTime slicedAt,
+                               String qualityIssue,
+                               String remarks) {
+        jdbcTemplate.update("""
+            update slicings
+            set slicing_status = :slicingStatus,
+                slice_count_per_slide = :sliceCountPerSlide,
+                slice_thickness = :sliceThickness,
+                sliced_by_user_id = :slicedByUserId,
+                sliced_by_name = :slicedByName,
+                sliced_at = :slicedAt,
+                quality_issue = :qualityIssue,
+                remarks = :remarks,
+                updated_at = :updatedAt
+            where id = :slicingId
+            """, new MapSqlParameterSource()
+            .addValue("slicingId", slicingId)
+            .addValue("slicingStatus", slicingStatus)
+            .addValue("sliceCountPerSlide", sliceCountPerSlide)
+            .addValue("sliceThickness", sliceThickness)
+            .addValue("slicedByUserId", slicedByUserId)
+            .addValue("slicedByName", slicedByName)
+            .addValue("slicedAt", slicedAt)
+            .addValue("qualityIssue", qualityIssue)
+            .addValue("remarks", remarks)
+            .addValue("updatedAt", LocalDateTime.now()));
     }
 
     void insertSlide(CreateSlideCommand command) {

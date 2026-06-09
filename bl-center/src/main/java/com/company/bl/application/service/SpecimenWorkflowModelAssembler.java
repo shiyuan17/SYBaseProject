@@ -83,6 +83,7 @@ class SpecimenWorkflowModelAssembler {
         return new ApplicationListItem(
             tracking.application().getId().value(),
             tracking.application().getApplicationNo(),
+            null,
             tracking.application().getPatientName(),
             tracking.application().getPatientGender(),
             tracking.application().getPatientAge(),
