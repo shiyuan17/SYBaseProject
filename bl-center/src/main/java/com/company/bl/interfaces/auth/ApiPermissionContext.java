@@ -6,6 +6,7 @@ public final class ApiPermissionContext {
     public static final String CURRENT_LOGIN_NAME = "CURRENT_LOGIN_NAME";
     public static final String CURRENT_OPERATOR_NAME = "CURRENT_OPERATOR_NAME";
     public static final String CURRENT_ROLE_CODE = "CURRENT_ROLE_CODE";
+    public static final String OPERATION_AUDIT_RECORDED = "OPERATION_AUDIT_RECORDED";
     public static final String USER_ID_HEADER = "X-User-Id";
 
     private ApiPermissionContext() {

@@ -214,6 +214,38 @@ public class SystemUserJdbcRepository {
         return new SystemJdbcRepository.PagedUserLoginLogs(logs, total == null ? 0L : total);
     }
 
+    public SystemJdbcRepository.PagedUserLoginLogs findLoginLogs(SystemJdbcRepository.LoginLogSearchCriteria criteria) {
+        int offset = Math.max(0, (criteria.page() - 1) * criteria.size());
+        StringBuilder conditions = new StringBuilder();
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("offset", offset)
+            .addValue("size", criteria.size());
+        appendLoginLogFilters(conditions, params, criteria);
+        List<SystemJdbcRepository.UserLoginLogRow> logs = jdbcTemplate.query("""
+            select id, user_id, login_name, login_result, client_ip, client_device, login_at, logout_at, failure_reason, remarks
+            from user_login_logs
+            where 1 = 1
+            """ + conditions + """
+            order by login_at desc, id desc
+            offset :offset rows fetch next :size rows only
+            """, params, this::mapUserLoginLog);
+        Long total = jdbcTemplate.queryForObject("""
+            select count(*)
+            from user_login_logs
+            where 1 = 1
+            """ + conditions, params, Long.class);
+        return new SystemJdbcRepository.PagedUserLoginLogs(logs, total == null ? 0L : total);
+    }
+
+    public SystemJdbcRepository.UserLoginLogRow findLoginLogById(String id) {
+        List<SystemJdbcRepository.UserLoginLogRow> rows = jdbcTemplate.query("""
+            select id, user_id, login_name, login_result, client_ip, client_device, login_at, logout_at, failure_reason, remarks
+            from user_login_logs
+            where id = :id
+            """, Map.of("id", id), this::mapUserLoginLog);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
     public Map<String, List<SystemRoleJdbcRepository.RoleAssignmentRow>> findUserRoleAssignments(List<String> userIds) {
         Map<String, List<SystemRoleJdbcRepository.RoleAssignmentRow>> result = new HashMap<>();
         if (userIds.isEmpty()) {
@@ -282,6 +314,51 @@ public class SystemUserJdbcRepository {
                  )
                 """);
             params.addValue("keyword", "%" + keyword.trim() + "%");
+        }
+    }
+
+    private void appendLoginLogFilters(StringBuilder conditions,
+                                       MapSqlParameterSource params,
+                                       SystemJdbcRepository.LoginLogSearchCriteria criteria) {
+        if (criteria.startAt() != null) {
+            conditions.append(" and login_at >= :startAt\n");
+            params.addValue("startAt", criteria.startAt());
+        }
+        if (criteria.endAt() != null) {
+            conditions.append(" and login_at <= :endAt\n");
+            params.addValue("endAt", criteria.endAt());
+        }
+        if (criteria.result() != null && !criteria.result().isBlank()) {
+            conditions.append(" and login_result = :result\n");
+            params.addValue("result", criteria.result().trim());
+        }
+        if (criteria.ip() != null && !criteria.ip().isBlank()) {
+            conditions.append(" and client_ip like :ip\n");
+            params.addValue("ip", "%" + criteria.ip().trim() + "%");
+        }
+        if (criteria.loginName() != null && !criteria.loginName().isBlank()) {
+            conditions.append(" and login_name like :loginName\n");
+            params.addValue("loginName", "%" + criteria.loginName().trim() + "%");
+        }
+        if (criteria.userId() != null && !criteria.userId().isBlank()) {
+            conditions.append(" and user_id = :userId\n");
+            params.addValue("userId", criteria.userId().trim());
+        }
+        if (criteria.clientDevice() != null && !criteria.clientDevice().isBlank()) {
+            conditions.append(" and client_device like :clientDevice\n");
+            params.addValue("clientDevice", "%" + criteria.clientDevice().trim() + "%");
+        }
+        if (criteria.keyword() != null && !criteria.keyword().isBlank()) {
+            conditions.append("""
+                 and (
+                    login_name like :logKeyword
+                    or client_ip like :logKeyword
+                    or client_device like :logKeyword
+                    or failure_reason like :logKeyword
+                    or remarks like :logKeyword
+                 )
+                """);
+            params.addValue("logKeyword", "%" + criteria.keyword().trim() + "%");
         }
     }
 

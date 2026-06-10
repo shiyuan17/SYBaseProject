@@ -13,11 +13,14 @@ public class SystemManagementService {
 
     private final SystemUserManagementService systemUserManagementService;
     private final SystemRoleManagementService systemRoleManagementService;
+    private final SystemLogQueryService systemLogQueryService;
 
     public SystemManagementService(SystemUserManagementService systemUserManagementService,
-                                   SystemRoleManagementService systemRoleManagementService) {
+                                   SystemRoleManagementService systemRoleManagementService,
+                                   SystemLogQueryService systemLogQueryService) {
         this.systemUserManagementService = systemUserManagementService;
         this.systemRoleManagementService = systemRoleManagementService;
+        this.systemLogQueryService = systemLogQueryService;
     }
 
     @Transactional(readOnly = true)
@@ -88,6 +91,26 @@ public class SystemManagementService {
     @Transactional(readOnly = true)
     public PagedResult<UserLoginLogView> listUserLoginLogs(String userId, int page, int size) {
         return systemUserManagementService.listUserLoginLogs(userId, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResult<UserLoginLogView> listLoginLogs(LoginLogQuery query) {
+        return systemLogQueryService.listLoginLogs(query);
+    }
+
+    @Transactional(readOnly = true)
+    public UserLoginLogView getLoginLog(String id) {
+        return systemLogQueryService.getLoginLog(id);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResult<OperationLogView> listOperationLogs(OperationLogQuery query) {
+        return systemLogQueryService.listOperationLogs(query);
+    }
+
+    @Transactional(readOnly = true)
+    public OperationLogView getOperationLog(String id) {
+        return systemLogQueryService.getOperationLog(id);
     }
 
     @Transactional(readOnly = true)
@@ -165,6 +188,23 @@ public class SystemManagementService {
         String logoutAt,
         String failureReason,
         String remarks
+    ) {
+    }
+
+    @Schema(name = "OperationLogView")
+    public record OperationLogView(
+        String id,
+        String moduleCode,
+        String businessType,
+        String businessId,
+        String operationName,
+        String operationResult,
+        String operatorUserId,
+        String operatorName,
+        String operatorIp,
+        String operationAt,
+        String operationContent,
+        String failureReason
     ) {
     }
 
@@ -271,6 +311,37 @@ public class SystemManagementService {
         String failureReason,
         String remarks,
         LocalDateTime loginAt
+    ) {
+    }
+
+    public record LoginLogQuery(
+        int page,
+        int size,
+        LocalDateTime startAt,
+        LocalDateTime endAt,
+        String result,
+        String ip,
+        String keyword,
+        String loginName,
+        String userId,
+        String clientDevice
+    ) {
+    }
+
+    public record OperationLogQuery(
+        int page,
+        int size,
+        LocalDateTime startAt,
+        LocalDateTime endAt,
+        String result,
+        String ip,
+        String keyword,
+        String operatorKeyword,
+        String moduleCode,
+        String businessType,
+        String businessId,
+        String operationName,
+        String contentKeyword
     ) {
     }
 

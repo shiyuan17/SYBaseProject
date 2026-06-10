@@ -163,6 +163,40 @@ public class SupportJdbcRepository {
             """, new MapSqlParameterSource().addValue("moduleCode", moduleCode));
     }
 
+    public PagedOperationLogs findOperationLogs(OperationLogSearchCriteria criteria) {
+        int offset = Math.max(0, (criteria.page() - 1) * criteria.size());
+        StringBuilder conditions = new StringBuilder();
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("offset", offset)
+            .addValue("size", criteria.size());
+        appendOperationLogFilters(conditions, params, criteria);
+        List<OperationLogViewRow> logs = jdbcTemplate.query("""
+            select id, module_code, business_type, business_id, operation_name, operation_result,
+                   operator_user_id, operator_name, operator_ip, operation_at, operation_content, failure_reason
+            from operation_logs
+            where 1 = 1
+            """ + conditions + """
+            order by operation_at desc, id desc
+            offset :offset rows fetch next :size rows only
+            """, params, this::mapOperationLog);
+        Long total = jdbcTemplate.queryForObject("""
+            select count(*)
+            from operation_logs
+            where 1 = 1
+            """ + conditions, params, Long.class);
+        return new PagedOperationLogs(logs, total == null ? 0L : total);
+    }
+
+    public OperationLogViewRow findOperationLogById(String id) {
+        List<OperationLogViewRow> rows = jdbcTemplate.query("""
+            select id, module_code, business_type, business_id, operation_name, operation_result,
+                   operator_user_id, operator_name, operator_ip, operation_at, operation_content, failure_reason
+            from operation_logs
+            where id = :id
+            """, Map.of("id", id), this::mapOperationLog);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
     public String resolveDatePart(String pattern, LocalDateTime now) {
         if (pattern == null || pattern.isBlank()) {
             return "";
@@ -190,6 +224,64 @@ public class SupportJdbcRepository {
         return value.substring(0, maxLength);
     }
 
+    private void appendOperationLogFilters(StringBuilder conditions,
+                                           MapSqlParameterSource params,
+                                           OperationLogSearchCriteria criteria) {
+        if (criteria.startAt() != null) {
+            conditions.append(" and operation_at >= :startAt\n");
+            params.addValue("startAt", criteria.startAt());
+        }
+        if (criteria.endAt() != null) {
+            conditions.append(" and operation_at <= :endAt\n");
+            params.addValue("endAt", criteria.endAt());
+        }
+        if (criteria.result() != null && !criteria.result().isBlank()) {
+            conditions.append(" and operation_result = :result\n");
+            params.addValue("result", criteria.result().trim());
+        }
+        if (criteria.ip() != null && !criteria.ip().isBlank()) {
+            conditions.append(" and operator_ip like :ip\n");
+            params.addValue("ip", "%" + criteria.ip().trim() + "%");
+        }
+        if (criteria.operatorKeyword() != null && !criteria.operatorKeyword().isBlank()) {
+            conditions.append(" and (operator_name like :operatorKeyword or operator_user_id like :operatorKeyword)\n");
+            params.addValue("operatorKeyword", "%" + criteria.operatorKeyword().trim() + "%");
+        }
+        if (criteria.moduleCode() != null && !criteria.moduleCode().isBlank()) {
+            conditions.append(" and module_code = :moduleCode\n");
+            params.addValue("moduleCode", criteria.moduleCode().trim());
+        }
+        if (criteria.businessType() != null && !criteria.businessType().isBlank()) {
+            conditions.append(" and business_type = :businessType\n");
+            params.addValue("businessType", criteria.businessType().trim());
+        }
+        if (criteria.businessId() != null && !criteria.businessId().isBlank()) {
+            conditions.append(" and business_id = :businessId\n");
+            params.addValue("businessId", criteria.businessId().trim());
+        }
+        if (criteria.operationName() != null && !criteria.operationName().isBlank()) {
+            conditions.append(" and operation_name like :operationName\n");
+            params.addValue("operationName", "%" + criteria.operationName().trim() + "%");
+        }
+        if (criteria.contentKeyword() != null && !criteria.contentKeyword().isBlank()) {
+            conditions.append(" and operation_content like :contentKeyword\n");
+            params.addValue("contentKeyword", "%" + criteria.contentKeyword().trim() + "%");
+        }
+        if (criteria.keyword() != null && !criteria.keyword().isBlank()) {
+            conditions.append("""
+                 and (
+                    module_code like :keyword
+                    or business_type like :keyword
+                    or business_id like :keyword
+                    or operation_name like :keyword
+                    or operator_name like :keyword
+                    or failure_reason like :keyword
+                 )
+                """);
+            params.addValue("keyword", "%" + criteria.keyword().trim() + "%");
+        }
+    }
+
     private NumberingRuleRow mapNumberingRule(ResultSet rs, int rowNum) throws SQLException {
         return new NumberingRuleRow(
             rs.getString("id"),
@@ -204,6 +296,22 @@ public class SupportJdbcRepository {
             rs.getString("remarks"),
             rs.getTimestamp("created_at").toLocalDateTime(),
             rs.getTimestamp("updated_at").toLocalDateTime());
+    }
+
+    private OperationLogViewRow mapOperationLog(ResultSet rs, int rowNum) throws SQLException {
+        return new OperationLogViewRow(
+            rs.getString("id"),
+            rs.getString("module_code"),
+            rs.getString("business_type"),
+            rs.getString("business_id"),
+            rs.getString("operation_name"),
+            rs.getString("operation_result"),
+            rs.getString("operator_user_id"),
+            rs.getString("operator_name"),
+            rs.getString("operator_ip"),
+            rs.getTimestamp("operation_at") == null ? null : rs.getTimestamp("operation_at").toLocalDateTime(),
+            rs.getString("operation_content"),
+            rs.getString("failure_reason"));
     }
 
     public record NumberingRuleRow(
@@ -223,6 +331,42 @@ public class SupportJdbcRepository {
     }
 
     public record OperationLogRow(
+        String id,
+        String moduleCode,
+        String businessType,
+        String businessId,
+        String operationName,
+        String operationResult,
+        String operatorUserId,
+        String operatorName,
+        String operatorIp,
+        LocalDateTime operationAt,
+        String operationContent,
+        String failureReason
+    ) {
+    }
+
+    public record OperationLogSearchCriteria(
+        int page,
+        int size,
+        LocalDateTime startAt,
+        LocalDateTime endAt,
+        String result,
+        String ip,
+        String keyword,
+        String operatorKeyword,
+        String moduleCode,
+        String businessType,
+        String businessId,
+        String operationName,
+        String contentKeyword
+    ) {
+    }
+
+    public record PagedOperationLogs(List<OperationLogViewRow> logs, long total) {
+    }
+
+    public record OperationLogViewRow(
         String id,
         String moduleCode,
         String businessType,

@@ -6,13 +6,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.containsString;
@@ -21,8 +22,10 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -116,6 +119,31 @@ class SystemManagementUserIntegrationTest extends AbstractSystemManagementIntegr
             .andExpect(jsonPath("$.data.items[0].loginResult", is("SUCCESS")))
             .andExpect(jsonPath("$.data.items[0].clientIp", is("10.0.0.1")));
 
+        mockMvc.perform(asAdmin(get("/api/v1/system/logs/login"))
+                .param("page", "0")
+                .param("size", "999")
+                .param("loginName", loginName)
+                .param("result", "FAILED")
+                .param("ip", "10.0.0.2")
+                .param("clientDevice", "Unknown"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.page", is(1)))
+            .andExpect(jsonPath("$.data.size", is(100)))
+            .andExpect(jsonPath("$.data.total", is(1)))
+            .andExpect(jsonPath("$.data.items[0].loginName", is(loginName)))
+            .andExpect(jsonPath("$.data.items[0].loginResult", is("FAILED")))
+            .andExpect(jsonPath("$.data.items[0].clientIp", is("10.0.0.2")));
+
+        String failedLogId = jdbcTemplate.queryForObject("""
+            select id
+            from user_login_logs
+            where login_name = :loginName and login_result = 'FAILED'
+            """, Map.of("loginName", loginName), String.class);
+        mockMvc.perform(asAdmin(get("/api/v1/system/logs/login/{id}", failedLogId)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id", is(failedLogId)))
+            .andExpect(jsonPath("$.data.failureReason", is("bad password")));
+
         Long totalLogs = jdbcTemplate.queryForObject("""
             select count(*)
             from user_login_logs
@@ -131,6 +159,98 @@ class SystemManagementUserIntegrationTest extends AbstractSystemManagementIntegr
         assertEquals(successAt.toString(), userView.lastLoginAt());
         assertEquals("10.0.0.1", userView.lastLoginIp());
         assertEquals("Chrome", userView.lastLoginDevice());
+    }
+
+    @Test
+    void shouldExposeOperationLogsWithMaskedDetailAndAuditSensitiveQueries() throws Exception {
+        String operationId = "OP-LOG-MASK-" + System.nanoTime();
+        jdbcTemplate.update("""
+            insert into operation_logs
+                (id, module_code, business_type, business_id, operation_name, operation_result,
+                 operator_user_id, operator_name, operator_ip, operation_at, operation_content, failure_reason)
+            values
+                (:id, :moduleCode, :businessType, :businessId, :operationName, :operationResult,
+                 :operatorUserId, :operatorName, :operatorIp, :operationAt, :operationContent, :failureReason)
+            """, new MapSqlParameterSource()
+            .addValue("id", operationId)
+            .addValue("moduleCode", "M2")
+            .addValue("businessType", "APPLICATION")
+            .addValue("businessId", "APP-LOG-1")
+            .addValue("operationName", "update_application")
+            .addValue("operationResult", "FAILED")
+            .addValue("operatorUserId", USER_M1_ADMIN)
+            .addValue("operatorName", "病理科管理员")
+            .addValue("operatorIp", "10.20.30.40")
+            .addValue("operationAt", LocalDateTime.of(2026, 5, 20, 8, 30, 0))
+            .addValue("operationContent", "password=secret&token=abc&field=visible")
+            .addValue("failureReason", "token=abc failed"));
+
+        mockMvc.perform(asAdmin(get("/api/v1/system/logs/operations"))
+                .param("page", "1")
+                .param("size", "20")
+                .param("moduleCode", "M2")
+                .param("businessType", "APPLICATION")
+                .param("result", "FAILED")
+                .param("operatorKeyword", "管理员")
+                .param("contentKeyword", "password"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total", greaterThanOrEqualTo(1)))
+            .andExpect(jsonPath("$.data.items[0].id", is(operationId)))
+            .andExpect(jsonPath("$.data.items[0].operationContent").doesNotExist());
+
+        MvcResult detailResult = mockMvc.perform(asAdmin(get("/api/v1/system/logs/operations/{id}", operationId)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id", is(operationId)))
+            .andExpect(jsonPath("$.data.failureReason", containsString("token=***")))
+            .andReturn();
+        String detailBody = detailResult.getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertTrue(detailBody.contains("password=***"));
+        assertTrue(detailBody.contains("token=***"));
+        assertFalse(detailBody.contains("secret"));
+        assertFalse(detailBody.contains("token=abc"));
+
+        long queryAuditCountBefore = operationLogCount("query_operation_logs");
+        mockMvc.perform(asAdmin(get("/api/v1/system/logs/operations"))
+                .param("page", "1")
+                .param("size", "1"))
+            .andExpect(status().isOk());
+        assertEquals(queryAuditCountBefore + 1, operationLogCount("query_operation_logs"));
+
+        mockMvc.perform(authorized(get("/api/v1/system/logs/operations"), "USER_M1_DOCTOR")
+                .param("page", "1")
+                .param("size", "20"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+    }
+
+    @Test
+    void shouldAuditFailedAuthenticatedWriteRequests() throws Exception {
+        long failedAuditCountBefore = operationLogCount("post /api/v1/system-users");
+
+        mockMvc.perform(asAdmin(post("/api/v1/system-users"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "loginName": "",
+                      "name": "",
+                      "password": "secret",
+                      "enabled": true
+                    }
+                    """))
+            .andExpect(status().isBadRequest());
+
+        Map<String, Object> latestAudit = jdbcTemplate.queryForMap("""
+            select operation_result, operation_content, failure_reason
+            from operation_logs
+            where operation_name = 'post /api/v1/system-users'
+            order by operation_at desc
+            limit 1
+            """, Map.of());
+        assertEquals(failedAuditCountBefore + 1, operationLogCount("post /api/v1/system-users"));
+        assertEquals("FAILED", latestAudit.get("operation_result"));
+        String content = latestAudit.get("operation_content").toString();
+        assertTrue(content.contains("POST"));
+        assertFalse(content.contains("secret"));
     }
 
     @Test
@@ -257,5 +377,14 @@ class SystemManagementUserIntegrationTest extends AbstractSystemManagementIntegr
         assertEquals("取材员", namesById.get("USER_M3_GROSSING"));
         assertEquals("诊断医生", namesById.get("USER_M4_DIAGNOSIS"));
         assertEquals("医嘱执行员", namesById.get("USER_M4_ORDER_EXECUTE"));
+    }
+
+    private long operationLogCount(String operationName) {
+        Long count = jdbcTemplate.queryForObject("""
+            select count(*)
+            from operation_logs
+            where operation_name = :operationName
+            """, Map.of("operationName", operationName), Long.class);
+        return count == null ? 0L : count;
     }
 }

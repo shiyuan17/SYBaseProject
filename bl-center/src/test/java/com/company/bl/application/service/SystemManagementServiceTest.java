@@ -1,6 +1,7 @@
 package com.company.bl.application.service;
 
 import com.company.bl.system.application.SystemManagementService;
+import com.company.bl.system.application.SystemLogQueryService;
 import com.company.bl.system.application.SystemRoleManagementService;
 import com.company.bl.system.application.SystemUserManagementService;
 import org.junit.jupiter.api.Test;
@@ -19,11 +20,15 @@ class SystemManagementServiceTest {
     @Mock
     private SystemRoleManagementService systemRoleManagementService;
 
+    @Mock
+    private SystemLogQueryService systemLogQueryService;
+
     @Test
     void createRoleShouldDelegateToRoleService() {
         SystemManagementService service = new SystemManagementService(
             systemUserManagementService,
-            systemRoleManagementService);
+            systemRoleManagementService,
+            systemLogQueryService);
 
         SystemManagementService.CreateRoleCommand command = new SystemManagementService.CreateRoleCommand(
             null,
@@ -42,7 +47,8 @@ class SystemManagementServiceTest {
     void printLoginTagShouldDelegateToUserService() {
         SystemManagementService service = new SystemManagementService(
             systemUserManagementService,
-            systemRoleManagementService);
+            systemRoleManagementService,
+            systemLogQueryService);
 
         service.printLoginTag("USER-1");
 

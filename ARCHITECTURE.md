@@ -20,6 +20,8 @@
 
 - Frontend request/permission/menu changes must be checked against `SYBaseProjectWeb`.
 - Database, patient, report, and permission changes must update backend and frontend memory files when they affect durable context.
+- System log management is served by `bl-center` for sibling frontend `/system/logs`: login logs are queried from `user_login_logs`, operation logs from `operation_logs`, and APIs are `/api/v1/system/logs/login`, `/login/{id}`, `/operations`, and `/operations/{id}`. Menu/permissions are `SYS_LOG_MANAGEMENT`, `PERM_SYS_LOG_QUERY`, and `PERM_SYS_LOG_DETAIL`.
+- Operation audit is cross-cutting in `ApiAuditInterceptor`: authenticated handler methods with `@RequirePermission` are audited for non-GET requests, and sensitive GET requests opt in through `@AuditOperation(sensitiveQuery = true)`. Audit content/failure fields must be sanitized/truncated and audit writes must not change the original HTTP outcome or recurse.
 - `GET /api/v1/applications` returns optional `items[].pathologyNo`, resolved from `pathology_cases.pathology_no`; application-list consumers should treat `null` as “not generated yet”.
 - Technical specimen registration completion accepts optional `pathologyNo` on `POST /api/v1/technical-specimen-registrations/{caseId}/complete`; backend validates non-empty candidates by selected application type rule and uniqueness, and generates only when empty.
 - Slicing workflow requires backend-confirmed slide printing through `POST /api/v1/slicings/slide-print` before `POST /api/v1/slicings/complete`; printed slide records are linked to `slicings.task_id`.

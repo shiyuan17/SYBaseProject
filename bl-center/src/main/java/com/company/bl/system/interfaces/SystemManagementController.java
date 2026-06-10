@@ -1,5 +1,6 @@
 package com.company.bl.system.interfaces;
 
+import com.company.bl.interfaces.auth.AuditOperation;
 import com.company.bl.interfaces.auth.M1PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.system.application.SystemManagementService;
@@ -13,6 +14,7 @@ import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -27,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDateTime;
 
 @RestController
 @Tag(name = "系统管理", description = "系统用户、角色、菜单、权限与授权维护接口")
@@ -104,6 +107,64 @@ public class SystemManagementController {
         @Parameter(description = "页码，从 1 开始") @RequestParam(name = "page", defaultValue = "1") int page,
         @Parameter(description = "每页条数，默认 20") @RequestParam(name = "size", defaultValue = "20") int size) {
         return systemManagementService.listUserLoginLogs(id, page, size);
+    }
+
+    @Operation(summary = "分页查询全局登录日志", description = "按筛选条件查询全局登录日志分页列表。")
+    @RequirePermission(M1PermissionCodes.LOG_QUERY)
+    @AuditOperation(moduleCode = "SYSTEM", businessType = "AUDIT_LOG", operationName = "query_login_logs", sensitiveQuery = true)
+    @GetMapping("/api/v1/system/logs/login")
+    public SystemManagementService.PagedResult<SystemManagementService.UserLoginLogView> listLoginLogs(
+        @RequestParam(name = "page", defaultValue = "1") int page,
+        @RequestParam(name = "size", defaultValue = "20") int size,
+        @RequestParam(name = "startAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startAt,
+        @RequestParam(name = "endAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endAt,
+        @RequestParam(name = "result", required = false) String result,
+        @RequestParam(name = "ip", required = false) String ip,
+        @RequestParam(name = "keyword", required = false) String keyword,
+        @RequestParam(name = "loginName", required = false) String loginName,
+        @RequestParam(name = "userId", required = false) String userId,
+        @RequestParam(name = "clientDevice", required = false) String clientDevice) {
+        return systemManagementService.listLoginLogs(new SystemManagementService.LoginLogQuery(
+            page, size, startAt, endAt, result, ip, keyword, loginName, userId, clientDevice));
+    }
+
+    @Operation(summary = "查询登录日志详情", description = "查询指定登录日志的脱敏详情。")
+    @RequirePermission(M1PermissionCodes.LOG_DETAIL)
+    @AuditOperation(moduleCode = "SYSTEM", businessType = "AUDIT_LOG", operationName = "get_login_log_detail", sensitiveQuery = true)
+    @GetMapping("/api/v1/system/logs/login/{id}")
+    public SystemManagementService.UserLoginLogView getLoginLog(@PathVariable("id") String id) {
+        return systemManagementService.getLoginLog(id);
+    }
+
+    @Operation(summary = "分页查询操作日志", description = "按筛选条件查询系统操作日志分页列表。")
+    @RequirePermission(M1PermissionCodes.LOG_QUERY)
+    @AuditOperation(moduleCode = "SYSTEM", businessType = "AUDIT_LOG", operationName = "query_operation_logs", sensitiveQuery = true)
+    @GetMapping("/api/v1/system/logs/operations")
+    public SystemManagementService.PagedResult<SystemManagementService.OperationLogView> listOperationLogs(
+        @RequestParam(name = "page", defaultValue = "1") int page,
+        @RequestParam(name = "size", defaultValue = "20") int size,
+        @RequestParam(name = "startAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startAt,
+        @RequestParam(name = "endAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endAt,
+        @RequestParam(name = "result", required = false) String result,
+        @RequestParam(name = "ip", required = false) String ip,
+        @RequestParam(name = "keyword", required = false) String keyword,
+        @RequestParam(name = "operatorKeyword", required = false) String operatorKeyword,
+        @RequestParam(name = "moduleCode", required = false) String moduleCode,
+        @RequestParam(name = "businessType", required = false) String businessType,
+        @RequestParam(name = "businessId", required = false) String businessId,
+        @RequestParam(name = "operationName", required = false) String operationName,
+        @RequestParam(name = "contentKeyword", required = false) String contentKeyword) {
+        return systemManagementService.listOperationLogs(new SystemManagementService.OperationLogQuery(
+            page, size, startAt, endAt, result, ip, keyword, operatorKeyword, moduleCode, businessType, businessId,
+            operationName, contentKeyword));
+    }
+
+    @Operation(summary = "查询操作日志详情", description = "查询指定操作日志的脱敏详情。")
+    @RequirePermission(M1PermissionCodes.LOG_DETAIL)
+    @AuditOperation(moduleCode = "SYSTEM", businessType = "AUDIT_LOG", operationName = "get_operation_log_detail", sensitiveQuery = true)
+    @GetMapping("/api/v1/system/logs/operations/{id}")
+    public SystemManagementService.OperationLogView getOperationLog(@PathVariable("id") String id) {
+        return systemManagementService.getOperationLog(id);
     }
 
     @Operation(summary = "分配用户角色", description = "全量覆盖指定用户的角色分配关系。")

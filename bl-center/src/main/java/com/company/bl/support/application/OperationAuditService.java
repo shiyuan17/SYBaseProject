@@ -66,6 +66,7 @@ public class OperationAuditService {
                 LocalDateTime.now(),
                 contentResolver == null ? null : contentResolver.get(),
                 null));
+            markAuditRecorded();
             return result;
         } catch (RuntimeException exception) {
             supportJdbcRepository.insertOperationLog(new SupportJdbcRepository.OperationLogRow(
@@ -81,7 +82,14 @@ public class OperationAuditService {
                 LocalDateTime.now(),
                 contentResolver == null ? null : contentResolver.get(),
                 exception.getMessage()));
+            markAuditRecorded();
             throw exception;
+        }
+    }
+
+    private void markAuditRecorded() {
+        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes servletRequestAttributes) {
+            servletRequestAttributes.getRequest().setAttribute(ApiPermissionContext.OPERATION_AUDIT_RECORDED, true);
         }
     }
 

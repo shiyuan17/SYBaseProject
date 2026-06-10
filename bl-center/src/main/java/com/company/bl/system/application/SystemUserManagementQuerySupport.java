@@ -81,8 +81,8 @@ class SystemUserManagementQuerySupport extends AbstractSystemUserManagementSuppo
         String loginTagCode = blankToNull(user.loginTagCode());
         return new SystemManagementService.PrintLoginTagView(
             loginTagCode,
-            user.name() + " 鐧诲綍鏍囩",
-            "濮撳悕: " + user.name() + "\n鐧诲綍鍚? " + user.loginName() + "\n鏍囩缂栫爜: " + (loginTagCode == null ? "-" : loginTagCode));
+            user.name() + " 登录标签",
+            "姓名: " + user.name() + "\n登录名: " + user.loginName() + "\n标签编码: " + (loginTagCode == null ? "-" : loginTagCode));
     }
 
     private void appendCsvRow(StringBuilder builder, List<String> values) {

@@ -48,7 +48,8 @@ class SystemManagementRoleAndMenuIntegrationTest extends AbstractSystemManagemen
         mockMvc.perform(asAdmin(get("/api/v1/roles/ROLE_PATHOLOGY_ADMIN/authorizations")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.roleId", is("ROLE_PATHOLOGY_ADMIN")))
-            .andExpect(jsonPath("$.data.permissionIds.length()", greaterThanOrEqualTo(1)));
+            .andExpect(jsonPath("$.data.permissionIds.length()", greaterThanOrEqualTo(1)))
+            .andExpect(jsonPath("$.data.permissionIds", hasItems("PERM_SYS_LOG_DETAIL")));
 
         MvcResult menusResult = mockMvc.perform(asAdmin(get("/api/v1/menus")))
             .andExpect(status().isOk())
@@ -70,9 +71,11 @@ class SystemManagementRoleAndMenuIntegrationTest extends AbstractSystemManagemen
         org.junit.jupiter.api.Assertions.assertEquals("科室字典", menusById.get("MENU_DEPARTMENTS").path("menuName").asText());
         org.junit.jupiter.api.Assertions.assertEquals("/system/medical-order-dicts", menusById.get("MENU_ORDER_DICTS").path("path").asText());
         org.junit.jupiter.api.Assertions.assertEquals("/system/medical-order-charges", menusById.get("MENU_ORDER_CHARGES").path("path").asText());
+        org.junit.jupiter.api.Assertions.assertEquals("/system/logs", menusById.get("MENU_SYS_LOG_MANAGEMENT").path("path").asText());
         org.junit.jupiter.api.Assertions.assertEquals("SystemUsers", menusById.get("MENU_SYS_USERS").path("componentName").asText());
         org.junit.jupiter.api.Assertions.assertEquals("Departments", menusById.get("MENU_DEPARTMENTS").path("componentName").asText());
         org.junit.jupiter.api.Assertions.assertEquals("MedicalOrderCharges", menusById.get("MENU_ORDER_CHARGES").path("componentName").asText());
+        org.junit.jupiter.api.Assertions.assertEquals("LogManagement", menusById.get("MENU_SYS_LOG_MANAGEMENT").path("componentName").asText());
 
         MvcResult permissionsResult = mockMvc.perform(asAdmin(get("/api/v1/permissions")))
             .andExpect(status().isOk())
@@ -94,6 +97,12 @@ class SystemManagementRoleAndMenuIntegrationTest extends AbstractSystemManagemen
         org.junit.jupiter.api.Assertions.assertEquals(
             "维护科室字典",
             permissionsByCode.get("PERM_SYS_DEPARTMENT_CREATE").path("permissionName").asText());
+        org.junit.jupiter.api.Assertions.assertEquals(
+            "查询日志管理",
+            permissionsByCode.get("PERM_SYS_LOG_QUERY").path("permissionName").asText());
+        org.junit.jupiter.api.Assertions.assertEquals(
+            "查看日志详情",
+            permissionsByCode.get("PERM_SYS_LOG_DETAIL").path("permissionName").asText());
 
         mockMvc.perform(asAdmin(get("/api/v1/message-topics")))
             .andExpect(status().isOk())
@@ -171,6 +180,7 @@ class SystemManagementRoleAndMenuIntegrationTest extends AbstractSystemManagemen
             .andExpect(jsonPath("$.data.menuIds", hasItems(
                 "MENU_SYSTEM",
                 "MENU_SYS_USERS",
+                "MENU_SYS_LOG_MANAGEMENT",
                 "MENU_M2_WORKFLOW",
                 "MENU_M2_APPLICATION_LIST",
                 "MENU_M3_WORKFLOW",

@@ -26,6 +26,8 @@ public final class M1PermissionCodes {
     public static final String CONFIG_UPDATE = "PERM_SYS_CONFIG_UPDATE";
     public static final String NUMBERING_QUERY = "PERM_SYS_NUMBERING_QUERY";
     public static final String NUMBERING_UPDATE = "PERM_SYS_NUMBERING_UPDATE";
+    public static final String LOG_QUERY = "PERM_SYS_LOG_QUERY";
+    public static final String LOG_DETAIL = "PERM_SYS_LOG_DETAIL";
 
     private M1PermissionCodes() {
     }

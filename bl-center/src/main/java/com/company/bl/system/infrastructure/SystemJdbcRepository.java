@@ -97,6 +97,20 @@ public final class SystemJdbcRepository {
     public record PagedUserLoginLogs(List<UserLoginLogRow> logs, long total) {
     }
 
+    public record LoginLogSearchCriteria(
+        int page,
+        int size,
+        LocalDateTime startAt,
+        LocalDateTime endAt,
+        String result,
+        String ip,
+        String keyword,
+        String loginName,
+        String userId,
+        String clientDevice
+    ) {
+    }
+
     public record UserLoginLogRow(
         String id,
         String userId,
