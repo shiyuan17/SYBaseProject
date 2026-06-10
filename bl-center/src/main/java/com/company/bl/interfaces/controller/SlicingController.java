@@ -5,9 +5,13 @@ import com.company.bl.application.service.TechnicalWorkflowModels;
 import com.company.bl.interfaces.auth.M3PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.SlicingCompleteRequest;
+import com.company.bl.interfaces.dto.SlicingSlidePrintMergeGroupCancelRequest;
+import com.company.bl.interfaces.dto.SlicingSlidePrintMergeGroupPrintRequest;
+import com.company.bl.interfaces.dto.SlicingSlidePrintMergeGroupRequest;
 import com.company.bl.interfaces.dto.SlicingSlidePrintRequest;
 import com.company.bl.interfaces.dto.TechnicalTaskStartRequest;
 import com.company.bl.interfaces.vo.SlicingResponse;
+import com.company.bl.interfaces.vo.SlicingSlidePrintMergeGroupResponse;
 import com.company.bl.interfaces.vo.SlicingSlidePrintResponse;
 import com.company.bl.interfaces.vo.SlicingWorkbenchResponse;
 import com.company.bl.interfaces.vo.TaskOperationResponse;
@@ -86,6 +90,7 @@ public class SlicingController extends TechnicalControllerSupport {
                 item.specimenId(),
                 item.specimenName(),
                 item.embeddingBoxId(),
+                item.embeddingBoxNo(),
                 item.slideId(),
                 item.slideNo(),
                 item.slicingOperatorName(),
@@ -95,14 +100,20 @@ public class SlicingController extends TechnicalControllerSupport {
                 item.embeddingEvaluation(),
                 item.embeddingOperatorName(),
                 item.embeddingClearRemark(),
+                item.embeddingRemarks(),
                 item.shiftRemark(),
                 item.sliceNotice(),
+                item.submittingDepartmentName(),
                 item.taskStatus(),
                 item.slidePrintStatus(),
                 item.printedSlideCount(),
                 item.combinedSlide(),
                 item.timedOut(),
-                item.selectable())).toList(),
+                item.selectable(),
+                item.printGroupId(),
+                item.mergedPrintGroup(),
+                item.taskIds(),
+                item.embeddingBoxIds())).toList(),
             result.pendingPrintList().stream().map(item -> new SlicingWorkbenchResponse.Row(
                 item.taskId(),
                 item.caseId(),
@@ -113,6 +124,7 @@ public class SlicingController extends TechnicalControllerSupport {
                 item.specimenId(),
                 item.specimenName(),
                 item.embeddingBoxId(),
+                item.embeddingBoxNo(),
                 item.slideId(),
                 item.slideNo(),
                 item.slicingOperatorName(),
@@ -122,14 +134,20 @@ public class SlicingController extends TechnicalControllerSupport {
                 item.embeddingEvaluation(),
                 item.embeddingOperatorName(),
                 item.embeddingClearRemark(),
+                item.embeddingRemarks(),
                 item.shiftRemark(),
                 item.sliceNotice(),
+                item.submittingDepartmentName(),
                 item.taskStatus(),
                 item.slidePrintStatus(),
                 item.printedSlideCount(),
                 item.combinedSlide(),
                 item.timedOut(),
-                item.selectable())).toList(),
+                item.selectable(),
+                item.printGroupId(),
+                item.mergedPrintGroup(),
+                item.taskIds(),
+                item.embeddingBoxIds())).toList(),
             result.pendingSliceList().stream().map(item -> new SlicingWorkbenchResponse.Row(
                 item.taskId(),
                 item.caseId(),
@@ -140,6 +158,7 @@ public class SlicingController extends TechnicalControllerSupport {
                 item.specimenId(),
                 item.specimenName(),
                 item.embeddingBoxId(),
+                item.embeddingBoxNo(),
                 item.slideId(),
                 item.slideNo(),
                 item.slicingOperatorName(),
@@ -149,14 +168,20 @@ public class SlicingController extends TechnicalControllerSupport {
                 item.embeddingEvaluation(),
                 item.embeddingOperatorName(),
                 item.embeddingClearRemark(),
+                item.embeddingRemarks(),
                 item.shiftRemark(),
                 item.sliceNotice(),
+                item.submittingDepartmentName(),
                 item.taskStatus(),
                 item.slidePrintStatus(),
                 item.printedSlideCount(),
                 item.combinedSlide(),
                 item.timedOut(),
-                item.selectable())).toList(),
+                item.selectable(),
+                item.printGroupId(),
+                item.mergedPrintGroup(),
+                item.taskIds(),
+                item.embeddingBoxIds())).toList(),
             result.pendingPage(),
             result.pendingSize(),
             result.pendingTotal(),
@@ -172,6 +197,7 @@ public class SlicingController extends TechnicalControllerSupport {
                 item.specimenId(),
                 item.specimenName(),
                 item.embeddingBoxId(),
+                item.embeddingBoxNo(),
                 item.slideId(),
                 item.slideNo(),
                 item.slicingOperatorName(),
@@ -181,14 +207,20 @@ public class SlicingController extends TechnicalControllerSupport {
                 item.embeddingEvaluation(),
                 item.embeddingOperatorName(),
                 item.embeddingClearRemark(),
+                item.embeddingRemarks(),
                 item.shiftRemark(),
                 item.sliceNotice(),
+                item.submittingDepartmentName(),
                 item.taskStatus(),
                 item.slidePrintStatus(),
                 item.printedSlideCount(),
                 item.combinedSlide(),
                 item.timedOut(),
-                item.selectable())).toList(),
+                item.selectable(),
+                item.printGroupId(),
+                item.mergedPrintGroup(),
+                item.taskIds(),
+                item.embeddingBoxIds())).toList(),
             result.completedPage(),
             result.completedSize(),
             result.completedTotal());
@@ -245,6 +277,67 @@ public class SlicingController extends TechnicalControllerSupport {
                 resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks()));
+        return new SlicingSlidePrintResponse(
+            result.taskId(),
+            result.slicingId(),
+            result.slideIds(),
+            result.slideNos(),
+            result.merged(),
+            result.printedSlideCount());
+    }
+
+    @Operation(summary = "两两合片", description = "将未打印切片任务按同患者、同病例、同蜡块前缀两两合并显示。")
+    @RequirePermission(M3PermissionCodes.SLICING)
+    @PostMapping("/slide-print-merge-groups")
+    public SlicingSlidePrintMergeGroupResponse createPrintMergeGroups(
+        @Valid @RequestBody SlicingSlidePrintMergeGroupRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        TechnicalWorkflowModels.SlicingSlidePrintMergeGroupResult result =
+            technicalWorkflowAppService.createSlicingSlidePrintMergeGroups(
+                new TechnicalWorkflowModels.SlicingSlidePrintMergeGroupCommand(
+                    request.getTaskIds(),
+                    resolveUserId(httpServletRequest),
+                    resolveOperatorName(httpServletRequest),
+                    request.getTerminalCode(),
+                    request.getRemarks()));
+        return new SlicingSlidePrintMergeGroupResponse(result.printGroupIds());
+    }
+
+    @Operation(summary = "取消合片", description = "取消未打印合片组，恢复组内蜡块为普通待打印记录。")
+    @RequirePermission(M3PermissionCodes.SLICING)
+    @PostMapping("/slide-print-merge-groups/cancel")
+    public SlicingSlidePrintMergeGroupResponse cancelPrintMergeGroups(
+        @Valid @RequestBody SlicingSlidePrintMergeGroupCancelRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        TechnicalWorkflowModels.SlicingSlidePrintMergeGroupResult result =
+            technicalWorkflowAppService.cancelSlicingSlidePrintMergeGroups(
+                new TechnicalWorkflowModels.SlicingSlidePrintMergeGroupCancelCommand(
+                    request.getPrintGroupIds(),
+                    resolveUserId(httpServletRequest),
+                    resolveOperatorName(httpServletRequest),
+                    request.getTerminalCode(),
+                    request.getRemarks()));
+        return new SlicingSlidePrintMergeGroupResponse(result.printGroupIds());
+    }
+
+    @Operation(summary = "打印合片组玻片", description = "打印未打印合片组，打印标签的蜡块号按合片组展示。")
+    @RequirePermission(M3PermissionCodes.SLICING)
+    @PostMapping("/slide-print-merge-groups/print")
+    public SlicingSlidePrintResponse printMergeGroup(
+        @Valid @RequestBody SlicingSlidePrintMergeGroupPrintRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        TechnicalWorkflowModels.SlicingSlidePrintResult result =
+            technicalWorkflowAppService.printSlicingSlideMergeGroup(
+                new TechnicalWorkflowModels.SlicingSlidePrintMergeGroupPrintCommand(
+                    request.getPrintGroupId(),
+                    request.getPrinterCode(),
+                    resolveUserId(httpServletRequest),
+                    resolveOperatorName(httpServletRequest),
+                    request.getTerminalCode(),
+                    request.getRemarks()));
         return new SlicingSlidePrintResponse(
             result.taskId(),
             result.slicingId(),

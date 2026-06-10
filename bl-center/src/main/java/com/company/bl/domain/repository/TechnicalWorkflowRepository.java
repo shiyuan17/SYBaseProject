@@ -67,6 +67,10 @@ public interface TechnicalWorkflowRepository {
 
     TechnicalWorkflowRecords.PagedSlicingWorkbenchRows findPendingSlicingPrintRows(TechnicalWorkflowRecords.SlicingWorkbenchQuery query);
 
+    List<TechnicalWorkflowRecords.SlicingWorkbenchRow> findPendingSlicingPrintRowsByTaskIds(List<String> taskIds);
+
+    List<TechnicalWorkflowRecords.SlicingSlidePrintMergeGroupItem> findPendingSlicingPrintMergeGroupItems(String printGroupId);
+
     TechnicalWorkflowRecords.PagedSlicingWorkbenchRows findPendingSlicingProcessRows(TechnicalWorkflowRecords.SlicingWorkbenchQuery query);
 
     TechnicalWorkflowRecords.PagedSlicingWorkbenchRows findCompletedSlicingWorkbenchRows(TechnicalWorkflowRecords.SlicingWorkbenchQuery query);
@@ -82,6 +86,7 @@ public interface TechnicalWorkflowRepository {
     void startTechnicalTask(String taskId,
                             String operatorUserId,
                             String operatorName,
+                            String taskStatus,
                             String remarks,
                             LocalDateTime startedAt);
 
@@ -89,6 +94,10 @@ public interface TechnicalWorkflowRepository {
                                String taskStatus,
                                String remarks,
                                LocalDateTime completedAt);
+
+    void resetTechnicalTaskToPending(String taskId,
+                                     String remarks,
+                                     LocalDateTime updatedAt);
 
     void assignTechnicalTask(String taskId,
                              String priority,
@@ -161,7 +170,7 @@ public interface TechnicalWorkflowRepository {
 
     Optional<EmbeddingBox> findEmbeddingBoxById(String embeddingBoxId);
 
-    Optional<EmbeddingBox> findEmbeddingBoxByNo(String embeddingBoxNo);
+    Optional<EmbeddingBox> findEmbeddingBoxByCaseIdAndNo(String caseId, String embeddingBoxNo);
 
     List<EmbeddingBox> findEmbeddingBoxesByCaseId(String caseId);
 
@@ -183,6 +192,32 @@ public interface TechnicalWorkflowRepository {
     Optional<Slicing> findSlicingByTaskId(String taskId);
 
     Optional<Slicing> findSlicingByTaskIdAndEmbeddingBoxId(String taskId, String embeddingBoxId);
+
+    void insertSlicingSlidePrintMergeGroup(String groupId,
+                                           String caseId,
+                                           String pathologyNo,
+                                           String patientId,
+                                           String embeddingBoxNo,
+                                           String operatorUserId,
+                                           String operatorName,
+                                           String remarks,
+                                           LocalDateTime createdAt);
+
+    void insertSlicingSlidePrintMergeGroupItem(String itemId,
+                                               String groupId,
+                                               String taskId,
+                                               String embeddingBoxId,
+                                               String embeddingBoxNo,
+                                               int sequenceNo);
+
+    void cancelSlicingSlidePrintMergeGroups(List<String> printGroupIds, LocalDateTime updatedAt);
+
+    void markSlicingSlidePrintMergeGroupPrinted(String printGroupId,
+                                                String slicingId,
+                                                String operatorUserId,
+                                                String operatorName,
+                                                String remarks,
+                                                LocalDateTime printedAt);
 
     void completeSlicingRecord(String slicingId,
                                String slicingStatus,

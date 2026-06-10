@@ -10,6 +10,7 @@ public final class SpecimenWorkflowTransportModels {
 
     public record CreateTransportOrderCommand(
         String applicationId,
+        List<String> specimenIds,
         List<String> specimenBarcodes,
         String handoverUserId,
         String handoverUserName,
@@ -94,6 +95,7 @@ public final class SpecimenWorkflowTransportModels {
         int page,
         int size,
         String applicationId,
+        String identifier,
         String specimenNo
     ) {
     }

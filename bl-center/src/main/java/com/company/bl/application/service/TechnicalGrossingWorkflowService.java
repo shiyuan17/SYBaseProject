@@ -127,7 +127,7 @@ class TechnicalGrossingWorkflowService {
                 command.remarks()));
             int sequenceNo = 0;
             List<TechnicalWorkflowModels.GrossingEmbeddingBoxItem> embeddingBoxes =
-                validateGrossingEmbeddingBoxes(item);
+                validateGrossingEmbeddingBoxes(pathologyCase.id(), item);
             for (TechnicalWorkflowModels.GrossingBlockItem block : item.blocks()) {
                 String blockId = technicalWorkflowSupport.nextId("SBK");
                 String blockCode = technicalWorkflowSupport.generateBlockNo(pathologyCase.id());
@@ -179,6 +179,7 @@ class TechnicalGrossingWorkflowService {
     }
 
     private List<TechnicalWorkflowModels.GrossingEmbeddingBoxItem> validateGrossingEmbeddingBoxes(
+        String caseId,
         TechnicalWorkflowModels.GrossingSpecimenItem item
     ) {
         List<TechnicalWorkflowModels.GrossingEmbeddingBoxItem> embeddingBoxes = item.embeddingBoxes();
@@ -201,7 +202,7 @@ class TechnicalGrossingWorkflowService {
             if (!embeddingBoxNos.add(embeddingBoxNo)) {
                 throw invalidArgument("Embedding box number cannot be duplicated");
             }
-            if (technicalWorkflowRepository.findEmbeddingBoxByNo(embeddingBoxNo).isPresent()) {
+            if (technicalWorkflowRepository.findEmbeddingBoxByCaseIdAndNo(caseId, embeddingBoxNo).isPresent()) {
                 throw new BlBusinessException(
                     BlErrorCode.RESOURCE_CONFLICT, 409, "Embedding box number already exists");
             }
@@ -274,7 +275,13 @@ class TechnicalGrossingWorkflowService {
                 TechnicalWorkflowConstants.NODE_DEHYDRATION,
                 TechnicalWorkflowConstants.OBJECT_SAMPLING_BLOCK,
                 item.samplingBlockId());
-            technicalWorkflowRepository.startTechnicalTask(task.id(), command.operatorUserId(), command.operatorName(), command.remarks(), now);
+            technicalWorkflowRepository.startTechnicalTask(
+                task.id(),
+                command.operatorUserId(),
+                command.operatorName(),
+                TechnicalWorkflowConstants.TASK_IN_PROGRESS,
+                command.remarks(),
+                now);
             technicalWorkflowRepository.updateDehydrationBatchItemStatus(batch.id(), item.samplingBlockId(),
                 TechnicalWorkflowConstants.TASK_IN_PROGRESS, command.remarks());
         }
@@ -347,7 +354,12 @@ class TechnicalGrossingWorkflowService {
         technicalWorkflowRepository.claimTechnicalTask(
             task.id(), command.operatorUserId(), command.operatorName(), null, null, command.remarks());
         technicalWorkflowRepository.startTechnicalTask(
-            task.id(), command.operatorUserId(), command.operatorName(), command.remarks(), LocalDateTime.now());
+            task.id(),
+            command.operatorUserId(),
+            command.operatorName(),
+            TechnicalWorkflowConstants.TASK_IN_PROGRESS,
+            command.remarks(),
+            LocalDateTime.now());
         technicalWorkflowSupport.insertWorkflowEvent(
             task,
             TechnicalWorkflowConstants.NODE_DEHYDRATION,

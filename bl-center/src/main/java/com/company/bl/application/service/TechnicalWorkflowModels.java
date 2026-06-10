@@ -88,6 +88,7 @@ public final class TechnicalWorkflowModels {
         String specimenId,
         String specimenName,
         String embeddingBoxId,
+        String embeddingBoxNo,
         String slideId,
         String slideNo,
         String slicingOperatorName,
@@ -97,14 +98,20 @@ public final class TechnicalWorkflowModels {
         String embeddingEvaluation,
         String embeddingOperatorName,
         String embeddingClearRemark,
+        String embeddingRemarks,
         String shiftRemark,
         String sliceNotice,
+        String submittingDepartmentName,
         String taskStatus,
         String slidePrintStatus,
         int printedSlideCount,
         boolean combinedSlide,
         boolean timedOut,
-        boolean selectable
+        boolean selectable,
+        String printGroupId,
+        boolean mergedPrintGroup,
+        List<String> taskIds,
+        List<String> embeddingBoxIds
     ) {
     }
 
@@ -679,6 +686,37 @@ public final class TechnicalWorkflowModels {
         boolean merged,
         int printedSlideCount
     ) {
+    }
+
+    public record SlicingSlidePrintMergeGroupCommand(
+        List<String> taskIds,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) implements OperatorCarrier {
+    }
+
+    public record SlicingSlidePrintMergeGroupCancelCommand(
+        List<String> printGroupIds,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) implements OperatorCarrier {
+    }
+
+    public record SlicingSlidePrintMergeGroupPrintCommand(
+        String printGroupId,
+        String printerCode,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) implements OperatorCarrier {
+    }
+
+    public record SlicingSlidePrintMergeGroupResult(List<String> printGroupIds) {
     }
 
     public record CreateSlideQcEvaluationCommand(

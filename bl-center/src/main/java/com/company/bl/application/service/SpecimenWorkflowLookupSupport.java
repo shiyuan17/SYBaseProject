@@ -72,6 +72,9 @@ class SpecimenWorkflowLookupSupport {
     }
 
     Specimen resolveSpecimenByIdentifier(String identifierType, String identifier) {
+        if ("SPECIMEN_ID".equals(identifierType)) {
+            return getSpecimenById(identifier);
+        }
         if ("BARCODE".equals(identifierType)) {
             return getSpecimen(identifier);
         }
@@ -79,6 +82,19 @@ class SpecimenWorkflowLookupSupport {
             return resolveSpecimenBySpecimenNo(identifier);
         }
         throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Unsupported specimen identifier type");
+    }
+
+    Specimen resolveSpecimenByPreferredIdentifier(String specimenId, String barcode, String specimenNo) {
+        if (!blank(specimenId)) {
+            return getSpecimenById(specimenId.trim());
+        }
+        if (!blank(barcode)) {
+            return getSpecimen(barcode.trim());
+        }
+        if (!blank(specimenNo)) {
+            return resolveSpecimenBySpecimenNo(specimenNo.trim());
+        }
+        throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Specimen identifier is required");
     }
 
     void ensureBarcodeAvailable(String barcode) {
@@ -96,5 +112,9 @@ class SpecimenWorkflowLookupSupport {
             throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Specimen number matches multiple records");
         }
         return specimens.get(0);
+    }
+
+    private boolean blank(String value) {
+        return value == null || value.isBlank();
     }
 }

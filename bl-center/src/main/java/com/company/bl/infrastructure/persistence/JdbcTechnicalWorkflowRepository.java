@@ -127,6 +127,16 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     }
 
     @Override
+    public List<com.company.bl.domain.repository.TechnicalWorkflowRecords.SlicingWorkbenchRow> findPendingSlicingPrintRowsByTaskIds(List<String> taskIds) {
+        return processingQueries.findPendingSlicingPrintRowsByTaskIds(taskIds);
+    }
+
+    @Override
+    public List<com.company.bl.domain.repository.TechnicalWorkflowRecords.SlicingSlidePrintMergeGroupItem> findPendingSlicingPrintMergeGroupItems(String printGroupId) {
+        return processingQueries.findPendingSlicingPrintMergeGroupItems(printGroupId);
+    }
+
+    @Override
     public PagedSlicingWorkbenchRows findPendingSlicingProcessRows(SlicingWorkbenchQuery query) {
         return processingQueries.findPendingSlicingProcessRows(query);
     }
@@ -160,13 +170,18 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     }
 
     @Override
-    public void startTechnicalTask(String taskId, String operatorUserId, String operatorName, String remarks, LocalDateTime startedAt) {
-        taskMutations.startTechnicalTask(taskId, remarks, startedAt);
+    public void startTechnicalTask(String taskId, String operatorUserId, String operatorName, String taskStatus, String remarks, LocalDateTime startedAt) {
+        taskMutations.startTechnicalTask(taskId, taskStatus, remarks, startedAt);
     }
 
     @Override
     public void completeTechnicalTask(String taskId, String taskStatus, String remarks, LocalDateTime completedAt) {
         taskMutations.completeTechnicalTask(taskId, taskStatus, remarks, completedAt);
+    }
+
+    @Override
+    public void resetTechnicalTaskToPending(String taskId, String remarks, LocalDateTime updatedAt) {
+        taskMutations.resetTechnicalTaskToPending(taskId, remarks, updatedAt);
     }
 
     @Override
@@ -310,8 +325,8 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     }
 
     @Override
-    public Optional<EmbeddingBox> findEmbeddingBoxByNo(String embeddingBoxNo) {
-        return processingQueries.findEmbeddingBoxByNo(embeddingBoxNo);
+    public Optional<EmbeddingBox> findEmbeddingBoxByCaseIdAndNo(String caseId, String embeddingBoxNo) {
+        return processingQueries.findEmbeddingBoxByCaseIdAndNo(caseId, embeddingBoxNo);
     }
 
     @Override
@@ -365,6 +380,65 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     @Override
     public Optional<Slicing> findSlicingByTaskIdAndEmbeddingBoxId(String taskId, String embeddingBoxId) {
         return processingQueries.findSlicingByTaskIdAndEmbeddingBoxId(taskId, embeddingBoxId);
+    }
+
+    @Override
+    public void insertSlicingSlidePrintMergeGroup(String groupId,
+                                                  String caseId,
+                                                  String pathologyNo,
+                                                  String patientId,
+                                                  String embeddingBoxNo,
+                                                  String operatorUserId,
+                                                  String operatorName,
+                                                  String remarks,
+                                                  LocalDateTime createdAt) {
+        processingMutations.insertSlicingSlidePrintMergeGroup(
+            groupId,
+            caseId,
+            pathologyNo,
+            patientId,
+            embeddingBoxNo,
+            operatorUserId,
+            operatorName,
+            remarks,
+            createdAt);
+    }
+
+    @Override
+    public void insertSlicingSlidePrintMergeGroupItem(String itemId,
+                                                      String groupId,
+                                                      String taskId,
+                                                      String embeddingBoxId,
+                                                      String embeddingBoxNo,
+                                                      int sequenceNo) {
+        processingMutations.insertSlicingSlidePrintMergeGroupItem(
+            itemId,
+            groupId,
+            taskId,
+            embeddingBoxId,
+            embeddingBoxNo,
+            sequenceNo);
+    }
+
+    @Override
+    public void cancelSlicingSlidePrintMergeGroups(List<String> printGroupIds, LocalDateTime updatedAt) {
+        processingMutations.cancelSlicingSlidePrintMergeGroups(printGroupIds, updatedAt);
+    }
+
+    @Override
+    public void markSlicingSlidePrintMergeGroupPrinted(String printGroupId,
+                                                       String slicingId,
+                                                       String operatorUserId,
+                                                       String operatorName,
+                                                       String remarks,
+                                                       LocalDateTime printedAt) {
+        processingMutations.markSlicingSlidePrintMergeGroupPrinted(
+            printGroupId,
+            slicingId,
+            operatorUserId,
+            operatorName,
+            remarks,
+            printedAt);
     }
 
     @Override

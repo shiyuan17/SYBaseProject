@@ -78,7 +78,7 @@ public class TransportOrderController {
             result.total());
     }
 
-    @Operation(summary = "Create transport order", description = "Create transport order for selected specimen barcodes.")
+    @Operation(summary = "Create transport order", description = "Create transport order for selected specimens.")
     @ApiResponses(@ApiResponse(responseCode = "201", description = "Created successfully", useReturnTypeSchema = true))
     @RequirePermission(M2PermissionCodes.TRANSPORT_HANDOVER)
     @PostMapping
@@ -92,6 +92,7 @@ public class TransportOrderController {
         return ResponseEntity.status(201).body(toResponse(specimenWorkflowAppService.createTransportOrder(
             new SpecimenWorkflowTransportModels.CreateTransportOrderCommand(
                 request.getApplicationId(),
+                request.getSpecimenIds(),
                 request.getSpecimenBarcodes(),
                 operator.operatorUserId(),
                 operator.operatorName(),

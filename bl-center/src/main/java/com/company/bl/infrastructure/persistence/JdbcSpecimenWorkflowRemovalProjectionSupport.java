@@ -187,6 +187,7 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
             """);
         boolean hasExplicitCondition =
             query.applicationId() != null && !query.applicationId().isBlank()
+                || query.identifier() != null && !query.identifier().isBlank()
                 || query.specimenNo() != null && !query.specimenNo().isBlank();
         if (query.applicationId() != null && !query.applicationId().isBlank()) {
             builder.append(" and a.id = :applicationId");
@@ -208,6 +209,9 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
         }
         if (query.specimenNo() != null && !query.specimenNo().isBlank()) {
             builder.append(" and s.specimen_no = :specimenNo");
+        }
+        if (query.identifier() != null && !query.identifier().isBlank()) {
+            builder.append(" and (s.specimen_no = :identifier or s.barcode = :identifier)");
         }
         return builder.toString();
     }
@@ -376,6 +380,9 @@ class JdbcSpecimenWorkflowRemovalProjectionSupport extends AbstractJdbcSpecimenW
         MapSqlParameterSource parameters = new MapSqlParameterSource();
         if (query.applicationId() != null && !query.applicationId().isBlank()) {
             parameters.addValue("applicationId", query.applicationId());
+        }
+        if (query.identifier() != null && !query.identifier().isBlank()) {
+            parameters.addValue("identifier", query.identifier());
         }
         if (query.specimenNo() != null && !query.specimenNo().isBlank()) {
             parameters.addValue("specimenNo", query.specimenNo());

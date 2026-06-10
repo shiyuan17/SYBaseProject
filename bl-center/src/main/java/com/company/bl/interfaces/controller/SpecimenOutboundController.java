@@ -41,6 +41,8 @@ public class SpecimenOutboundController {
         @RequestParam(defaultValue = "20") int size,
         @Parameter(description = "Application ID")
         @RequestParam(required = false) String applicationId,
+        @Parameter(description = "Specimen barcode or serial number")
+        @RequestParam(required = false) String identifier,
         @Parameter(description = "Specimen serial number")
         @RequestParam(required = false) String specimenNo
     ) {
@@ -50,6 +52,7 @@ public class SpecimenOutboundController {
                     page,
                     size,
                     applicationId,
+                    identifier,
                     specimenNo));
         return new SpecimenOutboundPageResponse(
             result.items().stream().map(this::toItem).toList(),

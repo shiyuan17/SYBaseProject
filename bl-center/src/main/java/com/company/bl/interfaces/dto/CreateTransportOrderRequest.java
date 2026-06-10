@@ -2,7 +2,6 @@ package com.company.bl.interfaces.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,8 +21,10 @@ public class CreateTransportOrderRequest {
     @Size(max = 64)
     private String applicationId;
 
-    @Schema(description = "标本条码列表", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotEmpty
+    @Schema(description = "标本 ID 列表；优先于标本条码列表")
+    private List<String> specimenIds;
+
+    @Schema(description = "标本条码列表")
     private List<String> specimenBarcodes;
 
     @Schema(description = "交接人用户 ID")

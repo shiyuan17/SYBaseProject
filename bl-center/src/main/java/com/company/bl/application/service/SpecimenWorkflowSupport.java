@@ -89,6 +89,10 @@ class SpecimenWorkflowSupport {
         return lookupSupport.resolveSpecimenByIdentifier(identifierType, identifier);
     }
 
+    Specimen resolveSpecimenByPreferredIdentifier(String specimenId, String barcode, String specimenNo) {
+        return lookupSupport.resolveSpecimenByPreferredIdentifier(specimenId, barcode, specimenNo);
+    }
+
     void validateApplicationCanRegister(Application application) {
         applicationPolicy.validateApplicationCanRegister(application);
     }

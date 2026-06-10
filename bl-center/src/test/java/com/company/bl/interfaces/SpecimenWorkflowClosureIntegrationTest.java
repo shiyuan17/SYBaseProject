@@ -474,6 +474,18 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
         mockMvc.perform(authorized(get("/api/v1/specimen-outbounds"), USER_TRANSPORT)
                 .param("page", "1")
                 .param("size", "20")
+                .param("identifier", completedBarcode))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].transportOrderId").value(completedTransportOrderId))
+            .andExpect(jsonPath("$.data.items[0].barcode").value(completedBarcode))
+            .andExpect(jsonPath("$.data.items[0].specimenNo").value(completedSpecimenNo))
+            .andExpect(jsonPath("$.data.items[0].outboundAt").isNotEmpty())
+            .andExpect(jsonPath("$.data.items[0].outboundUserName").value(outboundUserName));
+
+        mockMvc.perform(authorized(get("/api/v1/specimen-outbounds"), USER_TRANSPORT)
+                .param("page", "1")
+                .param("size", "20")
                 .param("specimenNo", historicalSpecimenNo))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.total").value(1))
@@ -597,7 +609,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
     }
 
     @Test
-    void shouldListAllApplicationSpecimensWhenFilteringOutboundBySpecimenNo() throws Exception {
+    void shouldListAllApplicationSpecimensWhenFilteringOutboundBySpecimenNoOrIdentifier() throws Exception {
         String applicationId = createApplication("APP-M2-OUTBOUND-EXPAND-001");
         JsonNode registration = registerSpecimens(
             applicationId,
@@ -634,6 +646,24 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             .getResponse()
             .getContentAsString();
         assertThat(response).contains(readySpecimenId, siblingSpecimenId, readySpecimenNo, siblingSpecimenNo);
+
+        mockMvc.perform(authorized(get("/api/v1/specimen-outbounds"), USER_TRANSPORT)
+                .param("page", "1")
+                .param("size", "20")
+                .param("identifier", readyBarcode))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(2))
+            .andExpect(jsonPath("$.data.items[0].applicationId").value(applicationId))
+            .andExpect(jsonPath("$.data.items[1].applicationId").value(applicationId));
+
+        String identifierResponse = mockMvc.perform(authorized(get("/api/v1/specimen-outbounds"), USER_TRANSPORT)
+                .param("page", "1")
+                .param("size", "20")
+                .param("identifier", readyBarcode))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        assertThat(identifierResponse).contains(readySpecimenId, siblingSpecimenId, readySpecimenNo, siblingSpecimenNo);
     }
 
     @Test

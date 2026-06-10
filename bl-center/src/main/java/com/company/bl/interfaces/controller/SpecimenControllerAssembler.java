@@ -132,7 +132,11 @@ class SpecimenControllerAssembler {
             request.getOperatorVerificationToken(),
             httpServletRequest);
         return new ConfirmSpecimenCommand(
-            barcode,
+            request.getSpecimenId(),
+            request.getSpecimenBarcode() == null || request.getSpecimenBarcode().isBlank()
+                ? barcode
+                : request.getSpecimenBarcode(),
+            request.getSpecimenNo(),
             operator.operatorUserId(),
             operator.operatorName(),
             request.getTerminalCode(),
@@ -146,7 +150,11 @@ class SpecimenControllerAssembler {
             request.getOperatorName(),
             httpServletRequest);
         return new CheckInSpecimenCommand(
-            barcode,
+            request.getSpecimenId(),
+            request.getSpecimenBarcode() == null || request.getSpecimenBarcode().isBlank()
+                ? barcode
+                : request.getSpecimenBarcode(),
+            request.getSpecimenNo(),
             operator.operatorUserId(),
             operator.operatorName(),
             request.getTerminalCode(),

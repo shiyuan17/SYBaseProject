@@ -72,6 +72,7 @@ public final class TechnicalWorkflowRecords {
         String specimenId,
         String specimenName,
         String embeddingBoxId,
+        String embeddingBoxNo,
         String slideId,
         String slideNo,
         String slicingOperatorName,
@@ -81,14 +82,32 @@ public final class TechnicalWorkflowRecords {
         String embeddingEvaluation,
         String embeddingOperatorName,
         String embeddingClearRemark,
+        String embeddingRemarks,
         String shiftRemark,
         String sliceNotice,
+        String submittingDepartmentName,
         String taskStatus,
         String slidePrintStatus,
         int printedSlideCount,
         boolean combinedSlide,
         boolean timedOut,
-        boolean selectable
+        boolean selectable,
+        String printGroupId,
+        boolean mergedPrintGroup,
+        List<String> taskIds,
+        List<String> embeddingBoxIds
+    ) {
+    }
+
+    public record SlicingSlidePrintMergeGroupItem(
+        String groupId,
+        String taskId,
+        String caseId,
+        String pathologyNo,
+        String patientId,
+        String embeddingBoxId,
+        String embeddingBoxNo,
+        int sequenceNo
     ) {
     }
 

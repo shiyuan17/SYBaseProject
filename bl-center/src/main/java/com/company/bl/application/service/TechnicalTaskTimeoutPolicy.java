@@ -23,7 +23,8 @@ class TechnicalTaskTimeoutPolicy {
     private static final int DEFAULT_STAINING_TIMEOUT_MINUTES = 240;
     private static final Set<String> ACTIVE_STATUSES = Set.of(
         TechnicalWorkflowConstants.TASK_PENDING,
-        TechnicalWorkflowConstants.TASK_IN_PROGRESS
+        TechnicalWorkflowConstants.TASK_IN_PROGRESS,
+        TechnicalWorkflowConstants.TASK_EMBEDDING_CONFIRM_PENDING
     );
 
     private final SystemConfigService systemConfigService;

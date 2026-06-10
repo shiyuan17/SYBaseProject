@@ -70,6 +70,7 @@ class SpecimenTransportServiceTest {
 
         CreateTransportOrderCommand command = new CreateTransportOrderCommand(
             "APP-1",
+            List.of(),
             List.of("BC-1"),
             "handover-1",
             "Handover User",
@@ -219,6 +220,7 @@ class SpecimenTransportServiceTest {
         assertThatThrownBy(() -> service.createTransportOrder(
             new CreateTransportOrderCommand(
                 "APP-1",
+                List.of(),
                 List.of("BC-1"),
                 "handover-1",
                 "Handover User",
@@ -265,6 +267,7 @@ class SpecimenTransportServiceTest {
         TransportOrder result = service.createTransportOrder(
             new CreateTransportOrderCommand(
                 "APP-1",
+                List.of(),
                 List.of("BC-1"),
                 "handover-1",
                 "Handover User",
@@ -280,12 +283,51 @@ class SpecimenTransportServiceTest {
     }
 
     @Test
+    void createTransportOrderShouldAllowSpecimenIdsWhenBarcodeIsMissing() {
+        SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
+        when(applicationRepository.findById(any(ApplicationId.class)))
+            .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.application("APP-1", ApplicationStatus.SUBMITTED)));
+        var checkedInSpecimen = SpecimenWorkflowServiceTestFixtures.specimen(
+            "APP-1",
+            "SP-1",
+            null,
+            SpecimenStatus.CHECKED_IN,
+            FixationStatus.COMPLETED,
+            "VERIFIED",
+            LocalDateTime.now(),
+            "CHECKED_IN",
+            null);
+        when(queryRepository.findSpecimenById("SP-1")).thenReturn(Optional.of(checkedInSpecimen));
+        when(numberingService.generateTransportOrderNo()).thenReturn("TR-ID-001");
+
+        SpecimenTransportService service = new SpecimenTransportService(commandRepository, support, numberingService);
+
+        TransportOrder result = service.createTransportOrder(
+            new CreateTransportOrderCommand(
+                "APP-1",
+                List.of("SP-1"),
+                List.of(),
+                "handover-1",
+                "Handover User",
+                "dept-1",
+                "Grossing",
+                "dept-2",
+                "Lab",
+                "TERM-1",
+                "remark"));
+
+        assertThat(result.status()).isEqualTo(TransportOrderStatus.PENDING);
+        verify(commandRepository).insertTransportOrder(any(TransportOrder.class));
+        verify(commandRepository).insertTransportOrderItem(any(TransportOrderItem.class));
+    }
+
+    @Test
     void quickOutboundShouldCreateTransportOrderWhenSpecimenHasNoActiveOrder() {
         SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
         var checkedInSpecimen = SpecimenWorkflowServiceTestFixtures.specimen(
             "APP-1",
             "SP-1",
-            "BC-1",
+            null,
             SpecimenStatus.CHECKED_IN,
             FixationStatus.COMPLETED,
             "VERIFIED",
@@ -296,7 +338,7 @@ class SpecimenTransportServiceTest {
             .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.application("APP-1", ApplicationStatus.SUBMITTED)));
         when(queryRepository.findSpecimensBySpecimenNo("SP-NO-1"))
             .thenReturn(List.of(checkedInSpecimen));
-        when(queryRepository.findSpecimenByBarcode("BC-1"))
+        when(queryRepository.findSpecimenById("SP-1"))
             .thenReturn(Optional.of(checkedInSpecimen));
         when(queryRepository.findActiveTransportOrderBySpecimenId("SP-1"))
             .thenReturn(Optional.empty());

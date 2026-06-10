@@ -165,6 +165,10 @@ public class TechnicalWorkflowAppService {
         return technicalProcessingWorkflowService.completeEmbedding(command);
     }
 
+    public TechnicalWorkflowModels.TaskStartResult cancelEmbedding(TechnicalWorkflowModels.TaskStartCommand command) {
+        return technicalProcessingWorkflowService.cancelEmbedding(command);
+    }
+
     public TechnicalWorkflowModels.EmbeddingQualityReviewResult updateEmbeddingQualityReview(
         TechnicalWorkflowModels.EmbeddingQualityReviewCommand command
     ) {
@@ -178,6 +182,21 @@ public class TechnicalWorkflowAppService {
     public TechnicalWorkflowModels.SlicingSlidePrintResult printSlicingSlides(
         TechnicalWorkflowModels.SlicingSlidePrintCommand command) {
         return technicalProcessingWorkflowService.printSlicingSlides(command);
+    }
+
+    public TechnicalWorkflowModels.SlicingSlidePrintMergeGroupResult createSlicingSlidePrintMergeGroups(
+        TechnicalWorkflowModels.SlicingSlidePrintMergeGroupCommand command) {
+        return technicalProcessingWorkflowService.createSlicingSlidePrintMergeGroups(command);
+    }
+
+    public TechnicalWorkflowModels.SlicingSlidePrintMergeGroupResult cancelSlicingSlidePrintMergeGroups(
+        TechnicalWorkflowModels.SlicingSlidePrintMergeGroupCancelCommand command) {
+        return technicalProcessingWorkflowService.cancelSlicingSlidePrintMergeGroups(command);
+    }
+
+    public TechnicalWorkflowModels.SlicingSlidePrintResult printSlicingSlideMergeGroup(
+        TechnicalWorkflowModels.SlicingSlidePrintMergeGroupPrintCommand command) {
+        return technicalProcessingWorkflowService.printSlicingSlideMergeGroup(command);
     }
 
     public TechnicalWorkflowModels.SlicingResult completeSlicing(TechnicalWorkflowModels.SlicingCompleteCommand command) {

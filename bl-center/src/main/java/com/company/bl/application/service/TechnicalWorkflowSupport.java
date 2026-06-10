@@ -81,7 +81,51 @@ class TechnicalWorkflowSupport {
                                                         String objectType) {
         TechnicalWorkflowRecords.TechnicalTask task = requireActiveTask(command.taskId(), taskType, objectType);
         LocalDateTime now = LocalDateTime.now();
-        technicalWorkflowRepository.startTechnicalTask(task.id(), command.operatorUserId(), command.operatorName(), command.remarks(), now);
+        technicalWorkflowRepository.startTechnicalTask(
+            task.id(),
+            command.operatorUserId(),
+            command.operatorName(),
+            TechnicalWorkflowConstants.TASK_IN_PROGRESS,
+            command.remarks(),
+            now);
+        return technicalWorkflowRepository.findTechnicalTaskById(task.id()).orElse(task);
+    }
+
+    TechnicalWorkflowRecords.TechnicalTask startTaskWithStatus(TechnicalWorkflowModels.TaskStartCommand command,
+                                                               String taskType,
+                                                               String objectType,
+                                                               String taskStatus) {
+        TechnicalWorkflowRecords.TechnicalTask task = requireActiveTask(command.taskId(), taskType, objectType);
+        LocalDateTime now = LocalDateTime.now();
+        technicalWorkflowRepository.startTechnicalTask(
+            task.id(),
+            command.operatorUserId(),
+            command.operatorName(),
+            taskStatus,
+            command.remarks(),
+            now);
+        return technicalWorkflowRepository.findTechnicalTaskById(task.id()).orElse(task);
+    }
+
+    TechnicalWorkflowRecords.TechnicalTask startPendingTaskWithStatus(TechnicalWorkflowModels.TaskStartCommand command,
+                                                                      String taskType,
+                                                                      String objectType,
+                                                                      String taskStatus) {
+        TechnicalWorkflowRecords.TechnicalTask task = requireActiveTask(command.taskId(), taskType, objectType);
+        if (!TechnicalWorkflowConstants.TASK_PENDING.equals(task.taskStatus())) {
+            throw new BlBusinessException(
+                BlErrorCode.OPERATION_NOT_ALLOWED,
+                409,
+                "Only pending technical tasks can be started");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        technicalWorkflowRepository.startTechnicalTask(
+            task.id(),
+            command.operatorUserId(),
+            command.operatorName(),
+            taskStatus,
+            command.remarks(),
+            now);
         return technicalWorkflowRepository.findTechnicalTaskById(task.id()).orElse(task);
     }
 
@@ -92,7 +136,8 @@ class TechnicalWorkflowSupport {
             throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Technical task type mismatch");
         }
         if (!TechnicalWorkflowConstants.TASK_PENDING.equals(task.taskStatus())
-            && !TechnicalWorkflowConstants.TASK_IN_PROGRESS.equals(task.taskStatus())) {
+            && !TechnicalWorkflowConstants.TASK_IN_PROGRESS.equals(task.taskStatus())
+            && !TechnicalWorkflowConstants.TASK_EMBEDDING_CONFIRM_PENDING.equals(task.taskStatus())) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Technical task is not active");
         }
         return task;

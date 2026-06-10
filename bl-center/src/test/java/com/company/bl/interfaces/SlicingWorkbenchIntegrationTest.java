@@ -8,6 +8,12 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -56,6 +62,9 @@ class SlicingWorkbenchIntegrationTest extends AbstractTechnicalWorkflowIntegrati
             .andExpect(jsonPath("$.data.pendingSliceTotal").value(0))
             .andExpect(jsonPath("$.data.completedTotal").value(0))
             .andExpect(jsonPath("$.data.pendingList[0].pathologyNo").value(freshContext.baseContext().pathologyNo()))
+            .andExpect(jsonPath("$.data.pendingPrintList[0].embeddingBoxNo").exists())
+            .andExpect(jsonPath("$.data.pendingPrintList[0].embeddingRemarks").value("embedding-APP-M3-SLICE-001"))
+            .andExpect(jsonPath("$.data.pendingPrintList[0].submittingDepartmentName").value("OR"))
             .andExpect(jsonPath("$.data.pendingPrintList[0].slidePrintStatus").value("PENDING"));
 
         mockMvc.perform(authorized(get("/api/v1/slicings/workbench"), USER_M3_SLICING)
@@ -166,6 +175,132 @@ class SlicingWorkbenchIntegrationTest extends AbstractTechnicalWorkflowIntegrati
             .andExpect(jsonPath("$.data.pendingSliceList[0].combinedSlide").value(true));
     }
 
+    @Test
+    void shouldExposeSlicingWorkbenchFieldsForLegacySamplingBlockTasks() throws Exception {
+        SlicingReadyContext context = prepareSlicingReadyContext("APP-M3-SLICE-005", "BC-M3-SLICE-005");
+        String samplingBlockId = namedParameterJdbcTemplate.queryForObject("""
+            select sampling_block_id
+            from embedding_boxes
+            where id = :embeddingBoxId
+            """, new MapSqlParameterSource().addValue("embeddingBoxId", context.embeddingBoxId()), String.class);
+        String expectedEmbeddingBoxNo = namedParameterJdbcTemplate.queryForObject("""
+            select embedding_box_no
+            from sampling_blocks
+            where id = :samplingBlockId
+            """, new MapSqlParameterSource().addValue("samplingBlockId", samplingBlockId), String.class);
+
+        namedParameterJdbcTemplate.update("""
+            update sampling_blocks
+            set embedding_remarks = :embeddingRemarks
+            where id = :samplingBlockId
+            """, new MapSqlParameterSource()
+            .addValue("samplingBlockId", samplingBlockId)
+            .addValue("embeddingRemarks", "legacy-sampling-remark"));
+        namedParameterJdbcTemplate.update("""
+            update embeddings
+            set remarks = null
+            where id = (
+                select embedding_id
+                from embedding_boxes
+                where id = :embeddingBoxId
+            )
+            """, new MapSqlParameterSource().addValue("embeddingBoxId", context.embeddingBoxId()));
+        namedParameterJdbcTemplate.update("""
+            update technical_pending_tasks
+            set object_type = 'SAMPLING_BLOCK',
+                object_id = :samplingBlockId
+            where id = :taskId
+            """, new MapSqlParameterSource()
+            .addValue("taskId", context.slicingTaskId())
+            .addValue("samplingBlockId", samplingBlockId));
+
+        mockMvc.perform(authorized(get("/api/v1/slicings/workbench"), USER_M3_SLICING)
+                .param("keyword", context.baseContext().pathologyNo())
+                .param("pendingPage", "1")
+                .param("pendingSize", "20")
+                .param("completedPage", "1")
+                .param("completedSize", "20"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.pendingPrintList[0].embeddingBoxId").value(context.embeddingBoxId()))
+            .andExpect(jsonPath("$.data.pendingPrintList[0].embeddingBoxNo").value(expectedEmbeddingBoxNo))
+            .andExpect(jsonPath("$.data.pendingPrintList[0].embeddingRemarks").value("legacy-sampling-remark"))
+            .andExpect(jsonPath("$.data.pendingPrintList[0].selectable").value(true));
+    }
+
+    @Test
+    void shouldCreateCancelAndPrintPendingSlideMergeGroups() throws Exception {
+        MergeReadyContext context = prepareSlicingMergeReadyContext(
+            "APP-M3-MERGE-001",
+            "BC-M3-MERGE-001",
+            List.of("A1", "A2", "A3", "A4", "B1", "B2", "B3", "B4", "B5"));
+
+        JsonNode mergeResult = responseBody(postJson("/api/v1/slicings/slide-print-merge-groups", USER_M3_SLICING, """
+            {
+              "taskIds": [%s],
+              "terminalCode": "TS-MERGE-GROUP"
+            }
+            """.formatted(quotedJsonArray(context.taskIdsByBoxNo().values().stream().toList()))), 200);
+        assertThat(mergeResult.path("printGroupIds")).hasSize(4);
+
+        JsonNode workbench = responseBody(mockMvc.perform(authorized(get("/api/v1/slicings/workbench"), USER_M3_SLICING)
+                .param("keyword", context.baseContext().pathologyNo())
+                .param("pendingPage", "1")
+                .param("pendingSize", "20")
+                .param("completedPage", "1")
+                .param("completedSize", "20")), 200);
+        assertThat(workbench.path("pendingPrintTotal").asInt()).isEqualTo(5);
+        assertThat(workbench.path("pendingPrintList"))
+            .extracting(item -> item.path("embeddingBoxNo").asText())
+            .containsExactly("A1+A2", "A3+A4", "B1+B2", "B3+B4", "B5");
+        assertThat(workbench.path("pendingPrintList").get(0).path("mergedPrintGroup").asBoolean()).isTrue();
+        assertThat(workbench.path("pendingPrintList").get(0).path("taskIds")).hasSize(2);
+
+        String firstGroupId = mergeResult.path("printGroupIds").get(0).asText();
+        JsonNode printResult = responseBody(postJson("/api/v1/slicings/slide-print-merge-groups/print", USER_M3_SLICING, """
+            {
+              "printGroupId": "%s",
+              "printerCode": "PRN-MERGE",
+              "terminalCode": "TS-MERGE-GROUP"
+            }
+            """.formatted(firstGroupId)), 200);
+        assertThat(printResult.path("merged").asBoolean()).isTrue();
+        assertThat(printResult.path("printedSlideCount").asInt()).isEqualTo(2);
+
+        String secondGroupId = mergeResult.path("printGroupIds").get(1).asText();
+        responseBody(postJson("/api/v1/slicings/slide-print-merge-groups/cancel", USER_M3_SLICING, """
+            {
+              "printGroupIds": ["%s"],
+              "terminalCode": "TS-MERGE-GROUP"
+            }
+            """.formatted(secondGroupId)), 200);
+
+        JsonNode afterCancel = responseBody(mockMvc.perform(authorized(get("/api/v1/slicings/workbench"), USER_M3_SLICING)
+                .param("keyword", context.baseContext().pathologyNo())
+                .param("pendingPage", "1")
+                .param("pendingSize", "20")
+                .param("completedPage", "1")
+                .param("completedSize", "20")), 200);
+        assertThat(afterCancel.path("pendingPrintList"))
+            .extracting(item -> item.path("embeddingBoxNo").asText())
+            .contains("A3", "A4");
+    }
+
+    @Test
+    void shouldRejectPendingSlideMergeWhenNoSamePrefixPairExists() throws Exception {
+        MergeReadyContext context = prepareSlicingMergeReadyContext(
+            "APP-M3-MERGE-002",
+            "BC-M3-MERGE-002",
+            List.of("A1", "B1"));
+
+        postJson("/api/v1/slicings/slide-print-merge-groups", USER_M3_SLICING, """
+            {
+              "taskIds": [%s],
+              "terminalCode": "TS-MERGE-GROUP"
+            }
+            """.formatted(quotedJsonArray(context.taskIdsByBoxNo().values().stream().toList())))
+            .andExpect(status().isConflict());
+    }
+
     private SlicingReadyContext prepareSlicingReadyContext(String applicationNo, String barcode) throws Exception {
         TechnicalCaseContext context = receiveCaseAndGetGrossingTask(applicationNo, barcode);
 
@@ -246,18 +381,196 @@ class SlicingWorkbenchIntegrationTest extends AbstractTechnicalWorkflowIntegrati
               "samplingBlockId": "%s",
               "blockCount": 1,
               "sliceNotice": "slice-%s",
-              "terminalCode": "TE-%s"
+              "terminalCode": "TE-%s",
+              "remarks": "embedding-%s"
             }
             """.formatted(
                 embeddingTaskId,
                 samplingBlockId,
                 applicationNo,
-                applicationNo.substring(applicationNo.length() - 3))), 200);
+                applicationNo.substring(applicationNo.length() - 3),
+                applicationNo)), 200);
         String embeddingBoxId = embedding.path("embeddingBoxId").asText();
 
         String slicingTaskId = listPendingTasks("SLICING", context.pathologyNo(), USER_M3_SLICING)
             .path("items").get(0).path("id").asText();
         return new SlicingReadyContext(context, embeddingBoxId, slicingTaskId);
+    }
+
+    private MergeReadyContext prepareSlicingMergeReadyContext(
+        String applicationNo,
+        String barcode,
+        List<String> embeddingBoxNos
+    ) throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask(applicationNo, barcode);
+
+        postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
+            {
+              "taskId": "%s",
+              "terminalCode": "TG-%s"
+            }
+            """.formatted(context.grossingTaskId(), applicationNo.substring(applicationNo.length() - 3)))
+            .andExpect(status().isOk());
+
+        postJson("/api/v1/grossings/complete", USER_M3_GROSSING, """
+            {
+              "taskId": "%s",
+              "caseId": "%s",
+              "terminalCode": "TG-%s",
+              "specimens": [
+                {
+                  "specimenId": "%s",
+                  "specimenType": "ROUTINE",
+                  "grossDescription": "gross-%s",
+                  "blocks": [%s]
+                }
+              ]
+            }
+            """.formatted(
+                context.grossingTaskId(),
+                context.caseId(),
+                applicationNo.substring(applicationNo.length() - 3),
+                context.specimenId(),
+                applicationNo,
+                buildGrossingBlocksJson(embeddingBoxNos)))
+            .andExpect(status().isOk());
+
+        JsonNode dehydrationTasks = listPendingTasks("DEHYDRATION", context.pathologyNo(), USER_M3_DEHYDRATION)
+            .path("items");
+        assertThat(dehydrationTasks).hasSize(embeddingBoxNos.size());
+        Map<String, String> boxNoBySamplingBlockId = new LinkedHashMap<>();
+        for (int index = 0; index < dehydrationTasks.size(); index++) {
+            boxNoBySamplingBlockId.put(
+                dehydrationTasks.get(index).path("objectId").asText(),
+                embeddingBoxNos.get(index));
+        }
+
+        JsonNode dehydrationBatch = responseBody(postJson("/api/v1/dehydration-batches", USER_M3_DEHYDRATION, """
+            {
+              "caseId": "%s",
+              "basketNo": "BASKET-%s",
+              "samplingBlockIds": [%s]
+            }
+            """.formatted(
+                context.caseId(),
+                applicationNo,
+                quotedJsonArray(boxNoBySamplingBlockId.keySet().stream().toList()))), 201);
+        String batchId = dehydrationBatch.path("batchId").asText();
+
+        postJson("/api/v1/dehydration-batches/%s/start".formatted(batchId), USER_M3_DEHYDRATION, """
+            {
+              "terminalCode": "TD-%s"
+            }
+            """.formatted(applicationNo.substring(applicationNo.length() - 3)))
+            .andExpect(status().isOk());
+        postJson("/api/v1/dehydration-batches/%s/complete".formatted(batchId), USER_M3_DEHYDRATION, """
+            {
+              "terminalCode": "TD-%s"
+            }
+            """.formatted(applicationNo.substring(applicationNo.length() - 3)))
+            .andExpect(status().isOk());
+
+        JsonNode embeddingTasks = listPendingTasks("EMBEDDING", context.pathologyNo(), USER_M3_EMBEDDING)
+            .path("items");
+        assertThat(embeddingTasks).hasSize(embeddingBoxNos.size());
+        Map<String, String> desiredBoxNoByEmbeddingBoxId = new LinkedHashMap<>();
+        for (int index = 0; index < embeddingTasks.size(); index++) {
+            JsonNode task = embeddingTasks.get(index);
+            String embeddingTaskId = task.path("id").asText();
+            String samplingBlockId = task.path("objectId").asText();
+            postJson("/api/v1/embeddings/start", USER_M3_EMBEDDING, """
+                {
+                  "taskId": "%s",
+                  "terminalCode": "TE-%s"
+                }
+                """.formatted(embeddingTaskId, applicationNo.substring(applicationNo.length() - 3)))
+                .andExpect(status().isOk());
+            JsonNode embedding = responseBody(postJson("/api/v1/embeddings/complete", USER_M3_EMBEDDING, """
+                {
+                  "taskId": "%s",
+                  "samplingBlockId": "%s",
+                  "blockCount": 1,
+                  "sliceNotice": "slice-%s",
+                  "terminalCode": "TE-%s",
+                  "remarks": "embedding-%s"
+                }
+                """.formatted(
+                    embeddingTaskId,
+                    samplingBlockId,
+                    boxNoBySamplingBlockId.get(samplingBlockId),
+                    applicationNo.substring(applicationNo.length() - 3),
+                    applicationNo)), 200);
+            desiredBoxNoByEmbeddingBoxId.put(
+                embedding.path("embeddingBoxId").asText(),
+                boxNoBySamplingBlockId.get(samplingBlockId));
+        }
+
+        int sequence = 0;
+        for (String embeddingBoxId : desiredBoxNoByEmbeddingBoxId.keySet()) {
+            namedParameterJdbcTemplate.update("""
+                update embedding_boxes
+                set embedding_box_no = :embeddingBoxNo,
+                    updated_at = :updatedAt
+                where id = :embeddingBoxId
+                """, new MapSqlParameterSource()
+                .addValue("embeddingBoxId", embeddingBoxId)
+                .addValue("embeddingBoxNo", "TMP-" + applicationNo + "-" + sequence++)
+                .addValue("updatedAt", LocalDateTime.now()));
+        }
+        for (Map.Entry<String, String> entry : desiredBoxNoByEmbeddingBoxId.entrySet()) {
+            namedParameterJdbcTemplate.update("""
+                update embedding_boxes
+                set embedding_box_no = :embeddingBoxNo,
+                    updated_at = :updatedAt
+                where id = :embeddingBoxId
+                """, new MapSqlParameterSource()
+                .addValue("embeddingBoxId", entry.getKey())
+                .addValue("embeddingBoxNo", entry.getValue())
+                .addValue("updatedAt", LocalDateTime.now()));
+        }
+
+        Map<String, String> taskIdsByBoxNo = new LinkedHashMap<>();
+        Map<String, String> embeddingBoxIdsByBoxNo = new LinkedHashMap<>();
+        namedParameterJdbcTemplate.query("""
+            select t.id as task_id,
+                   eb.id as embedding_box_id,
+                   eb.embedding_box_no
+            from technical_pending_tasks t
+            join embedding_boxes eb on eb.id = t.object_id
+            where t.case_id = :caseId
+              and t.task_type = 'SLICING'
+            order by eb.embedding_box_no asc
+            """, new MapSqlParameterSource().addValue("caseId", context.caseId()), rs -> {
+            taskIdsByBoxNo.put(rs.getString("embedding_box_no"), rs.getString("task_id"));
+            embeddingBoxIdsByBoxNo.put(rs.getString("embedding_box_no"), rs.getString("embedding_box_id"));
+        });
+        assertThat(taskIdsByBoxNo).containsOnlyKeys(embeddingBoxNos.toArray(String[]::new));
+        return new MergeReadyContext(context, taskIdsByBoxNo, embeddingBoxIdsByBoxNo);
+    }
+
+    private String buildGrossingBlocksJson(List<String> embeddingBoxNos) {
+        return embeddingBoxNos.stream()
+            .map(boxNo -> """
+                {
+                  "blockSite": "%s",
+                  "blockDescription": "block-%s"
+                }
+                """.formatted(embeddingBoxPrefix(boxNo), boxNo))
+            .collect(Collectors.joining(","));
+    }
+
+    private String embeddingBoxPrefix(String embeddingBoxNo) {
+        int index = 0;
+        while (index < embeddingBoxNo.length() && Character.isLetter(embeddingBoxNo.charAt(index))) {
+            index++;
+        }
+        return index == 0 ? embeddingBoxNo : embeddingBoxNo.substring(0, index);
+    }
+
+    private String quotedJsonArray(List<String> values) {
+        return values.stream()
+            .map(value -> "\"" + value + "\"")
+            .collect(Collectors.joining(","));
     }
 
     private String completeSlicingCase(SlicingReadyContext context) throws Exception {
@@ -305,6 +618,13 @@ class SlicingWorkbenchIntegrationTest extends AbstractTechnicalWorkflowIntegrati
         TechnicalCaseContext baseContext,
         String embeddingBoxId,
         String slicingTaskId
+    ) {
+    }
+
+    private record MergeReadyContext(
+        TechnicalCaseContext baseContext,
+        Map<String, String> taskIdsByBoxNo,
+        Map<String, String> embeddingBoxIdsByBoxNo
     ) {
     }
 }

@@ -13,9 +13,17 @@ public class SpecimenCheckInRequest {
     @Schema(description = "核对操作人登录确认 token；非当前登录人操作时传入")
     private String operatorVerificationToken;
 
+    @Schema(description = "标本 ID；优先于路径条码、请求条码和标本编号")
+    @Size(max = 64)
+    private String specimenId;
+
     @Schema(description = "标本条码")
     @Size(max = 128)
     private String specimenBarcode;
+
+    @Schema(description = "标本编号；仅在唯一命中时使用")
+    @Size(max = 64)
+    private String specimenNo;
 
     @Schema(description = "入库人用户 ID")
     @Size(max = 64)

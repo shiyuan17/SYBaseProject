@@ -243,6 +243,7 @@ class TechnicalWorkflowQueryService {
             row.specimenId(),
             row.specimenName(),
             row.embeddingBoxId(),
+            row.embeddingBoxNo(),
             row.slideId(),
             row.slideNo(),
             row.slicingOperatorName(),
@@ -252,14 +253,20 @@ class TechnicalWorkflowQueryService {
             row.embeddingEvaluation(),
             row.embeddingOperatorName(),
             row.embeddingClearRemark(),
+            row.embeddingRemarks(),
             row.shiftRemark(),
             row.sliceNotice(),
+            row.submittingDepartmentName(),
             row.taskStatus(),
             row.slidePrintStatus(),
             row.printedSlideCount(),
             row.combinedSlide(),
             row.timedOut(),
-            row.selectable());
+            row.selectable(),
+            row.printGroupId(),
+            row.mergedPrintGroup(),
+            row.taskIds(),
+            row.embeddingBoxIds());
     }
 
     private TechnicalWorkflowModels.TechnicalEmbeddingRecord toTechnicalEmbeddingRecord(

@@ -259,7 +259,31 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
             }
             """.formatted(embeddingTaskId))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.taskStatus").value("IN_PROGRESS"));
+            .andExpect(jsonPath("$.data.taskStatus").value("EMBEDDING_CONFIRM_PENDING"));
+
+        postJson("/api/v1/embeddings/cancel", USER_M3_EMBEDDING, """
+            {
+              "taskId": "%s",
+
+              "terminalCode": "TE-01-CANCEL"
+            }
+            """.formatted(embeddingTaskId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.taskStatus").value("PENDING"));
+
+        postJson("/api/v1/embeddings/start", USER_M3_EMBEDDING, """
+            {
+              "taskId": "%s",
+
+              "terminalCode": "TE-01-RETRY"
+            }
+            """.formatted(embeddingTaskId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.taskStatus").value("EMBEDDING_CONFIRM_PENDING"));
+
+        JsonNode slicingTasksBeforeEmbeddingCompletion =
+            listPendingTasks("SLICING", context.pathologyNo(), USER_M3_SLICING);
+        assertThat(slicingTasksBeforeEmbeddingCompletion.path("items")).isEmpty();
 
         JsonNode embedding = responseBody(postJson("/api/v1/embeddings/complete", USER_M3_EMBEDDING, """
             {
@@ -267,6 +291,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
               "samplingBlockId": "%s",
               "blockCount": 1,
               "sliceNotice": "careful",
+              "deviceCode": "FAIL",
               
               "terminalCode": "TE-02"
             }
@@ -285,12 +310,13 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
             """.formatted(slicingTaskId))
             .andExpect(status().isOk());
 
+        printSlides(slicingTaskId, embeddingBoxId);
+
         JsonNode slicing = responseBody(postJson("/api/v1/slicings/complete", USER_M3_SLICING, """
             {
               "taskId": "%s",
               "embeddingBoxId": "%s",
               "slideCount": 1,
-              "deviceCode": "FAIL",
               
               "terminalCode": "TS-02"
             }
@@ -301,7 +327,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
         JsonNode stainingTask = stainingTasks.path("items").get(0);
         String stainingTaskId = stainingTask.path("id").asText();
         assertThat(stainingTask.path("objectId").asText()).isEqualTo(slideId);
-        assertThat(stainingTask.path("objectDisplayNo").asText()).isEqualTo("A1");
+        assertThat(stainingTask.path("objectDisplayNo").asText()).startsWith("BX-");
 
         postJson("/api/v1/slide-stainings/start", USER_M3_STAINING, """
             {
@@ -495,33 +521,28 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
     }
 
     @Test
-    void shouldGenerateScopedEmbeddingBoxNoWhenLegacyGrossingBoxNoAlreadyExists() throws Exception {
-        String legacyEmbeddingBoxNo = "LEGACY-BOX-DUP-001";
+    void shouldAllowSameEmbeddingBoxNoAcrossDifferentPathologyCases() throws Exception {
+        String embeddingBoxNo = "A1";
         TechnicalCaseContext firstContext =
-            completeGrossingWithEmbeddingBoxNo("APP-M3-BOX-LEGACY-001", "BC-M3-BOX-LEGACY-001", legacyEmbeddingBoxNo);
+            completeGrossingWithEmbeddingBoxNo("APP-M3-BOX-LEGACY-001", "BC-M3-BOX-LEGACY-001", embeddingBoxNo);
         String firstSamplingBlockId = completeFirstDehydrationTask(firstContext);
         completeFirstEmbeddingTask(firstContext, firstSamplingBlockId);
 
         TechnicalCaseContext secondContext =
-            completeGrossingWithDefaultEmbeddingBoxNo("APP-M3-BOX-LEGACY-002", "BC-M3-BOX-LEGACY-002");
+            completeGrossingWithEmbeddingBoxNo("APP-M3-BOX-LEGACY-002", "BC-M3-BOX-LEGACY-002", embeddingBoxNo);
         String secondSamplingBlockId = completeFirstDehydrationTask(secondContext);
-        namedParameterJdbcTemplate.update("""
-            update sampling_blocks
-            set embedding_box_no = :embeddingBoxNo
-            where id = :samplingBlockId
-            """, java.util.Map.of(
-            "embeddingBoxNo", legacyEmbeddingBoxNo,
-            "samplingBlockId", secondSamplingBlockId));
         completeFirstEmbeddingTask(secondContext, secondSamplingBlockId);
 
-        java.util.List<String> embeddingBoxNos = namedParameterJdbcTemplate.queryForList("""
-            select embedding_box_no
+        java.util.List<java.util.Map<String, Object>> embeddingBoxRows = namedParameterJdbcTemplate.queryForList("""
+            select case_id, embedding_box_no
             from embedding_boxes
-            where case_id = :caseId
-            """, java.util.Map.of("caseId", secondContext.caseId()), String.class);
-        assertThat(embeddingBoxNos).hasSize(1);
-        assertThat(embeddingBoxNos.get(0)).startsWith("BX-");
-        assertThat(embeddingBoxNos.get(0)).isNotEqualTo(legacyEmbeddingBoxNo);
+            where case_id in (:caseIds)
+            order by case_id
+            """, java.util.Map.of("caseIds", java.util.List.of(firstContext.caseId(), secondContext.caseId())));
+        assertThat(embeddingBoxRows).hasSize(2);
+        assertThat(embeddingBoxRows)
+            .extracting(row -> row.get("embedding_box_no"))
+            .containsExactly(embeddingBoxNo, embeddingBoxNo);
     }
 
     @Test
@@ -710,6 +731,7 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
               "taskId": "%s"}
             """.formatted(slicingTaskId))
             .andExpect(status().isOk());
+        printSlides(slicingTaskId, embeddingBoxId);
         String slideId = responseBody(postJson("/api/v1/slicings/complete", USER_M3_SLICING, """
             {
               "taskId": "%s",
@@ -878,6 +900,18 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
               "blockCount": 1
             }
             """.formatted(embeddingTaskId, samplingBlockId))
+            .andExpect(status().isOk());
+    }
+
+    private void printSlides(String slicingTaskId, String embeddingBoxId) throws Exception {
+        postJson("/api/v1/slicings/slide-print", USER_M3_SLICING, """
+            {
+              "taskId": "%s",
+              "embeddingBoxId": "%s",
+              "sourceSlideCount": 1,
+              "requestedSlideCount": 1
+            }
+            """.formatted(slicingTaskId, embeddingBoxId))
             .andExpect(status().isOk());
     }
 

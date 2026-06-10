@@ -154,7 +154,7 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
 
     @Test
     void shouldExposeQcEvaluationsInTechnicalTracking() throws Exception {
-        TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-QC-001", "BC-M3-QC-001");
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-QC-TRACK-001", "BC-M3-QC-TRACK-001");
 
         postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
             {
@@ -220,6 +220,7 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
               "taskId": "%s"}
             """.formatted(slicingTaskId))
             .andExpect(status().isOk());
+        printSlides(slicingTaskId, embeddingBoxId);
         String slideId = responseBody(postJson("/api/v1/slicings/complete", USER_M3_SLICING, """
             {
               "taskId": "%s",
@@ -271,6 +272,9 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
         TechnicalCaseContext pendingContext = receiveCaseAndGetGrossingTask("APP-M3-EMB-SUM-001", "BC-M3-EMB-SUM-001");
         advanceCaseToPendingEmbedding(pendingContext, "pending summary gross");
 
+        TechnicalCaseContext confirmedContext = receiveCaseAndGetGrossingTask("APP-M3-EMB-SUM-003", "BC-M3-EMB-SUM-003");
+        advanceCaseToEmbeddingConfirmPending(confirmedContext, "confirm pending summary gross");
+
         TechnicalCaseContext completedContext = receiveCaseAndGetGrossingTask("APP-M3-EMB-SUM-002", "BC-M3-EMB-SUM-002");
         EmbeddingFixture completedFixture = advanceCaseToCompletedEmbedding(
             completedContext,
@@ -283,16 +287,17 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
             get("/api/v1/embeddings/workstation-summary"),
             USER_M3_EMBEDDING)), 200);
 
-        assertThat(summary.path("pendingCount").asInt()).isEqualTo(1);
-        assertThat(summary.path("completedCount").asInt()).isEqualTo(1);
-        assertThat(summary.path("pendingTasks")).hasSize(1);
-        assertThat(summary.path("pendingTasks").get(0).path("pathologyNo").asText()).isEqualTo(pendingContext.pathologyNo());
-        assertThat(summary.path("completedRecords")).hasSize(1);
-        assertThat(summary.path("completedRecords").get(0).path("pathologyNo").asText()).isEqualTo(completedContext.pathologyNo());
-        assertThat(summary.path("completedRecords").get(0).path("samplingEvaluation").asText()).isEqualTo("取材评价-汇总");
-        assertThat(summary.path("completedRecords").get(0).path("embeddingRemarks").asText()).isEqualTo("包埋备注-汇总");
-        assertThat(summary.path("completedRecords").get(0).path("grossDescription").asText()).isEqualTo("summary gross description");
-        assertThat(summary.path("completedRecords").get(0).path("embeddingBoxId").asText()).isEqualTo(completedFixture.embeddingBoxId());
+        assertThat(summary.path("pendingCount").asInt()).isGreaterThanOrEqualTo(2);
+        assertThat(summary.path("completedCount").asInt()).isGreaterThanOrEqualTo(1);
+        assertThat(summary.path("pendingTasks").toString()).contains(pendingContext.pathologyNo());
+        assertThat(summary.path("pendingTasks").toString()).contains(confirmedContext.pathologyNo());
+        assertThat(summary.path("pendingTasks").toString()).contains("EMBEDDING_CONFIRM_PENDING");
+        JsonNode completedRecord = findSummaryRecord(summary.path("completedRecords"), completedContext.pathologyNo());
+        assertThat(completedRecord).isNotNull();
+        assertThat(completedRecord.path("samplingEvaluation").asText()).isEqualTo("取材评价-汇总");
+        assertThat(completedRecord.path("embeddingRemarks").asText()).isEqualTo("包埋备注-汇总");
+        assertThat(completedRecord.path("grossDescription").asText()).isEqualTo("summary gross description");
+        assertThat(completedRecord.path("embeddingBoxId").asText()).isEqualTo(completedFixture.embeddingBoxId());
     }
 
     @Test
@@ -367,6 +372,22 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
         advanceCaseToDehydrationCompleted(context, grossDescription);
     }
 
+    private void advanceCaseToEmbeddingConfirmPending(TechnicalCaseContext context, String grossDescription) throws Exception {
+        advanceCaseToDehydrationCompleted(context, grossDescription);
+        String embeddingTaskId = listPendingTasks("EMBEDDING", context.pathologyNo(), USER_M3_EMBEDDING)
+            .path("items").get(0).path("id").asText();
+        postJson("/api/v1/embeddings/start", USER_M3_EMBEDDING, """
+            {
+              "taskId": "%s"
+            }
+            """.formatted(embeddingTaskId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.taskStatus").value("EMBEDDING_CONFIRM_PENDING"));
+
+        JsonNode slicingTasks = listPendingTasks("SLICING", context.pathologyNo(), USER_M3_SLICING);
+        assertThat(slicingTasks.path("items")).isEmpty();
+    }
+
     private EmbeddingFixture advanceCaseToCompletedEmbedding(TechnicalCaseContext context,
                                                              String grossDescription,
                                                              String embeddingRemarks,
@@ -385,7 +406,6 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
             {
               "taskId": "%s",
               "samplingBlockId": "%s",
-              "embeddingBoxNo": "EMB-BOX-001",
               "blockCount": 1,
               "sliceNotice": "%s",
               "evaluationLevel": "GOOD",
@@ -394,6 +414,27 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
             }
             """.formatted(embeddingTaskId, blockId, sliceNotice, samplingEvaluation, embeddingRemarks)), 200);
         return new EmbeddingFixture(blockId, embeddingTaskId, embedding.path("embeddingId").asText(), embedding.path("embeddingBoxId").asText());
+    }
+
+    private JsonNode findSummaryRecord(JsonNode records, String pathologyNo) {
+        for (JsonNode record : records) {
+            if (pathologyNo.equals(record.path("pathologyNo").asText())) {
+                return record;
+            }
+        }
+        return null;
+    }
+
+    private void printSlides(String slicingTaskId, String embeddingBoxId) throws Exception {
+        postJson("/api/v1/slicings/slide-print", USER_M3_SLICING, """
+            {
+              "taskId": "%s",
+              "embeddingBoxId": "%s",
+              "sourceSlideCount": 1,
+              "requestedSlideCount": 1
+            }
+            """.formatted(slicingTaskId, embeddingBoxId))
+            .andExpect(status().isOk());
     }
 
     private String advanceCaseToDehydrationCompleted(TechnicalCaseContext context, String grossDescription) throws Exception {

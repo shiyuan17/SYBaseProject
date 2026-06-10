@@ -46,7 +46,9 @@ public class SpecimenReceiptController {
                 request.getLogisticsStaffName(),
                 request.getTerminalCode(),
                 request.getItems().stream().map(item -> new SpecimenWorkflowModels.ReceiptItem(
+                    item.getSpecimenId(),
                     item.getSpecimenBarcode(),
+                    item.getSpecimenNo(),
                     ReceiptStatus.from(item.getReceiptStatus()),
                     item.getContainerCount(),
                     item.getQualityCheckResult(),
@@ -75,7 +77,9 @@ public class SpecimenReceiptController {
                 request.getReceivedByName(),
                 request.getTerminalCode(),
                 request.getItems().stream().map(item -> new SpecimenWorkflowModels.ReceiptItem(
+                    item.getSpecimenId(),
                     item.getSpecimenBarcode(),
+                    item.getSpecimenNo(),
                     ReceiptStatus.from(item.getReceiptStatus()),
                     item.getContainerCount(),
                     item.getQualityCheckResult(),

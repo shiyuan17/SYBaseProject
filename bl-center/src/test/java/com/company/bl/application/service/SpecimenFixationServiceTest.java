@@ -14,7 +14,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static com.company.bl.application.service.SpecimenWorkflowModels.FixationCommand;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,9 +40,49 @@ class SpecimenFixationServiceTest {
         SpecimenFixationService service = new SpecimenFixationService(commandRepository, support);
 
         assertThatThrownBy(() -> service.startFixation(
-            new FixationCommand("BC-1", "FORMALIN", "u1", "Operator", "TERM-1", "remark")))
+            new FixationCommand(null, "BC-1", null, "FORMALIN", "u1", "Operator", "TERM-1", "remark")))
             .isInstanceOf(BlBusinessException.class)
             .hasMessageContaining("must be verified before fixation");
+    }
+
+    @Test
+    void fixationShouldStartBySpecimenIdWhenBarcodeIsMissing() {
+        SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
+        when(queryRepository.findSpecimenById("SP-1"))
+            .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.specimen(
+                "APP-1",
+                "SP-1",
+                null,
+                SpecimenStatus.VERIFIED,
+                FixationStatus.PENDING,
+                "VERIFIED",
+                null,
+                null,
+                null)));
+        SpecimenFixationService service = new SpecimenFixationService(commandRepository, support);
+
+        service.startFixation(
+            new FixationCommand("SP-1", null, null, "FORMALIN", "u1", "Operator", "TERM-1", "remark"));
+
+        verify(commandRepository).upsertFixationRecord(
+            eq("APP-1"),
+            eq("SP-1"),
+            eq(FixationStatus.FIXING),
+            eq("FORMALIN"),
+            any(),
+            eq(null),
+            eq(null),
+            eq(null),
+            eq(null),
+            eq("TERM-1"),
+            eq("remark"));
+        verify(commandRepository).updateSpecimenStatus(
+            eq("SP-1"),
+            eq(SpecimenStatus.FIXING),
+            eq(FixationStatus.FIXING),
+            eq(null),
+            eq("remark"),
+            eq(null));
     }
 
     @Test
@@ -59,8 +102,48 @@ class SpecimenFixationServiceTest {
         SpecimenFixationService service = new SpecimenFixationService(commandRepository, support);
 
         assertThatThrownBy(() -> service.completeFixation(
-            new FixationCommand("BC-1", "FORMALIN", "u1", "Operator", "TERM-1", "remark")))
+            new FixationCommand(null, "BC-1", null, "FORMALIN", "u1", "Operator", "TERM-1", "remark")))
             .isInstanceOf(BlBusinessException.class)
             .hasMessageContaining("already completed");
+    }
+
+    @Test
+    void fixationShouldCompleteBySpecimenIdWhenBarcodeIsMissing() {
+        SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
+        when(queryRepository.findSpecimenById("SP-1"))
+            .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.specimen(
+                "APP-1",
+                "SP-1",
+                null,
+                SpecimenStatus.FIXING,
+                FixationStatus.FIXING,
+                "VERIFIED",
+                null,
+                null,
+                null)));
+        SpecimenFixationService service = new SpecimenFixationService(commandRepository, support);
+
+        service.completeFixation(
+            new FixationCommand("SP-1", null, null, "FORMALIN", "u1", "Operator", "TERM-1", "remark"));
+
+        verify(commandRepository).upsertFixationRecord(
+            eq("APP-1"),
+            eq("SP-1"),
+            eq(FixationStatus.COMPLETED),
+            eq("FORMALIN"),
+            eq(null),
+            any(),
+            eq("u1"),
+            eq("Operator"),
+            any(),
+            eq("TERM-1"),
+            eq("remark"));
+        verify(commandRepository).updateSpecimenStatus(
+            eq("SP-1"),
+            eq(SpecimenStatus.FIXED),
+            eq(FixationStatus.COMPLETED),
+            eq(null),
+            eq("remark"),
+            eq(null));
     }
 }

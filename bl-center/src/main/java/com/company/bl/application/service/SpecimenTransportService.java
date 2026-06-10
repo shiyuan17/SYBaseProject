@@ -50,9 +50,7 @@ class SpecimenTransportService {
         durationMetric = "transport_order_create_duration")
     TransportOrder createTransportOrder(CreateTransportOrderCommand command) {
         Application application = specimenWorkflowSupport.getApplication(command.applicationId());
-        List<Specimen> specimens = command.specimenBarcodes().stream()
-            .map(specimenWorkflowSupport::getSpecimen)
-            .toList();
+        List<Specimen> specimens = resolveTransportOrderSpecimens(command);
         specimens.forEach(specimen -> {
             requireTransportReadySpecimen(specimen, command.applicationId());
             requireNoActiveTransportOrder(specimen);
@@ -277,7 +275,8 @@ class SpecimenTransportService {
         TransportOrder createdOrder = createTransportOrder(
             new CreateTransportOrderCommand(
                 application.getId().value(),
-                List.of(specimen.barcode()),
+                List.of(specimen.id()),
+                List.of(),
                 null,
                 resolveHandoverUserName(specimen, command.outboundUserName()),
                 application.getSubmittingDepartmentId(),
@@ -293,6 +292,34 @@ class SpecimenTransportService {
                 command.outboundUserName(),
                 command.terminalCode(),
                 command.remarks()));
+    }
+
+    private List<Specimen> resolveTransportOrderSpecimens(CreateTransportOrderCommand command) {
+        List<String> specimenIds = normalizeIdentifiers(command.specimenIds());
+        if (!specimenIds.isEmpty()) {
+            return specimenIds.stream()
+                .map(specimenWorkflowSupport::getSpecimenById)
+                .toList();
+        }
+
+        List<String> specimenBarcodes = normalizeIdentifiers(command.specimenBarcodes());
+        if (!specimenBarcodes.isEmpty()) {
+            return specimenBarcodes.stream()
+                .map(specimenWorkflowSupport::getSpecimen)
+                .toList();
+        }
+
+        throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Transport specimens are required");
+    }
+
+    private List<String> normalizeIdentifiers(List<String> values) {
+        if (values == null) {
+            return List.of();
+        }
+        return values.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .map(String::trim)
+            .toList();
     }
 
     private void requireTransportReadySpecimen(Specimen specimen, String applicationId) {

@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 
 import java.util.List;
 
@@ -70,6 +71,8 @@ public record SlicingWorkbenchResponse(
         String specimenName,
         @Schema(description = "包埋盒 ID")
         String embeddingBoxId,
+        @Schema(description = "包埋盒号")
+        String embeddingBoxNo,
         @Schema(description = "玻片 ID")
         String slideId,
         @Schema(description = "玻片号")
@@ -88,10 +91,14 @@ public record SlicingWorkbenchResponse(
         String embeddingOperatorName,
         @Schema(description = "包埋清零备注")
         String embeddingClearRemark,
+        @Schema(description = "包埋备注")
+        String embeddingRemarks,
         @Schema(description = "主班备注")
         String shiftRemark,
         @Schema(description = "切片提示")
         String sliceNotice,
+        @Schema(description = "申请科室")
+        String submittingDepartmentName,
         @Schema(description = "任务状态")
         String taskStatus,
         @Schema(description = "玻片打印状态")
@@ -103,7 +110,15 @@ public record SlicingWorkbenchResponse(
         @Schema(description = "是否超时")
         boolean timedOut,
         @Schema(description = "是否可选")
-        boolean selectable
+        boolean selectable,
+        @Schema(description = "未打印合片组 ID")
+        String printGroupId,
+        @Schema(description = "是否为未打印合片组行")
+        boolean mergedPrintGroup,
+        @Schema(description = "合片组内技术任务 ID 列表")
+        List<String> taskIds,
+        @Schema(description = "合片组内包埋盒 ID 列表")
+        List<String> embeddingBoxIds
     ) {
     }
 }

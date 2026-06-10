@@ -75,7 +75,7 @@ class SpecimenReceiptAndRemovalService {
             throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Receipt items are required");
         }
         List<Specimen> specimens = command.items().stream()
-            .map(item -> specimenWorkflowSupport.getSpecimen(item.specimenBarcode()))
+            .map(this::resolveReceiptSpecimen)
             .toList();
         String applicationId = specimens.get(0).applicationId();
         boolean hasMultipleApplications = specimens.stream().anyMatch(specimen -> !applicationId.equals(specimen.applicationId()));
@@ -102,6 +102,10 @@ class SpecimenReceiptAndRemovalService {
         durationMetric = "specimen_removal_confirm_duration")
     SpecimenRemovalResult confirmSpecimenRemoval(SpecimenRemovalCommand command) {
         Specimen specimen = specimenWorkflowSupport.getSpecimen(command.specimenBarcode());
+        return confirmResolvedSpecimenRemoval(specimen, command);
+    }
+
+    private SpecimenRemovalResult confirmResolvedSpecimenRemoval(Specimen specimen, SpecimenRemovalCommand command) {
         if (specimen.specimenRemovalAt() != null) {
             throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Specimen already confirmed for removal");
         }
@@ -148,7 +152,7 @@ class SpecimenReceiptAndRemovalService {
         durationMetric = "specimen_removal_quick_confirm_duration")
     SpecimenRemovalResult quickConfirmSpecimenRemoval(SpecimenRemovalQuickConfirmCommand command) {
         Specimen specimen = specimenWorkflowSupport.resolveSpecimenForRemoval(command.identifierType(), command.identifier());
-        return confirmSpecimenRemoval(new SpecimenRemovalCommand(
+        return confirmResolvedSpecimenRemoval(specimen, new SpecimenRemovalCommand(
             specimen.barcode(),
             command.operatorUserId(),
             command.operatorName(),
@@ -171,7 +175,7 @@ class SpecimenReceiptAndRemovalService {
         int receivedCount = 0;
         int processedCount = 0;
         for (ReceiptItem item : items) {
-            Specimen specimen = specimenWorkflowSupport.getSpecimen(item.specimenBarcode());
+            Specimen specimen = resolveReceiptSpecimen(item);
             validateReceiptSpecimen(application, order, transportOrderItems, specimen, item, directReceive);
             if (pathologyCase == null && item.receiptStatus() == ReceiptStatus.RECEIVED) {
                 pathologyCase = specimenWorkflowRepository.insertPathologyCase(new PathologyCase(
@@ -286,6 +290,13 @@ class SpecimenReceiptAndRemovalService {
             pathologyCase == null ? null : pathologyCase.pathologyNo(),
             applicationStatus,
             (int) unreceivedCount);
+    }
+
+    private Specimen resolveReceiptSpecimen(ReceiptItem item) {
+        return specimenWorkflowSupport.resolveSpecimenByPreferredIdentifier(
+            item.specimenId(),
+            item.specimenBarcode(),
+            item.specimenNo());
     }
 
     private void validateReceiptSpecimen(Application application,

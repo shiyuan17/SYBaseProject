@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -78,8 +79,8 @@ class SpecimenReceiptAndRemovalServiceTest {
             "Receiver",
             "TERM-1",
             List.of(
-                new ReceiptItem("BC-1", ReceiptStatus.RECEIVED, 1, "PASSED", List.of(), null, "ok"),
-                new ReceiptItem("BC-2", ReceiptStatus.RECEIVED, 1, "PASSED", List.of(), null, "ok")));
+                new ReceiptItem(null, "BC-1", null, ReceiptStatus.RECEIVED, 1, "PASSED", List.of(), null, "ok"),
+                new ReceiptItem(null, "BC-2", null, ReceiptStatus.RECEIVED, 1, "PASSED", List.of(), null, "ok")));
 
         assertThatThrownBy(() -> service.receiveSpecimensByBarcodes(command))
             .isInstanceOf(BlBusinessException.class)
@@ -99,7 +100,7 @@ class SpecimenReceiptAndRemovalServiceTest {
             "Receiver",
             "Logistics",
             "TERM-1",
-            List.of(new ReceiptItem("BC-1", ReceiptStatus.RECEIVED, 1, "PASSED", List.of(), null, "ok")));
+            List.of(new ReceiptItem(null, "BC-1", null, ReceiptStatus.RECEIVED, 1, "PASSED", List.of(), null, "ok")));
 
         assertThatThrownBy(() -> service.receiveSpecimens(command))
             .isInstanceOf(BlBusinessException.class)
@@ -145,12 +146,75 @@ class SpecimenReceiptAndRemovalServiceTest {
             "receiver-1",
             "Receiver",
             "TERM-1",
-            List.of(new ReceiptItem("BC-1", ReceiptStatus.RECEIVED, 1, "PASSED", List.of(), null, "ok"))));
+            List.of(new ReceiptItem(null, "BC-1", null, ReceiptStatus.RECEIVED, 1, "PASSED", List.of(), null, "ok"))));
 
         assertThat(result.caseId()).isNotBlank();
         assertThat(result.pathologyNo()).isNull();
         verify(commandRepository).insertPathologyCase(any());
         verify(numberingService, never()).generatePathologyNo();
+    }
+
+    @Test
+    void directReceiptShouldResolveUnboundSpecimenBySpecimenId() {
+        SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
+        Specimen receivedSpecimen = SpecimenWorkflowServiceTestFixtures.specimen(
+            "APP-1",
+            "SP-1",
+            null,
+            SpecimenStatus.RECEIVED,
+            FixationStatus.COMPLETED,
+            "VERIFIED",
+            LocalDateTime.now(),
+            "CHECKED_IN",
+            null);
+        when(queryRepository.findSpecimenById("SP-1"))
+            .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.specimen(
+                "APP-1",
+                "SP-1",
+                null,
+                SpecimenStatus.FIXED,
+                FixationStatus.COMPLETED,
+                "VERIFIED",
+                LocalDateTime.now(),
+                "CHECKED_IN",
+                null)));
+        when(queryRepository.findPathologyCaseByApplicationId("APP-1")).thenReturn(Optional.empty());
+        when(queryRepository.findSpecimensByApplicationId("APP-1")).thenReturn(List.of(receivedSpecimen));
+        when(applicationRepository.findById(any()))
+            .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.application(
+                "APP-1",
+                com.company.bl.domain.enums.ApplicationStatus.SUBMITTED)));
+        when(commandRepository.insertPathologyCase(any()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        SpecimenReceiptAndRemovalService service = new SpecimenReceiptAndRemovalService(commandRepository, support, numberingService);
+
+        var result = service.receiveSpecimensByBarcodes(new DirectReceiveSpecimensCommand(
+            "receiver-1",
+            "Receiver",
+            "TERM-1",
+            List.of(new ReceiptItem("SP-1", null, null, ReceiptStatus.RECEIVED, 1, "PASSED", List.of(), null, "ok"))));
+
+        assertThat(result.caseId()).isNotBlank();
+        verify(queryRepository, never()).findSpecimenByBarcode(any());
+        verify(commandRepository).insertSpecimenReceipt(
+            eq("APP-1"),
+            any(),
+            eq("SP-1"),
+            isNull(),
+            eq(ReceiptStatus.RECEIVED),
+            eq(1),
+            eq("PASSED"),
+            isNull(),
+            isNull(),
+            eq("receiver-1"),
+            eq("Receiver"),
+            isNull(),
+            any(LocalDateTime.class),
+            eq("TERM-1"),
+            isNull(),
+            isNull(),
+            eq("ok"));
     }
 
     @Test
@@ -167,13 +231,45 @@ class SpecimenReceiptAndRemovalServiceTest {
             "CHECKED_IN",
             null);
         when(queryRepository.findSpecimensBySpecimenNo("SP-NO-1")).thenReturn(List.of(specimen));
-        when(queryRepository.findSpecimenByBarcode("BC-1")).thenReturn(Optional.of(specimen));
         SpecimenReceiptAndRemovalService service = new SpecimenReceiptAndRemovalService(commandRepository, support, numberingService);
 
         var result = service.quickConfirmSpecimenRemoval(
             new SpecimenRemovalQuickConfirmCommand("SPECIMEN_NO", "SP-NO-1", "u1", "Operator", "TERM-1", "remark"));
 
         assertThat(result.specimenId()).isEqualTo("SP-1");
+        verify(commandRepository).confirmSpecimenRemoval(eq("SP-1"), any(LocalDateTime.class), eq("u1"), eq("Operator"));
+        verify(commandRepository).completeSpecimenVerificationFromRemoval(
+            eq("APP-1"),
+            eq("SP-1"),
+            any(LocalDateTime.class),
+            eq("u1"),
+            eq("Operator"),
+            eq("TERM-1"),
+            eq("remark"));
+    }
+
+    @Test
+    void quickRemovalConfirmationShouldSupportSpecimenNumberBeforeBarcodeBinding() {
+        SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
+        Specimen specimen = SpecimenWorkflowServiceTestFixtures.specimen(
+            "APP-1",
+            "SP-1",
+            null,
+            SpecimenStatus.RECEIVED,
+            FixationStatus.COMPLETED,
+            "VERIFIED",
+            LocalDateTime.now(),
+            "CHECKED_IN",
+            null);
+        when(queryRepository.findSpecimensBySpecimenNo("SP-NO-1")).thenReturn(List.of(specimen));
+        SpecimenReceiptAndRemovalService service = new SpecimenReceiptAndRemovalService(commandRepository, support, numberingService);
+
+        var result = service.quickConfirmSpecimenRemoval(
+            new SpecimenRemovalQuickConfirmCommand("SPECIMEN_NO", "SP-NO-1", "u1", "Operator", "TERM-1", "remark"));
+
+        assertThat(result.specimenId()).isEqualTo("SP-1");
+        assertThat(result.barcode()).isNull();
+        verify(queryRepository, never()).findSpecimenByBarcode(any());
         verify(commandRepository).confirmSpecimenRemoval(eq("SP-1"), any(LocalDateTime.class), eq("u1"), eq("Operator"));
         verify(commandRepository).completeSpecimenVerificationFromRemoval(
             eq("APP-1"),

@@ -65,7 +65,9 @@ public final class SpecimenWorkflowModels {
     }
 
     public record FixationCommand(
+        String specimenId,
         String specimenBarcode,
+        String specimenNo,
         String fixationLiquidType,
         String operatorUserId,
         String operatorName,
@@ -95,7 +97,9 @@ public final class SpecimenWorkflowModels {
     }
 
     public record ConfirmSpecimenCommand(
+        String specimenId,
         String specimenBarcode,
+        String specimenNo,
         String operatorUserId,
         String operatorName,
         String terminalCode,
@@ -104,7 +108,9 @@ public final class SpecimenWorkflowModels {
     }
 
     public record CheckInSpecimenCommand(
+        String specimenId,
         String specimenBarcode,
+        String specimenNo,
         String operatorUserId,
         String operatorName,
         String terminalCode,
@@ -187,7 +193,9 @@ public final class SpecimenWorkflowModels {
     }
 
     public record ReceiptItem(
+        String specimenId,
         String specimenBarcode,
+        String specimenNo,
         ReceiptStatus receiptStatus,
         Integer containerCount,
         String qualityCheckResult,

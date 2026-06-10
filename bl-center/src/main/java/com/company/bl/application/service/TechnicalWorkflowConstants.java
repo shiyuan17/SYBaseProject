@@ -4,6 +4,7 @@ final class TechnicalWorkflowConstants {
 
     static final String TASK_PENDING = "PENDING";
     static final String TASK_IN_PROGRESS = "IN_PROGRESS";
+    static final String TASK_EMBEDDING_CONFIRM_PENDING = "EMBEDDING_CONFIRM_PENDING";
     static final String TASK_COMPLETED = "COMPLETED";
     static final String TASK_RETURNED = "RETURNED";
     static final String OBJECT_CASE = "CASE";

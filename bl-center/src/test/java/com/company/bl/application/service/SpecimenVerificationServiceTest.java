@@ -17,6 +17,7 @@ import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static com.company.bl.application.service.SpecimenWorkflowModels.CheckInSpecimenCommand;
+import static com.company.bl.application.service.SpecimenWorkflowModels.ConfirmSpecimenCommand;
 import static com.company.bl.application.service.SpecimenWorkflowModels.SpecimenVerificationCommand;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
@@ -74,9 +75,82 @@ class SpecimenVerificationServiceTest {
         SpecimenVerificationService service = new SpecimenVerificationService(commandRepository, support);
 
         assertThatThrownBy(() -> service.checkInSpecimen(
-            new CheckInSpecimenCommand("BC-1", "u1", "Operator", "TERM-1", "remark")))
+            new CheckInSpecimenCommand(null, "BC-1", null, "u1", "Operator", "TERM-1", "remark")))
             .isInstanceOf(BlBusinessException.class)
             .hasMessageContaining("must be confirmed before check-in");
+    }
+
+    @Test
+    void confirmShouldAllowSpecimenIdWhenBarcodeIsMissing() {
+        Specimen fixedSpecimen = SpecimenWorkflowServiceTestFixtures.specimen(
+            "APP-1",
+            "SP-1",
+            null,
+            SpecimenStatus.FIXED,
+            FixationStatus.COMPLETED,
+            "VERIFIED",
+            null,
+            null,
+            null);
+        Specimen confirmedSpecimen = SpecimenWorkflowServiceTestFixtures.specimen(
+            "APP-1",
+            "SP-1",
+            null,
+            SpecimenStatus.FIXED,
+            FixationStatus.COMPLETED,
+            "VERIFIED",
+            LocalDateTime.now(),
+            null,
+            null);
+        SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
+        when(queryRepository.findSpecimenById("SP-1"))
+            .thenReturn(Optional.of(fixedSpecimen), Optional.of(confirmedSpecimen));
+        SpecimenVerificationService service = new SpecimenVerificationService(commandRepository, support);
+
+        service.confirmSpecimen(
+            new ConfirmSpecimenCommand("SP-1", null, null, "u1", "Operator", "TERM-1", "remark"));
+
+        verify(commandRepository).confirmSpecimen(eq("SP-1"), any(LocalDateTime.class));
+        verify(commandRepository).insertWorkflowEvent(any());
+    }
+
+    @Test
+    void checkInShouldAllowSpecimenIdWhenBarcodeIsMissing() {
+        Specimen checkedInReadySpecimen = SpecimenWorkflowServiceTestFixtures.specimen(
+            "APP-1",
+            "SP-1",
+            null,
+            SpecimenStatus.FIXED,
+            FixationStatus.COMPLETED,
+            "VERIFIED",
+            LocalDateTime.now(),
+            null,
+            null);
+        Specimen checkedInSpecimen = SpecimenWorkflowServiceTestFixtures.specimen(
+            "APP-1",
+            "SP-1",
+            null,
+            SpecimenStatus.CHECKED_IN,
+            FixationStatus.COMPLETED,
+            "VERIFIED",
+            LocalDateTime.now(),
+            "CHECKED_IN",
+            null);
+        SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
+        when(queryRepository.findSpecimenById("SP-1"))
+            .thenReturn(Optional.of(checkedInReadySpecimen), Optional.of(checkedInSpecimen));
+        SpecimenVerificationService service = new SpecimenVerificationService(commandRepository, support);
+
+        service.checkInSpecimen(
+            new CheckInSpecimenCommand("SP-1", null, null, "u1", "Operator", "TERM-1", "remark"));
+
+        verify(commandRepository).checkInSpecimen(
+            eq("SP-1"),
+            eq("CHECKED_IN"),
+            any(LocalDateTime.class),
+            eq("u1"),
+            eq("Operator"));
+        verify(commandRepository).insertWorkflowEvent(any());
     }
 
     @Test
@@ -103,10 +177,11 @@ class SpecimenVerificationServiceTest {
             null);
         SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
         when(queryRepository.findSpecimenByBarcode("BC-1")).thenReturn(Optional.of(readySpecimen));
+        when(queryRepository.findSpecimenById("SP-1")).thenReturn(Optional.of(readySpecimen));
         SpecimenVerificationService service = new SpecimenVerificationService(commandRepository, support);
 
         service.checkInSpecimen(
-            new CheckInSpecimenCommand("BC-1", "u1", "Operator", "TERM-1", "remark"));
+            new CheckInSpecimenCommand(null, "BC-1", null, "u1", "Operator", "TERM-1", "remark"));
 
         verify(commandRepository).checkInSpecimen(
             eq("SP-1"),
@@ -141,10 +216,11 @@ class SpecimenVerificationServiceTest {
             null);
         SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
         when(queryRepository.findSpecimenByBarcode("BC-1")).thenReturn(Optional.of(readySpecimen));
+        when(queryRepository.findSpecimenById("SP-1")).thenReturn(Optional.of(readySpecimen));
         SpecimenVerificationService service = new SpecimenVerificationService(commandRepository, support);
 
         service.checkInSpecimen(
-            new CheckInSpecimenCommand("BC-1", "u1", "Operator", "TERM-1", "remark"));
+            new CheckInSpecimenCommand(null, "BC-1", null, "u1", "Operator", "TERM-1", "remark"));
 
         verify(commandRepository).checkInSpecimen(
             eq("SP-1"),
@@ -172,7 +248,7 @@ class SpecimenVerificationServiceTest {
         SpecimenVerificationService service = new SpecimenVerificationService(commandRepository, support);
 
         assertThatThrownBy(() -> service.checkInSpecimen(
-            new CheckInSpecimenCommand("BC-1", "u1", "Operator", "TERM-1", "remark")))
+            new CheckInSpecimenCommand(null, "BC-1", null, "u1", "Operator", "TERM-1", "remark")))
             .isInstanceOf(BlBusinessException.class)
             .hasMessageContaining("must complete verification before check-in");
     }
@@ -194,7 +270,7 @@ class SpecimenVerificationServiceTest {
         SpecimenVerificationService service = new SpecimenVerificationService(commandRepository, support);
 
         assertThatThrownBy(() -> service.checkInSpecimen(
-            new CheckInSpecimenCommand("BC-1", "u1", "Operator", "TERM-1", "remark")))
+            new CheckInSpecimenCommand(null, "BC-1", null, "u1", "Operator", "TERM-1", "remark")))
             .isInstanceOf(BlBusinessException.class)
             .hasMessageContaining("must complete fixation before check-in");
     }

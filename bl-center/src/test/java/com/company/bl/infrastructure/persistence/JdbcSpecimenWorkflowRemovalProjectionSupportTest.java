@@ -47,7 +47,7 @@ class JdbcSpecimenWorkflowRemovalProjectionSupportTest {
             any(MapSqlParameterSource.class),
             org.mockito.ArgumentMatchers.<RowMapper<SpecimenWorkflowRepository.SpecimenOutboundRow>>any());
 
-        support.findSpecimenOutbounds(new SpecimenWorkflowRepository.SpecimenOutboundListQuery(1, 20, null, null));
+        support.findSpecimenOutbounds(new SpecimenWorkflowRepository.SpecimenOutboundListQuery(1, 20, null, null, null));
 
         assertThat(countSql[0]).contains("and\ncoalesce(s.check_in_status, 'NOT_CHECKED_IN')");
         assertThat(countSql[0]).doesNotContain("andcoalesce");
@@ -81,9 +81,41 @@ class JdbcSpecimenWorkflowRemovalProjectionSupportTest {
             any(MapSqlParameterSource.class),
             org.mockito.ArgumentMatchers.<RowMapper<SpecimenWorkflowRepository.SpecimenOutboundRow>>any());
 
-        support.findSpecimenOutbounds(new SpecimenWorkflowRepository.SpecimenOutboundListQuery(1, 20, "APP-1", null));
+        support.findSpecimenOutbounds(new SpecimenWorkflowRepository.SpecimenOutboundListQuery(1, 20, "APP-1", null, null));
 
         assertThat(countSql[0]).contains("and a.id = :applicationId");
+        assertThat(countSql[0]).doesNotContain("latest_order.transport_order_id is not null");
+    }
+
+    @Test
+    void shouldTreatIdentifierAsExplicitSpecimenOutboundLookup() {
+        NamedParameterJdbcTemplate jdbcTemplate = mock(NamedParameterJdbcTemplate.class);
+        JdbcSpecimenWorkflowRemovalProjectionSupport support =
+            new JdbcSpecimenWorkflowRemovalProjectionSupport(jdbcTemplate) {
+                @Override
+                protected boolean hasSpecimenConfirmationColumns() {
+                    return true;
+                }
+
+                @Override
+                protected boolean hasTransportOrderOutboundColumns() {
+                    return true;
+                }
+            };
+        String[] countSql = new String[1];
+
+        doAnswer(invocation -> {
+            countSql[0] = invocation.getArgument(0);
+            return 0L;
+        }).when(jdbcTemplate).queryForObject(anyString(), any(MapSqlParameterSource.class), eq(Long.class));
+        doAnswer(invocation -> List.of()).when(jdbcTemplate).query(
+            anyString(),
+            any(MapSqlParameterSource.class),
+            org.mockito.ArgumentMatchers.<RowMapper<SpecimenWorkflowRepository.SpecimenOutboundRow>>any());
+
+        support.findSpecimenOutbounds(new SpecimenWorkflowRepository.SpecimenOutboundListQuery(1, 20, null, "BC-1", null));
+
+        assertThat(countSql[0]).contains("s.specimen_no = :identifier or s.barcode = :identifier");
         assertThat(countSql[0]).doesNotContain("latest_order.transport_order_id is not null");
     }
 }

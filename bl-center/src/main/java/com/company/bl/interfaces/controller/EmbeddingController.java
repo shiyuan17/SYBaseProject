@@ -113,6 +113,21 @@ public class EmbeddingController extends TechnicalControllerSupport {
             result.markingSuccess(), result.markingMessage());
     }
 
+    @Operation(summary = "取消包埋确认", description = "将包埋确认待完成任务打回待包埋状态。")
+    @RequirePermission(M3PermissionCodes.EMBEDDING)
+    @PostMapping("/cancel")
+    public TaskOperationResponse cancel(@Valid @RequestBody TechnicalTaskStartRequest request,
+                                        HttpServletRequest httpServletRequest) {
+        TechnicalWorkflowModels.TaskStartResult result = technicalWorkflowAppService.cancelEmbedding(
+            new TechnicalWorkflowModels.TaskStartCommand(
+                request.getTaskId(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode(),
+                request.getRemarks()));
+        return new TaskOperationResponse(result.taskId(), result.caseId(), result.caseStatus(), result.taskStatus());
+    }
+
     @Operation(summary = "调整包埋质量评价", description = "调整已包埋记录的切片备注、取材评价，并可同步触发重新取材。")
     @RequirePermission(M3PermissionCodes.EMBEDDING)
     @PatchMapping("/{embeddingId}/quality-review")

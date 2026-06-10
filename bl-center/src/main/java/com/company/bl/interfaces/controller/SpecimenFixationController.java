@@ -94,7 +94,9 @@ public class SpecimenFixationController {
     private SpecimenWorkflowModels.FixationCommand toCommand(SpecimenFixationRequest request,
                                                                  HttpServletRequest httpServletRequest) {
         return new SpecimenWorkflowModels.FixationCommand(
+            request.getSpecimenId(),
             request.getSpecimenBarcode(),
+            request.getSpecimenNo(),
             request.getFixationLiquidType(),
             resolveUserId(null, httpServletRequest),
             resolveOperatorName(null, httpServletRequest),

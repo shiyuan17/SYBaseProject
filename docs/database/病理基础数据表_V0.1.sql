@@ -379,7 +379,7 @@ CREATE TABLE embedding_boxes (
     storage_status VARCHAR2(32),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_embedding_boxes PRIMARY KEY (id),
-    CONSTRAINT uk_embedding_boxes_box_no UNIQUE (embedding_box_no),
+    CONSTRAINT uk_embedding_boxes_case_box_no UNIQUE (case_id, embedding_box_no),
     CONSTRAINT fk_embedding_boxes_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id),
     CONSTRAINT fk_embedding_boxes_specimen FOREIGN KEY (specimen_id) REFERENCES specimens (id),
     CONSTRAINT fk_embedding_boxes_embedding FOREIGN KEY (embedding_id) REFERENCES embeddings (id)
@@ -390,7 +390,7 @@ COMMENT ON COLUMN embedding_boxes.id IS '主键ID';
 COMMENT ON COLUMN embedding_boxes.case_id IS '病例ID';
 COMMENT ON COLUMN embedding_boxes.specimen_id IS '标本ID';
 COMMENT ON COLUMN embedding_boxes.embedding_id IS '包埋记录ID';
-COMMENT ON COLUMN embedding_boxes.embedding_box_no IS '包埋盒号，全局唯一';
+COMMENT ON COLUMN embedding_boxes.embedding_box_no IS '包埋盒号，病例内唯一';
 COMMENT ON COLUMN embedding_boxes.block_count IS '盒内材块数量';
 COMMENT ON COLUMN embedding_boxes.storage_status IS '存储状态，示例：ACTIVE/STORED/DISCARDED';
 COMMENT ON COLUMN embedding_boxes.created_at IS '创建时间';

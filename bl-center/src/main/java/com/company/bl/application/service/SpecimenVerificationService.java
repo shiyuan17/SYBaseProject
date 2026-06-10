@@ -110,7 +110,10 @@ class SpecimenVerificationService {
         failureCounter = "specimen_confirm_failed_total",
         durationMetric = "specimen_confirm_duration")
     Specimen confirmSpecimen(ConfirmSpecimenCommand command) {
-        Specimen specimen = specimenWorkflowSupport.getSpecimen(command.specimenBarcode());
+        Specimen specimen = specimenWorkflowSupport.resolveSpecimenByPreferredIdentifier(
+            command.specimenId(),
+            command.specimenBarcode(),
+            command.specimenNo());
         if (specimenWorkflowSupport.isReceiptTerminalStatus(specimen.specimenStatus())) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen already reached receipt terminal status");
         }
@@ -136,7 +139,7 @@ class SpecimenVerificationService {
             command.operatorName(),
             command.terminalCode(),
             "Specimen confirmation completed"));
-        return specimenWorkflowSupport.getSpecimen(command.specimenBarcode());
+        return specimenWorkflowSupport.getSpecimenById(specimen.id());
     }
 
     @Transactional
@@ -146,7 +149,10 @@ class SpecimenVerificationService {
         failureCounter = "specimen_check_in_failed_total",
         durationMetric = "specimen_check_in_duration")
     Specimen checkInSpecimen(CheckInSpecimenCommand command) {
-        Specimen specimen = specimenWorkflowSupport.getSpecimen(command.specimenBarcode());
+        Specimen specimen = specimenWorkflowSupport.resolveSpecimenByPreferredIdentifier(
+            command.specimenId(),
+            command.specimenBarcode(),
+            command.specimenNo());
         if (specimenWorkflowSupport.isReceiptTerminalStatus(specimen.specimenStatus())) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen already reached receipt terminal status");
         }
@@ -186,6 +192,6 @@ class SpecimenVerificationService {
             command.operatorName(),
             command.terminalCode(),
             "Specimen check-in completed"));
-        return specimenWorkflowSupport.getSpecimen(command.specimenBarcode());
+        return specimenWorkflowSupport.getSpecimenById(specimen.id());
     }
 }

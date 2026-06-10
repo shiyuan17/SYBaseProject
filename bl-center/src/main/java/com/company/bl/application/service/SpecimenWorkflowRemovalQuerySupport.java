@@ -1,10 +1,13 @@
 package com.company.bl.application.service;
 
+import com.company.bl.domain.model.Specimen;
 import com.company.bl.domain.repository.ApplicationRepository;
 import com.company.bl.domain.repository.SpecimenWorkflowQueryRepository;
 import com.company.bl.domain.repository.SpecimenWorkflowRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
 
 import static com.company.bl.application.service.SpecimenWorkflowQueryModels.*;
 import static com.company.bl.application.service.SpecimenWorkflowTransportModels.*;
@@ -97,8 +100,10 @@ class SpecimenWorkflowRemovalQuerySupport extends AbstractSpecimenWorkflowQueryS
         int page = specimenWorkflowSupport.normalizePage(query.page());
         int size = specimenWorkflowSupport.normalizeSize(query.size());
         String applicationId = specimenWorkflowSupport.trim(query.applicationId());
+        String identifier = specimenWorkflowSupport.trim(query.identifier());
         String specimenNo = specimenWorkflowSupport.trim(query.specimenNo());
         if ((applicationId == null || applicationId.isBlank())
+            && (identifier == null || identifier.isBlank())
             && specimenNo != null
             && !specimenNo.isBlank()) {
             var matchedSpecimens = specimenWorkflowRepository.findSpecimensBySpecimenNo(specimenNo);
@@ -106,7 +111,17 @@ class SpecimenWorkflowRemovalQuerySupport extends AbstractSpecimenWorkflowQueryS
                 applicationId = matchedSpecimens.get(0).applicationId();
                 specimenNo = null;
             }
+        } else if ((applicationId == null || applicationId.isBlank())
+            && identifier != null
+            && !identifier.isBlank()) {
+            Specimen matchedSpecimen = resolveUniqueSpecimenIdentifierMatch(identifier);
+            if (matchedSpecimen != null) {
+                applicationId = matchedSpecimen.applicationId();
+                identifier = null;
+                specimenNo = null;
+            }
         } else if (applicationId != null && !applicationId.isBlank()) {
+            identifier = null;
             specimenNo = null;
         }
         SpecimenWorkflowRepository.PagedSpecimenOutbounds result =
@@ -115,6 +130,7 @@ class SpecimenWorkflowRemovalQuerySupport extends AbstractSpecimenWorkflowQueryS
                     page,
                     size,
                     applicationId,
+                    identifier,
                     specimenNo));
         return new SpecimenOutboundPage(
             result.items().stream().map(item -> new SpecimenOutboundItem(
@@ -144,6 +160,18 @@ class SpecimenWorkflowRemovalQuerySupport extends AbstractSpecimenWorkflowQueryS
             page,
             size,
             result.total());
+    }
+
+    private Specimen resolveUniqueSpecimenIdentifierMatch(String identifier) {
+        ArrayList<Specimen> matches = new ArrayList<>();
+        specimenWorkflowRepository.findSpecimenByBarcode(identifier).ifPresent(matches::add);
+        for (Specimen specimen : specimenWorkflowRepository.findSpecimensBySpecimenNo(identifier)) {
+            boolean duplicate = matches.stream().anyMatch(match -> match.id().equals(specimen.id()));
+            if (!duplicate) {
+                matches.add(specimen);
+            }
+        }
+        return matches.size() == 1 ? matches.get(0) : null;
     }
 
     @Transactional(readOnly = true)

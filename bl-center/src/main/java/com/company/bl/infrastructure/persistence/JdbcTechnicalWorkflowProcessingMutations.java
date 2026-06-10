@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 final class JdbcTechnicalWorkflowProcessingMutations {
 
@@ -109,6 +110,98 @@ final class JdbcTechnicalWorkflowProcessingMutations {
             .addValue("sliceCount", command.sliceCount())
             .addValue("createdAt", LocalDateTime.now())
             .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    void insertSlicingSlidePrintMergeGroup(String groupId,
+                                           String caseId,
+                                           String pathologyNo,
+                                           String patientId,
+                                           String embeddingBoxNo,
+                                           String operatorUserId,
+                                           String operatorName,
+                                           String remarks,
+                                           LocalDateTime createdAt) {
+        jdbcTemplate.update("""
+            insert into slicing_slide_print_merge_groups
+                (id, case_id, pathology_no, patient_id, embedding_box_no, group_status,
+                 created_by_user_id, created_by_name, remarks, created_at, updated_at)
+            values
+                (:id, :caseId, :pathologyNo, :patientId, :embeddingBoxNo, 'PENDING',
+                 :createdByUserId, :createdByName, :remarks, :createdAt, :updatedAt)
+            """, new MapSqlParameterSource()
+            .addValue("id", groupId)
+            .addValue("caseId", caseId)
+            .addValue("pathologyNo", pathologyNo)
+            .addValue("patientId", patientId)
+            .addValue("embeddingBoxNo", embeddingBoxNo)
+            .addValue("createdByUserId", operatorUserId)
+            .addValue("createdByName", operatorName)
+            .addValue("remarks", remarks)
+            .addValue("createdAt", createdAt)
+            .addValue("updatedAt", createdAt));
+    }
+
+    void insertSlicingSlidePrintMergeGroupItem(String itemId,
+                                               String groupId,
+                                               String taskId,
+                                               String embeddingBoxId,
+                                               String embeddingBoxNo,
+                                               int sequenceNo) {
+        jdbcTemplate.update("""
+            insert into slicing_slide_print_merge_group_items
+                (id, group_id, task_id, embedding_box_id, embedding_box_no, sequence_no, created_at)
+            values
+                (:id, :groupId, :taskId, :embeddingBoxId, :embeddingBoxNo, :sequenceNo, :createdAt)
+            """, new MapSqlParameterSource()
+            .addValue("id", itemId)
+            .addValue("groupId", groupId)
+            .addValue("taskId", taskId)
+            .addValue("embeddingBoxId", embeddingBoxId)
+            .addValue("embeddingBoxNo", embeddingBoxNo)
+            .addValue("sequenceNo", sequenceNo)
+            .addValue("createdAt", LocalDateTime.now()));
+    }
+
+    void cancelSlicingSlidePrintMergeGroups(List<String> printGroupIds, LocalDateTime updatedAt) {
+        if (printGroupIds == null || printGroupIds.isEmpty()) {
+            return;
+        }
+        jdbcTemplate.update("""
+            update slicing_slide_print_merge_groups
+            set group_status = 'CANCELLED',
+                updated_at = :updatedAt
+            where id in (:printGroupIds)
+              and group_status = 'PENDING'
+            """, new MapSqlParameterSource()
+            .addValue("printGroupIds", printGroupIds)
+            .addValue("updatedAt", updatedAt));
+    }
+
+    void markSlicingSlidePrintMergeGroupPrinted(String printGroupId,
+                                                String slicingId,
+                                                String operatorUserId,
+                                                String operatorName,
+                                                String remarks,
+                                                LocalDateTime printedAt) {
+        jdbcTemplate.update("""
+            update slicing_slide_print_merge_groups
+            set group_status = 'PRINTED',
+                printed_slicing_id = :slicingId,
+                printed_by_user_id = :printedByUserId,
+                printed_by_name = :printedByName,
+                printed_at = :printedAt,
+                remarks = :remarks,
+                updated_at = :updatedAt
+            where id = :printGroupId
+              and group_status = 'PENDING'
+            """, new MapSqlParameterSource()
+            .addValue("printGroupId", printGroupId)
+            .addValue("slicingId", slicingId)
+            .addValue("printedByUserId", operatorUserId)
+            .addValue("printedByName", operatorName)
+            .addValue("printedAt", printedAt)
+            .addValue("remarks", remarks)
+            .addValue("updatedAt", printedAt));
     }
 
     void insertSlideStaining(CreateSlideStainingCommand command) {

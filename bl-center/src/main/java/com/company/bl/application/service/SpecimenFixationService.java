@@ -35,7 +35,10 @@ class SpecimenFixationService {
         failureCounter = "specimen_fixation_start_failed_total",
         durationMetric = "specimen_fixation_start_duration")
     FixationResult startFixation(FixationCommand command) {
-        Specimen specimen = specimenWorkflowSupport.getSpecimen(command.specimenBarcode());
+        Specimen specimen = specimenWorkflowSupport.resolveSpecimenByPreferredIdentifier(
+            command.specimenId(),
+            command.specimenBarcode(),
+            command.specimenNo());
         if (specimenWorkflowSupport.isReceiptTerminalStatus(specimen.specimenStatus())) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen already reached receipt terminal status");
         }
@@ -87,7 +90,10 @@ class SpecimenFixationService {
         failureCounter = "specimen_fixation_complete_failed_total",
         durationMetric = "specimen_fixation_complete_duration")
     FixationResult completeFixation(FixationCommand command) {
-        Specimen specimen = specimenWorkflowSupport.getSpecimen(command.specimenBarcode());
+        Specimen specimen = specimenWorkflowSupport.resolveSpecimenByPreferredIdentifier(
+            command.specimenId(),
+            command.specimenBarcode(),
+            command.specimenNo());
         if (specimenWorkflowSupport.isReceiptTerminalStatus(specimen.specimenStatus())) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen already reached receipt terminal status");
         }

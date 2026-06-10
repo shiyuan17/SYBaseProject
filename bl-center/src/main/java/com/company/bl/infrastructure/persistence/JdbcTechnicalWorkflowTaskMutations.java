@@ -32,16 +32,17 @@ final class JdbcTechnicalWorkflowTaskMutations {
             .addValue("updatedAt", LocalDateTime.now()));
     }
 
-    void startTechnicalTask(String taskId, String remarks, LocalDateTime startedAt) {
+    void startTechnicalTask(String taskId, String taskStatus, String remarks, LocalDateTime startedAt) {
         jdbcTemplate.update("""
             update technical_pending_tasks
-            set task_status = 'IN_PROGRESS',
+            set task_status = :taskStatus,
                 started_at = coalesce(started_at, :startedAt),
                 remarks = :remarks,
                 updated_at = :updatedAt
             where id = :taskId
             """, new MapSqlParameterSource()
             .addValue("taskId", taskId)
+            .addValue("taskStatus", taskStatus)
             .addValue("startedAt", startedAt)
             .addValue("remarks", remarks)
             .addValue("updatedAt", LocalDateTime.now()));
@@ -61,6 +62,21 @@ final class JdbcTechnicalWorkflowTaskMutations {
             .addValue("completedAt", completedAt)
             .addValue("remarks", remarks)
             .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    void resetTechnicalTaskToPending(String taskId, String remarks, LocalDateTime updatedAt) {
+        jdbcTemplate.update("""
+            update technical_pending_tasks
+            set task_status = 'PENDING',
+                started_at = null,
+                completed_at = null,
+                remarks = coalesce(:remarks, remarks),
+                updated_at = :updatedAt
+            where id = :taskId
+            """, new MapSqlParameterSource()
+            .addValue("taskId", taskId)
+            .addValue("remarks", remarks)
+            .addValue("updatedAt", updatedAt));
     }
 
     void assignTechnicalTask(String taskId,

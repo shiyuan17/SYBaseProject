@@ -90,10 +90,11 @@ class SpecimenWorkflowAppServiceTest {
                 1,
                 "BC-1",
                 "pain")));
-        FixationCommand fixationCommand = new FixationCommand("BC-1", "FORMALIN", "u1", "Operator", "TERM-1", "remark");
-        ConfirmSpecimenCommand confirmCommand = new ConfirmSpecimenCommand("BC-1", "u1", "Operator", "TERM-1", "remark");
+        FixationCommand fixationCommand = new FixationCommand(null, "BC-1", null, "FORMALIN", "u1", "Operator", "TERM-1", "remark");
+        ConfirmSpecimenCommand confirmCommand = new ConfirmSpecimenCommand(null, "BC-1", null, "u1", "Operator", "TERM-1", "remark");
         CreateTransportOrderCommand transportCommand = new CreateTransportOrderCommand(
             "APP-1",
+            List.of(),
             List.of("BC-1"),
             "u1",
             "Operator",

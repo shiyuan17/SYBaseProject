@@ -12,14 +12,20 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 class TechnicalProcessingWorkflowService {
 
     private static final int MAX_EMBEDDING_BOX_NO_LENGTH = 64;
     private static final int MAX_EMBEDDING_BOX_NO_RETRY = 100;
+    private static final Pattern EMBEDDING_BOX_NO_PATTERN = Pattern.compile("^([A-Za-z]+)(\\d+).*$");
 
     private final TechnicalWorkflowRepository technicalWorkflowRepository;
     private final TechnicalWorkflowSupport technicalWorkflowSupport;
@@ -38,18 +44,32 @@ class TechnicalProcessingWorkflowService {
 
     @Transactional
     TechnicalWorkflowModels.TaskStartResult startEmbedding(TechnicalWorkflowModels.TaskStartCommand command) {
-        TechnicalWorkflowRecords.TechnicalTask task = technicalWorkflowSupport.startTask(
-            command, TechnicalWorkflowConstants.NODE_EMBEDDING, TechnicalWorkflowConstants.OBJECT_SAMPLING_BLOCK);
+        TechnicalWorkflowRecords.TechnicalTask task = technicalWorkflowSupport.startPendingTaskWithStatus(
+            command,
+            TechnicalWorkflowConstants.NODE_EMBEDDING,
+            TechnicalWorkflowConstants.OBJECT_SAMPLING_BLOCK,
+            TechnicalWorkflowConstants.TASK_EMBEDDING_CONFIRM_PENDING);
         technicalWorkflowRepository.updatePathologyCaseStatus(task.caseId(), "EMBEDDING");
         technicalWorkflowSupport.insertWorkflowEvent(task, TechnicalWorkflowConstants.NODE_EMBEDDING, "START", "SUCCESS",
             command.operatorUserId(), command.operatorName(), command.terminalCode(), "Embedding started");
-        return new TechnicalWorkflowModels.TaskStartResult(task.id(), task.caseId(), "EMBEDDING", TechnicalWorkflowConstants.TASK_IN_PROGRESS);
+        return new TechnicalWorkflowModels.TaskStartResult(
+            task.id(),
+            task.caseId(),
+            "EMBEDDING",
+            TechnicalWorkflowConstants.TASK_EMBEDDING_CONFIRM_PENDING);
     }
 
     @Transactional
     TechnicalWorkflowModels.EmbeddingResult completeEmbedding(TechnicalWorkflowModels.EmbeddingCompleteCommand command) {
         TechnicalWorkflowRecords.TechnicalTask task = technicalWorkflowSupport.requireActiveTask(
             command.taskId(), TechnicalWorkflowConstants.NODE_EMBEDDING, TechnicalWorkflowConstants.OBJECT_SAMPLING_BLOCK);
+        if (!TechnicalWorkflowConstants.TASK_EMBEDDING_CONFIRM_PENDING.equals(task.taskStatus())
+            && !TechnicalWorkflowConstants.TASK_IN_PROGRESS.equals(task.taskStatus())) {
+            throw new BlBusinessException(
+                BlErrorCode.OPERATION_NOT_ALLOWED,
+                409,
+                "Embedding must be confirmed before completion");
+        }
         TechnicalWorkflowRecords.SamplingBlock block = technicalWorkflowSupport.getSamplingBlock(command.samplingBlockId());
         technicalWorkflowSupport.validateTaskObject(task, block.id());
         LocalDateTime now = LocalDateTime.now();
@@ -105,26 +125,47 @@ class TechnicalProcessingWorkflowService {
             task.id(), embeddingId, embeddingBoxId, "EMBEDDING", markingResult.success(), markingResult.message());
     }
 
+    @Transactional
+    TechnicalWorkflowModels.TaskStartResult cancelEmbedding(TechnicalWorkflowModels.TaskStartCommand command) {
+        TechnicalWorkflowRecords.TechnicalTask task = technicalWorkflowSupport.requireActiveTask(
+            command.taskId(), TechnicalWorkflowConstants.NODE_EMBEDDING, TechnicalWorkflowConstants.OBJECT_SAMPLING_BLOCK);
+        if (!TechnicalWorkflowConstants.TASK_EMBEDDING_CONFIRM_PENDING.equals(task.taskStatus())) {
+            throw new BlBusinessException(
+                BlErrorCode.OPERATION_NOT_ALLOWED,
+                409,
+                "Only embedding confirmation pending tasks can be cancelled");
+        }
+        technicalWorkflowRepository.resetTechnicalTaskToPending(task.id(), command.remarks(), LocalDateTime.now());
+        technicalWorkflowRepository.updatePathologyCaseStatus(task.caseId(), "EMBEDDING");
+        technicalWorkflowSupport.insertWorkflowEvent(task, TechnicalWorkflowConstants.NODE_EMBEDDING, "CANCEL", "SUCCESS",
+            command.operatorUserId(), command.operatorName(), command.terminalCode(), "Embedding confirmation cancelled");
+        return new TechnicalWorkflowModels.TaskStartResult(
+            task.id(),
+            task.caseId(),
+            "EMBEDDING",
+            TechnicalWorkflowConstants.TASK_PENDING);
+    }
+
     private String resolveEmbeddingBoxNo(TechnicalWorkflowModels.EmbeddingCompleteCommand command,
                                          TechnicalWorkflowRecords.TechnicalTask task,
                                          TechnicalWorkflowRecords.SamplingBlock block) {
         String requestedEmbeddingBoxNo = trimToNull(command.embeddingBoxNo());
         if (requestedEmbeddingBoxNo != null) {
-            ensureEmbeddingBoxNoAvailable(requestedEmbeddingBoxNo);
+            ensureEmbeddingBoxNoAvailable(task.caseId(), requestedEmbeddingBoxNo);
             return requestedEmbeddingBoxNo;
         }
 
         String grossingEmbeddingBoxNo = trimToNull(block.embeddingBoxNo());
         if (grossingEmbeddingBoxNo != null
-            && technicalWorkflowRepository.findEmbeddingBoxByNo(grossingEmbeddingBoxNo).isEmpty()) {
+            && technicalWorkflowRepository.findEmbeddingBoxByCaseIdAndNo(task.caseId(), grossingEmbeddingBoxNo).isEmpty()) {
             return grossingEmbeddingBoxNo;
         }
 
         return generateAvailableEmbeddingBoxNo(task, block);
     }
 
-    private void ensureEmbeddingBoxNoAvailable(String embeddingBoxNo) {
-        if (technicalWorkflowRepository.findEmbeddingBoxByNo(embeddingBoxNo).isPresent()) {
+    private void ensureEmbeddingBoxNoAvailable(String caseId, String embeddingBoxNo) {
+        if (technicalWorkflowRepository.findEmbeddingBoxByCaseIdAndNo(caseId, embeddingBoxNo).isPresent()) {
             throw new BlBusinessException(
                 BlErrorCode.RESOURCE_CONFLICT,
                 409,
@@ -141,7 +182,7 @@ class TechnicalProcessingWorkflowService {
         for (int retryIndex = 0; retryIndex < MAX_EMBEDDING_BOX_NO_RETRY; retryIndex++) {
             String suffix = retryIndex == 0 ? "" : "-" + retryIndex;
             String candidate = truncateEmbeddingBoxNo(baseEmbeddingBoxNo, suffix);
-            if (technicalWorkflowRepository.findEmbeddingBoxByNo(candidate).isEmpty()) {
+            if (technicalWorkflowRepository.findEmbeddingBoxByCaseIdAndNo(task.caseId(), candidate).isEmpty()) {
                 return candidate;
             }
         }
@@ -448,6 +489,172 @@ class TechnicalProcessingWorkflowService {
             slideNos,
             command.mergeAdjacent(),
             slideNos.size());
+    }
+
+    @Transactional
+    TechnicalWorkflowModels.SlicingSlidePrintMergeGroupResult createSlicingSlidePrintMergeGroups(
+        TechnicalWorkflowModels.SlicingSlidePrintMergeGroupCommand command
+    ) {
+        List<String> taskIds = normalizeIds(command.taskIds());
+        if (taskIds.isEmpty()) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "At least one slicing task is required");
+        }
+        List<TechnicalWorkflowRecords.SlicingWorkbenchRow> rows =
+            technicalWorkflowRepository.findPendingSlicingPrintRowsByTaskIds(taskIds);
+        if (rows.size() != taskIds.size()) {
+            throw new BlBusinessException(
+                BlErrorCode.OPERATION_NOT_ALLOWED,
+                409,
+                "Only unprinted slicing tasks can be merged");
+        }
+
+        Map<String, List<TechnicalWorkflowRecords.SlicingWorkbenchRow>> buckets = new LinkedHashMap<>();
+        for (TechnicalWorkflowRecords.SlicingWorkbenchRow row : rows) {
+            String prefix = embeddingBoxPrefix(row.embeddingBoxNo());
+            if (prefix == null) {
+                throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Embedding box number is required for merging");
+            }
+            if (row.patientId() == null || row.patientId().isBlank()) {
+                throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Patient ID is required for merging");
+            }
+            String bucketKey = row.patientId() + "|" + row.caseId() + "|" + nullToEmpty(row.pathologyNo()) + "|" + prefix;
+            buckets.computeIfAbsent(bucketKey, ignored -> new ArrayList<>()).add(row);
+        }
+
+        List<String> groupIds = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+        for (List<TechnicalWorkflowRecords.SlicingWorkbenchRow> bucketRows : buckets.values()) {
+            bucketRows.sort(Comparator.comparing(TechnicalWorkflowRecords.SlicingWorkbenchRow::embeddingBoxNo, this::compareEmbeddingBoxNos));
+            for (int index = 0; index + 1 < bucketRows.size(); index += 2) {
+                List<TechnicalWorkflowRecords.SlicingWorkbenchRow> pair = bucketRows.subList(index, index + 2);
+                String groupId = technicalWorkflowSupport.nextId("SPG");
+                String embeddingBoxNo = pair.get(0).embeddingBoxNo() + "+" + pair.get(1).embeddingBoxNo();
+                TechnicalWorkflowRecords.SlicingWorkbenchRow first = pair.get(0);
+                technicalWorkflowRepository.insertSlicingSlidePrintMergeGroup(
+                    groupId,
+                    first.caseId(),
+                    first.pathologyNo(),
+                    first.patientId(),
+                    embeddingBoxNo,
+                    command.operatorUserId(),
+                    command.operatorName(),
+                    command.remarks(),
+                    now);
+                for (int pairIndex = 0; pairIndex < pair.size(); pairIndex++) {
+                    TechnicalWorkflowRecords.SlicingWorkbenchRow row = pair.get(pairIndex);
+                    technicalWorkflowRepository.insertSlicingSlidePrintMergeGroupItem(
+                        technicalWorkflowSupport.nextId("SPGI"),
+                        groupId,
+                        row.taskId(),
+                        row.embeddingBoxId(),
+                        row.embeddingBoxNo(),
+                        pairIndex + 1);
+                }
+                groupIds.add(groupId);
+            }
+        }
+        if (groupIds.isEmpty()) {
+            throw new BlBusinessException(
+                BlErrorCode.OPERATION_NOT_ALLOWED,
+                409,
+                "No mergeable slicing task pairs found");
+        }
+        return new TechnicalWorkflowModels.SlicingSlidePrintMergeGroupResult(groupIds);
+    }
+
+    @Transactional
+    TechnicalWorkflowModels.SlicingSlidePrintMergeGroupResult cancelSlicingSlidePrintMergeGroups(
+        TechnicalWorkflowModels.SlicingSlidePrintMergeGroupCancelCommand command
+    ) {
+        List<String> printGroupIds = normalizeIds(command.printGroupIds());
+        if (printGroupIds.isEmpty()) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "At least one merge group is required");
+        }
+        technicalWorkflowRepository.cancelSlicingSlidePrintMergeGroups(printGroupIds, LocalDateTime.now());
+        return new TechnicalWorkflowModels.SlicingSlidePrintMergeGroupResult(printGroupIds);
+    }
+
+    @Transactional
+    TechnicalWorkflowModels.SlicingSlidePrintResult printSlicingSlideMergeGroup(
+        TechnicalWorkflowModels.SlicingSlidePrintMergeGroupPrintCommand command
+    ) {
+        List<TechnicalWorkflowRecords.SlicingSlidePrintMergeGroupItem> items =
+            technicalWorkflowRepository.findPendingSlicingPrintMergeGroupItems(command.printGroupId());
+        if (items.isEmpty()) {
+            throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Slicing slide print merge group not found");
+        }
+
+        List<String> slideIds = new ArrayList<>();
+        List<String> slideNos = new ArrayList<>();
+        String firstSlicingId = null;
+        for (TechnicalWorkflowRecords.SlicingSlidePrintMergeGroupItem item : items) {
+            TechnicalWorkflowModels.SlicingSlidePrintResult result = printSlicingSlides(
+                new TechnicalWorkflowModels.SlicingSlidePrintCommand(
+                    item.taskId(),
+                    item.embeddingBoxId(),
+                    1,
+                    false,
+                    command.printerCode(),
+                    command.operatorUserId(),
+                    command.operatorName(),
+                    command.terminalCode(),
+                    command.remarks()));
+            if (firstSlicingId == null) {
+                firstSlicingId = result.slicingId();
+            }
+            slideIds.addAll(result.slideIds());
+            slideNos.addAll(result.slideNos());
+        }
+        technicalWorkflowRepository.markSlicingSlidePrintMergeGroupPrinted(
+            command.printGroupId(),
+            firstSlicingId,
+            command.operatorUserId(),
+            command.operatorName(),
+            command.remarks(),
+            LocalDateTime.now());
+        return new TechnicalWorkflowModels.SlicingSlidePrintResult(
+            command.printGroupId(),
+            firstSlicingId,
+            slideIds,
+            slideNos,
+            true,
+            slideNos.size());
+    }
+
+    private List<String> normalizeIds(List<String> ids) {
+        return ids == null
+            ? List.of()
+            : ids.stream()
+                .map(this::normalizeText)
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+    }
+
+    private String embeddingBoxPrefix(String embeddingBoxNo) {
+        String normalizedValue = normalizeText(embeddingBoxNo);
+        if (normalizedValue == null) {
+            return null;
+        }
+        Matcher matcher = EMBEDDING_BOX_NO_PATTERN.matcher(normalizedValue);
+        return matcher.matches() ? matcher.group(1).toUpperCase() : null;
+    }
+
+    private int compareEmbeddingBoxNos(String left, String right) {
+        Matcher leftMatcher = EMBEDDING_BOX_NO_PATTERN.matcher(nullToEmpty(left));
+        Matcher rightMatcher = EMBEDDING_BOX_NO_PATTERN.matcher(nullToEmpty(right));
+        if (leftMatcher.matches() && rightMatcher.matches()) {
+            int prefixCompare = leftMatcher.group(1).compareToIgnoreCase(rightMatcher.group(1));
+            if (prefixCompare != 0) {
+                return prefixCompare;
+            }
+            return Integer.compare(Integer.parseInt(leftMatcher.group(2)), Integer.parseInt(rightMatcher.group(2)));
+        }
+        return nullToEmpty(left).compareToIgnoreCase(nullToEmpty(right));
+    }
+
+    private String nullToEmpty(String value) {
+        return value == null ? "" : value;
     }
 
     private List<String> buildSlideNos(int sourceSlideCount, boolean mergeAdjacent) {

@@ -17,7 +17,10 @@ import java.util.Optional;
 
 final class JdbcTechnicalWorkflowTaskQueries {
 
-    private static final List<String> ACTIVE_TASK_STATUSES = List.of("PENDING", "IN_PROGRESS");
+    private static final List<String> ACTIVE_TASK_STATUSES = List.of(
+        "PENDING",
+        "IN_PROGRESS",
+        "EMBEDDING_CONFIRM_PENDING");
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final JdbcTechnicalWorkflowRowMappers rowMappers;

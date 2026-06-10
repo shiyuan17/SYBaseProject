@@ -48,10 +48,17 @@ public class ReceiveSpecimensRequest {
     @Setter
     @Schema(name = "ReceiptItem", description = "标本接收明细")
     public static class ReceiptItem {
-        @Schema(description = "标本条码", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank
+        @Schema(description = "标本 ID；优先于标本条码和标本编号")
+        @Size(max = 64)
+        private String specimenId;
+
+        @Schema(description = "标本条码")
         @Size(max = 128)
         private String specimenBarcode;
+
+        @Schema(description = "标本编号；仅在唯一命中时使用")
+        @Size(max = 64)
+        private String specimenNo;
 
         @Schema(description = "接收状态", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank
