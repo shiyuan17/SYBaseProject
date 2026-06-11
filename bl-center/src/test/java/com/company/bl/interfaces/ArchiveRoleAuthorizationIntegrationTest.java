@@ -7,6 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -20,19 +21,19 @@ class ArchiveRoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflow
 
     @Test
     void shouldAllowArchiveRoleAndReagentRoleOnlyWithinOwnedM5Capabilities() throws Exception {
-        responseBody(postJson("/api/v1/archive-cabinets", USER_M1_ARCHIVE, """
+        JsonNode cabinet = responseBody(postJson("/api/v1/archive-cabinets", USER_M1_ARCHIVE, """
             {
-              "cabinetCode":"CAB-M5-AUTH-1",
+              "cabinetCode":"CAB-M5-AUTH-%d",
               "cabinetName":"Archive Auth Cabinet",
               "cabinetType":"STANDARD",
               "layerCount":1,
               "slotCountPerLayer":2
             }
-            """), 200);
+            """.formatted(System.nanoTime())), 200);
 
         JsonNode reagent = responseBody(postJson("/api/v1/reagents", USER_M1_REAGENT, """
             {
-              "reagentCode":"RG-M5-AUTH-1",
+              "reagentCode":"RG-M5-AUTH-%d",
               "reagentName":"H&E Dye",
               "specification":"500ml",
               "unit":"bottle",
@@ -41,8 +42,8 @@ class ArchiveRoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflow
               "defaultNearExpiryDays":30,
               "enabled":true
             }
-            """), 200);
-        assertThat(reagent.path("reagentCode").asText()).isEqualTo("RG-M5-AUTH-1");
+            """.formatted(System.nanoTime())), 200);
+        assertThat(reagent.path("reagentCode").asText()).startsWith("RG-M5-AUTH-");
 
         postJson("/api/v1/reagents", USER_M1_ARCHIVE, """
             {
@@ -63,6 +64,10 @@ class ArchiveRoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflow
               "slotCountPerLayer":1
             }
             """)
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+
+        mockMvc.perform(authorized(delete("/api/v1/archive-cabinets/{id}", cabinet.path("id").asText()), USER_M1_REAGENT))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
     }

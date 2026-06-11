@@ -35,6 +35,11 @@ public class JdbcArchiveRepository implements ArchiveRepository {
     }
 
     @Override
+    public boolean existsArchiveCabinetByCodes(List<String> cabinetCodes) {
+        return queries.existsArchiveCabinetByCodes(cabinetCodes);
+    }
+
+    @Override
     public void insertArchiveCabinet(CreateArchiveCabinetCommand command) {
         mutations.insertArchiveCabinet(command);
     }
@@ -42,6 +47,26 @@ public class JdbcArchiveRepository implements ArchiveRepository {
     @Override
     public void updateArchiveCabinet(UpdateArchiveCabinetCommand command) {
         mutations.updateArchiveCabinet(command);
+    }
+
+    @Override
+    public boolean hasNonEmptyArchivePositions(String cabinetId) {
+        return queries.hasNonEmptyArchivePositions(cabinetId);
+    }
+
+    @Override
+    public boolean hasArchivePositionReferences(String cabinetId) {
+        return queries.hasArchivePositionReferences(cabinetId);
+    }
+
+    @Override
+    public void deleteArchivePositionsByCabinetId(String cabinetId) {
+        mutations.deleteArchivePositionsByCabinetId(cabinetId);
+    }
+
+    @Override
+    public void deleteArchiveCabinet(String cabinetId) {
+        mutations.deleteArchiveCabinet(cabinetId);
     }
 
     @Override

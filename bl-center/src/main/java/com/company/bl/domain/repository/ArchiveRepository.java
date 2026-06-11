@@ -14,9 +14,19 @@ public interface ArchiveRepository {
 
     Optional<ArchiveCabinet> findArchiveCabinetByCode(String cabinetCode);
 
+    boolean existsArchiveCabinetByCodes(List<String> cabinetCodes);
+
     void insertArchiveCabinet(CreateArchiveCabinetCommand command);
 
     void updateArchiveCabinet(UpdateArchiveCabinetCommand command);
+
+    boolean hasNonEmptyArchivePositions(String cabinetId);
+
+    boolean hasArchivePositionReferences(String cabinetId);
+
+    void deleteArchivePositionsByCabinetId(String cabinetId);
+
+    void deleteArchiveCabinet(String cabinetId);
 
     List<ArchivePosition> findAvailableArchivePositions(String cabinetType, String cabinetId);
 

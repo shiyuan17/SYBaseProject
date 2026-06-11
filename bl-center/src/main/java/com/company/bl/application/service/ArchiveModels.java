@@ -47,6 +47,23 @@ public final class ArchiveModels {
     ) {
     }
 
+    public record BatchCreateArchiveCabinetCommand(
+        String cabinetType,
+        String cabinetCodePrefix,
+        int startNo,
+        int count,
+        int numberWidth,
+        String cabinetNamePrefix,
+        int layerCount,
+        int slotCountPerLayer,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String locationDescription,
+        String remarks
+    ) {
+    }
+
     public record UpdateArchiveCabinetCommand(
         String cabinetId,
         String cabinetName,

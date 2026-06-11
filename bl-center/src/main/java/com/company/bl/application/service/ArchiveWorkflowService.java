@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -44,6 +45,56 @@ public class ArchiveWorkflowService {
         if (archiveRepository.findArchiveCabinetByCode(command.cabinetCode()).isPresent()) {
             throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Archive cabinet code already exists");
         }
+        return createArchiveCabinetWithoutDuplicateCheck(command);
+    }
+
+    @Transactional
+    public List<ArchiveModels.ArchiveCabinetView> batchCreateArchiveCabinets(ArchiveModels.BatchCreateArchiveCabinetCommand command) {
+        List<String> cabinetCodes = new ArrayList<>();
+        for (int index = 0; index < command.count(); index++) {
+            int serialNo = command.startNo() + index;
+            cabinetCodes.add("%s%s".formatted(command.cabinetCodePrefix(), formatSerialNo(serialNo, command.numberWidth())));
+        }
+
+        if (archiveRepository.existsArchiveCabinetByCodes(cabinetCodes)) {
+            throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Archive cabinet code already exists");
+        }
+
+        List<ArchiveModels.ArchiveCabinetView> cabinets = new ArrayList<>();
+        for (int index = 0; index < cabinetCodes.size(); index++) {
+            String cabinetCode = cabinetCodes.get(index);
+            String serialText = formatSerialNo(command.startNo() + index, command.numberWidth());
+            String cabinetName = buildBatchCabinetName(command.cabinetNamePrefix(), cabinetCode, serialText);
+            cabinets.add(createArchiveCabinetWithoutDuplicateCheck(new ArchiveModels.CreateArchiveCabinetCommand(
+                cabinetCode,
+                cabinetName,
+                command.cabinetType(),
+                command.layerCount(),
+                command.slotCountPerLayer(),
+                command.operatorUserId(),
+                command.operatorName(),
+                command.terminalCode(),
+                command.locationDescription(),
+                command.remarks())));
+        }
+        return cabinets;
+    }
+
+    @Transactional
+    public void deleteArchiveCabinet(String cabinetId) {
+        ArchiveRepository.ArchiveCabinet cabinet = archiveRepository.findArchiveCabinetById(cabinetId)
+            .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Archive cabinet not found"));
+        if (archiveRepository.hasNonEmptyArchivePositions(cabinet.id())) {
+            throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Archive cabinet is not empty");
+        }
+        if (archiveRepository.hasArchivePositionReferences(cabinet.id())) {
+            throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Archive cabinet has archive references");
+        }
+        archiveRepository.deleteArchivePositionsByCabinetId(cabinet.id());
+        archiveRepository.deleteArchiveCabinet(cabinet.id());
+    }
+
+    private ArchiveModels.ArchiveCabinetView createArchiveCabinetWithoutDuplicateCheck(ArchiveModels.CreateArchiveCabinetCommand command) {
         LocalDateTime now = LocalDateTime.now();
         String cabinetId = diagnosticReportSupport.nextId("AC");
         int capacity = command.layerCount() * command.slotCountPerLayer();
@@ -87,6 +138,17 @@ public class ArchiveWorkflowService {
             cabinet.cabinetStatus(),
             cabinet.locationDescription(),
             cabinet.remarks());
+    }
+
+    private String formatSerialNo(int serialNo, int numberWidth) {
+        return String.format("%0" + numberWidth + "d", serialNo);
+    }
+
+    private String buildBatchCabinetName(String cabinetNamePrefix, String cabinetCode, String serialText) {
+        if (cabinetNamePrefix == null || cabinetNamePrefix.isBlank()) {
+            return cabinetCode;
+        }
+        return cabinetNamePrefix.trim() + serialText;
     }
 
     @Transactional

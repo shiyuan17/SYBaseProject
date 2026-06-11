@@ -5,6 +5,7 @@ public final class M5PermissionCodes {
     public static final String ARCHIVE_CABINET_QUERY = "PERM_M5_ARCHIVE_CABINET_QUERY";
     public static final String ARCHIVE_CABINET_CREATE = "PERM_M5_ARCHIVE_CABINET_CREATE";
     public static final String ARCHIVE_CABINET_UPDATE = "PERM_M5_ARCHIVE_CABINET_UPDATE";
+    public static final String ARCHIVE_CABINET_DELETE = "PERM_M5_ARCHIVE_CABINET_DELETE";
     public static final String APPLICATION_FORM_ARCHIVE = "PERM_M5_APPLICATION_FORM_ARCHIVE";
     public static final String EMBEDDING_BOX_ARCHIVE = "PERM_M5_EMBEDDING_BOX_ARCHIVE";
     public static final String SLIDE_ARCHIVE = "PERM_M5_SLIDE_ARCHIVE";

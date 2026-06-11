@@ -5,10 +5,13 @@ import com.company.bl.application.service.ArchiveQueryService;
 import com.company.bl.application.service.ArchiveWorkflowService;
 import com.company.bl.interfaces.auth.M5PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
+import com.company.bl.interfaces.dto.BatchCreateArchiveCabinetRequest;
 import com.company.bl.interfaces.dto.CreateArchiveCabinetRequest;
 import com.company.bl.interfaces.dto.UpdateArchiveCabinetRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -56,6 +59,26 @@ public class ArchiveCabinetController extends TechnicalControllerSupport {
             request.getRemarks()));
     }
 
+    @RequirePermission(M5PermissionCodes.ARCHIVE_CABINET_CREATE)
+    @PostMapping("/archive-cabinets/batch")
+    public List<ArchiveModels.ArchiveCabinetView> batchCreateArchiveCabinets(@Valid @RequestBody BatchCreateArchiveCabinetRequest request,
+                                                                             HttpServletRequest httpServletRequest) {
+        return archiveWorkflowService.batchCreateArchiveCabinets(new ArchiveModels.BatchCreateArchiveCabinetCommand(
+            request.getCabinetType(),
+            request.getCabinetCodePrefix(),
+            request.getStartNo(),
+            request.getCount(),
+            request.getNumberWidth(),
+            request.getCabinetNamePrefix(),
+            request.getLayerCount(),
+            request.getSlotCountPerLayer(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
+            request.getTerminalCode(),
+            request.getLocationDescription(),
+            request.getRemarks()));
+    }
+
     @RequirePermission(M5PermissionCodes.ARCHIVE_CABINET_UPDATE)
     @PatchMapping("/archive-cabinets/{id}")
     public ArchiveModels.ArchiveCabinetView updateArchiveCabinet(@PathVariable("id") String cabinetId,
@@ -70,6 +93,13 @@ public class ArchiveCabinetController extends TechnicalControllerSupport {
             resolveOperatorName(httpServletRequest),
             request.getTerminalCode(),
             request.getRemarks()));
+    }
+
+    @RequirePermission(M5PermissionCodes.ARCHIVE_CABINET_DELETE)
+    @DeleteMapping("/archive-cabinets/{id}")
+    public ResponseEntity<Void> deleteArchiveCabinet(@PathVariable("id") String cabinetId) {
+        archiveWorkflowService.deleteArchiveCabinet(cabinetId);
+        return ResponseEntity.noContent().build();
     }
 
     @RequirePermission(M5PermissionCodes.ARCHIVE_CABINET_QUERY)

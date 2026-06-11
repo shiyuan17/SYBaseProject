@@ -53,6 +53,22 @@ final class JdbcArchiveMutations {
             .addValue("updatedAt", command.updatedAt()));
     }
 
+    void deleteArchivePositionsByCabinetId(String cabinetId) {
+        jdbcTemplate.update("""
+            delete from archive_positions
+            where cabinet_id = :cabinetId
+            """, new MapSqlParameterSource()
+            .addValue("cabinetId", cabinetId));
+    }
+
+    void deleteArchiveCabinet(String cabinetId) {
+        jdbcTemplate.update("""
+            delete from archive_cabinets
+            where id = :cabinetId
+            """, new MapSqlParameterSource()
+            .addValue("cabinetId", cabinetId));
+    }
+
     void insertArchivePosition(ArchiveRepository.CreateArchivePositionCommand command) {
         jdbcTemplate.update("""
             insert into archive_positions

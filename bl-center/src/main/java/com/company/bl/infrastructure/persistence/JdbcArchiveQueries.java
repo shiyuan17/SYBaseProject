@@ -48,6 +48,53 @@ final class JdbcArchiveQueries {
             """, Map.of("cabinetCode", cabinetCode), this::mapArchiveCabinet).stream().findFirst();
     }
 
+    boolean existsArchiveCabinetByCodes(List<String> cabinetCodes) {
+        if (cabinetCodes.isEmpty()) {
+            return false;
+        }
+        Integer count = jdbcTemplate.queryForObject("""
+            select count(*)
+            from archive_cabinets
+            where cabinet_code in (:cabinetCodes)
+            """, Map.of("cabinetCodes", cabinetCodes), Integer.class);
+        return count != null && count > 0;
+    }
+
+    boolean hasNonEmptyArchivePositions(String cabinetId) {
+        Integer count = jdbcTemplate.queryForObject("""
+            select count(*)
+            from archive_positions
+            where cabinet_id = :cabinetId
+              and (
+                  position_status <> 'AVAILABLE'
+                  or current_object_type is not null
+                  or current_object_id is not null
+              )
+            """, Map.of("cabinetId", cabinetId), Integer.class);
+        return count != null && count > 0;
+    }
+
+    boolean hasArchivePositionReferences(String cabinetId) {
+        Integer count = jdbcTemplate.queryForObject("""
+            select count(*)
+            from archive_positions ap
+            where ap.cabinet_id = :cabinetId
+              and (
+                  exists (
+                      select 1
+                      from specimen_storage_records ssr
+                      where ssr.archive_position_id = ap.id
+                  )
+                  or exists (
+                      select 1
+                      from material_loans ml
+                      where ml.archive_position_id = ap.id
+                  )
+              )
+            """, Map.of("cabinetId", cabinetId), Integer.class);
+        return count != null && count > 0;
+    }
+
     List<ArchiveRepository.ArchivePosition> findAvailableArchivePositions(String cabinetType, String cabinetId) {
         return jdbcTemplate.query("""
             select ap.id, ap.cabinet_id, ap.position_code, ap.layer_no, ap.slot_no, ap.position_status,
