@@ -8,6 +8,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -22,11 +23,19 @@ public class CreateReagentStockRequest {
     @Size(max = 64)
     private String batchNo;
 
+    private BigDecimal initialQuantity;
+
     private BigDecimal stockQuantity;
+
+    private BigDecimal remainingQuantity;
 
     @NotBlank
     @Size(max = 32)
     private String stockStatus;
+
+    private LocalDate productionDate;
+
+    private LocalDateTime inboundAt;
 
     private LocalDate expiryDate;
 
@@ -36,6 +45,22 @@ public class CreateReagentStockRequest {
     private BigDecimal lowStockThreshold;
 
     private Integer nearExpiryDays;
+
+    private Integer testReminderThreshold;
+
+    private Integer expiryReminderThreshold;
+
+    @Size(max = 100)
+    private String recommendedDilution;
+
+    @Size(max = 100)
+    private String applicationDilution;
+
+    private BigDecimal stainCapacity;
+
+    private BigDecimal stainThreshold;
+
+    private Integer validityDays;
 
     @Size(max = 500)
     private String remarks;

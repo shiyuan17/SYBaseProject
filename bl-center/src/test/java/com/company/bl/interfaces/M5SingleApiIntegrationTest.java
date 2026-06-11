@@ -9,8 +9,10 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -60,6 +62,169 @@ class M5SingleApiIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTe
         JsonNode availablePositions = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-positions/available"), USER_M1_ARCHIVE)
             .param("cabinetId", cabinetId)), 200);
         assertThat(availablePositions).isEmpty();
+    }
+
+    @Test
+    void shouldBatchCreateArchiveCabinetsAndRollbackOnDuplicateCodes() throws Exception {
+        String uniquePrefix = "CAB-BATCH-" + System.nanoTime() + "-";
+
+        JsonNode cabinets = responseBody(postJson("/api/v1/archive-cabinets/batch", USER_M1_ARCHIVE, """
+            {
+              "cabinetType":"EMBEDDING_BOX",
+              "cabinetCodePrefix":"%s",
+              "startNo":1,
+              "count":3,
+              "numberWidth":3,
+              "cabinetNamePrefix":"批量蜡块柜",
+              "layerCount":2,
+              "slotCountPerLayer":4,
+              "terminalCode":"M5-BATCH-01",
+              "locationDescription":"Room-Batch",
+              "remarks":"batch create"
+            }
+            """.formatted(uniquePrefix)), 200);
+
+        assertThat(cabinets).hasSize(3);
+        assertThat(cabinets.get(0).path("cabinetCode").asText()).isEqualTo(uniquePrefix + "001");
+        assertThat(cabinets.get(2).path("cabinetCode").asText()).isEqualTo(uniquePrefix + "003");
+        assertThat(cabinets.get(0).path("capacity").asInt()).isEqualTo(8);
+
+        Integer positionCount = namedParameterJdbcTemplate.queryForObject("""
+            select count(*)
+            from archive_positions ap
+            join archive_cabinets ac on ac.id = ap.cabinet_id
+            where ac.cabinet_code like :codePrefix
+            """, Map.of("codePrefix", uniquePrefix + "%"), Integer.class);
+        assertThat(positionCount).isEqualTo(24);
+
+        String duplicatePrefix = "CAB-BATCH-DUP-" + System.nanoTime() + "-";
+        responseBody(postJson("/api/v1/archive-cabinets", USER_M1_ARCHIVE, """
+            {
+              "cabinetCode":"%s002",
+              "cabinetName":"Duplicate Cabinet",
+              "cabinetType":"STANDARD",
+              "layerCount":1,
+              "slotCountPerLayer":1
+            }
+            """.formatted(duplicatePrefix)), 200);
+
+        postJson("/api/v1/archive-cabinets/batch", USER_M1_ARCHIVE, """
+            {
+              "cabinetType":"STANDARD",
+              "cabinetCodePrefix":"%s",
+              "startNo":1,
+              "count":3,
+              "numberWidth":3,
+              "cabinetNamePrefix":"重复柜",
+              "layerCount":1,
+              "slotCountPerLayer":1
+            }
+            """.formatted(duplicatePrefix))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("RESOURCE_CONFLICT"));
+
+        Integer createdAfterConflict = namedParameterJdbcTemplate.queryForObject("""
+            select count(*)
+            from archive_cabinets
+            where cabinet_code like :codePrefix
+            """, Map.of("codePrefix", duplicatePrefix + "%"), Integer.class);
+        assertThat(createdAfterConflict).isEqualTo(1);
+    }
+
+    @Test
+    void shouldDeleteOnlyEmptyArchiveCabinet() throws Exception {
+        JsonNode emptyCabinet = responseBody(postJson("/api/v1/archive-cabinets", USER_M1_ARCHIVE, """
+            {
+              "cabinetCode":"CAB-DELETE-EMPTY-%d",
+              "cabinetName":"Empty Delete Cabinet",
+              "cabinetType":"STANDARD",
+              "layerCount":1,
+              "slotCountPerLayer":1
+            }
+            """.formatted(System.nanoTime())), 200);
+        String emptyCabinetId = emptyCabinet.path("id").asText();
+
+        mockMvc.perform(authorized(delete("/api/v1/archive-cabinets/{id}", emptyCabinetId), USER_M1_ARCHIVE))
+            .andExpect(status().isNoContent());
+
+        Integer deletedCabinetCount = namedParameterJdbcTemplate.queryForObject("""
+            select count(*)
+            from archive_cabinets
+            where id = :cabinetId
+            """, Map.of("cabinetId", emptyCabinetId), Integer.class);
+        assertThat(deletedCabinetCount).isZero();
+
+        JsonNode occupiedCabinet = responseBody(postJson("/api/v1/archive-cabinets", USER_M1_ARCHIVE, """
+            {
+              "cabinetCode":"CAB-DELETE-OCC-%d",
+              "cabinetName":"Occupied Delete Cabinet",
+              "cabinetType":"SLIDE",
+              "layerCount":1,
+              "slotCountPerLayer":1
+            }
+            """.formatted(System.nanoTime())), 200);
+        String occupiedCabinetId = occupiedCabinet.path("id").asText();
+        JsonNode positions = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-positions/available"), USER_M1_ARCHIVE)
+            .param("cabinetId", occupiedCabinetId)), 200);
+        namedParameterJdbcTemplate.update("""
+            update archive_positions
+            set position_status = 'OCCUPIED',
+                current_object_type = 'SLIDE',
+                current_object_id = 'SLIDE-M5-DELETE-LOCK'
+            where id = :positionId
+            """, Map.of("positionId", positions.get(0).path("id").asText()));
+
+        mockMvc.perform(authorized(delete("/api/v1/archive-cabinets/{id}", occupiedCabinetId), USER_M1_ARCHIVE))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("RESOURCE_CONFLICT"));
+
+        String referencedApplicationId = "APPID-M5-DELETE-REF-" + System.nanoTime();
+        String referencedCaseId = "CASE-M5-DELETE-REF-" + System.nanoTime();
+        namedParameterJdbcTemplate.update("""
+            insert into applications (id, application_no, status, created_at, updated_at)
+            values (:id, :applicationNo, 'RECEIVED', :createdAt, :updatedAt)
+            """, Map.of(
+            "id", referencedApplicationId,
+            "applicationNo", "APP-M5-DELETE-REF-" + System.nanoTime(),
+            "createdAt", LocalDateTime.now(),
+            "updatedAt", LocalDateTime.now()));
+        namedParameterJdbcTemplate.update("""
+            insert into pathology_cases (id, application_id, pathology_no, case_status, created_at, updated_at)
+            values (:id, :applicationId, :pathologyNo, 'ARCHIVE', :createdAt, :updatedAt)
+            """, Map.of(
+            "id", referencedCaseId,
+            "applicationId", referencedApplicationId,
+            "pathologyNo", "BL-M5-DELETE-REF-" + System.nanoTime(),
+            "createdAt", LocalDateTime.now(),
+            "updatedAt", LocalDateTime.now()));
+        JsonNode referencedCabinet = responseBody(postJson("/api/v1/archive-cabinets", USER_M1_ARCHIVE, """
+            {
+              "cabinetCode":"CAB-DELETE-REF-%d",
+              "cabinetName":"Referenced Delete Cabinet",
+              "cabinetType":"APPLICATION_FORM",
+              "layerCount":1,
+              "slotCountPerLayer":1
+            }
+            """.formatted(System.nanoTime())), 200);
+        String referencedCabinetId = referencedCabinet.path("id").asText();
+        JsonNode referencedPositions = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-positions/available"), USER_M1_ARCHIVE)
+            .param("cabinetId", referencedCabinetId)), 200);
+        namedParameterJdbcTemplate.update("""
+            insert into specimen_storage_records
+                (id, case_id, object_type, object_id, storage_status, archive_position_id, created_at, updated_at)
+            values
+                (:id, :caseId, 'APPLICATION_FORM', :objectId, 'IN_STORAGE', :positionId, :createdAt, :updatedAt)
+            """, Map.of(
+            "id", "SSR-M5-DELETE-REF-" + System.nanoTime(),
+            "caseId", referencedCaseId,
+            "objectId", "APP-FORM-M5-DELETE-REF-" + System.nanoTime(),
+            "positionId", referencedPositions.get(0).path("id").asText(),
+            "createdAt", LocalDateTime.now(),
+            "updatedAt", LocalDateTime.now()));
+
+        mockMvc.perform(authorized(delete("/api/v1/archive-cabinets/{id}", referencedCabinetId), USER_M1_ARCHIVE))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("RESOURCE_CONFLICT"));
     }
 
     @Test
@@ -159,4 +324,5 @@ class M5SingleApiIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTe
         JsonNode warnings = responseBody(mockMvc.perform(authorized(get("/api/v1/reagent-stocks/warnings"), USER_M1_REAGENT)), 200);
         assertThat(warnings.toString()).contains("LOW_STOCK");
     }
+
 }

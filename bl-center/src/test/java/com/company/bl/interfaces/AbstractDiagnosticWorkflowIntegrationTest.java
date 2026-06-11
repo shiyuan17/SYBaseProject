@@ -137,6 +137,7 @@ abstract class AbstractDiagnosticWorkflowIntegrationTest extends AbstractTechnic
         postJson("/api/v1/slicings/start", USER_M3_SLICING, """
             {"taskId":"%s","terminalCode":"M4-S-01"}
             """.formatted(slicingTaskId)).andExpect(status().isOk());
+        printSlideBeforeSlicing(slicingTaskId, embeddingBoxId);
         String slideId = responseBody(postJson("/api/v1/slicings/complete", USER_M3_SLICING, """
             {
               "taskId":"%s",
@@ -223,6 +224,7 @@ abstract class AbstractDiagnosticWorkflowIntegrationTest extends AbstractTechnic
         postJson("/api/v1/slicings/start", USER_M3_SLICING, """
             {"taskId":"%s","terminalCode":"M4-S-01"}
             """.formatted(slicingTaskId)).andExpect(status().isOk());
+        printSlideBeforeSlicing(slicingTaskId, embeddingBoxId);
         String slideId = responseBody(postJson("/api/v1/slicings/complete", USER_M3_SLICING, """
             {
               "taskId":"%s",
@@ -266,6 +268,17 @@ abstract class AbstractDiagnosticWorkflowIntegrationTest extends AbstractTechnic
             """).andExpect(status().isOk());
 
         return new StartedDiagnosticContext(context.caseId(), context.pathologyNo(), diagnosticTaskId);
+    }
+
+    private void printSlideBeforeSlicing(String slicingTaskId, String embeddingBoxId) throws Exception {
+        postJson("/api/v1/slicings/slide-print", USER_M3_SLICING, """
+            {
+              "taskId":"%s",
+              "embeddingBoxId":"%s",
+              "sourceSlideCount":1,
+              "terminalCode":"M4-S-PRINT"
+            }
+            """.formatted(slicingTaskId, embeddingBoxId)).andExpect(status().isOk());
     }
 
     protected PublishedReportContext preparePublishedReportContext(String applicationNo, String barcode) throws Exception {

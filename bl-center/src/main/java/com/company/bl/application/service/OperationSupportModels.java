@@ -2,6 +2,7 @@ package com.company.bl.application.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public final class OperationSupportModels {
@@ -16,9 +17,25 @@ public final class OperationSupportModels {
         String specification,
         String unit,
         String manufacturer,
+        String reagentType,
+        String reagentUsage,
+        String orderDictItemId,
+        String orderItemName,
+        String cloneNo,
+        String recommendedDilution,
+        String applicationDilution,
+        String templateStatus,
+        Integer validityDays,
         BigDecimal defaultLowStockThreshold,
+        BigDecimal defaultStockThreshold,
         Integer defaultNearExpiryDays,
+        BigDecimal stainCapacity,
+        BigDecimal stainThreshold,
         boolean enabled,
+        String createdAt,
+        String updatedAt,
+        String createdByName,
+        String updatedByName,
         String remarks
     ) {
     }
@@ -29,8 +46,19 @@ public final class OperationSupportModels {
         String specification,
         String unit,
         String manufacturer,
+        String reagentType,
+        String reagentUsage,
+        String orderDictItemId,
+        String cloneNo,
+        String recommendedDilution,
+        String applicationDilution,
+        String templateStatus,
+        Integer validityDays,
         BigDecimal defaultLowStockThreshold,
+        BigDecimal defaultStockThreshold,
         Integer defaultNearExpiryDays,
+        BigDecimal stainCapacity,
+        BigDecimal stainThreshold,
         boolean enabled,
         String operatorUserId,
         String operatorName,
@@ -44,8 +72,19 @@ public final class OperationSupportModels {
         String specification,
         String unit,
         String manufacturer,
+        String reagentType,
+        String reagentUsage,
+        String orderDictItemId,
+        String cloneNo,
+        String recommendedDilution,
+        String applicationDilution,
+        String templateStatus,
+        Integer validityDays,
         BigDecimal defaultLowStockThreshold,
+        BigDecimal defaultStockThreshold,
         Integer defaultNearExpiryDays,
+        BigDecimal stainCapacity,
+        BigDecimal stainThreshold,
         boolean enabled,
         String operatorUserId,
         String operatorName,
@@ -58,13 +97,34 @@ public final class OperationSupportModels {
         String reagentId,
         String reagentCode,
         String reagentName,
+        String reagentType,
+        String orderDictItemId,
+        String orderItemName,
         String batchNo,
+        BigDecimal initialQuantity,
         BigDecimal stockQuantity,
+        BigDecimal remainingQuantity,
         String stockStatus,
+        LocalDate productionDate,
+        String inboundAt,
         LocalDate expiryDate,
         String storageLocation,
         BigDecimal lowStockThreshold,
         Integer nearExpiryDays,
+        Integer testReminderThreshold,
+        Integer expiryReminderThreshold,
+        String recommendedDilution,
+        String applicationDilution,
+        BigDecimal stainCapacity,
+        BigDecimal stainThreshold,
+        Integer validityDays,
+        String testedAt,
+        String startedAt,
+        String finishedAt,
+        String createdAt,
+        String updatedAt,
+        String createdByName,
+        String updatedByName,
         String remarks
     ) {
     }
@@ -72,12 +132,23 @@ public final class OperationSupportModels {
     public record CreateReagentStockCommand(
         String reagentId,
         String batchNo,
+        BigDecimal initialQuantity,
         BigDecimal stockQuantity,
+        BigDecimal remainingQuantity,
         String stockStatus,
+        LocalDate productionDate,
+        LocalDateTime inboundAt,
         LocalDate expiryDate,
         String storageLocation,
         BigDecimal lowStockThreshold,
         Integer nearExpiryDays,
+        Integer testReminderThreshold,
+        Integer expiryReminderThreshold,
+        String recommendedDilution,
+        String applicationDilution,
+        BigDecimal stainCapacity,
+        BigDecimal stainThreshold,
+        Integer validityDays,
         String operatorUserId,
         String operatorName,
         String remarks
@@ -86,15 +157,63 @@ public final class OperationSupportModels {
 
     public record UpdateReagentStockCommand(
         String stockId,
+        BigDecimal initialQuantity,
         BigDecimal stockQuantity,
+        BigDecimal remainingQuantity,
         String stockStatus,
+        LocalDate productionDate,
+        LocalDateTime inboundAt,
         LocalDate expiryDate,
         String storageLocation,
         BigDecimal lowStockThreshold,
         Integer nearExpiryDays,
+        Integer testReminderThreshold,
+        Integer expiryReminderThreshold,
+        String recommendedDilution,
+        String applicationDilution,
+        BigDecimal stainCapacity,
+        BigDecimal stainThreshold,
+        Integer validityDays,
         String operatorUserId,
         String operatorName,
         String remarks
+    ) {
+    }
+
+    public record ReagentStockActionCommand(
+        String stockId,
+        BigDecimal quantity,
+        String operatorUserId,
+        String operatorName,
+        String remarks
+    ) {
+    }
+
+    public record ReagentStockEventView(
+        String id,
+        String stockId,
+        String eventType,
+        BigDecimal quantityDelta,
+        BigDecimal quantityBefore,
+        BigDecimal quantityAfter,
+        String occurredAt,
+        String operatorName,
+        String remarks
+    ) {
+    }
+
+    public record ReagentStockImportResult(
+        int successCount,
+        int failureCount,
+        List<ReagentStockImportError> errors
+    ) {
+    }
+
+    public record ReagentStockImportError(
+        int rowNumber,
+        String field,
+        String rejectedValue,
+        String message
     ) {
     }
 

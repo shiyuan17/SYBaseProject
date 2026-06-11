@@ -6,12 +6,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.mock.web.MockMultipartFile;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -20,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class OperationSupportIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTest {
 
     private static final String USER_M1_REAGENT = "USER_M1_REAGENT";
+    private static final String USER_M1_ARCHIVE = "USER_M1_ARCHIVE";
 
     @Test
     void shouldMaintainReagentLedgerStocksAndWarnings() throws Exception {
@@ -83,6 +86,163 @@ class OperationSupportIntegrationTest extends AbstractDiagnosticWorkflowIntegrat
         JsonNode warningsAfterUpdate = responseBody(mockMvc.perform(authorized(get("/api/v1/reagent-stocks/warnings"), USER_M1_REAGENT)), 200);
         assertThat(warningsAfterUpdate.toString()).contains("LOW_STOCK");
         assertThat(warningsAfterUpdate.toString()).doesNotContain("BATCH-EXP-1");
+    }
+
+    @Test
+    void shouldMaintainReagentTemplateInventoryActionsAndCsvExchange() throws Exception {
+        String suffix = String.valueOf(System.nanoTime());
+        JsonNode template = responseBody(postJson("/api/v1/reagents", USER_M1_REAGENT, """
+            {
+              "reagentCode":"RG-LEGACY-%s",
+              "reagentName":"CK Working Solution",
+              "specification":"6ml",
+              "unit":"bottle",
+              "manufacturer":"Path Supplier",
+              "reagentType":"IMMUNO_WORKING_SOLUTION",
+              "reagentUsage":"IHC",
+              "orderDictItemId":"ODI_IHC_CK",
+              "cloneNo":"AE1/AE3",
+              "recommendedDilution":"1:100",
+              "applicationDilution":"1:80",
+              "templateStatus":"ENABLED",
+              "validityDays":365,
+              "defaultStockThreshold":2,
+              "stainCapacity":120,
+              "stainThreshold":12,
+              "remarks":"legacy template"
+            }
+            """.formatted(suffix)), 200);
+        assertThat(template.path("reagentType").asText()).isEqualTo("IMMUNO_WORKING_SOLUTION");
+        assertThat(template.path("orderDictItemId").asText()).isEqualTo("ODI_IHC_CK");
+        assertThat(template.path("orderItemName").asText()).isEqualTo("CK");
+        assertThat(template.path("templateStatus").asText()).isEqualTo("ENABLED");
+        String reagentId = template.path("id").asText();
+
+        JsonNode listedTemplates = responseBody(mockMvc.perform(authorized(get("/api/v1/reagents"), USER_M1_REAGENT)
+            .param("keyword", "CK")
+            .param("reagentType", "IMMUNO_WORKING_SOLUTION")
+            .param("templateStatus", "ENABLED")), 200);
+        assertThat(listedTemplates).anySatisfy(item -> assertThat(item.path("reagentCode").asText()).isEqualTo("RG-LEGACY-" + suffix));
+
+        JsonNode stock = responseBody(postJson("/api/v1/reagent-stocks", USER_M1_REAGENT, """
+            {
+              "reagentId":"%s",
+              "batchNo":"BATCH-LEGACY-%s",
+              "initialQuantity":10,
+              "stockQuantity":10,
+              "remainingQuantity":10,
+              "stockStatus":"IN_STOCK",
+              "productionDate":"%s",
+              "inboundAt":"%s",
+              "expiryDate":"%s",
+              "storageLocation":"Cold-01",
+              "testReminderThreshold":3,
+              "expiryReminderThreshold":20,
+              "recommendedDilution":"1:100",
+              "applicationDilution":"1:80",
+              "stainCapacity":120,
+              "stainThreshold":12,
+              "validityDays":365,
+              "remarks":"legacy inbound"
+            }
+            """.formatted(reagentId, suffix, LocalDate.now().minusDays(1),
+            LocalDateTime.now().minusHours(2).withNano(0), LocalDate.now().plusDays(180))), 200);
+        String stockId = stock.path("id").asText();
+        assertThat(stock.path("remainingQuantity").decimalValue()).isEqualByComparingTo("10");
+        assertThat(stock.path("stockStatus").asText()).isEqualTo("IN_STOCK");
+
+        JsonNode tested = responseBody(postJson("/api/v1/reagent-stocks/%s/test".formatted(stockId), USER_M1_REAGENT, """
+            {"quantity":1,"remarks":"QC passed"}
+            """), 200);
+        assertThat(tested.path("remainingQuantity").decimalValue()).isEqualByComparingTo("9");
+        assertThat(tested.path("stockStatus").asText()).isEqualTo("TESTED");
+
+        JsonNode inUse = responseBody(postJson("/api/v1/reagent-stocks/%s/start-use".formatted(stockId), USER_M1_REAGENT, """
+            {"remarks":"start staining"}
+            """), 200);
+        assertThat(inUse.path("stockStatus").asText()).isEqualTo("IN_USE");
+
+        JsonNode consumed = responseBody(postJson("/api/v1/reagent-stocks/%s/consume".formatted(stockId), USER_M1_REAGENT, """
+            {"quantity":4,"remarks":"4 slides"}
+            """), 200);
+        assertThat(consumed.path("remainingQuantity").decimalValue()).isEqualByComparingTo("5");
+
+        postJson("/api/v1/reagent-stocks/%s/consume".formatted(stockId), USER_M1_REAGENT, """
+            {"quantity":6,"remarks":"over consume"}
+            """).andExpect(status().isBadRequest());
+
+        JsonNode finished = responseBody(postJson("/api/v1/reagent-stocks/%s/finish-use".formatted(stockId), USER_M1_REAGENT, """
+            {"remarks":"empty bottle"}
+            """), 200);
+        assertThat(finished.path("stockStatus").asText()).isEqualTo("FINISHED");
+
+        postJson("/api/v1/reagent-stocks/%s/consume".formatted(stockId), USER_M1_REAGENT, """
+            {"quantity":1,"remarks":"cannot consume finished"}
+            """).andExpect(status().isBadRequest());
+
+        JsonNode events = responseBody(mockMvc.perform(authorized(get("/api/v1/reagent-stocks/{id}/events", stockId), USER_M1_REAGENT)), 200);
+        assertThat(events).hasSizeGreaterThanOrEqualTo(5);
+        assertThat(events.toString()).contains("INBOUND", "TEST", "START_USE", "CONSUME", "FINISH_USE");
+
+        JsonNode filteredStocks = responseBody(mockMvc.perform(authorized(get("/api/v1/reagent-stocks"), USER_M1_REAGENT)
+            .param("keyword", "LEGACY")
+            .param("reagentType", "IMMUNO_WORKING_SOLUTION")
+            .param("stockStatus", "FINISHED")
+            .param("dateFrom", LocalDate.now().minusDays(2).toString())
+            .param("dateTo", LocalDate.now().plusDays(1).toString())), 200);
+        assertThat(filteredStocks).anySatisfy(item -> assertThat(item.path("id").asText()).isEqualTo(stockId));
+
+        mockMvc.perform(authorized(get("/api/v1/reagent-stocks/export"), USER_M1_REAGENT)
+            .param("keyword", "LEGACY"))
+            .andExpect(status().isOk())
+            .andExpect(result -> {
+                byte[] content = result.getResponse().getContentAsByteArray();
+                assertThat(content).startsWith((byte) 0xEF, (byte) 0xBB, (byte) 0xBF);
+                assertThat(new String(content, java.nio.charset.StandardCharsets.UTF_8))
+                    .contains("试剂编码", "批号", "RG-LEGACY-" + suffix, "BATCH-LEGACY-" + suffix);
+            });
+
+        MockMultipartFile importFile = new MockMultipartFile(
+            "file",
+            "reagent-stocks.csv",
+            "text/csv",
+            ("\uFEFF试剂编码,试剂名称,批号,初始数量,当前剩余量,库存状态,生产日期,有效期,库位\n"
+                + "RG-LEGACY-%s,CK Working Solution,BATCH-CSV-%s,3,3,IN_STOCK,%s,%s,Cold-CSV\n")
+                .formatted(suffix, suffix, LocalDate.now(), LocalDate.now().plusDays(120))
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        JsonNode importResult = responseBody(mockMvc.perform(authorized(multipart("/api/v1/reagent-stocks/import").file(importFile), USER_M1_REAGENT)), 200);
+        assertThat(importResult.path("successCount").asInt()).isEqualTo(1);
+        assertThat(importResult.path("failureCount").asInt()).isZero();
+
+        MockMultipartFile invalidImportFile = new MockMultipartFile(
+            "file",
+            "reagent-stocks-invalid.csv",
+            "text/csv",
+            ("\uFEFF试剂编码,试剂名称,批号,初始数量,当前剩余量,库存状态\n"
+                + "MISSING-CODE,,BATCH-MISSING-%s,1,1,IN_STOCK\n")
+                .formatted(suffix)
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        JsonNode invalidImportResult = responseBody(mockMvc.perform(authorized(multipart("/api/v1/reagent-stocks/import").file(invalidImportFile), USER_M1_REAGENT)), 200);
+        assertThat(invalidImportResult.path("successCount").asInt()).isZero();
+        assertThat(invalidImportResult.path("failureCount").asInt()).isEqualTo(1);
+        assertThat(invalidImportResult.path("errors").get(0).path("message").asText()).contains("Reagent template not found");
+    }
+
+    @Test
+    void shouldReuseReagentPermissionsForInventoryImportExportAndActions() throws Exception {
+        mockMvc.perform(authorized(get("/api/v1/reagent-stocks/export"), USER_M1_REAGENT))
+            .andExpect(status().isOk());
+
+        MockMultipartFile file = new MockMultipartFile(
+            "file",
+            "reagent-stocks.csv",
+            "text/csv",
+            "\uFEFF试剂编码,批号\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        mockMvc.perform(authorized(multipart("/api/v1/reagent-stocks/import").file(file), USER_M1_ARCHIVE))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(authorized(get("/api/v1/reagent-stocks/export"), USER_M1_ARCHIVE))
+            .andExpect(status().isForbidden());
     }
 
     @Test
