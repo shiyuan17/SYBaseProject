@@ -122,6 +122,22 @@ public final class ArchiveModels {
     ) {
     }
 
+    public record SearchArchiveObjectsQuery(
+        String keyword,
+        String objectType,
+        int page,
+        int size
+    ) {
+    }
+
+    public record ArchiveObjectPage(
+        List<ArchiveRecordView> items,
+        int page,
+        int size,
+        long total
+    ) {
+    }
+
     public record CreateMaterialLoanCommand(
         String materialType,
         String materialId,

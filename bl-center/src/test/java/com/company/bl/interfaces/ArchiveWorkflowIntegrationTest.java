@@ -98,6 +98,123 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
     }
 
     @Test
+    void shouldPageArchiveObjectsAcrossUnarchivedArchivedAndBorrowedStates() throws Exception {
+        PublishedReportContext context = preparePublishedReportContext("APP-M5-ARCH-OBJECTS-001", "BC-M5-ARCH-OBJECTS-001");
+        String applicationId = queryApplicationId(context.caseId());
+        Map<String, Object> embeddingBox = queryEmbeddingBox(context.caseId());
+        Map<String, Object> slide = querySlide(context.caseId());
+
+        JsonNode applicationObjectsBeforeArchive = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-objects"), USER_M1_ARCHIVE)
+            .param("objectType", "APPLICATION_FORM")
+            .param("keyword", "APP-M5-ARCH-OBJECTS-001")
+            .param("page", "1")
+            .param("size", "20")), 200);
+        JsonNode applicationRowBeforeArchive = findArchiveObject(applicationObjectsBeforeArchive, applicationId);
+        assertThat(applicationObjectsBeforeArchive.path("total").asLong()).isGreaterThanOrEqualTo(1);
+        assertThat(applicationRowBeforeArchive.path("objectType").asText()).isEqualTo("APPLICATION_FORM");
+        assertThat(applicationRowBeforeArchive.path("objectCode").asText()).isEqualTo("APP-M5-ARCH-OBJECTS-001");
+        assertThat(applicationRowBeforeArchive.path("archiveStatus").isMissingNode()
+            || applicationRowBeforeArchive.path("archiveStatus").isNull()).isTrue();
+
+        JsonNode embeddingObjectsBeforeArchive = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-objects"), USER_M1_ARCHIVE)
+            .param("objectType", "EMBEDDING_BOX")
+            .param("keyword", String.valueOf(embeddingBox.get("embeddingBoxNo")))
+            .param("page", "1")
+            .param("size", "20")), 200);
+        JsonNode embeddingRowBeforeArchive = findArchiveObject(embeddingObjectsBeforeArchive, String.valueOf(embeddingBox.get("id")));
+        assertThat(embeddingRowBeforeArchive.path("objectType").asText()).isEqualTo("EMBEDDING_BOX");
+        assertThat(embeddingRowBeforeArchive.path("archiveStatus").isMissingNode()
+            || embeddingRowBeforeArchive.path("archiveStatus").isNull()).isTrue();
+
+        JsonNode slideObjectsBeforeArchive = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-objects"), USER_M1_ARCHIVE)
+            .param("objectType", "SLIDE")
+            .param("keyword", String.valueOf(slide.get("slideNo")))
+            .param("page", "1")
+            .param("size", "20")), 200);
+        JsonNode slideRowBeforeArchive = findArchiveObject(slideObjectsBeforeArchive, String.valueOf(slide.get("id")));
+        assertThat(slideRowBeforeArchive.path("objectType").asText()).isEqualTo("SLIDE");
+        assertThat(slideRowBeforeArchive.path("archiveStatus").isMissingNode()
+            || slideRowBeforeArchive.path("archiveStatus").isNull()).isTrue();
+
+        JsonNode cabinet = createArchiveCabinet("CAB-M5-OBJECTS");
+        JsonNode positions = listAvailablePositions(cabinet.path("id").asText());
+        String applicationPositionId = positions.get(0).path("id").asText();
+        String applicationPositionCode = positions.get(0).path("positionCode").asText();
+        String embeddingPositionId = positions.get(1).path("id").asText();
+        String slidePositionId = positions.get(2).path("id").asText();
+
+        responseBody(postJson("/api/v1/archive/application-forms", USER_M1_ARCHIVE, """
+            {
+              "caseId":"%s",
+              "archivePositionId":"%s",
+              "terminalCode":"M5-ARCH-OBJECT-APP"
+            }
+            """.formatted(context.caseId(), applicationPositionId)), 200);
+        responseBody(postJson("/api/v1/archive/embedding-boxes", USER_M1_ARCHIVE, """
+            {
+              "embeddingBoxId":"%s",
+              "archivePositionId":"%s",
+              "terminalCode":"M5-ARCH-OBJECT-BOX"
+            }
+            """.formatted(embeddingBox.get("id"), embeddingPositionId)), 200);
+        responseBody(postJson("/api/v1/archive/slides", USER_M1_ARCHIVE, """
+            {
+              "slideId":"%s",
+              "archivePositionId":"%s",
+              "terminalCode":"M5-ARCH-OBJECT-SLIDE"
+            }
+            """.formatted(slide.get("id"), slidePositionId)), 200);
+
+        JsonNode applicationObjectsAfterArchive = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-objects"), USER_M1_ARCHIVE)
+            .param("objectType", "APPLICATION_FORM")
+            .param("keyword", "APP-M5-ARCH-OBJECTS-001")
+            .param("page", "1")
+            .param("size", "20")), 200);
+        JsonNode applicationRowAfterArchive = findArchiveObject(applicationObjectsAfterArchive, applicationId);
+        assertThat(applicationRowAfterArchive.path("archiveStatus").asText()).isEqualTo("IN_STORAGE");
+        assertThat(applicationRowAfterArchive.path("archiveLocation").asText()).isEqualTo(applicationPositionCode);
+        assertThat(applicationRowAfterArchive.path("storedByName").asText()).isNotBlank();
+        assertThat(applicationRowAfterArchive.path("archivedAt").asText()).isNotBlank();
+
+        responseBody(postJson("/api/v1/material-loans", USER_M1_ARCHIVE, """
+            {
+              "materialType":"SLIDE",
+              "materialId":"%s",
+              "borrowedByUserId":"DOC-BORROW-ARCHIVE-OBJECTS",
+              "borrowedByName":"Archive Object Borrower",
+              "borrowPurpose":"archive object paging",
+              "terminalCode":"M5-ARCH-OBJECT-LOAN"
+            }
+            """.formatted(slide.get("id"))), 200);
+
+        JsonNode slideObjectsAfterLoan = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-objects"), USER_M1_ARCHIVE)
+            .param("objectType", "SLIDE")
+            .param("keyword", String.valueOf(slide.get("slideNo")))
+            .param("page", "1")
+            .param("size", "20")), 200);
+        JsonNode slideRowAfterLoan = findArchiveObject(slideObjectsAfterLoan, String.valueOf(slide.get("id")));
+        assertThat(slideRowAfterLoan.path("archiveStatus").asText()).isEqualTo("BORROWED");
+        assertThat(slideRowAfterLoan.path("loanStatus").asText()).isEqualTo("BORROWED");
+        assertThat(slideRowAfterLoan.path("borrowedByName").asText()).isEqualTo("Archive Object Borrower");
+        assertThat(slideRowAfterLoan.path("borrowedAt").asText()).isNotBlank();
+    }
+
+    @Test
+    void shouldRejectInvalidArchiveObjectQueryAndRequireArchiveQueryPermission() throws Exception {
+        mockMvc.perform(authorized(get("/api/v1/archive-objects"), USER_M1_ARCHIVE))
+            .andExpect(status().isBadRequest());
+
+        mockMvc.perform(authorized(get("/api/v1/archive-objects"), USER_M1_ARCHIVE)
+            .param("objectType", "SPECIMEN"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("INVALID_ARGUMENT"));
+
+        mockMvc.perform(authorized(get("/api/v1/archive-objects"), "USER_M1_REAGENT")
+            .param("objectType", "SLIDE"))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
     void shouldBorrowAndReturnArchivedSlideAndReflectStatus() throws Exception {
         PublishedReportContext context = preparePublishedReportContext("APP-M5-ARCH-002", "BC-M5-ARCH-002");
         JsonNode cabinet = createArchiveCabinet("CAB-M5-A2");
@@ -279,5 +396,14 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
               and object_id = :applicationId
             order by created_at desc
             """, Map.of("applicationId", applicationId), (rs, rowNum) -> rs.getString("file_url"));
+    }
+
+    private JsonNode findArchiveObject(JsonNode page, String objectId) {
+        for (JsonNode item : page.path("items")) {
+            if (objectId.equals(item.path("objectId").asText())) {
+                return item;
+            }
+        }
+        throw new AssertionError("Archive object not found: " + objectId);
     }
 }

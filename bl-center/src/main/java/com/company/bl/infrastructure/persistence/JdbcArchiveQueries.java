@@ -246,6 +246,31 @@ final class JdbcArchiveQueries {
             .addValue("keywordLike", like), this::mapArchiveRecordView);
     }
 
+    ArchiveRepository.PagedArchiveObjects findArchiveObjects(ArchiveRepository.SearchArchiveObjectsQuery query) {
+        String keyword = query.keyword();
+        String like = keyword == null || keyword.isBlank() ? null : "%" + keyword.trim().toUpperCase() + "%";
+        MapSqlParameterSource parameters = new MapSqlParameterSource()
+            .addValue("keywordLike", like)
+            .addValue("offset", Math.max(0, (query.page() - 1) * query.size()))
+            .addValue("size", query.size());
+        String recordsSql = archiveObjectRecordsSql(query.objectType());
+        Long total = jdbcTemplate.queryForObject("""
+            select count(*)
+            from (
+            """ + recordsSql + """
+            ) records
+            """, parameters, Long.class);
+        List<ArchiveRepository.ArchiveRecordView> items = jdbcTemplate.query("""
+            select *
+            from (
+            """ + recordsSql + """
+            ) records
+            order by records.archived_at desc nulls last, records.object_code asc
+            offset :offset rows fetch next :size rows only
+            """, parameters, this::mapArchiveRecordView);
+        return new ArchiveRepository.PagedArchiveObjects(items, total == null ? 0 : total);
+    }
+
     Optional<ArchiveRepository.MaterialLoan> findMaterialLoanById(String loanId) {
         return jdbcTemplate.query(materialLoanSelect() + """
             where ml.id = :id
@@ -355,6 +380,118 @@ final class JdbcArchiveQueries {
             left join embedding_boxes eb on ml.material_type = 'EMBEDDING_BOX' and eb.id = ml.material_id
             left join slides s on ml.material_type = 'SLIDE' and s.id = ml.material_id
             """;
+    }
+
+    private String archiveObjectRecordsSql(String objectType) {
+        return switch (objectType) {
+            case "APPLICATION_FORM" -> """
+                select pc.id as case_id,
+                       pc.pathology_no,
+                       app.application_no,
+                       app.patient_name,
+                       'APPLICATION_FORM' as object_type,
+                       app.id as object_id,
+                       app.application_no as object_code,
+                       ssr.storage_status as archive_status,
+                       ssr.storage_location as archive_location,
+                       'NONE' as loan_status,
+                       ssr.stored_at as archived_at,
+                       ssr.stored_by_name,
+                       null as borrowed_by_name,
+                       null as borrowed_at
+                from applications app
+                join pathology_cases pc on pc.application_id = app.id
+                left join specimen_storage_records ssr
+                  on ssr.object_type = 'APPLICATION_FORM'
+                 and ssr.object_id = app.id
+                where (:keywordLike is null or upper(pc.pathology_no) like :keywordLike
+                       or upper(app.application_no) like :keywordLike
+                       or upper(app.patient_name) like :keywordLike)
+                """;
+            case "EMBEDDING_BOX" -> """
+                select eb.case_id,
+                       pc.pathology_no,
+                       app.application_no,
+                       app.patient_name,
+                       'EMBEDDING_BOX' as object_type,
+                       eb.id as object_id,
+                       eb.embedding_box_no as object_code,
+                       ssr.storage_status as archive_status,
+                       ssr.storage_location as archive_location,
+                       case when exists (
+                           select 1 from material_loans ml
+                           where ml.material_type = 'EMBEDDING_BOX'
+                             and ml.material_id = eb.id
+                             and ml.loan_status = 'BORROWED'
+                       ) then 'BORROWED' else 'NONE' end as loan_status,
+                       ssr.stored_at as archived_at,
+                       ssr.stored_by_name,
+                       (select ml.borrowed_by_name from material_loans ml
+                        where ml.material_type = 'EMBEDDING_BOX'
+                          and ml.material_id = eb.id
+                          and ml.loan_status = 'BORROWED'
+                        order by ml.borrowed_at desc
+                        fetch first 1 row only) as borrowed_by_name,
+                       (select ml.borrowed_at from material_loans ml
+                        where ml.material_type = 'EMBEDDING_BOX'
+                          and ml.material_id = eb.id
+                          and ml.loan_status = 'BORROWED'
+                        order by ml.borrowed_at desc
+                        fetch first 1 row only) as borrowed_at
+                from embedding_boxes eb
+                join pathology_cases pc on pc.id = eb.case_id
+                join applications app on app.id = pc.application_id
+                left join specimen_storage_records ssr
+                  on ssr.object_type = 'EMBEDDING_BOX'
+                 and ssr.object_id = eb.id
+                where (:keywordLike is null or upper(pc.pathology_no) like :keywordLike
+                       or upper(app.application_no) like :keywordLike
+                       or upper(app.patient_name) like :keywordLike
+                       or upper(eb.embedding_box_no) like :keywordLike)
+                """;
+            case "SLIDE" -> """
+                select s.case_id,
+                       pc.pathology_no,
+                       app.application_no,
+                       app.patient_name,
+                       'SLIDE' as object_type,
+                       s.id as object_id,
+                       s.slide_no as object_code,
+                       ssr.storage_status as archive_status,
+                       ssr.storage_location as archive_location,
+                       case when exists (
+                           select 1 from material_loans ml
+                           where ml.material_type = 'SLIDE'
+                             and ml.material_id = s.id
+                             and ml.loan_status = 'BORROWED'
+                       ) then 'BORROWED' else 'NONE' end as loan_status,
+                       ssr.stored_at as archived_at,
+                       ssr.stored_by_name,
+                       (select ml.borrowed_by_name from material_loans ml
+                        where ml.material_type = 'SLIDE'
+                          and ml.material_id = s.id
+                          and ml.loan_status = 'BORROWED'
+                        order by ml.borrowed_at desc
+                        fetch first 1 row only) as borrowed_by_name,
+                       (select ml.borrowed_at from material_loans ml
+                        where ml.material_type = 'SLIDE'
+                          and ml.material_id = s.id
+                          and ml.loan_status = 'BORROWED'
+                        order by ml.borrowed_at desc
+                        fetch first 1 row only) as borrowed_at
+                from slides s
+                join pathology_cases pc on pc.id = s.case_id
+                join applications app on app.id = pc.application_id
+                left join specimen_storage_records ssr
+                  on ssr.object_type = 'SLIDE'
+                 and ssr.object_id = s.id
+                where (:keywordLike is null or upper(pc.pathology_no) like :keywordLike
+                       or upper(app.application_no) like :keywordLike
+                       or upper(app.patient_name) like :keywordLike
+                       or upper(s.slide_no) like :keywordLike)
+                """;
+            default -> throw new IllegalArgumentException("Unsupported archive object type: " + objectType);
+        };
     }
 
     private ArchiveRepository.ArchiveCabinet mapArchiveCabinet(ResultSet rs, int rowNum) throws SQLException {

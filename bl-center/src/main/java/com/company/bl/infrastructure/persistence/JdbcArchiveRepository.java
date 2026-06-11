@@ -120,6 +120,11 @@ public class JdbcArchiveRepository implements ArchiveRepository {
     }
 
     @Override
+    public PagedArchiveObjects findArchiveObjects(SearchArchiveObjectsQuery query) {
+        return queries.findArchiveObjects(query);
+    }
+
+    @Override
     public Optional<MaterialLoan> findMaterialLoanById(String loanId) {
         return queries.findMaterialLoanById(loanId);
     }

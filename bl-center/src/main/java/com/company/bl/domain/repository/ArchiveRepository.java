@@ -48,6 +48,8 @@ public interface ArchiveRepository {
 
     List<ArchiveRecordView> searchArchiveRecords(SearchArchiveRecordsQuery query);
 
+    PagedArchiveObjects findArchiveObjects(SearchArchiveObjectsQuery query);
+
     Optional<MaterialLoan> findMaterialLoanById(String loanId);
 
     List<MaterialLoan> findPendingMaterialLoans(String keyword, String materialType);
@@ -206,6 +208,20 @@ public interface ArchiveRepository {
         String storedByName,
         String borrowedByName,
         LocalDateTime borrowedAt
+    ) {
+    }
+
+    record SearchArchiveObjectsQuery(
+        String keyword,
+        String objectType,
+        int page,
+        int size
+    ) {
+    }
+
+    record PagedArchiveObjects(
+        List<ArchiveRecordView> items,
+        long total
     ) {
     }
 

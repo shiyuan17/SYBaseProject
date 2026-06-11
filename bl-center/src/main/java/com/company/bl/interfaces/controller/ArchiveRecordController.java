@@ -84,4 +84,13 @@ public class ArchiveRecordController extends TechnicalControllerSupport {
                                                                       @RequestParam(required = false) String caseId) {
         return archiveQueryService.searchArchiveRecords(new ArchiveModels.SearchArchiveRecordsQuery(keyword, objectType, caseId));
     }
+
+    @RequirePermission(M5PermissionCodes.ARCHIVE_QUERY)
+    @GetMapping("/archive-objects")
+    public ArchiveModels.ArchiveObjectPage findArchiveObjects(@RequestParam(required = false) String objectType,
+                                                              @RequestParam(required = false) String keyword,
+                                                              @RequestParam(defaultValue = "1") int page,
+                                                              @RequestParam(defaultValue = "20") int size) {
+        return archiveQueryService.findArchiveObjects(new ArchiveModels.SearchArchiveObjectsQuery(keyword, objectType, page, size));
+    }
 }
