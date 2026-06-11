@@ -9,6 +9,7 @@ public final class M5PermissionCodes {
     public static final String APPLICATION_FORM_ARCHIVE = "PERM_M5_APPLICATION_FORM_ARCHIVE";
     public static final String EMBEDDING_BOX_ARCHIVE = "PERM_M5_EMBEDDING_BOX_ARCHIVE";
     public static final String SLIDE_ARCHIVE = "PERM_M5_SLIDE_ARCHIVE";
+    public static final String SPECIMEN_ARCHIVE = "PERM_M5_SPECIMEN_ARCHIVE";
     public static final String ARCHIVE_QUERY = "PERM_M5_ARCHIVE_QUERY";
     public static final String LOAN_CREATE = "PERM_M5_LOAN_CREATE";
     public static final String LOAN_RETURN = "PERM_M5_LOAN_RETURN";

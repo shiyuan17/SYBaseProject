@@ -101,6 +101,7 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
     void shouldPageArchiveObjectsAcrossUnarchivedArchivedAndBorrowedStates() throws Exception {
         PublishedReportContext context = preparePublishedReportContext("APP-M5-ARCH-OBJECTS-001", "BC-M5-ARCH-OBJECTS-001");
         String applicationId = queryApplicationId(context.caseId());
+        Map<String, Object> specimen = querySpecimen(context.caseId());
         Map<String, Object> embeddingBox = queryEmbeddingBox(context.caseId());
         Map<String, Object> slide = querySlide(context.caseId());
 
@@ -136,12 +137,25 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
         assertThat(slideRowBeforeArchive.path("archiveStatus").isMissingNode()
             || slideRowBeforeArchive.path("archiveStatus").isNull()).isTrue();
 
+        JsonNode specimenObjectsBeforeArchive = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-objects"), USER_M1_ARCHIVE)
+            .param("objectType", "SPECIMEN")
+            .param("keyword", String.valueOf(specimen.get("specimenNo")))
+            .param("page", "1")
+            .param("size", "20")), 200);
+        JsonNode specimenRowBeforeArchive = findArchiveObject(specimenObjectsBeforeArchive, String.valueOf(specimen.get("id")));
+        assertThat(specimenRowBeforeArchive.path("objectType").asText()).isEqualTo("SPECIMEN");
+        assertThat(specimenRowBeforeArchive.path("objectCode").asText()).isEqualTo(String.valueOf(specimen.get("specimenNo")));
+        assertThat(specimenRowBeforeArchive.path("archiveStatus").isMissingNode()
+            || specimenRowBeforeArchive.path("archiveStatus").isNull()).isTrue();
+
         JsonNode cabinet = createArchiveCabinet("CAB-M5-OBJECTS");
         JsonNode positions = listAvailablePositions(cabinet.path("id").asText());
         String applicationPositionId = positions.get(0).path("id").asText();
         String applicationPositionCode = positions.get(0).path("positionCode").asText();
         String embeddingPositionId = positions.get(1).path("id").asText();
         String slidePositionId = positions.get(2).path("id").asText();
+        String specimenPositionId = positions.get(3).path("id").asText();
+        String specimenPositionCode = positions.get(3).path("positionCode").asText();
 
         responseBody(postJson("/api/v1/archive/application-forms", USER_M1_ARCHIVE, """
             {
@@ -164,6 +178,13 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
               "terminalCode":"M5-ARCH-OBJECT-SLIDE"
             }
             """.formatted(slide.get("id"), slidePositionId)), 200);
+        responseBody(postJson("/api/v1/archive/specimens", USER_M1_ARCHIVE, """
+            {
+              "specimenId":"%s",
+              "archivePositionId":"%s",
+              "terminalCode":"M5-ARCH-OBJECT-SPECIMEN"
+            }
+            """.formatted(specimen.get("id"), specimenPositionId)), 200);
 
         JsonNode applicationObjectsAfterArchive = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-objects"), USER_M1_ARCHIVE)
             .param("objectType", "APPLICATION_FORM")
@@ -175,6 +196,16 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
         assertThat(applicationRowAfterArchive.path("archiveLocation").asText()).isEqualTo(applicationPositionCode);
         assertThat(applicationRowAfterArchive.path("storedByName").asText()).isNotBlank();
         assertThat(applicationRowAfterArchive.path("archivedAt").asText()).isNotBlank();
+
+        JsonNode specimenObjectsAfterArchive = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-objects"), USER_M1_ARCHIVE)
+            .param("objectType", "SPECIMEN")
+            .param("keyword", String.valueOf(specimen.get("specimenNo")))
+            .param("page", "1")
+            .param("size", "20")), 200);
+        JsonNode specimenRowAfterArchive = findArchiveObject(specimenObjectsAfterArchive, String.valueOf(specimen.get("id")));
+        assertThat(specimenRowAfterArchive.path("archiveStatus").asText()).isEqualTo("IN_STORAGE");
+        assertThat(specimenRowAfterArchive.path("archiveLocation").asText()).isEqualTo(specimenPositionCode);
+        assertThat(specimenRowAfterArchive.path("storedByName").asText()).isNotBlank();
 
         responseBody(postJson("/api/v1/material-loans", USER_M1_ARCHIVE, """
             {
@@ -205,7 +236,7 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
             .andExpect(status().isBadRequest());
 
         mockMvc.perform(authorized(get("/api/v1/archive-objects"), USER_M1_ARCHIVE)
-            .param("objectType", "SPECIMEN"))
+            .param("objectType", "UNKNOWN"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("INVALID_ARGUMENT"));
 
@@ -348,7 +379,7 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
               "cabinetName":"Archive Cabinet %s",
               "cabinetType":"STANDARD",
               "layerCount":1,
-              "slotCountPerLayer":3,
+              "slotCountPerLayer":4,
               "terminalCode":"M5-CAB-01",
               "locationDescription":"Room A"
             }
@@ -372,6 +403,16 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
         return namedParameterJdbcTemplate.queryForMap("""
             select id, embedding_box_no as embeddingBoxNo
             from embedding_boxes
+            where case_id = :caseId
+            order by created_at desc
+            limit 1
+            """, Map.of("caseId", caseId));
+    }
+
+    private Map<String, Object> querySpecimen(String caseId) {
+        return namedParameterJdbcTemplate.queryForMap("""
+            select id, specimen_no as specimenNo
+            from specimens
             where case_id = :caseId
             order by created_at desc
             limit 1

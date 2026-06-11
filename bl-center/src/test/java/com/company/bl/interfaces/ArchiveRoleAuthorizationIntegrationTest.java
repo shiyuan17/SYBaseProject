@@ -67,6 +67,15 @@ class ArchiveRoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflow
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
 
+        postJson("/api/v1/archive/specimens", USER_M1_REAGENT, """
+            {
+              "specimenId":"SPECIMEN-M5-AUTH-FORBIDDEN",
+              "archivePositionId":"POSITION-M5-AUTH-FORBIDDEN"
+            }
+            """)
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+
         mockMvc.perform(authorized(delete("/api/v1/archive-cabinets/{id}", cabinet.path("id").asText()), USER_M1_REAGENT))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));

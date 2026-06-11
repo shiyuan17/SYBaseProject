@@ -12,7 +12,7 @@ import java.util.List;
 @Service
 public class ArchiveQueryService {
 
-    private static final List<String> ARCHIVE_OBJECT_TYPES = List.of("APPLICATION_FORM", "EMBEDDING_BOX", "SLIDE");
+    private static final List<String> ARCHIVE_OBJECT_TYPES = List.of("APPLICATION_FORM", "EMBEDDING_BOX", "SLIDE", "SPECIMEN");
 
     private final ArchiveRepository archiveRepository;
 

@@ -4,6 +4,7 @@ import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.domain.model.Application;
 import com.company.bl.domain.model.PathologyCase;
+import com.company.bl.domain.model.Specimen;
 import com.company.bl.domain.repository.ArchiveRepository;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords;
@@ -203,6 +204,14 @@ public class ArchiveWorkflowService {
             .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Slide not found"));
         PathologyCase pathologyCase = diagnosticReportSupport.getCase(slide.caseId());
         return archiveObject(pathologyCase, slide.specimenId(), "SLIDE", slide.id(), command, false);
+    }
+
+    @Transactional
+    public ArchiveModels.ArchiveActionResult archiveSpecimen(ArchiveModels.ArchiveObjectCommand command) {
+        Specimen specimen = technicalWorkflowRepository.findSpecimenById(command.objectId())
+            .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Specimen not found"));
+        PathologyCase pathologyCase = diagnosticReportSupport.getCase(specimen.caseId());
+        return archiveObject(pathologyCase, specimen.id(), "SPECIMEN", specimen.id(), command, false);
     }
 
     @Transactional

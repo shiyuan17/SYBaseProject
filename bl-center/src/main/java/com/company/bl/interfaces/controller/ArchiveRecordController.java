@@ -8,6 +8,7 @@ import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.ArchiveApplicationFormRequest;
 import com.company.bl.interfaces.dto.ArchiveEmbeddingBoxRequest;
 import com.company.bl.interfaces.dto.ArchiveSlideRequest;
+import com.company.bl.interfaces.dto.ArchiveSpecimenRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -68,6 +69,21 @@ public class ArchiveRecordController extends TechnicalControllerSupport {
                                                           HttpServletRequest httpServletRequest) {
         return archiveWorkflowService.archiveSlide(new ArchiveModels.ArchiveObjectCommand(
             request.getSlideId(),
+            request.getArchivePositionId(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
+            request.getTerminalCode(),
+            null,
+            null,
+            request.getRemarks()));
+    }
+
+    @RequirePermission(M5PermissionCodes.SPECIMEN_ARCHIVE)
+    @PostMapping("/archive/specimens")
+    public ArchiveModels.ArchiveActionResult archiveSpecimen(@Valid @RequestBody ArchiveSpecimenRequest request,
+                                                             HttpServletRequest httpServletRequest) {
+        return archiveWorkflowService.archiveSpecimen(new ArchiveModels.ArchiveObjectCommand(
+            request.getSpecimenId(),
             request.getArchivePositionId(),
             resolveUserId(httpServletRequest),
             resolveOperatorName(httpServletRequest),

@@ -490,6 +490,32 @@ final class JdbcArchiveQueries {
                        or upper(app.patient_name) like :keywordLike
                        or upper(s.slide_no) like :keywordLike)
                 """;
+            case "SPECIMEN" -> """
+                select sp.case_id,
+                       pc.pathology_no,
+                       app.application_no,
+                       app.patient_name,
+                       'SPECIMEN' as object_type,
+                       sp.id as object_id,
+                       sp.specimen_no as object_code,
+                       ssr.storage_status as archive_status,
+                       ssr.storage_location as archive_location,
+                       'NONE' as loan_status,
+                       ssr.stored_at as archived_at,
+                       ssr.stored_by_name,
+                       null as borrowed_by_name,
+                       null as borrowed_at
+                from specimens sp
+                join pathology_cases pc on pc.id = sp.case_id
+                join applications app on app.id = pc.application_id
+                left join specimen_storage_records ssr
+                  on ssr.object_type = 'SPECIMEN'
+                 and ssr.object_id = sp.id
+                where (:keywordLike is null or upper(pc.pathology_no) like :keywordLike
+                       or upper(app.application_no) like :keywordLike
+                       or upper(app.patient_name) like :keywordLike
+                       or upper(sp.specimen_no) like :keywordLike)
+                """;
             default -> throw new IllegalArgumentException("Unsupported archive object type: " + objectType);
         };
     }
