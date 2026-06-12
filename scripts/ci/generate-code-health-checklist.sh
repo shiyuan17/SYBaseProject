@@ -308,7 +308,7 @@ fi
   printf '## Maintainability\n\n'
   printf '| Check Item | Basis | Status | Evidence | Suggested Action |\n'
   printf '| --- | --- | --- | --- | --- |\n'
-  printf '| Structural hotspots | docs/rules/AI_CODE_HEALTH_CORE.md; docs/rules/CODING_RULES.md; docs/reports/largest-files-report.md | %s | %s | Prioritize breaking up persistence, service, and controller files with heavy line counts. |\n\n' "$maintainability_status" "$maintainability_summary"
+  printf '| Structural hotspots | docs/rules/AI-CODE-HEALTH.md; docs/rules/CODING_RULES.md; docs/reports/largest-files-report.md | %s | %s | Prioritize breaking up persistence, service, and controller files with heavy line counts. |\n\n' "$maintainability_status" "$maintainability_summary"
 
   printf '### Priority Hotspots\n\n'
   printf '| Lines | File | Why It Matters |\n'
@@ -347,7 +347,7 @@ fi
   else
     generic_evidence='No tracked files matched generic basenames such as utils, common, helper, helpers, tools, tmp, or temp.'
   fi
-  printf '| Generic filenames | docs/rules/AI_CODE_HEALTH_CONTRACTS.md; docs/rules/CODING_RULES.md | %s | %s | Keep file and module names anchored in domain language. |\n' "$naming_status" "$generic_evidence"
+  printf '| Generic filenames | docs/rules/AI-CODE-HEALTH.md; docs/rules/CODING_RULES.md | %s | %s | Keep file and module names anchored in domain language. |\n' "$naming_status" "$generic_evidence"
   if [ -n "$todo_hits" ]; then
     todo_evidence="TODO/FIXME hits: $(markdown_cell "$todo_hits")."
     todo_status='WATCH'
@@ -355,7 +355,7 @@ fi
     todo_evidence='The scan only matched the domain constant TODO_TASK; no stray TODO/FIXME markers were found.'
     todo_status='PASS'
   fi
-  printf '| TODO / FIXME noise | docs/rules/CODING_RULES.md; docs/rules/AI_CODE_HEALTH_CORE.md | %s | %s | Keep domain constants distinct from comment-based follow-up markers. |\n\n' "$todo_status" "$todo_evidence"
+  printf '| TODO / FIXME noise | docs/rules/CODING_RULES.md; docs/rules/AI-CODE-HEALTH.md | %s | %s | Keep domain constants distinct from comment-based follow-up markers. |\n\n' "$todo_status" "$todo_evidence"
 
   printf '## Errors and Encoding\n\n'
   printf '| Check Item | Basis | Status | Evidence | Suggested Action |\n'
@@ -367,7 +367,7 @@ fi
     encoding_evidence='No raw new String(byte[]), FileReader, or FileWriter usage was found in the scanned source tree.'
     encoding_status='PASS'
   fi
-  printf '| Implicit charset conversions | docs/rules/CODING_RULES.md; docs/rules/AI_CODE_HEALTH_CONTRACTS.md | %s | %s | Keep charsets explicit, especially on import, export, and log-writing paths. |\n' "$encoding_status" "$encoding_evidence"
+  printf '| Implicit charset conversions | docs/rules/CODING_RULES.md; docs/rules/AI-CODE-HEALTH.md | %s | %s | Keep charsets explicit, especially on import, export, and log-writing paths. |\n' "$encoding_status" "$encoding_evidence"
   if [ -n "$empty_catch_hits" ]; then
     empty_catch_evidence="Empty catch hits: $(markdown_cell "$empty_catch_hits")."
     empty_catch_status='WATCH'
@@ -375,7 +375,7 @@ fi
     empty_catch_evidence='No empty catch blocks were found by the regex scan.'
     empty_catch_status='PASS'
   fi
-  printf '| Empty catch / silent exception swallowing | docs/rules/CODING_RULES.md; docs/rules/AI_CODE_HEALTH_CORE.md | %s | %s | Keep exceptions structured and propagate them at the right layer. |\n\n' "$empty_catch_status" "$empty_catch_evidence"
+  printf '| Empty catch / silent exception swallowing | docs/rules/CODING_RULES.md; docs/rules/AI-CODE-HEALTH.md | %s | %s | Keep exceptions structured and propagate them at the right layer. |\n\n' "$empty_catch_status" "$empty_catch_evidence"
 
   printf '## Notes\n\n'
   printf -- '- This checklist separates the hard file-health gate from structural debt: passing the gate does not mean the repository is debt-free.\n'

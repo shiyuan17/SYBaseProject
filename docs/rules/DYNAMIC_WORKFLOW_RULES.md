@@ -12,15 +12,36 @@
 
 ## 总规则
 
-每个任务必须先选择一个主 Workflow，再按风险叠加强制修饰器：
+每个任务必须先选择一个主 Workflow，再按风险叠加强制修饰器。修饰器全集只在本节定义，其他章节与文档只引用本节：
 
 - 主 Workflow：API、DB、Security、Architecture、Production Debug、Workflow/Infra 之一
 - Security 修饰器：涉及认证、授权、患者信息、报告信息、脱敏、审计、敏感日志时必须叠加
 - DB 修饰器：涉及迁移、种子、SQL、表结构、索引、约束、数据兼容或回滚时必须叠加
 - Red Team 修饰器：高风险、跨层、生产问题、权限/数据/报告相关任务必须叠加
-- 跨仓任务：后端 MR 必须引用前端 PR/验证结果，前端 PR 必须引用后端 MR/验证结果
+- Frontend Cross-check 修饰器（跨仓）：需要对照前端 `SYBaseProjectWeb` 消费方式或验证时必须叠加；后端 MR 必须引用前端 PR/验证结果，前端 PR 必须引用后端 MR/验证结果
 
 MR 必须填写 Workflow Packet，说明为什么选择该 Workflow、启用哪些专家 Agent、跑了哪些动态测试和模拟、红队攻击结论是什么。
+
+跨仓口径对齐（与前端 `SYBaseProjectWeb/docs/DYNAMIC_WORKFLOW_RULES.md` 互为镜像）：
+
+- 两仓主 Workflow 分类与修饰器语义保持一致；前端额外有 UI Workflow 与 Browser 验证修饰器，后端无 UI 类任务
+- 平台差异：前端走 GitHub PR（`pr-packet.yml` 自动校验 Workflow Packet 字段），后端走 GitLab MR（`verify` 阶段含 `verify_governance` 治理校验，Packet 由 MR 模板与人工审查把关）
+- 跨仓任务的双向引用是硬要求：后端 MR 描述中写明前端 PR 链接与前端验证结论，前端 PR 同理；记忆文件（`DECISIONS.md` 等）中的跨仓条目也必须双向引用
+- 修改任一仓的 Workflow 分类、修饰器全集或 Packet 字段语义时，必须同步评估另一仓对应文档并在 MR/PR 中说明
+
+## 触发信号速查表
+
+任务开始时先按"改动路径 / 需求信号"查下表选主 Workflow，再按命中行叠加必叠修饰器。一个任务可能命中多行：主 Workflow 取最贴近核心改动的一项，其余命中项作为修饰器叠加。判断有歧义或跨多类时，从严就高（优先叠加 Security / DB / Red Team）。
+
+| 改动路径 / 需求信号 | 主 Workflow | 必叠修饰器 |
+| --- | --- | --- |
+| Controller、Request/Response、错误码、分页、接口路径、字段映射、前端联调 | API | Frontend Cross-check（跨仓时） |
+| `db/migration`、Flyway、SQL、种子数据、索引/约束、回滚、历史数据兼容 | DB | DB、Red Team |
+| 认证、授权、角色、数据范围、患者信息、报告信息、脱敏、审计日志 | Security | Security、Red Team |
+| `domain` / `repository` 边界、共享模块、大文件重构、跨模块依赖 | Architecture | Red Team（跨层时） |
+| 生产问题、线上故障、性能回退、`.logs/` 中已有错误 | Production Debug | Red Team、Frontend Cross-check（跨仓时） |
+| Git hooks、GitLab CI、镜像、部署脚本、环境变量、发布路径 | Workflow/Infra | Red Team（红区时） |
+| 纯文档、注释、闲聊或信息查询，不改运行时行为 | 不适用（标注原因即可） | 无 |
 
 ## Workflow Packet
 
