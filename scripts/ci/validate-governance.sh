@@ -42,6 +42,18 @@ check_duplicate_ids "DECISIONS.md" "DEC-[0-9]{8}-[0-9]{3}" "decision"
 check_duplicate_ids "KNOWN_BUGS.md" "BUG-[0-9]{8}-[0-9]{3}" "bug"
 check_duplicate_ids "TECH_DEBT.md" "TD-[0-9]{8}-[0-9]{3}" "tech debt"
 
+# --- Ledger soft line budget -------------------------------------------------
+# Mirrors the frontend LEDGER_MAX_LINES guardrail: oversized ledgers should have
+# resolved/historical entries archived (e.g. under docs/reports/), not deleted.
+ledger_max_lines=200
+for ledger in DECISIONS.md KNOWN_BUGS.md TECH_DEBT.md; do
+  [ -f "$ledger" ] || continue
+  ledger_lines="$(wc -l <"$ledger" | tr -d ' ')"
+  if [ "$ledger_lines" -gt "$ledger_max_lines" ]; then
+    errors+=("${ledger} is too long: ${ledger_lines} lines (limit ${ledger_max_lines}). Archive resolved/historical entries instead of deleting them.")
+  fi
+done
+
 # --- PROJECT_STATE.md structure + line budget ------------------------------
 project_state="PROJECT_STATE.md"
 project_state_max_lines=120
