@@ -62,3 +62,29 @@ if ($violations.Count -gt 0) {
 }
 
 Write-Host '[hooks] Staged file-health check passed.'
+
+# Governance ledger / PROJECT_STATE baseline. The bash script is the single
+# source of truth (CI verify_governance is the hard gate); run it locally when a
+# working bash runtime is available, otherwise defer to CI rather than
+# duplicating logic. A non-functional bash (e.g. a WSL stub) is treated as
+# unavailable so it cannot block commits with false positives.
+$governanceScript = Join-Path $repoRoot 'scripts/ci/validate-governance.sh'
+$bash = Get-Command bash -ErrorAction SilentlyContinue
+$bashWorks = $false
+if ($bash) {
+    try {
+        & $bash.Source -c 'exit 0' *> $null
+        $bashWorks = ($LASTEXITCODE -eq 0)
+    } catch {
+        $bashWorks = $false
+    }
+}
+
+if ($bashWorks) {
+    & $bash.Source $governanceScript
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
+} else {
+    Write-Host '[hooks] Working bash unavailable; skipping local governance check (enforced by CI verify_governance).'
+}

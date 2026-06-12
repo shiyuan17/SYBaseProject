@@ -12,3 +12,6 @@ else
   echo "[hooks] PowerShell is required for the staged file-health pre-commit check." >&2
   exit 1
 fi
+
+# Governance ledger / PROJECT_STATE baseline (CI verify_governance is the hard gate).
+bash "$repo_root/scripts/ci/validate-governance.sh"

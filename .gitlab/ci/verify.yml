@@ -12,6 +12,14 @@ verify_full:
     - chmod +x mvnw
     - ./mvnw -B -ntp clean verify
 
+verify_governance:
+  stage: verify
+  image: alpine:3.20
+  script:
+    - apk add --no-cache bash coreutils grep sed git
+    - chmod +x scripts/ci/validate-governance.sh
+    - bash scripts/ci/validate-governance.sh
+
 verify_largest_files_report:
   stage: verify
   image: alpine:3.20
