@@ -117,6 +117,15 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
             """.formatted(slicingTaskId))
             .andExpect(status().isOk());
 
+        postJson("/api/v1/slicings/slide-print", USER_M3_SLICING, """
+            {
+              "taskId": "%s",
+              "embeddingBoxId": "%s",
+              "sourceSlideCount": 1,
+              "terminalCode": "M4-S-PRINT"
+            }
+            """.formatted(slicingTaskId, embeddingBoxId)).andExpect(status().isOk());
+
         JsonNode slicing = responseBody(postJson("/api/v1/slicings/complete", USER_M3_SLICING, """
             {
               "taskId": "%s",
@@ -309,6 +318,14 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
         postJson("/api/v1/slicings/start", USER_M3_SLICING, """
             {"taskId":"%s"}
             """.formatted(slicingTaskId)).andExpect(status().isOk());
+        postJson("/api/v1/slicings/slide-print", USER_M3_SLICING, """
+            {
+              "taskId":"%s",
+              "embeddingBoxId":"%s",
+              "sourceSlideCount":1,
+              "terminalCode":"M4-S-PRINT"
+            }
+            """.formatted(slicingTaskId, embeddingBoxId)).andExpect(status().isOk());
         String slideId = responseBody(postJson("/api/v1/slicings/complete", USER_M3_SLICING, """
             {"taskId":"%s","embeddingBoxId":"%s","slideCount":1}
             """.formatted(slicingTaskId, embeddingBoxId)), 200).path("slideIds").get(0).asText();
@@ -366,5 +383,136 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
             {}
             """).andExpect(status().isOk())
             .andExpect(jsonPath("$.data.reportStatus").value("SUBMITTED"));
+    }
+
+    @Test
+    void shouldScheduleFormalReportIssueForTwoHoursLater() throws Exception {
+        PublishedReportContext context = preparePublishedReportContext("APP-M4-ISSUE-SCHEDULE-001", "BC-M4-ISSUE-SCHEDULE-001");
+
+        JsonNode versions = caseReportVersions(context.caseId(), USER_M4_SIGN);
+        String versionId = versions.get(versions.size() - 1).path("versionId").asText();
+
+        postJson("/api/v1/pathology-reports/formal-versions/issue", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"],
+              "issueMode":"DELAY_2_HOURS"
+            }
+            """.formatted(versionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount").value(1));
+
+        JsonNode refreshed = caseReportVersions(context.caseId(), USER_M4_SIGN);
+        JsonNode scheduled = refreshed.get(refreshed.size() - 1);
+        assertThat(scheduled.path("deliveryStatus").asText()).isEqualTo("PENDING");
+        assertThat(scheduled.path("plannedIssueAt").asText()).isNotBlank();
+    }
+
+    @Test
+    void shouldListFormalReportsAndSupportPrintIssueRecallFlow() throws Exception {
+        PublishedReportContext context = preparePublishedReportContext("APP-M4-DIST-001", "BC-M4-DIST-001");
+
+        JsonNode versions = formalReportVersions(context.caseId(), USER_M4_SIGN);
+        assertThat(versions).hasSize(2);
+        String signedVersionId = versions.findValuesAsText("versionStatus").contains("SIGNED")
+            ? versions.get(1).path("versionId").asText()
+            : versions.get(0).path("versionId").asText();
+
+        postJson("/api/v1/pathology-reports/formal-versions/issue", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"]
+            }
+            """.formatted(signedVersionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.failureCount").value(1));
+
+        postJson("/api/v1/pathology-reports/formal-versions/print", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"]
+            }
+            """.formatted(signedVersionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount").value(1));
+
+        postJson("/api/v1/pathology-reports/formal-versions/issue", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"]
+            }
+            """.formatted(signedVersionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount").value(1));
+
+        postJson("/api/v1/pathology-reports/formal-versions/recall", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"]
+            }
+            """.formatted(signedVersionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount").value(1));
+
+        JsonNode updatedVersions = formalReportVersions(context.caseId(), USER_M4_SIGN);
+        JsonNode target = null;
+        for (JsonNode item : updatedVersions) {
+            if (signedVersionId.equals(item.path("versionId").asText())) {
+                target = item;
+                break;
+            }
+        }
+        assertThat(target).isNotNull();
+        assertThat(updatedVersions.toString()).contains("PRINTED");
+        assertThat(updatedVersions.toString()).contains("RECALLED");
+        assertThat(target.path("printedAt").asText()).isNotBlank();
+        assertThat(target.path("recalledAt").asText()).isNotBlank();
+    }
+
+    @Test
+    void shouldListCaseReportVersionsAcrossLifecycleStates() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-LIST-001", "BC-M4-LIST-001");
+
+        String reportId = responseBody(postJson("/api/v1/pathology-reports", USER_M4_DIAGNOSIS, """
+            {
+              "caseId":"%s",
+              "taskId":"%s",
+              "clinicalDiagnosis":"c1",
+              "grossExam":"g1",
+              "microscopicExam":"m1",
+              "finalDiagnosis":"f1",
+              "richTextContent":"<p>r1</p>"
+            }
+            """.formatted(context.caseId(), context.diagnosticTaskId())), 200).path("reportId").asText();
+
+        postJson("/api/v1/pathology-reports/%s/submit".formatted(reportId), USER_M4_DIAGNOSIS, """
+            {}
+            """).andExpect(status().isOk());
+        JsonNode submittedVersions = caseReportVersions(context.caseId(), USER_M4_REVIEW);
+        assertThat(submittedVersions).hasSize(1);
+        assertThat(submittedVersions.get(0).path("versionStatus").asText()).isEqualTo("SUBMITTED");
+        assertThat(submittedVersions.get(0).path("submittedAt").asText()).isNotBlank();
+
+        postJson("/api/v1/pathology-reports/%s/review".formatted(reportId), USER_M4_REVIEW, """
+            {}
+            """).andExpect(status().isOk());
+        JsonNode reviewedVersions = caseReportVersions(context.caseId(), USER_M4_REVIEW);
+        assertThat(reviewedVersions.get(0).path("versionStatus").asText()).isEqualTo("REVIEWED");
+        assertThat(reviewedVersions.get(0).path("reviewedAt").asText()).isNotBlank();
+
+        postJson("/api/v1/pathology-reports/%s/sign".formatted(reportId), USER_M4_SIGN, """
+            {}
+            """).andExpect(status().isOk());
+        postJson("/api/v1/pathology-reports/%s/publish".formatted(reportId), USER_M4_SIGN, """
+            {}
+            """).andExpect(status().isOk());
+        JsonNode publishedFormalVersions = formalReportVersions(context.caseId(), USER_M4_SIGN);
+        String publishedVersionId = publishedFormalVersions.get(0).path("versionId").asText();
+
+        postJson("/api/v1/pathology-reports/formal-versions/print", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"]
+            }
+            """.formatted(publishedVersionId)).andExpect(status().isOk());
+
+        JsonNode publishedVersions = caseReportVersions(context.caseId(), USER_M4_REVIEW);
+        assertThat(publishedVersions.get(0).path("versionStatus").asText()).isEqualTo("PUBLISHED");
+        assertThat(publishedVersions.get(0).path("printedAt").asText()).isNotBlank();
+        assertThat(publishedVersions.get(0).path("printStatus").asText()).isEqualTo("PRINTED");
     }
 }

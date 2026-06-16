@@ -6,8 +6,10 @@ import com.company.bl.interfaces.auth.M4PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.CreatePathologyReportRequest;
 import com.company.bl.interfaces.dto.DiagnosticTaskActionRequest;
+import com.company.bl.interfaces.dto.FormalReportVersionBatchActionRequest;
 import com.company.bl.interfaces.dto.RejectPathologyReportRequest;
 import com.company.bl.interfaces.dto.UpdatePathologyReportDraftRequest;
+import com.company.bl.interfaces.vo.FormalReportVersionBatchActionResponse;
 import com.company.bl.interfaces.vo.PathologyReportOperationResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -157,5 +159,77 @@ public class PathologyReportController extends TechnicalControllerSupport {
                 request.getRemarks()));
         return new PathologyReportOperationResponse(
             result.reportId(), result.caseId(), result.reportNo(), result.reportStatus(), result.versionNo(), result.versionStatus());
+    }
+
+    @Operation(summary = "批量记录正式报告打印", description = "为正式报告版本记录打印时间并更新打印状态。")
+    @RequirePermission(M4PermissionCodes.REPORT_PUBLISH)
+    @PostMapping("/formal-versions/print")
+    public FormalReportVersionBatchActionResponse printFormalVersions(
+        @Valid @RequestBody FormalReportVersionBatchActionRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        DiagnosticReportModels.FormalReportVersionBatchActionResult result = diagnosticReportAppService.printFormalReportVersions(
+            new DiagnosticReportModels.FormalReportVersionBatchActionCommand(
+                request.getVersionIds(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode(),
+                request.getIssueMode(),
+                request.getPlannedIssueAt(),
+                request.getRemarks()));
+        return toBatchActionResponse(result);
+    }
+
+    @Operation(summary = "批量发放正式报告", description = "仅允许对已打印且待发放的正式报告版本记录发放时间。")
+    @RequirePermission(M4PermissionCodes.REPORT_PUBLISH)
+    @PostMapping("/formal-versions/issue")
+    public FormalReportVersionBatchActionResponse issueFormalVersions(
+        @Valid @RequestBody FormalReportVersionBatchActionRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        DiagnosticReportModels.FormalReportVersionBatchActionResult result = diagnosticReportAppService.issueFormalReportVersions(
+            new DiagnosticReportModels.FormalReportVersionBatchActionCommand(
+                request.getVersionIds(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode(),
+                request.getIssueMode(),
+                request.getPlannedIssueAt(),
+                request.getRemarks()));
+        return toBatchActionResponse(result);
+    }
+
+    @Operation(summary = "批量回收正式报告", description = "仅允许对已发放的正式报告版本记录回收时间。")
+    @RequirePermission(M4PermissionCodes.REPORT_PUBLISH)
+    @PostMapping("/formal-versions/recall")
+    public FormalReportVersionBatchActionResponse recallFormalVersions(
+        @Valid @RequestBody FormalReportVersionBatchActionRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        DiagnosticReportModels.FormalReportVersionBatchActionResult result = diagnosticReportAppService.recallFormalReportVersions(
+            new DiagnosticReportModels.FormalReportVersionBatchActionCommand(
+                request.getVersionIds(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode(),
+                request.getIssueMode(),
+                request.getPlannedIssueAt(),
+                request.getRemarks()));
+        return toBatchActionResponse(result);
+    }
+
+    private FormalReportVersionBatchActionResponse toBatchActionResponse(
+        DiagnosticReportModels.FormalReportVersionBatchActionResult result
+    ) {
+        return new FormalReportVersionBatchActionResponse(
+            result.totalCount(),
+            result.successCount(),
+            result.failureCount(),
+            result.items().stream()
+                .map(item -> new FormalReportVersionBatchActionResponse.ItemResult(
+                    item.versionId(),
+                    item.success(),
+                    item.message()))
+                .toList());
     }
 }

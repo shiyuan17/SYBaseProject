@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 class DiagnosticReportLifecycleService {
@@ -221,6 +223,140 @@ class DiagnosticReportLifecycleService {
             command.operatorName());
         return new DiagnosticReportModels.PathologyReportResult(
             updated.id(), updated.caseId(), updated.reportNo(), updated.reportStatus(), updated.versionNo(), DiagnosticReportConstants.REPORT_PUBLISHED);
+    }
+
+    @Transactional
+    DiagnosticReportModels.FormalReportVersionBatchActionResult printFormalReportVersions(
+        DiagnosticReportModels.FormalReportVersionBatchActionCommand command
+    ) {
+        List<DiagnosticReportRepository.ReportVersion> versions = loadRequestedVersions(command.versionIds());
+        LocalDateTime now = LocalDateTime.now();
+        List<String> successIds = new ArrayList<>();
+        List<DiagnosticReportModels.FormalReportVersionBatchActionItemResult> items = new ArrayList<>();
+        for (DiagnosticReportRepository.ReportVersion version : versions) {
+            if (!isFormalVersion(version)) {
+                items.add(new DiagnosticReportModels.FormalReportVersionBatchActionItemResult(version.id(), false, "仅正式报告支持打印"));
+                continue;
+            }
+            if ("PRINTED".equals(version.printStatus())) {
+                items.add(new DiagnosticReportModels.FormalReportVersionBatchActionItemResult(version.id(), false, "报告已打印"));
+                continue;
+            }
+            successIds.add(version.id());
+            items.add(new DiagnosticReportModels.FormalReportVersionBatchActionItemResult(version.id(), true, "打印时间已记录"));
+        }
+        if (!successIds.isEmpty()) {
+            diagnosticReportRepository.markReportVersionsPrinted(successIds, now);
+        }
+        return new DiagnosticReportModels.FormalReportVersionBatchActionResult(
+            items.size(),
+            successIds.size(),
+            items.size() - successIds.size(),
+            items);
+    }
+
+    @Transactional
+    DiagnosticReportModels.FormalReportVersionBatchActionResult issueFormalReportVersions(
+        DiagnosticReportModels.FormalReportVersionBatchActionCommand command
+    ) {
+        List<DiagnosticReportRepository.ReportVersion> versions = loadRequestedVersions(command.versionIds());
+        LocalDateTime now = LocalDateTime.now();
+        List<String> successIds = new ArrayList<>();
+        List<String> scheduledIds = new ArrayList<>();
+        List<DiagnosticReportModels.FormalReportVersionBatchActionItemResult> items = new ArrayList<>();
+        String issueMode = command.issueMode() == null || command.issueMode().isBlank()
+            ? "IMMEDIATE"
+            : command.issueMode().trim();
+        LocalDateTime plannedIssueAt = resolvePlannedIssueAt(issueMode, now);
+        for (DiagnosticReportRepository.ReportVersion version : versions) {
+            if (!isFormalVersion(version)) {
+                items.add(new DiagnosticReportModels.FormalReportVersionBatchActionItemResult(version.id(), false, "仅正式报告支持发放"));
+                continue;
+            }
+            if (!"PRINTED".equals(version.printStatus())) {
+                items.add(new DiagnosticReportModels.FormalReportVersionBatchActionItemResult(version.id(), false, "未打印报告不可发放"));
+                continue;
+            }
+            if (!"PENDING".equals(version.deliveryStatus())) {
+                items.add(new DiagnosticReportModels.FormalReportVersionBatchActionItemResult(version.id(), false, "仅待发放报告可执行发放"));
+                continue;
+            }
+            if ("IMMEDIATE".equals(issueMode)) {
+                successIds.add(version.id());
+                items.add(new DiagnosticReportModels.FormalReportVersionBatchActionItemResult(version.id(), true, "报告已发放"));
+            } else {
+                scheduledIds.add(version.id());
+                items.add(new DiagnosticReportModels.FormalReportVersionBatchActionItemResult(
+                    version.id(),
+                    true,
+                    "报告已计划发放"));
+            }
+        }
+        if (!successIds.isEmpty()) {
+            diagnosticReportRepository.markReportVersionsIssued(successIds, now);
+        }
+        if (!scheduledIds.isEmpty() && plannedIssueAt != null) {
+            diagnosticReportRepository.scheduleReportVersionsIssue(scheduledIds, plannedIssueAt);
+        }
+        return new DiagnosticReportModels.FormalReportVersionBatchActionResult(
+            items.size(),
+            successIds.size() + scheduledIds.size(),
+            items.size() - successIds.size() - scheduledIds.size(),
+            items);
+    }
+
+    @Transactional
+    DiagnosticReportModels.FormalReportVersionBatchActionResult recallFormalReportVersions(
+        DiagnosticReportModels.FormalReportVersionBatchActionCommand command
+    ) {
+        List<DiagnosticReportRepository.ReportVersion> versions = loadRequestedVersions(command.versionIds());
+        LocalDateTime now = LocalDateTime.now();
+        List<String> successIds = new ArrayList<>();
+        List<DiagnosticReportModels.FormalReportVersionBatchActionItemResult> items = new ArrayList<>();
+        for (DiagnosticReportRepository.ReportVersion version : versions) {
+            if (!isFormalVersion(version)) {
+                items.add(new DiagnosticReportModels.FormalReportVersionBatchActionItemResult(version.id(), false, "仅正式报告支持回收"));
+                continue;
+            }
+            if (!"ISSUED".equals(version.deliveryStatus())) {
+                items.add(new DiagnosticReportModels.FormalReportVersionBatchActionItemResult(version.id(), false, "仅已发放报告可执行回收"));
+                continue;
+            }
+            successIds.add(version.id());
+            items.add(new DiagnosticReportModels.FormalReportVersionBatchActionItemResult(version.id(), true, "报告已回收"));
+        }
+        if (!successIds.isEmpty()) {
+            diagnosticReportRepository.markReportVersionsRecalled(successIds, now);
+        }
+        return new DiagnosticReportModels.FormalReportVersionBatchActionResult(
+            items.size(),
+            successIds.size(),
+            items.size() - successIds.size(),
+            items);
+    }
+
+    private List<DiagnosticReportRepository.ReportVersion> loadRequestedVersions(List<String> versionIds) {
+        if (versionIds == null || versionIds.isEmpty()) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Version IDs are required");
+        }
+        List<DiagnosticReportRepository.ReportVersion> versions = new ArrayList<>();
+        for (String versionId : versionIds) {
+            versions.add(diagnosticReportSupport.getReportVersion(versionId));
+        }
+        return versions;
+    }
+
+    private boolean isFormalVersion(DiagnosticReportRepository.ReportVersion version) {
+        return DiagnosticReportConstants.REPORT_SIGNED.equals(version.versionStatus())
+            || DiagnosticReportConstants.REPORT_PUBLISHED.equals(version.versionStatus());
+    }
+
+    private LocalDateTime resolvePlannedIssueAt(String issueMode, LocalDateTime now) {
+        return switch (issueMode) {
+            case "DELAY_2_HOURS" -> now.plusHours(2);
+            case "DELAY_3_HOURS" -> now.plusHours(3);
+            default -> null;
+        };
     }
 
     private String specimensSummaryType(String caseId) {

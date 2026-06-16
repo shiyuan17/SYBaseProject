@@ -61,10 +61,26 @@ class InternalConsultationIntegrationTest extends AbstractDiagnosticWorkflowInte
 
         JsonNode workbench = diagnosticWorkbench(context.caseId(), USER_M4_DIAGNOSIS);
         assertThat(workbench.path("consultations").get(0).path("status").asText()).isEqualTo("COMPLETED");
+        JsonNode workbenchParticipant = workbench.path("consultations").get(0).path("participants").get(0);
+        assertThat(workbenchParticipant.path("participantId").asText()).isEqualTo(signParticipantId);
+        assertThat(workbenchParticipant.path("participantUserId").asText()).isEqualTo(USER_M4_SIGN);
+        assertThat(workbenchParticipant.path("participantName").asText()).isEqualTo("M4 Sign");
+        assertThat(workbenchParticipant.path("participantRole").asText()).isEqualTo("EXPERT");
+        assertThat(workbenchParticipant.path("opinion").asText()).isEqualTo("need more correlation");
+        assertThat(workbenchParticipant.path("draftedByName").asText()).isEqualTo("签发医生");
+        assertThat(workbenchParticipant.path("commentedAt").asText()).isNotBlank();
 
         JsonNode tracking = reportTracking(context.caseId(), USER_M4_TRACKING);
         assertThat(tracking.toString()).contains("CONSULTATION_COMMENT");
         assertThat(tracking.toString()).contains("CONSULTATION_COMPLETE");
+        JsonNode trackingParticipant = tracking.path("consultations").get(0).path("participants").get(0);
+        assertThat(trackingParticipant.path("participantId").asText()).isEqualTo(signParticipantId);
+        assertThat(trackingParticipant.path("participantUserId").asText()).isEqualTo(USER_M4_SIGN);
+        assertThat(trackingParticipant.path("participantName").asText()).isEqualTo("M4 Sign");
+        assertThat(trackingParticipant.path("participantRole").asText()).isEqualTo("EXPERT");
+        assertThat(trackingParticipant.path("opinion").asText()).isEqualTo("need more correlation");
+        assertThat(trackingParticipant.path("draftedByName").asText()).isEqualTo("签发医生");
+        assertThat(trackingParticipant.path("commentedAt").asText()).isNotBlank();
     }
 
     @Test

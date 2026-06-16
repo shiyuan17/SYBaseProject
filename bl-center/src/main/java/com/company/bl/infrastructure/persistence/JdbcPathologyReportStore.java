@@ -43,6 +43,17 @@ final class JdbcPathologyReportStore {
         return rows.stream().findFirst();
     }
 
+    List<DiagnosticReportRepository.PathologyReport> findPathologyReportsByCaseId(String caseId) {
+        return jdbcTemplate.query("""
+            select *
+            from pathology_reports
+            where case_id = :caseId
+            order by coalesce(published_at, signed_at, reviewed_at, submitted_at, created_at) desc,
+                     version_no desc,
+                     created_at desc
+            """, Map.of("caseId", caseId), this::mapPathologyReport);
+    }
+
     void insertPathologyReport(DiagnosticReportRepository.CreatePathologyReportCommand command) {
         jdbcTemplate.update("""
             insert into pathology_reports
@@ -241,6 +252,15 @@ final class JdbcPathologyReportStore {
             .addValue("createdAt", command.createdAt()));
     }
 
+    Optional<DiagnosticReportRepository.ReportVersion> findReportVersionById(String versionId) {
+        List<DiagnosticReportRepository.ReportVersion> rows = jdbcTemplate.query("""
+            select *
+            from report_versions
+            where id = :versionId
+            """, Map.of("versionId", versionId), this::mapReportVersion);
+        return rows.stream().findFirst();
+    }
+
     List<DiagnosticReportRepository.ReportVersion> findReportVersionsByCaseId(String caseId) {
         return jdbcTemplate.query("""
             select *
@@ -248,6 +268,73 @@ final class JdbcPathologyReportStore {
             where case_id = :caseId
             order by version_no asc, created_at asc
             """, Map.of("caseId", caseId), this::mapReportVersion);
+    }
+
+    List<DiagnosticReportRepository.ReportVersion> findFormalReportVersionsByCaseId(String caseId) {
+        return jdbcTemplate.query("""
+            select *
+            from report_versions
+            where case_id = :caseId
+              and version_status in ('SIGNED', 'PUBLISHED')
+            order by coalesce(signed_at, created_at) desc, created_at desc, version_no desc
+            """, Map.of("caseId", caseId), this::mapReportVersion);
+    }
+
+    List<DiagnosticReportRepository.ReportVersion> findScheduledReportVersionsDue(LocalDateTime scheduledBeforeOrAt) {
+        return jdbcTemplate.query("""
+            select *
+            from report_versions
+            where delivery_schedule_status = 'SCHEDULED'
+              and planned_issue_at is not null
+              and planned_issue_at <= :scheduledBeforeOrAt
+            order by planned_issue_at asc, created_at asc
+            """, Map.of("scheduledBeforeOrAt", scheduledBeforeOrAt), this::mapReportVersion);
+    }
+
+    void markReportVersionsPrinted(List<String> versionIds, LocalDateTime printedAt) {
+        jdbcTemplate.update("""
+            update report_versions
+            set print_status = 'PRINTED',
+                printed_at = :printedAt
+            where id in (:versionIds)
+            """, new MapSqlParameterSource()
+            .addValue("versionIds", versionIds)
+            .addValue("printedAt", printedAt));
+    }
+
+    void markReportVersionsIssued(List<String> versionIds, LocalDateTime issuedAt) {
+        jdbcTemplate.update("""
+            update report_versions
+            set delivery_status = 'ISSUED',
+                delivery_schedule_status = 'EXECUTED',
+                issued_at = :issuedAt
+            where id in (:versionIds)
+            """, new MapSqlParameterSource()
+            .addValue("versionIds", versionIds)
+            .addValue("issuedAt", issuedAt));
+    }
+
+    void scheduleReportVersionsIssue(List<String> versionIds, LocalDateTime plannedIssueAt) {
+        jdbcTemplate.update("""
+            update report_versions
+            set delivery_status = 'PENDING',
+                delivery_schedule_status = 'SCHEDULED',
+                planned_issue_at = :plannedIssueAt
+            where id in (:versionIds)
+            """, new MapSqlParameterSource()
+            .addValue("versionIds", versionIds)
+            .addValue("plannedIssueAt", plannedIssueAt));
+    }
+
+    void markReportVersionsRecalled(List<String> versionIds, LocalDateTime recalledAt) {
+        jdbcTemplate.update("""
+            update report_versions
+            set delivery_status = 'RECALLED',
+                recalled_at = :recalledAt
+            where id in (:versionIds)
+            """, new MapSqlParameterSource()
+            .addValue("versionIds", versionIds)
+            .addValue("recalledAt", recalledAt));
     }
 
     private DiagnosticReportRepository.PathologyReport mapPathologyReport(ResultSet rs, int rowNum) throws SQLException {
@@ -298,7 +385,14 @@ final class JdbcPathologyReportStore {
             rs.getString("signed_by_user_id"),
             rs.getString("signed_by_name"),
             toLocalDateTime(rs.getTimestamp("signed_at")),
-            toLocalDateTime(rs.getTimestamp("created_at")));
+            toLocalDateTime(rs.getTimestamp("created_at")),
+            rs.getString("print_status"),
+            toLocalDateTime(rs.getTimestamp("printed_at")),
+            rs.getString("delivery_status"),
+            toLocalDateTime(rs.getTimestamp("planned_issue_at")),
+            rs.getString("delivery_schedule_status"),
+            toLocalDateTime(rs.getTimestamp("issued_at")),
+            toLocalDateTime(rs.getTimestamp("recalled_at")));
     }
 
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {

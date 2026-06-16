@@ -287,7 +287,28 @@ public record DiagnosticWorkbenchResponse(
         @Schema(description = "Opinion")
         String opinion,
         @Schema(description = "Participant count")
-        int participantCount
+        int participantCount,
+        @Schema(description = "Participant summaries")
+        List<ConsultationParticipantSummary> participants
+    ) {
+    }
+
+    @Schema(name = "DiagnosticWorkbenchConsultationParticipantSummary", description = "Consultation participant summary in diagnostic workbench")
+    public record ConsultationParticipantSummary(
+        @Schema(description = "Participant ID")
+        String participantId,
+        @Schema(description = "Participant user ID")
+        String participantUserId,
+        @Schema(description = "Participant name")
+        String participantName,
+        @Schema(description = "Participant role")
+        String participantRole,
+        @Schema(description = "Participant opinion")
+        String opinion,
+        @Schema(description = "Drafted by name")
+        String draftedByName,
+        @Schema(description = "Commented at")
+        String commentedAt
     ) {
     }
 

@@ -6,6 +6,7 @@ import com.company.bl.domain.repository.DiagnosticReportRepository;
 import com.company.bl.domain.repository.DiagnosticTrackingQueryRepository;
 import com.company.bl.domain.repository.MedicalOrderRepository;
 import com.company.bl.domain.repository.ReportRevisionRepository;
+import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,13 +24,16 @@ class DiagnosticReportQueryService {
     private final DiagnosticReportRepository diagnosticReportRepository;
     private final DiagnosticTrackingQueryRepository diagnosticTrackingQueryRepository;
     private final DiagnosticReportSupport diagnosticReportSupport;
+    private final ArchiveRepository archiveRepository;
 
     DiagnosticReportQueryService(DiagnosticReportRepository diagnosticReportRepository,
                                  DiagnosticTrackingQueryRepository diagnosticTrackingQueryRepository,
-                                 DiagnosticReportSupport diagnosticReportSupport) {
+                                 DiagnosticReportSupport diagnosticReportSupport,
+                                 ArchiveRepository archiveRepository) {
         this.diagnosticReportRepository = diagnosticReportRepository;
         this.diagnosticTrackingQueryRepository = diagnosticTrackingQueryRepository;
         this.diagnosticReportSupport = diagnosticReportSupport;
+        this.archiveRepository = archiveRepository;
     }
 
     @Transactional(readOnly = true)
@@ -61,8 +65,10 @@ class DiagnosticReportQueryService {
                     com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingBox::embeddingBoxNo,
                     Function.identity(),
                     (left, right) -> left));
-        Map<String, ArchiveRepository.ObjectArchiveSummary> embeddingBoxArchiveByObjectId = indexObjectArchives(aggregate.embeddingBoxArchives());
-        Map<String, ArchiveRepository.ObjectArchiveSummary> slideArchiveByObjectId = indexObjectArchives(aggregate.slideArchives());
+        Map<String, ArchiveRepository.ObjectArchiveSummary> embeddingBoxArchiveByObjectId =
+            indexObjectArchives(aggregate.embeddingBoxArchives());
+        Map<String, ArchiveRepository.ObjectArchiveSummary> slideArchiveByObjectId =
+            indexObjectArchives(aggregate.slideArchives());
         return new DiagnosticReportViews.DiagnosticWorkbenchView(
             aggregate.caseId(),
             aggregate.applicationNo(),
@@ -120,7 +126,8 @@ class DiagnosticReportQueryService {
             aggregate.currentReport() == null ? null : toReportView(aggregate.currentReport()),
             aggregate.versions().stream().map(item -> new DiagnosticReportViews.ReportVersionView(
                 item.id(), item.versionNo(), item.versionStatus(), item.finalDiagnosisSnapshot(),
-                stringify(item.signedAt()), stringify(item.createdAt()))).toList(),
+                stringify(item.signedAt()), stringify(item.createdAt()), item.deliveryStatus(),
+                stringify(item.issuedAt()), stringify(item.plannedIssueAt()))).toList(),
             aggregate.events().stream().map(this::toTrackingEvent).toList(),
             aggregate.revisions().stream().map(this::toRevisionView).toList(),
             aggregate.medicalOrders().stream().map(this::toMedicalOrderView).toList(),
@@ -128,6 +135,143 @@ class DiagnosticReportQueryService {
             aggregate.latestEffectiveVersionNo(),
             aggregate.currentDraftVersionNo(),
             aggregate.hasPendingRevision());
+    }
+
+    @Transactional(readOnly = true)
+    DiagnosticReportViews.CaseLifecycleTrackingView getCaseLifecycleTracking(String caseIdentifier) {
+        String caseId = diagnosticReportSupport.resolveCaseIdentifier(caseIdentifier).id();
+        DiagnosticTrackingQueryRepository.DiagnosticWorkbenchAggregate workbenchAggregate =
+            diagnosticTrackingQueryRepository.getDiagnosticWorkbench(caseId);
+        DiagnosticTrackingQueryRepository.ReportTrackingAggregate reportTrackingAggregate =
+            diagnosticTrackingQueryRepository.getReportTracking(caseId);
+
+        Map<String, ArchiveRepository.ObjectArchiveSummary> specimenArchiveByObjectId =
+            indexObjectArchives(archiveRepository.findSpecimenArchiveSummaries(caseId));
+        Map<String, ArchiveRepository.ObjectArchiveSummary> embeddingBoxArchiveByObjectId =
+            indexObjectArchives(workbenchAggregate.embeddingBoxArchives());
+        Map<String, ArchiveRepository.ObjectArchiveSummary> slideArchiveByObjectId =
+            indexObjectArchives(workbenchAggregate.slideArchives());
+        Map<String, TechnicalWorkflowRecords.EmbeddingBox> embeddingBoxesByNo =
+            workbenchAggregate.embeddingBoxes().stream().collect(Collectors.toMap(
+                TechnicalWorkflowRecords.EmbeddingBox::embeddingBoxNo,
+                Function.identity(),
+                (left, right) -> left));
+        Map<String, List<TechnicalWorkflowRecords.SamplingBlock>> blocksBySpecimenId =
+            workbenchAggregate.blocks().stream().collect(Collectors.groupingBy(
+                TechnicalWorkflowRecords.SamplingBlock::specimenId));
+        Map<String, List<TechnicalWorkflowProcessingRecords.Slide>> slidesByEmbeddingBoxId =
+            workbenchAggregate.slides().stream()
+                .filter(item -> item.embeddingBoxId() != null)
+                .collect(Collectors.groupingBy(TechnicalWorkflowProcessingRecords.Slide::embeddingBoxId));
+
+        List<DiagnosticReportViews.LifecycleSpecimenView> specimenViews = workbenchAggregate.specimens().stream()
+            .map(specimen -> toLifecycleSpecimenView(
+                specimen,
+                specimenArchiveByObjectId.get(specimen.id()),
+                blocksBySpecimenId.getOrDefault(specimen.id(), List.of()),
+                embeddingBoxesByNo,
+                embeddingBoxArchiveByObjectId,
+                slidesByEmbeddingBoxId,
+                slideArchiveByObjectId))
+            .toList();
+
+        return new DiagnosticReportViews.CaseLifecycleTrackingView(
+            new DiagnosticReportViews.CaseSummaryView(
+                workbenchAggregate.caseId(),
+                workbenchAggregate.applicationNo(),
+                workbenchAggregate.pathologyNo(),
+                workbenchAggregate.caseStatus(),
+                workbenchAggregate.patientName(),
+                workbenchAggregate.patientGender(),
+                workbenchAggregate.patientAge(),
+                workbenchAggregate.applicationType(),
+                workbenchAggregate.submittingDepartmentName(),
+                workbenchAggregate.submittingDoctorName(),
+                null,
+                firstPresent(
+                    reportTrackingAggregate.currentReport() == null ? null : reportTrackingAggregate.currentReport().reportStatus(),
+                    workbenchAggregate.caseStatus()),
+                workbenchAggregate.hasPendingRevision()),
+            new DiagnosticReportViews.ApplicationFormView(
+                archiveStatus(workbenchAggregate.applicationFormArchive()),
+                archiveLocation(workbenchAggregate.applicationFormArchive()),
+                archiveImageUrl(workbenchAggregate.applicationFormArchive()),
+                workbenchAggregate.submittingDoctorName(),
+                null,
+                workbenchAggregate.applicationRemarks()),
+            buildLifecycleStageGroups(workbenchAggregate, reportTrackingAggregate, specimenViews),
+            specimenViews,
+            new DiagnosticReportViews.ReportLifecycleView(
+                reportTrackingAggregate.currentReport() == null ? null : toReportView(reportTrackingAggregate.currentReport()),
+                reportTrackingAggregate.diagnosticTasks().stream().map(this::toTaskView).toList(),
+                reportTrackingAggregate.versions().stream().map(item -> new DiagnosticReportViews.ReportVersionView(
+                    item.id(), item.versionNo(), item.versionStatus(), item.finalDiagnosisSnapshot(),
+                    stringify(item.signedAt()), stringify(item.createdAt()), item.deliveryStatus(),
+                    stringify(item.issuedAt()), stringify(item.plannedIssueAt()))).toList(),
+                reportTrackingAggregate.revisions().stream().map(this::toRevisionView).toList(),
+                reportTrackingAggregate.consultations().stream().map(this::toConsultationView).toList(),
+                reportTrackingAggregate.medicalOrders().stream().map(this::toMedicalOrderView).toList()));
+    }
+
+    @Transactional(readOnly = true)
+    List<DiagnosticReportModels.FormalReportVersionView> listFormalReportVersions(String caseIdentifier) {
+        String caseId = diagnosticReportSupport.resolveCaseIdentifier(caseIdentifier).id();
+        return diagnosticReportRepository.findFormalReportVersionsByCaseId(caseId).stream()
+            .map(item -> {
+                DiagnosticReportRepository.PathologyReport report =
+                    diagnosticReportRepository.findPathologyReportById(item.reportId()).orElse(null);
+                return new DiagnosticReportModels.FormalReportVersionView(
+                    item.id(),
+                    item.reportId(),
+                    report == null ? null : report.reportNo(),
+                    item.versionNo(),
+                    item.versionStatus(),
+                    item.signedByName(),
+                    stringify(item.signedAt()),
+                    report == null ? null : stringify(report.publishedAt()),
+                    item.printStatus(),
+                    stringify(item.printedAt()),
+                    item.deliveryStatus(),
+                    stringify(item.plannedIssueAt()),
+                    stringify(item.issuedAt()),
+                    stringify(item.recalledAt()));
+            })
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    List<DiagnosticReportModels.CaseReportVersionView> listCaseReportVersions(String caseIdentifier) {
+        String caseId = diagnosticReportSupport.resolveCaseIdentifier(caseIdentifier).id();
+        Map<String, DiagnosticReportRepository.ReportVersion> formalVersionByReportAndStatus = diagnosticReportRepository
+            .findFormalReportVersionsByCaseId(caseId)
+            .stream()
+            .collect(Collectors.toMap(
+                item -> reportVersionKey(item.reportId(), item.versionStatus()),
+                Function.identity(),
+                (left, right) -> right));
+        return diagnosticReportRepository.findPathologyReportsByCaseId(caseId).stream()
+            .map(report -> {
+                DiagnosticReportRepository.ReportVersion matchedVersion =
+                    formalVersionByReportAndStatus.get(reportVersionKey(report.id(), report.reportStatus()));
+                return new DiagnosticReportModels.CaseReportVersionView(
+                    matchedVersion == null ? report.id() : matchedVersion.id(),
+                    report.id(),
+                    report.reportNo(),
+                    report.versionNo(),
+                    report.reportStatus(),
+                    report.signedByName(),
+                    stringify(report.submittedAt()),
+                    stringify(report.reviewedAt()),
+                    stringify(report.signedAt()),
+                    stringify(report.publishedAt()),
+                    matchedVersion == null ? null : matchedVersion.printStatus(),
+                    matchedVersion == null ? null : stringify(matchedVersion.printedAt()),
+                    matchedVersion == null ? null : matchedVersion.deliveryStatus(),
+                    matchedVersion == null ? null : stringify(matchedVersion.plannedIssueAt()),
+                    matchedVersion == null ? null : stringify(matchedVersion.issuedAt()),
+                    matchedVersion == null ? null : stringify(matchedVersion.recalledAt()));
+            })
+            .toList();
     }
 
     private DiagnosticReportModels.TaskView toTaskView(DiagnosticReportRepository.DiagnosticTask task) {
@@ -168,6 +312,9 @@ class DiagnosticReportQueryService {
             stringify(report.publishedAt()),
             report.reviewerName(),
             report.signedByName(),
+            null,
+            null,
+            null,
             report.versionNo());
     }
 
@@ -234,7 +381,17 @@ class DiagnosticReportQueryService {
             consultation.consultationCase().hostName(),
             stringify(consultation.consultationCase().completedAt()),
             consultation.consultationCase().opinion(),
-            consultation.participants().size());
+            consultation.participants().size(),
+            consultation.participants().stream()
+                .map(item -> new DiagnosticReportViews.ConsultationParticipantView(
+                    item.id(),
+                    item.participantUserId(),
+                    item.participantName(),
+                    item.participantRole(),
+                    item.opinion(),
+                    item.draftedByName(),
+                    stringify(item.commentedAt())))
+                .toList());
     }
 
     private DiagnosticReportViews.HistoricalPathologyView toHistoricalPathologyView(
@@ -383,6 +540,321 @@ class DiagnosticReportQueryService {
             archiveStatus(archiveSummary),
             archiveLocation(archiveSummary),
             loanStatus(archiveSummary));
+    }
+
+    private List<DiagnosticReportViews.LifecycleStageGroupView> buildLifecycleStageGroups(
+        DiagnosticTrackingQueryRepository.DiagnosticWorkbenchAggregate workbenchAggregate,
+        DiagnosticTrackingQueryRepository.ReportTrackingAggregate reportTrackingAggregate,
+        List<DiagnosticReportViews.LifecycleSpecimenView> specimenViews
+    ) {
+        List<DiagnosticReportViews.LifecycleNodeView> applicationNodes = List.of(
+            buildLifecycleNode(
+                "APPLICATION",
+                "APPLICATION_CREATED",
+                "申请创建",
+                workbenchAggregate.applicationNo() == null ? "PENDING" : "COMPLETED",
+                null,
+                workbenchAggregate.submittingDoctorName(),
+                List.of(
+                    buildKeyFact("申请单号", workbenchAggregate.applicationNo()),
+                    buildKeyFact("申请类型", workbenchAggregate.applicationType())),
+                workbenchAggregate.applicationRemarks()));
+        List<DiagnosticReportViews.LifecycleNodeView> specimenNodes = List.of(
+            buildLifecycleNode(
+                "SPECIMEN",
+                "SPECIMEN",
+                "标本",
+                specimenViews.isEmpty() ? "PENDING" : "COMPLETED",
+                null,
+                null,
+                List.of(
+                    buildKeyFact("标本数", String.valueOf(specimenViews.size())),
+                    buildKeyFact("当前状态", specimenViews.isEmpty() ? null : specimenViews.get(0).specimenStatus())),
+                null));
+        List<DiagnosticReportViews.LifecycleNodeView> technicalNodes = List.of(
+            buildLifecycleNode(
+                "TECHNICAL",
+                "TECHNICAL_PROCESSING",
+                "技术处理",
+                workbenchAggregate.slides().isEmpty() ? "PENDING" : "COMPLETED",
+                null,
+                null,
+                List.of(
+                    buildKeyFact("蜡块数", String.valueOf(workbenchAggregate.blocks().size())),
+                    buildKeyFact("玻片数", String.valueOf(workbenchAggregate.slides().size()))),
+                null));
+        List<DiagnosticReportViews.LifecycleNodeView> reportNodes = List.of(
+            buildLifecycleNode(
+                "REPORT",
+                "DIAGNOSTIC_REPORT",
+                "诊断报告",
+                reportTrackingAggregate.currentReport() == null ? "PENDING" : reportTrackingAggregate.currentReport().reportStatus(),
+                reportTrackingAggregate.currentReport() == null ? null : stringify(firstPresent(
+                    reportTrackingAggregate.currentReport().publishedAt(),
+                    reportTrackingAggregate.currentReport().signedAt(),
+                    reportTrackingAggregate.currentReport().reviewedAt(),
+                    reportTrackingAggregate.currentReport().submittedAt())),
+                reportTrackingAggregate.currentReport() == null ? null
+                    : firstPresent(reportTrackingAggregate.currentReport().signedByName(), reportTrackingAggregate.currentReport().reviewerName()),
+                List.of(
+                    buildKeyFact("报告号", reportTrackingAggregate.currentReport() == null ? null : reportTrackingAggregate.currentReport().reportNo()),
+                    buildKeyFact("版本", reportTrackingAggregate.currentReport() == null
+                        ? null
+                        : String.valueOf(reportTrackingAggregate.currentReport().versionNo()))),
+                reportTrackingAggregate.currentReport() == null ? null : reportTrackingAggregate.currentReport().finalDiagnosis()));
+        List<DiagnosticReportViews.LifecycleNodeView> archiveNodes = List.of(
+            buildLifecycleNode(
+                "ARCHIVE",
+                "ARCHIVE_AND_LOAN",
+                "归档借阅",
+                summarizeArchiveStageStatus(workbenchAggregate, specimenViews),
+                null,
+                null,
+                List.of(
+                    buildKeyFact("申请单归档", archiveStatus(workbenchAggregate.applicationFormArchive())),
+                    buildKeyFact("玻片归档数", String.valueOf(workbenchAggregate.slideArchives().size()))),
+                null));
+        return List.of(
+            new DiagnosticReportViews.LifecycleStageGroupView("APPLICATION", "申请创建", applicationNodes),
+            new DiagnosticReportViews.LifecycleStageGroupView("SPECIMEN", "标本", specimenNodes),
+            new DiagnosticReportViews.LifecycleStageGroupView("TECHNICAL", "技术处理", technicalNodes),
+            new DiagnosticReportViews.LifecycleStageGroupView("REPORT", "诊断报告", reportNodes),
+            new DiagnosticReportViews.LifecycleStageGroupView("ARCHIVE", "归档借阅", archiveNodes));
+    }
+
+    private DiagnosticReportViews.LifecycleSpecimenView toLifecycleSpecimenView(
+        com.company.bl.domain.model.Specimen specimen,
+        ArchiveRepository.ObjectArchiveSummary specimenArchive,
+        List<TechnicalWorkflowRecords.SamplingBlock> blocks,
+        Map<String, TechnicalWorkflowRecords.EmbeddingBox> embeddingBoxesByNo,
+        Map<String, ArchiveRepository.ObjectArchiveSummary> embeddingBoxArchiveByObjectId,
+        Map<String, List<TechnicalWorkflowProcessingRecords.Slide>> slidesByEmbeddingBoxId,
+        Map<String, ArchiveRepository.ObjectArchiveSummary> slideArchiveByObjectId
+    ) {
+        List<DiagnosticReportViews.LifecycleNodeView> specimenEvents = List.of(
+            buildLifecycleNode(
+                "SPECIMEN",
+                "SPECIMEN_CREATED",
+                "标本创建",
+                specimen.registeredAt() == null ? "PENDING" : "COMPLETED",
+                stringify(specimen.registeredAt()),
+                specimen.registeredByName(),
+                List.of(
+                    buildKeyFact("标本编号", specimen.specimenNo()),
+                    buildKeyFact("条码", specimen.barcode())),
+                specimen.remarks()),
+            buildLifecycleNode(
+                "SPECIMEN",
+                "SPECIMEN_REMOVAL",
+                "离体",
+                specimen.specimenRemovalAt() == null ? "PENDING" : "COMPLETED",
+                stringify(specimen.specimenRemovalAt()),
+                specimen.specimenRemovalOperatorName(),
+                List.of(
+                    buildKeyFact("送检科室", specimen.applicantDepartmentName()),
+                    buildKeyFact("送检医生", specimen.applicantDoctorName())),
+                null),
+            buildLifecycleNode(
+                "SPECIMEN",
+                "SPECIMEN_RECEIPT",
+                "确认/入库/签收",
+                firstPresent(specimen.receiptStatus(), specimen.checkInStatus(), specimen.verificationStatus()),
+                stringify(firstPresent(specimen.checkedInAt(), specimen.specimenConfirmedAt(), specimen.verificationCompletedAt())),
+                firstPresent(specimen.checkedInByName(), specimen.verifiedByName()),
+                List.of(
+                    buildKeyFact("确认状态", specimen.verificationStatus()),
+                    buildKeyFact("入库状态", specimen.checkInStatus()),
+                    buildKeyFact("签收状态", specimen.receiptStatus())),
+                null));
+        List<DiagnosticReportViews.LifecycleBlockView> blockViews = blocks.stream()
+            .map(block -> toLifecycleBlockView(
+                block,
+                embeddingBoxesByNo.get(block.embeddingBoxNo()),
+                embeddingBoxArchiveByObjectId,
+                slidesByEmbeddingBoxId,
+                slideArchiveByObjectId))
+            .toList();
+        return new DiagnosticReportViews.LifecycleSpecimenView(
+            specimen.id(),
+            specimen.specimenNo(),
+            specimen.barcode(),
+            specimen.specimenNameStandardized(),
+            specimen.specimenStatus() == null ? null : specimen.specimenStatus().name(),
+            archiveStatus(specimenArchive),
+            archiveLocation(specimenArchive),
+            loanStatus(specimenArchive),
+            stringify(specimen.registeredAt()),
+            stringify(specimen.specimenRemovalAt()),
+            null,
+            stringify(specimen.specimenConfirmedAt()),
+            stringify(specimen.checkedInAt()),
+            specimen.receiptStatus(),
+            null,
+            null,
+            specimenEvents,
+            blockViews);
+    }
+
+    private DiagnosticReportViews.LifecycleBlockView toLifecycleBlockView(
+        TechnicalWorkflowRecords.SamplingBlock block,
+        TechnicalWorkflowRecords.EmbeddingBox embeddingBox,
+        Map<String, ArchiveRepository.ObjectArchiveSummary> embeddingBoxArchiveByObjectId,
+        Map<String, List<TechnicalWorkflowProcessingRecords.Slide>> slidesByEmbeddingBoxId,
+        Map<String, ArchiveRepository.ObjectArchiveSummary> slideArchiveByObjectId
+    ) {
+        ArchiveRepository.ObjectArchiveSummary blockArchive =
+            embeddingBox == null ? null : embeddingBoxArchiveByObjectId.get(embeddingBox.id());
+        List<DiagnosticReportViews.LifecycleNodeView> blockEvents = List.of(
+            buildLifecycleNode(
+                "TECHNICAL",
+                "GROSSING",
+                "取材",
+                block.blockCode() == null ? "PENDING" : "COMPLETED",
+                null,
+                null,
+                List.of(
+                    buildKeyFact("蜡块号", block.blockCode()),
+                    buildKeyFact("描述", firstPresent(block.blockDescription(), block.grossDescription()))),
+                block.grossDescription()),
+            buildLifecycleNode(
+                "ARCHIVE",
+                "BLOCK_ARCHIVE",
+                "蜡块归档/借阅",
+                archiveStatus(blockArchive),
+                null,
+                null,
+                List.of(
+                    buildKeyFact("归档状态", archiveStatus(blockArchive)),
+                    buildKeyFact("归档位置", archiveLocation(blockArchive)),
+                    buildKeyFact("借阅状态", loanStatus(blockArchive))),
+                null));
+        List<DiagnosticReportViews.LifecycleSlideView> slideViews = (embeddingBox == null
+            ? List.<TechnicalWorkflowProcessingRecords.Slide>of()
+            : slidesByEmbeddingBoxId.getOrDefault(embeddingBox.id(), List.of())).stream()
+            .map(slide -> toLifecycleSlideView(slide, slideArchiveByObjectId.get(slide.id())))
+            .toList();
+        return new DiagnosticReportViews.LifecycleBlockView(
+            block.id(),
+            block.specimenId(),
+            block.blockCode(),
+            block.embeddingBoxNo(),
+            block.blockDescription(),
+            block.specimenName(),
+            block.grossDescription(),
+            archiveStatus(blockArchive),
+            archiveLocation(blockArchive),
+            loanStatus(blockArchive),
+            null,
+            null,
+            null,
+            null,
+            null,
+            embeddingBox == null ? null : embeddingBox.sliceNotice(),
+            null,
+            null,
+            null,
+            blockEvents,
+            slideViews);
+    }
+
+    private DiagnosticReportViews.LifecycleSlideView toLifecycleSlideView(
+        TechnicalWorkflowProcessingRecords.Slide slide,
+        ArchiveRepository.ObjectArchiveSummary slideArchive
+    ) {
+        List<DiagnosticReportViews.LifecycleNodeView> slideEvents = List.of(
+            buildLifecycleNode(
+                "TECHNICAL",
+                "SLICING",
+                "切片",
+                slide.slideStatus(),
+                null,
+                null,
+                List.of(
+                    buildKeyFact("玻片号", slide.slideNo()),
+                    buildKeyFact("质控状态", slide.qualityStatus())),
+                null),
+            buildLifecycleNode(
+                "ARCHIVE",
+                "SLIDE_ARCHIVE",
+                "玻片归档/借阅",
+                archiveStatus(slideArchive),
+                null,
+                null,
+                List.of(
+                    buildKeyFact("归档状态", archiveStatus(slideArchive)),
+                    buildKeyFact("归档位置", archiveLocation(slideArchive)),
+                    buildKeyFact("借阅状态", loanStatus(slideArchive))),
+                null));
+        return new DiagnosticReportViews.LifecycleSlideView(
+            slide.id(),
+            slide.specimenId(),
+            slide.embeddingBoxId(),
+            slide.slideNo(),
+            slide.slideStatus(),
+            slide.qualityStatus(),
+            archiveStatus(slideArchive),
+            archiveLocation(slideArchive),
+            loanStatus(slideArchive),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            slideEvents);
+    }
+
+    private DiagnosticReportViews.LifecycleNodeView buildLifecycleNode(
+        String stageCode,
+        String nodeCode,
+        String title,
+        String status,
+        String occurredAt,
+        String operatorName,
+        List<DiagnosticReportViews.KeyFactView> keyFacts,
+        String eventContent
+    ) {
+        return new DiagnosticReportViews.LifecycleNodeView(
+            stageCode,
+            nodeCode,
+            title,
+            normalizeLifecycleStatus(status),
+            occurredAt,
+            operatorName,
+            keyFacts,
+            eventContent);
+    }
+
+    private DiagnosticReportViews.KeyFactView buildKeyFact(String label, String value) {
+        return new DiagnosticReportViews.KeyFactView(label, value);
+    }
+
+    private String reportVersionKey(String reportId, String versionStatus) {
+        return reportId + "::" + (versionStatus == null ? "" : versionStatus);
+    }
+
+    private String normalizeLifecycleStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return "PENDING";
+        }
+        return status;
+    }
+
+    private String summarizeArchiveStageStatus(
+        DiagnosticTrackingQueryRepository.DiagnosticWorkbenchAggregate workbenchAggregate,
+        List<DiagnosticReportViews.LifecycleSpecimenView> specimenViews
+    ) {
+        if (workbenchAggregate.applicationFormArchive() != null
+            || !workbenchAggregate.embeddingBoxArchives().isEmpty()
+            || !workbenchAggregate.slideArchives().isEmpty()
+            || specimenViews.stream().anyMatch(item -> item.archiveStatus() != null)) {
+            return "IN_STORAGE";
+        }
+        return "PENDING";
     }
 
     private Map<String, ArchiveRepository.ObjectArchiveSummary> indexObjectArchives(List<ArchiveRepository.ObjectArchiveSummary> archives) {

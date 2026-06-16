@@ -38,6 +38,8 @@ public interface DiagnosticReportRepository {
 
     Optional<PathologyReport> findPathologyReportById(String reportId);
 
+    List<PathologyReport> findPathologyReportsByCaseId(String caseId);
+
     void insertPathologyReport(CreatePathologyReportCommand command);
 
     void updatePathologyReportDraft(UpdatePathologyReportDraftCommand command);
@@ -67,7 +69,21 @@ public interface DiagnosticReportRepository {
 
     void insertReportVersion(CreateReportVersionCommand command);
 
+    Optional<ReportVersion> findReportVersionById(String versionId);
+
     List<ReportVersion> findReportVersionsByCaseId(String caseId);
+
+    List<ReportVersion> findFormalReportVersionsByCaseId(String caseId);
+
+    void markReportVersionsPrinted(List<String> versionIds, LocalDateTime printedAt);
+
+    void markReportVersionsIssued(List<String> versionIds, LocalDateTime issuedAt);
+
+    void scheduleReportVersionsIssue(List<String> versionIds, LocalDateTime plannedIssueAt);
+
+    List<ReportVersion> findScheduledReportVersionsDue(LocalDateTime scheduledBeforeOrAt);
+
+    void markReportVersionsRecalled(List<String> versionIds, LocalDateTime recalledAt);
 
     record PendingDiagnosticTaskQuery(
         int page,
@@ -242,7 +258,14 @@ public interface DiagnosticReportRepository {
         String signedByUserId,
         String signedByName,
         LocalDateTime signedAt,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        String printStatus,
+        LocalDateTime printedAt,
+        String deliveryStatus,
+        LocalDateTime plannedIssueAt,
+        String deliveryScheduleStatus,
+        LocalDateTime issuedAt,
+        LocalDateTime recalledAt
     ) {
     }
 }

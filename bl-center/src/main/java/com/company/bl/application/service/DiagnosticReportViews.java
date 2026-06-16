@@ -123,6 +123,9 @@ public final class DiagnosticReportViews {
         String publishedAt,
         String reviewerName,
         String signedByName,
+        String signedVersionDeliveryStatus,
+        String signedVersionIssuedAt,
+        String signedVersionPlannedIssueAt,
         int versionNo
     ) {
     }
@@ -161,7 +164,19 @@ public final class DiagnosticReportViews {
         String hostName,
         String completedAt,
         String opinion,
-        int participantCount
+        int participantCount,
+        List<ConsultationParticipantView> participants
+    ) {
+    }
+
+    public record ConsultationParticipantView(
+        String participantId,
+        String participantUserId,
+        String participantName,
+        String participantRole,
+        String opinion,
+        String draftedByName,
+        String commentedAt
     ) {
     }
 
@@ -237,7 +252,152 @@ public final class DiagnosticReportViews {
         String versionStatus,
         String finalDiagnosisSnapshot,
         String signedAt,
-        String createdAt
+        String createdAt,
+        String deliveryStatus,
+        String issuedAt,
+        String plannedIssueAt
+    ) {
+    }
+
+    public record CaseLifecycleTrackingView(
+        CaseSummaryView caseSummary,
+        ApplicationFormView applicationForm,
+        List<LifecycleStageGroupView> overallTimeline,
+        List<LifecycleSpecimenView> specimens,
+        ReportLifecycleView reportLifecycle
+    ) {
+    }
+
+    public record CaseSummaryView(
+        String caseId,
+        String applicationNo,
+        String pathologyNo,
+        String caseStatus,
+        String patientName,
+        String patientGender,
+        String patientAge,
+        String applicationType,
+        String submittingDepartmentName,
+        String submittingDoctorName,
+        String applicationDate,
+        String currentStage,
+        boolean hasPendingRevision
+    ) {
+    }
+
+    public record ApplicationFormView(
+        String archiveStatus,
+        String archiveLocation,
+        String imageUrl,
+        String applicantDoctorName,
+        String applicationDate,
+        String remarks
+    ) {
+    }
+
+    public record LifecycleStageGroupView(
+        String stageCode,
+        String stageTitle,
+        List<LifecycleNodeView> nodes
+    ) {
+    }
+
+    public record LifecycleNodeView(
+        String stageCode,
+        String nodeCode,
+        String title,
+        String status,
+        String occurredAt,
+        String operatorName,
+        List<KeyFactView> keyFacts,
+        String eventContent
+    ) {
+    }
+
+    public record KeyFactView(
+        String label,
+        String value
+    ) {
+    }
+
+    public record LifecycleSpecimenView(
+        String specimenId,
+        String specimenNo,
+        String barcode,
+        String specimenName,
+        String specimenStatus,
+        String archiveStatus,
+        String archiveLocation,
+        String loanStatus,
+        String createdAt,
+        String removalAt,
+        String fixedAt,
+        String confirmedAt,
+        String checkedInAt,
+        String receiptStatus,
+        String receivedAt,
+        String contentDescribedByName,
+        List<LifecycleNodeView> specimenEvents,
+        List<LifecycleBlockView> blocks
+    ) {
+    }
+
+    public record LifecycleBlockView(
+        String blockId,
+        String specimenId,
+        String blockCode,
+        String embeddingBoxNo,
+        String description,
+        String specimenName,
+        String grossDescription,
+        String archiveStatus,
+        String archiveLocation,
+        String loanStatus,
+        String sampledByName,
+        String sampledAt,
+        String embeddedByName,
+        String embeddingStartedAt,
+        String embeddingEndedAt,
+        String sliceNotice,
+        String evaluationLevel,
+        String samplingEvaluation,
+        String embeddingRemarks,
+        List<LifecycleNodeView> blockEvents,
+        List<LifecycleSlideView> slides
+    ) {
+    }
+
+    public record LifecycleSlideView(
+        String slideId,
+        String specimenId,
+        String embeddingBoxId,
+        String slideNo,
+        String slideStatus,
+        String qualityStatus,
+        String archiveStatus,
+        String archiveLocation,
+        String loanStatus,
+        String printedAt,
+        String slicedAt,
+        String slicedByName,
+        String stainedAt,
+        String stainedByName,
+        String qcResult,
+        String qcEvaluatedAt,
+        String qcEvaluatorName,
+        String reworkStatus,
+        String reworkReason,
+        List<LifecycleNodeView> slideEvents
+    ) {
+    }
+
+    public record ReportLifecycleView(
+        PathologyReportView currentReport,
+        List<DiagnosticReportModels.TaskView> diagnosticTasks,
+        List<ReportVersionView> versions,
+        List<RevisionRequestView> revisions,
+        List<ConsultationView> consultations,
+        List<MedicalOrderView> medicalOrders
     ) {
     }
 }

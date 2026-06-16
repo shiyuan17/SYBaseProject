@@ -94,6 +94,11 @@ public class JdbcDiagnosticReportRepository implements DiagnosticReportRepositor
     }
 
     @Override
+    public List<PathologyReport> findPathologyReportsByCaseId(String caseId) {
+        return pathologyReportStore.findPathologyReportsByCaseId(caseId);
+    }
+
+    @Override
     public void insertPathologyReport(CreatePathologyReportCommand command) {
         pathologyReportStore.insertPathologyReport(command);
     }
@@ -150,7 +155,42 @@ public class JdbcDiagnosticReportRepository implements DiagnosticReportRepositor
     }
 
     @Override
+    public Optional<ReportVersion> findReportVersionById(String versionId) {
+        return pathologyReportStore.findReportVersionById(versionId);
+    }
+
+    @Override
     public List<ReportVersion> findReportVersionsByCaseId(String caseId) {
         return pathologyReportStore.findReportVersionsByCaseId(caseId);
+    }
+
+    @Override
+    public List<ReportVersion> findScheduledReportVersionsDue(LocalDateTime scheduledBeforeOrAt) {
+        return pathologyReportStore.findScheduledReportVersionsDue(scheduledBeforeOrAt);
+    }
+
+    @Override
+    public List<ReportVersion> findFormalReportVersionsByCaseId(String caseId) {
+        return pathologyReportStore.findFormalReportVersionsByCaseId(caseId);
+    }
+
+    @Override
+    public void markReportVersionsPrinted(List<String> versionIds, LocalDateTime printedAt) {
+        pathologyReportStore.markReportVersionsPrinted(versionIds, printedAt);
+    }
+
+    @Override
+    public void markReportVersionsIssued(List<String> versionIds, LocalDateTime issuedAt) {
+        pathologyReportStore.markReportVersionsIssued(versionIds, issuedAt);
+    }
+
+    @Override
+    public void scheduleReportVersionsIssue(List<String> versionIds, LocalDateTime plannedIssueAt) {
+        pathologyReportStore.scheduleReportVersionsIssue(versionIds, plannedIssueAt);
+    }
+
+    @Override
+    public void markReportVersionsRecalled(List<String> versionIds, LocalDateTime recalledAt) {
+        pathologyReportStore.markReportVersionsRecalled(versionIds, recalledAt);
     }
 }

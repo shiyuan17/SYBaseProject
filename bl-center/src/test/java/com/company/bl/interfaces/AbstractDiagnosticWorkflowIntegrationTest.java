@@ -44,6 +44,22 @@ abstract class AbstractDiagnosticWorkflowIntegrationTest extends AbstractTechnic
         return responseBody(mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/report-tracking", caseIdentifier), userId)), 200);
     }
 
+    protected JsonNode lifecycleTracking(String caseId, String userId) throws Exception {
+        return responseBody(mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/lifecycle-tracking", caseId), userId)), 200);
+    }
+
+    protected JsonNode lifecycleTrackingByIdentifier(String caseIdentifier, String userId) throws Exception {
+        return responseBody(mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/lifecycle-tracking", caseIdentifier), userId)), 200);
+    }
+
+    protected JsonNode formalReportVersions(String caseIdentifier, String userId) throws Exception {
+        return responseBody(mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/formal-report-versions", caseIdentifier), userId)), 200);
+    }
+
+    protected JsonNode caseReportVersions(String caseIdentifier, String userId) throws Exception {
+        return responseBody(mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/report-versions", caseIdentifier), userId)), 200);
+    }
+
     protected String createDiagnosisUser(String suffix) {
         String userId = "USER_M4_DIAGNOSIS_" + suffix;
         LocalDateTime now = LocalDateTime.now();

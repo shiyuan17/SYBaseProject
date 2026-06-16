@@ -2,6 +2,8 @@ package com.company.bl.application.service;
 
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class DiagnosticReportAppService {
 
@@ -80,6 +82,36 @@ public class DiagnosticReportAppService {
 
     public DiagnosticReportViews.ReportTrackingView getReportTracking(String caseId) {
         return diagnosticReportQueryService.getReportTracking(caseId);
+    }
+
+    public DiagnosticReportViews.CaseLifecycleTrackingView getCaseLifecycleTracking(String caseId) {
+        return diagnosticReportQueryService.getCaseLifecycleTracking(caseId);
+    }
+
+    public List<DiagnosticReportModels.FormalReportVersionView> listFormalReportVersions(String caseId) {
+        return diagnosticReportQueryService.listFormalReportVersions(caseId);
+    }
+
+    public List<DiagnosticReportModels.CaseReportVersionView> listCaseReportVersions(String caseId) {
+        return diagnosticReportQueryService.listCaseReportVersions(caseId);
+    }
+
+    public DiagnosticReportModels.FormalReportVersionBatchActionResult printFormalReportVersions(
+        DiagnosticReportModels.FormalReportVersionBatchActionCommand command
+    ) {
+        return diagnosticReportLifecycleService.printFormalReportVersions(command);
+    }
+
+    public DiagnosticReportModels.FormalReportVersionBatchActionResult issueFormalReportVersions(
+        DiagnosticReportModels.FormalReportVersionBatchActionCommand command
+    ) {
+        return diagnosticReportLifecycleService.issueFormalReportVersions(command);
+    }
+
+    public DiagnosticReportModels.FormalReportVersionBatchActionResult recallFormalReportVersions(
+        DiagnosticReportModels.FormalReportVersionBatchActionCommand command
+    ) {
+        return diagnosticReportLifecycleService.recallFormalReportVersions(command);
     }
 
     public DiagnosticReportModels.ReportRevisionResult createRevisionRequest(DiagnosticReportModels.CreateReportRevisionRequestCommand command) {

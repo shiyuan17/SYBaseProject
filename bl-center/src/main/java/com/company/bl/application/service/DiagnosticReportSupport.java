@@ -46,6 +46,11 @@ class DiagnosticReportSupport {
             .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Pathology report not found"));
     }
 
+    DiagnosticReportRepository.ReportVersion getReportVersion(String versionId) {
+        return diagnosticReportRepository.findReportVersionById(versionId)
+            .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Report version not found"));
+    }
+
     PathologyCase getCase(String caseId) {
         return technicalWorkflowRepository.findPathologyCaseById(caseId)
             .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Pathology case not found"));

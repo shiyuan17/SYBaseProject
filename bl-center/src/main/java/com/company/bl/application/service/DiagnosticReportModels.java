@@ -127,6 +127,70 @@ public final class DiagnosticReportModels {
     ) {
     }
 
+    public record FormalReportVersionView(
+        String versionId,
+        String reportId,
+        String reportNo,
+        Integer versionNo,
+        String versionStatus,
+        String signedByName,
+        String signedAt,
+        String publishedAt,
+        String printStatus,
+        String printedAt,
+        String deliveryStatus,
+        String plannedIssueAt,
+        String issuedAt,
+        String recalledAt
+    ) {
+    }
+
+    public record CaseReportVersionView(
+        String versionId,
+        String reportId,
+        String reportNo,
+        Integer versionNo,
+        String versionStatus,
+        String signedByName,
+        String submittedAt,
+        String reviewedAt,
+        String signedAt,
+        String publishedAt,
+        String printStatus,
+        String printedAt,
+        String deliveryStatus,
+        String plannedIssueAt,
+        String issuedAt,
+        String recalledAt
+    ) {
+    }
+
+    public record FormalReportVersionBatchActionCommand(
+        List<String> versionIds,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String issueMode,
+        String plannedIssueAt,
+        String remarks
+    ) {
+    }
+
+    public record FormalReportVersionBatchActionItemResult(
+        String versionId,
+        boolean success,
+        String message
+    ) {
+    }
+
+    public record FormalReportVersionBatchActionResult(
+        int totalCount,
+        int successCount,
+        int failureCount,
+        List<FormalReportVersionBatchActionItemResult> items
+    ) {
+    }
+
     public record CreateReportRevisionRequestCommand(
         String reportId,
         String requestReason,

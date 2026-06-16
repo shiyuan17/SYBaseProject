@@ -5,7 +5,10 @@ import com.company.bl.application.service.DiagnosticReportModels;
 import com.company.bl.application.service.DiagnosticReportViews;
 import com.company.bl.interfaces.auth.M4PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
+import com.company.bl.interfaces.vo.CaseReportVersionListItemResponse;
+import com.company.bl.interfaces.vo.CaseLifecycleTrackingResponse;
 import com.company.bl.interfaces.vo.DiagnosticWorkbenchResponse;
+import com.company.bl.interfaces.vo.FormalReportVersionListItemResponse;
 import com.company.bl.interfaces.vo.PendingDiagnosticTaskResponse;
 import com.company.bl.interfaces.vo.ReportTrackingResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,6 +18,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/pathology-cases")
@@ -108,6 +113,98 @@ public class PathologyCaseDiagnosticController {
             result.latestEffectiveVersionNo(),
             result.currentDraftVersionNo(),
             result.hasPendingRevision());
+    }
+
+    @Operation(summary = "查询病例全生命周期追踪", description = "按病例 ID 或病理号查询申请、标本、技术处理、报告与归档借阅的完整链路。")
+    @RequirePermission(M4PermissionCodes.REPORT_TRACKING_QUERY)
+    @GetMapping("/{id}/lifecycle-tracking")
+    public CaseLifecycleTrackingResponse getCaseLifecycleTracking(
+        @Parameter(description = "病例 ID 或病理号") @PathVariable("id") String caseIdentifier
+    ) {
+        DiagnosticReportViews.CaseLifecycleTrackingView result =
+            diagnosticReportAppService.getCaseLifecycleTracking(caseIdentifier);
+        return new CaseLifecycleTrackingResponse(
+            new CaseLifecycleTrackingResponse.CaseSummary(
+                result.caseSummary().caseId(),
+                result.caseSummary().applicationNo(),
+                result.caseSummary().pathologyNo(),
+                result.caseSummary().caseStatus(),
+                result.caseSummary().patientName(),
+                result.caseSummary().patientGender(),
+                result.caseSummary().patientAge(),
+                result.caseSummary().applicationType(),
+                result.caseSummary().submittingDepartmentName(),
+                result.caseSummary().submittingDoctorName(),
+                result.caseSummary().applicationDate(),
+                result.caseSummary().currentStage(),
+                result.caseSummary().hasPendingRevision()),
+            new CaseLifecycleTrackingResponse.ApplicationForm(
+                result.applicationForm().archiveStatus(),
+                result.applicationForm().archiveLocation(),
+                result.applicationForm().imageUrl(),
+                result.applicationForm().applicantDoctorName(),
+                result.applicationForm().applicationDate(),
+                result.applicationForm().remarks()),
+            result.overallTimeline().stream().map(this::toLifecycleStageGroup).toList(),
+            result.specimens().stream().map(this::toLifecycleSpecimen).toList(),
+            new CaseLifecycleTrackingResponse.ReportLifecycle(
+                toCurrentReport(result.reportLifecycle().currentReport()),
+                result.reportLifecycle().diagnosticTasks().stream().map(this::toTaskResponse).toList(),
+                result.reportLifecycle().versions().stream().map(item -> new ReportTrackingResponse.ReportVersionSummary(
+                    item.versionId(), item.versionNo(), item.versionStatus(), item.finalDiagnosisSnapshot(), item.signedAt(), item.createdAt())).toList(),
+                result.reportLifecycle().revisions().stream().map(this::toRevisionSummary).toList(),
+                result.reportLifecycle().consultations().stream().map(this::toConsultationSummary).toList(),
+                result.reportLifecycle().medicalOrders().stream().map(this::toMedicalOrderSummary).toList()));
+    }
+
+    @Operation(summary = "查询病例正式报告列表", description = "按病例 ID 或病理号查询当前病例已签发/已发布的正式报告版本列表。")
+    @RequirePermission(M4PermissionCodes.REPORT_PUBLISH)
+    @GetMapping("/{id}/formal-report-versions")
+    public List<FormalReportVersionListItemResponse> listFormalReportVersions(
+        @Parameter(description = "病例 ID 或病理号") @PathVariable("id") String caseIdentifier
+    ) {
+        return diagnosticReportAppService.listFormalReportVersions(caseIdentifier).stream()
+            .map(item -> new FormalReportVersionListItemResponse(
+                item.versionId(),
+                item.reportId(),
+                item.reportNo(),
+                item.versionNo(),
+                item.versionStatus(),
+                item.signedByName(),
+                item.signedAt(),
+                item.publishedAt(),
+                item.printStatus(),
+                item.printedAt(),
+                item.deliveryStatus(),
+                item.issuedAt(),
+                item.recalledAt()))
+            .toList();
+    }
+
+    @Operation(summary = "查询病例报告版本列表", description = "按病例 ID 或病理号查询当前病例下的全状态报告版本列表。")
+    @RequirePermission(M4PermissionCodes.REPORT_REVIEW)
+    @GetMapping("/{id}/report-versions")
+    public List<CaseReportVersionListItemResponse> listCaseReportVersions(
+        @Parameter(description = "病例 ID 或病理号") @PathVariable("id") String caseIdentifier
+    ) {
+        return diagnosticReportAppService.listCaseReportVersions(caseIdentifier).stream()
+            .map(item -> new CaseReportVersionListItemResponse(
+                item.versionId(),
+                item.reportId(),
+                item.reportNo(),
+                item.versionNo(),
+                item.versionStatus(),
+                item.signedByName(),
+                item.submittedAt(),
+                item.reviewedAt(),
+                item.signedAt(),
+                item.publishedAt(),
+                item.printStatus(),
+                item.printedAt(),
+                item.deliveryStatus(),
+                item.issuedAt(),
+                item.recalledAt()))
+            .toList();
     }
 
     private PendingDiagnosticTaskResponse toTaskResponse(DiagnosticReportModels.TaskView item) {
@@ -207,7 +304,15 @@ public class PathologyCaseDiagnosticController {
             item.hostName(),
             item.completedAt(),
             item.opinion(),
-            item.participantCount());
+            item.participantCount(),
+            item.participants().stream().map(participant -> new DiagnosticWorkbenchResponse.ConsultationParticipantSummary(
+                participant.participantId(),
+                participant.participantUserId(),
+                participant.participantName(),
+                participant.participantRole(),
+                participant.opinion(),
+                participant.draftedByName(),
+                participant.commentedAt())).toList());
     }
 
     private DiagnosticWorkbenchResponse.HistoricalPathologySummary toHistoricalPathologySummary(
@@ -263,4 +368,107 @@ public class PathologyCaseDiagnosticController {
             item.chargedAt(),
             item.chargedByName());
     }
+
+    private CaseLifecycleTrackingResponse.StageGroup toLifecycleStageGroup(
+        DiagnosticReportViews.LifecycleStageGroupView item
+    ) {
+        return new CaseLifecycleTrackingResponse.StageGroup(
+            item.stageCode(),
+            item.stageTitle(),
+            item.nodes().stream().map(this::toLifecycleNode).toList());
+    }
+
+    private CaseLifecycleTrackingResponse.LifecycleNode toLifecycleNode(
+        DiagnosticReportViews.LifecycleNodeView item
+    ) {
+        return new CaseLifecycleTrackingResponse.LifecycleNode(
+            item.stageCode(),
+            item.nodeCode(),
+            item.title(),
+            item.status(),
+            item.occurredAt(),
+            item.operatorName(),
+            item.keyFacts().stream()
+                .map(fact -> new CaseLifecycleTrackingResponse.KeyFact(fact.label(), fact.value()))
+                .toList(),
+            item.eventContent());
+    }
+
+    private CaseLifecycleTrackingResponse.SpecimenItem toLifecycleSpecimen(
+        DiagnosticReportViews.LifecycleSpecimenView item
+    ) {
+        return new CaseLifecycleTrackingResponse.SpecimenItem(
+            item.specimenId(),
+            item.specimenNo(),
+            item.barcode(),
+            item.specimenName(),
+            item.specimenStatus(),
+            item.archiveStatus(),
+            item.archiveLocation(),
+            item.loanStatus(),
+            item.createdAt(),
+            item.removalAt(),
+            item.fixedAt(),
+            item.confirmedAt(),
+            item.checkedInAt(),
+            item.receiptStatus(),
+            item.receivedAt(),
+            item.contentDescribedByName(),
+            item.specimenEvents().stream().map(this::toLifecycleNode).toList(),
+            item.blocks().stream().map(this::toLifecycleBlock).toList());
+    }
+
+    private CaseLifecycleTrackingResponse.BlockItem toLifecycleBlock(
+        DiagnosticReportViews.LifecycleBlockView item
+    ) {
+        return new CaseLifecycleTrackingResponse.BlockItem(
+            item.blockId(),
+            item.specimenId(),
+            item.blockCode(),
+            item.embeddingBoxNo(),
+            item.description(),
+            item.specimenName(),
+            item.grossDescription(),
+            item.archiveStatus(),
+            item.archiveLocation(),
+            item.loanStatus(),
+            item.sampledByName(),
+            item.sampledAt(),
+            item.embeddedByName(),
+            item.embeddingStartedAt(),
+            item.embeddingEndedAt(),
+            item.sliceNotice(),
+            item.evaluationLevel(),
+            item.samplingEvaluation(),
+            item.embeddingRemarks(),
+            item.blockEvents().stream().map(this::toLifecycleNode).toList(),
+            item.slides().stream().map(this::toLifecycleSlide).toList());
+    }
+
+    private CaseLifecycleTrackingResponse.SlideItem toLifecycleSlide(
+        DiagnosticReportViews.LifecycleSlideView item
+    ) {
+        return new CaseLifecycleTrackingResponse.SlideItem(
+            item.slideId(),
+            item.specimenId(),
+            item.embeddingBoxId(),
+            item.slideNo(),
+            item.slideStatus(),
+            item.qualityStatus(),
+            item.archiveStatus(),
+            item.archiveLocation(),
+            item.loanStatus(),
+            item.printedAt(),
+            item.slicedAt(),
+            item.slicedByName(),
+            item.stainedAt(),
+            item.stainedByName(),
+            item.qcResult(),
+            item.qcEvaluatedAt(),
+            item.qcEvaluatorName(),
+            item.reworkStatus(),
+            item.reworkReason(),
+            item.slideEvents().stream().map(this::toLifecycleNode).toList());
+    }
+
 }
