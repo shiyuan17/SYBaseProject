@@ -1,4 +1,4 @@
-create table medical_waste_specimen_batch (
+create table if not exists medical_waste_specimen_batch (
     id varchar(64) primary key,
     bag_name varchar(100) not null,
     grossing_station_id varchar(64),
@@ -17,10 +17,10 @@ create table medical_waste_specimen_batch (
     destroyed_by_name varchar(100)
 );
 
-create index idx_medical_waste_specimen_batch_date
+create index if not exists idx_medical_waste_specimen_batch_date
     on medical_waste_specimen_batch (grossing_date, grossing_operator_name, grossing_station_name);
 
-create table medical_waste_specimen_batch_label (
+create table if not exists medical_waste_specimen_batch_label (
     id varchar(64) primary key,
     batch_id varchar(64) not null,
     source_label_id varchar(64) not null,
@@ -32,10 +32,10 @@ create table medical_waste_specimen_batch_label (
         foreign key (batch_id) references medical_waste_specimen_batch (id)
 );
 
-create index idx_medical_waste_specimen_batch_label_batch
+create index if not exists idx_medical_waste_specimen_batch_label_batch
     on medical_waste_specimen_batch_label (batch_id);
 
-create table medical_waste_reagent_bag (
+create table if not exists medical_waste_reagent_bag (
     id varchar(64) primary key,
     bag_name varchar(100) not null,
     waste_type varchar(32) not null,
@@ -56,5 +56,5 @@ create table medical_waste_reagent_bag (
     updated_at timestamp not null
 );
 
-create index idx_medical_waste_reagent_bag_created
+create index if not exists idx_medical_waste_reagent_bag_created
     on medical_waste_reagent_bag (created_at, bag_name);

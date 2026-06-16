@@ -1,4 +1,4 @@
-CREATE TABLE white_slide_stocks (
+CREATE TABLE IF NOT EXISTS white_slide_stocks (
     id VARCHAR(64) NOT NULL,
     stock_no VARCHAR(64) NOT NULL,
     stock_code VARCHAR(64) NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE white_slide_stocks (
     CONSTRAINT uk_white_slide_stocks_stock_code UNIQUE (stock_code)
 );
 
-CREATE TABLE white_slide_loans (
+CREATE TABLE IF NOT EXISTS white_slide_loans (
     id VARCHAR(64) NOT NULL,
     loan_no VARCHAR(64) NOT NULL,
     stock_id VARCHAR(64) NOT NULL,
@@ -49,10 +49,10 @@ CREATE TABLE white_slide_loans (
     CONSTRAINT fk_white_slide_loans_case FOREIGN KEY (case_id) REFERENCES pathology_cases (id)
 );
 
-CREATE INDEX idx_white_slide_loans_status
+CREATE INDEX IF NOT EXISTS idx_white_slide_loans_status
     ON white_slide_loans (loan_status, loaned_at);
 
-CREATE INDEX idx_white_slide_loans_case
+CREATE INDEX IF NOT EXISTS idx_white_slide_loans_case
     ON white_slide_loans (case_id, pathology_no);
 
 INSERT INTO white_slide_stocks (id, stock_no, stock_code, specification, quantity_available, quantity_borrowed, status, remarks)

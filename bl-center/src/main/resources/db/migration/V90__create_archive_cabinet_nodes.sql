@@ -1,4 +1,4 @@
-CREATE TABLE archive_cabinet_nodes (
+CREATE TABLE IF NOT EXISTS archive_cabinet_nodes (
     id VARCHAR(64) NOT NULL,
     parent_id VARCHAR(64),
     node_code VARCHAR(64) NOT NULL,
@@ -16,8 +16,8 @@ CREATE TABLE archive_cabinet_nodes (
     CONSTRAINT fk_archive_cabinet_nodes_cabinet FOREIGN KEY (cabinet_id) REFERENCES archive_cabinets (id)
 );
 
-CREATE INDEX idx_archive_cabinet_nodes_parent ON archive_cabinet_nodes (parent_id);
-CREATE INDEX idx_archive_cabinet_nodes_cabinet ON archive_cabinet_nodes (cabinet_id);
+CREATE INDEX IF NOT EXISTS idx_archive_cabinet_nodes_parent ON archive_cabinet_nodes (parent_id);
+CREATE INDEX IF NOT EXISTS idx_archive_cabinet_nodes_cabinet ON archive_cabinet_nodes (cabinet_id);
 
 INSERT INTO archive_cabinet_nodes
     (id, parent_id, node_code, node_type, cabinet_type, cabinet_id, layer_no, capacity, path_location, remarks, created_at, updated_at)
@@ -35,6 +35,11 @@ SELECT
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
 FROM archive_cabinets
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM archive_cabinet_nodes existing
+    WHERE existing.id = 'ACN-TYPE-' || archive_cabinets.cabinet_type
+)
 GROUP BY cabinet_type;
 
 INSERT INTO archive_cabinet_nodes
@@ -52,7 +57,12 @@ SELECT
     remarks,
     created_at,
     updated_at
-FROM archive_cabinets;
+FROM archive_cabinets
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM archive_cabinet_nodes existing
+    WHERE existing.id = 'ACN-CAB-' || archive_cabinets.id
+);
 
 INSERT INTO archive_cabinet_nodes
     (id, parent_id, node_code, node_type, cabinet_type, cabinet_id, layer_no, capacity, path_location, remarks, created_at, updated_at)
@@ -75,4 +85,9 @@ CROSS JOIN (
     SELECT 1 AS layer_no UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5
     UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10
 ) layers
-WHERE layer_no <= archive_cabinets.layer_count;
+WHERE layer_no <= archive_cabinets.layer_count
+  AND NOT EXISTS (
+      SELECT 1
+      FROM archive_cabinet_nodes existing
+      WHERE existing.id = 'ACN-DRW-' || archive_cabinets.id || '-' || layer_no
+  );

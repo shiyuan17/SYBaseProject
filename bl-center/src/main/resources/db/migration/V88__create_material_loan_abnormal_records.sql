@@ -1,4 +1,4 @@
-CREATE TABLE material_loan_abnormal_records (
+CREATE TABLE IF NOT EXISTS material_loan_abnormal_records (
     id VARCHAR(64) NOT NULL,
     case_id VARCHAR(64) NOT NULL,
     material_type VARCHAR(32) NOT NULL,
@@ -29,10 +29,10 @@ CREATE TABLE material_loan_abnormal_records (
     CONSTRAINT fk_material_loan_abnormal_records_loan FOREIGN KEY (loan_id) REFERENCES material_loans (id)
 );
 
-CREATE INDEX idx_material_loan_abnormal_records_material
+CREATE INDEX IF NOT EXISTS idx_material_loan_abnormal_records_material
     ON material_loan_abnormal_records (material_type, material_id);
 
-CREATE INDEX idx_material_loan_abnormal_records_case
+CREATE INDEX IF NOT EXISTS idx_material_loan_abnormal_records_case
     ON material_loan_abnormal_records (case_id);
 
 INSERT INTO permissions (id, permission_code, permission_name, menu_id, action_key, http_method, resource_path, permission_group, sort_order)
