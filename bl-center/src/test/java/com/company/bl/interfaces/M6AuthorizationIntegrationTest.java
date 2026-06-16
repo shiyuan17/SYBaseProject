@@ -53,6 +53,34 @@ class M6AuthorizationIntegrationTest extends AuthenticatedWebIntegrationTest {
                     }
                     """))
             .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(post("/api/v1/stat-reports/details/query"), USER_M1_QUALITY)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "indicatorCode":"QC_CRITICAL_VALUE_COUNT"
+                    }
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(post("/api/v1/stat-reports/details/export"), USER_M1_QUALITY)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "indicatorCode":"QC_CRITICAL_VALUE_COUNT"
+                    }
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(post("/api/v1/stat-reports/details/query"), USER_M1_NO_PERMISSION)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "indicatorCode":"QC_CRITICAL_VALUE_COUNT"
+                    }
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
     }
 
     @Test

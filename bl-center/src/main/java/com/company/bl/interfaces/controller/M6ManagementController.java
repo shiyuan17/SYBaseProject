@@ -181,6 +181,7 @@ public class M6ManagementController {
             request.departmentId(),
             request.roleId(),
             request.workloadUserId(),
+            request.periodMode(),
             currentUserId(httpServletRequest),
             currentOperatorName(httpServletRequest)));
     }
@@ -195,9 +196,49 @@ public class M6ManagementController {
             request.departmentId(),
             request.roleId(),
             request.workloadUserId(),
+            request.periodMode(),
             currentUserId(httpServletRequest),
             currentOperatorName(httpServletRequest)));
         String fileName = (request.templateCode() == null || request.templateCode().isBlank() ? "stat-report" : request.templateCode()) + ".csv";
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName)
+            .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
+            .body(content);
+    }
+
+    @Operation(summary = "Query stat report details", description = "Query quality indicator detail rows with real backend proxy rules.")
+    @RequirePermission(M6PermissionCodes.STAT_REPORT_QUERY)
+    @PostMapping("/stat-reports/details/query")
+    public StatisticsService.StatReportDetailResult queryReportDetails(
+        @Valid @RequestBody QueryStatReportDetailRequest request,
+        HttpServletRequest httpServletRequest) {
+        return statisticsService.queryReportDetails(new StatisticsService.QueryStatReportDetailCommand(
+            request.indicatorCode(),
+            parseDateTime(request.from()),
+            parseDateTime(request.to()),
+            request.departmentId(),
+            request.page(),
+            request.size(),
+            currentUserId(httpServletRequest),
+            currentOperatorName(httpServletRequest)));
+    }
+
+    @Operation(summary = "Export stat report details", description = "Export quality indicator detail rows as UTF-8 BOM CSV.")
+    @RequirePermission(M6PermissionCodes.STAT_REPORT_EXPORT)
+    @PostMapping("/stat-reports/details/export")
+    public ResponseEntity<byte[]> exportReportDetails(
+        @Valid @RequestBody QueryStatReportDetailRequest request,
+        HttpServletRequest httpServletRequest) {
+        byte[] content = statisticsService.exportReportDetails(new StatisticsService.QueryStatReportDetailCommand(
+            request.indicatorCode(),
+            parseDateTime(request.from()),
+            parseDateTime(request.to()),
+            request.departmentId(),
+            request.page(),
+            request.size(),
+            currentUserId(httpServletRequest),
+            currentOperatorName(httpServletRequest)));
+        String fileName = request.indicatorCode().toLowerCase() + "-details.csv";
         return ResponseEntity.ok()
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName)
             .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
@@ -265,7 +306,20 @@ public class M6ManagementController {
         @Schema(description = "End time") String to,
         @Schema(description = "Submitting department id") @Size(max = 64) String departmentId,
         @Schema(description = "Role id") @Size(max = 64) String roleId,
-        @Schema(description = "Workload user id filter") @Size(max = 64) String workloadUserId
+        @Schema(description = "Workload user id filter") @Size(max = 64) String workloadUserId,
+        @Schema(description = "Trend period mode: month, quarter, or year") @Size(max = 16) String periodMode
+    ) {
+    }
+
+    @Schema(name = "M6QueryStatReportDetailRequest", description = "Stat report detail query request")
+    @RejectLegacyOperatorFields
+    public record QueryStatReportDetailRequest(
+        @Schema(description = "Indicator code") @Size(max = 64) String indicatorCode,
+        @Schema(description = "Start time") String from,
+        @Schema(description = "End time") String to,
+        @Schema(description = "Submitting department id") @Size(max = 64) String departmentId,
+        @Schema(description = "Page number") Integer page,
+        @Schema(description = "Page size") Integer size
     ) {
     }
 }
