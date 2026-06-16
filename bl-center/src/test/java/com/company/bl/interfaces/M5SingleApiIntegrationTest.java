@@ -132,6 +132,77 @@ class M5SingleApiIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTe
     }
 
     @Test
+    void shouldCreateAndQueryArchiveCabinetNodes() throws Exception {
+        JsonNode area = responseBody(postJson("/api/v1/archive-cabinet-nodes", USER_M1_ARCHIVE, """
+            {
+              "nodeCode":"AREA-NODE-%d",
+              "nodeType":"AREA",
+              "pathLocation":"M5 Area"
+            }
+            """.formatted(System.nanoTime())), 200);
+        String areaId = area.path("id").asText();
+        assertThat(area.path("nodeType").asText()).isEqualTo("AREA");
+        assertThat(area.path("remainingCapacity").asInt()).isZero();
+
+        JsonNode cabinetNode = responseBody(postJson("/api/v1/archive-cabinet-nodes", USER_M1_ARCHIVE, """
+            {
+              "parentId":"%s",
+              "nodeCode":"CAB-NODE-%d",
+              "nodeType":"CABINET",
+              "cabinetType":"APPLICATION_FORM",
+              "capacity":3,
+              "pathLocation":"M5 Area Cabinet",
+              "remarks":"node cabinet"
+            }
+            """.formatted(areaId, System.nanoTime())), 200);
+        String cabinetId = cabinetNode.path("cabinetId").asText();
+        assertThat(cabinetNode.path("parentId").asText()).isEqualTo(areaId);
+        assertThat(cabinetNode.path("capacity").asInt()).isEqualTo(3);
+        assertThat(cabinetNode.path("remainingCapacity").asInt()).isEqualTo(3);
+
+        JsonNode drawerNode = responseBody(postJson("/api/v1/archive-cabinet-nodes", USER_M1_ARCHIVE, """
+            {
+              "parentId":"%s",
+              "nodeCode":"2",
+              "nodeType":"DRAWER",
+              "capacity":3,
+              "pathLocation":"M5 Area Drawer"
+            }
+            """.formatted(cabinetNode.path("id").asText())), 200);
+        assertThat(drawerNode.path("nodeType").asText()).isEqualTo("DRAWER");
+        assertThat(drawerNode.path("layerNo").asInt()).isEqualTo(2);
+        assertThat(drawerNode.path("remainingCapacity").asInt()).isEqualTo(3);
+
+        JsonNode nodes = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-cabinet-nodes"), USER_M1_ARCHIVE)), 200);
+        assertThat(nodes.toString()).contains(areaId, cabinetNode.path("id").asText(), drawerNode.path("id").asText());
+
+        JsonNode positions = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-positions/available"), USER_M1_ARCHIVE)
+            .param("cabinetId", cabinetId)), 200);
+        assertThat(positions).hasSize(6);
+
+        postJson("/api/v1/archive-cabinet-nodes", USER_M1_ARCHIVE, """
+            {
+              "parentId":"%s",
+              "nodeCode":"BAD-DRAWER",
+              "nodeType":"DRAWER",
+              "capacity":2
+            }
+            """.formatted(cabinetNode.path("id").asText()))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("INVALID_ARGUMENT"));
+
+        postJson("/api/v1/archive-cabinet-nodes", USER_M1_ARCHIVE, """
+            {
+              "parentId":"%s",
+              "nodeCode":"BAD-AREA",
+              "nodeType":"AREA"
+            }
+            """.formatted(cabinetNode.path("id").asText()))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("INVALID_ARGUMENT"));
+    }
+
+    @Test
     void shouldDeleteOnlyEmptyArchiveCabinet() throws Exception {
         JsonNode emptyCabinet = responseBody(postJson("/api/v1/archive-cabinets", USER_M1_ARCHIVE, """
             {
@@ -278,6 +349,7 @@ class M5SingleApiIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTe
               "locationDescription":"Lab-A",
               "enabledAt":"%s",
               "nextMaintenanceAt":"%s",
+              "commonlyUsed":true,
               "remarks":"created"
             }
             """.formatted(System.nanoTime(),
@@ -301,6 +373,7 @@ class M5SingleApiIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTe
                       "locationDescription":"Lab-B",
                       "enabledAt":"%s",
                       "nextMaintenanceAt":"%s",
+                      "commonlyUsed":false,
                       "remarks":"updated"
                     }
                     """.formatted(LocalDateTime.now().minusDays(3).withNano(0),

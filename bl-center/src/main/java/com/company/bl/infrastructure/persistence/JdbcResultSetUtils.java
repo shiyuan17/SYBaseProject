@@ -20,6 +20,11 @@ final class JdbcResultSetUtils {
         return hasColumn(rs, columnLabel) ? rs.getTimestamp(columnLabel) : null;
     }
 
+    static java.time.LocalDateTime getNullableLocalDateTime(ResultSet rs, String columnLabel) throws SQLException {
+        java.sql.Timestamp timestamp = getNullableTimestamp(rs, columnLabel);
+        return timestamp == null ? null : timestamp.toLocalDateTime();
+    }
+
     private static boolean hasColumn(ResultSet rs, String columnLabel) throws SQLException {
         int columnCount = rs.getMetaData().getColumnCount();
         for (int index = 1; index <= columnCount; index++) {
