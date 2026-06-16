@@ -240,6 +240,32 @@ public final class OperationSupportModels {
         String locationDescription,
         String enabledAt,
         String nextMaintenanceAt,
+        Integer quantity,
+        String purchaseDate,
+        String purchaserName,
+        String purchaserCode,
+        String managementUnit,
+        String managementCode,
+        String useUnit,
+        String principalCode,
+        String principalName,
+        String userName,
+        String productionDate,
+        String warrantyEndDate,
+        String factoryNo,
+        String depreciationMethod,
+        Integer serviceLifeYears,
+        BigDecimal price,
+        String manufacturer,
+        String portNo,
+        String ipAddress,
+        String commonStartupTime,
+        String commonShutdownTime,
+        String commonUsageContent,
+        boolean commonlyUsed,
+        BigDecimal setTemperature,
+        BigDecimal currentTemperature,
+        String rfid,
         String remarks
     ) {
     }
@@ -253,6 +279,32 @@ public final class OperationSupportModels {
         String locationDescription,
         String enabledAt,
         String nextMaintenanceAt,
+        Integer quantity,
+        String purchaseDate,
+        String purchaserName,
+        String purchaserCode,
+        String managementUnit,
+        String managementCode,
+        String useUnit,
+        String principalCode,
+        String principalName,
+        String userName,
+        String productionDate,
+        String warrantyEndDate,
+        String factoryNo,
+        String depreciationMethod,
+        Integer serviceLifeYears,
+        BigDecimal price,
+        String manufacturer,
+        String portNo,
+        String ipAddress,
+        String commonStartupTime,
+        String commonShutdownTime,
+        String commonUsageContent,
+        boolean commonlyUsed,
+        BigDecimal setTemperature,
+        BigDecimal currentTemperature,
+        String rfid,
         String operatorUserId,
         String operatorName,
         String remarks
@@ -268,9 +320,43 @@ public final class OperationSupportModels {
         String locationDescription,
         String enabledAt,
         String nextMaintenanceAt,
+        Integer quantity,
+        String purchaseDate,
+        String purchaserName,
+        String purchaserCode,
+        String managementUnit,
+        String managementCode,
+        String useUnit,
+        String principalCode,
+        String principalName,
+        String userName,
+        String productionDate,
+        String warrantyEndDate,
+        String factoryNo,
+        String depreciationMethod,
+        Integer serviceLifeYears,
+        BigDecimal price,
+        String manufacturer,
+        String portNo,
+        String ipAddress,
+        String commonStartupTime,
+        String commonShutdownTime,
+        String commonUsageContent,
+        boolean commonlyUsed,
+        BigDecimal setTemperature,
+        BigDecimal currentTemperature,
+        String rfid,
         String operatorUserId,
         String operatorName,
         String remarks
+    ) {
+    }
+
+    public record BatchUpdateEquipmentStatusCommand(
+        List<String> equipmentIds,
+        String equipmentStatus,
+        String operatorUserId,
+        String operatorName
     ) {
     }
 
@@ -307,6 +393,81 @@ public final class OperationSupportModels {
         String warningType,
         String nextMaintenanceAt,
         String equipmentStatus
+    ) {
+    }
+
+    public record WhiteSlideStockView(
+        String id,
+        String stockNo,
+        String stockCode,
+        String specification,
+        Integer quantityAvailable,
+        Integer quantityBorrowed,
+        String status,
+        String remarks
+    ) {
+    }
+
+    public record WhiteSlideLoanView(
+        String id,
+        String loanNo,
+        String stockId,
+        String stockNo,
+        String stockCode,
+        Integer quantity,
+        String caseId,
+        String pathologyNo,
+        String patientName,
+        String embeddingBoxNo,
+        String slicePurpose,
+        String sliceThickness,
+        String borrowerName,
+        String borrowerIdentityNo,
+        String borrowerUnit,
+        String borrowerPhone,
+        BigDecimal unitPrice,
+        BigDecimal amount,
+        boolean saveDirectPrint,
+        String loanStatus,
+        String waxBlockUsage,
+        String operatorName,
+        String loanedAt,
+        String returnedAt,
+        String returnedByName,
+        String remarks
+    ) {
+    }
+
+    public record CreateWhiteSlideLoanCommand(
+        String stockId,
+        Integer quantity,
+        String caseId,
+        String pathologyNo,
+        String patientName,
+        String embeddingBoxNo,
+        String slicePurpose,
+        String sliceThickness,
+        String borrowerName,
+        String borrowerIdentityNo,
+        String borrowerUnit,
+        String borrowerPhone,
+        BigDecimal unitPrice,
+        BigDecimal amount,
+        boolean saveDirectPrint,
+        String waxBlockUsage,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
+    public record ReturnWhiteSlideLoanCommand(
+        String loanId,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
     ) {
     }
 }

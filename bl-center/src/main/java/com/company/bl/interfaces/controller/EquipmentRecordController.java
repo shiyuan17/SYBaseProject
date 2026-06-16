@@ -4,6 +4,7 @@ import com.company.bl.application.service.OperationSupportModels;
 import com.company.bl.application.service.OperationSupportService;
 import com.company.bl.interfaces.auth.M5PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
+import com.company.bl.interfaces.dto.BatchUpdateEquipmentStatusRequest;
 import com.company.bl.interfaces.dto.CreateEquipmentMaintenanceLogRequest;
 import com.company.bl.interfaces.dto.CreateEquipmentRecordRequest;
 import com.company.bl.interfaces.dto.UpdateEquipmentRecordRequest;
@@ -50,6 +51,32 @@ public class EquipmentRecordController extends TechnicalControllerSupport {
             request.getLocationDescription(),
             request.getEnabledAt(),
             request.getNextMaintenanceAt(),
+            request.getQuantity(),
+            request.getPurchaseDate(),
+            request.getPurchaserName(),
+            request.getPurchaserCode(),
+            request.getManagementUnit(),
+            request.getManagementCode(),
+            request.getUseUnit(),
+            request.getPrincipalCode(),
+            request.getPrincipalName(),
+            request.getUserName(),
+            request.getProductionDate(),
+            request.getWarrantyEndDate(),
+            request.getFactoryNo(),
+            request.getDepreciationMethod(),
+            request.getServiceLifeYears(),
+            request.getPrice(),
+            request.getManufacturer(),
+            request.getPortNo(),
+            request.getIpAddress(),
+            request.getCommonStartupTime(),
+            request.getCommonShutdownTime(),
+            request.getCommonUsageContent(),
+            request.getCommonlyUsed(),
+            request.getSetTemperature(),
+            request.getCurrentTemperature(),
+            request.getRfid(),
             resolveUserId(httpServletRequest),
             resolveOperatorName(httpServletRequest),
             request.getRemarks()));
@@ -69,9 +96,46 @@ public class EquipmentRecordController extends TechnicalControllerSupport {
             request.getLocationDescription(),
             request.getEnabledAt(),
             request.getNextMaintenanceAt(),
+            request.getQuantity(),
+            request.getPurchaseDate(),
+            request.getPurchaserName(),
+            request.getPurchaserCode(),
+            request.getManagementUnit(),
+            request.getManagementCode(),
+            request.getUseUnit(),
+            request.getPrincipalCode(),
+            request.getPrincipalName(),
+            request.getUserName(),
+            request.getProductionDate(),
+            request.getWarrantyEndDate(),
+            request.getFactoryNo(),
+            request.getDepreciationMethod(),
+            request.getServiceLifeYears(),
+            request.getPrice(),
+            request.getManufacturer(),
+            request.getPortNo(),
+            request.getIpAddress(),
+            request.getCommonStartupTime(),
+            request.getCommonShutdownTime(),
+            request.getCommonUsageContent(),
+            request.getCommonlyUsed(),
+            request.getSetTemperature(),
+            request.getCurrentTemperature(),
+            request.getRfid(),
             resolveUserId(httpServletRequest),
             resolveOperatorName(httpServletRequest),
             request.getRemarks()));
+    }
+
+    @RequirePermission(M5PermissionCodes.EQUIPMENT_UPDATE)
+    @PostMapping("/batch-status")
+    public List<OperationSupportModels.EquipmentRecordView> batchUpdateEquipmentStatus(@Valid @RequestBody BatchUpdateEquipmentStatusRequest request,
+                                                                                       HttpServletRequest httpServletRequest) {
+        return operationSupportService.batchUpdateEquipmentStatus(new OperationSupportModels.BatchUpdateEquipmentStatusCommand(
+            request.getEquipmentIds(),
+            request.getEquipmentStatus(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest)));
     }
 
     @RequirePermission(M5PermissionCodes.EQUIPMENT_QUERY)

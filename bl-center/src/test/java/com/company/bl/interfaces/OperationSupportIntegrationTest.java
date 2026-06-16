@@ -15,6 +15,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ActiveProfiles("test")
@@ -260,7 +262,8 @@ class OperationSupportIntegrationTest extends AbstractDiagnosticWorkflowIntegrat
               "equipmentStatus":"ACTIVE",
               "locationDescription":"Lab-1",
               "enabledAt":"%s",
-              "nextMaintenanceAt":"%s"
+              "nextMaintenanceAt":"%s",
+              "commonlyUsed":true
             }
             """.formatted(LocalDateTime.now().minusDays(30).withNano(0), dueSoon)), 200);
         String equipmentId = dueSoonEquipment.path("id").asText();
@@ -274,7 +277,8 @@ class OperationSupportIntegrationTest extends AbstractDiagnosticWorkflowIntegrat
               "equipmentStatus":"ACTIVE",
               "locationDescription":"Lab-2",
               "enabledAt":"%s",
-              "nextMaintenanceAt":"%s"
+              "nextMaintenanceAt":"%s",
+              "commonlyUsed":false
             }
             """.formatted(LocalDateTime.now().minusDays(60).withNano(0), overdue)), 200);
 
@@ -301,5 +305,100 @@ class OperationSupportIntegrationTest extends AbstractDiagnosticWorkflowIntegrat
             .param("keyword", "EQ-M5-OPS-001")), 200);
         assertThat(equipmentRecords).hasSize(1);
         assertThat(equipmentRecords.get(0).path("nextMaintenanceAt").asText()).isEqualTo(nextMaintenance.toString());
+    }
+
+    @Test
+    void shouldSupportExpandedEquipmentFieldsAndBatchStatusUpdate() throws Exception {
+        JsonNode equipment = responseBody(postJson("/api/v1/equipment-records", USER_M1_REAGENT, """
+            {
+              "equipmentCode":"EQ-M5-LEGACY-%d",
+              "equipmentName":"Legacy Equipment",
+              "equipmentCategory":"MICROTOME",
+              "modelNo":"LEGACY-01",
+              "equipmentStatus":"ACTIVE",
+              "locationDescription":"Room-Legacy",
+              "enabledAt":"%s",
+              "quantity":2,
+              "purchaseDate":"2026-06-01",
+              "purchaserName":"采购员甲",
+              "purchaserCode":"BUY-01",
+              "managementUnit":"归口单位甲",
+              "managementCode":"GL-001",
+              "useUnit":"使用单位甲",
+              "principalCode":"FZR-001",
+              "principalName":"负责人甲",
+              "userName":"使用人甲",
+              "productionDate":"2026-05-01",
+              "warrantyEndDate":"2027-05-01",
+              "factoryNo":"FC-001",
+              "depreciationMethod":"直线法",
+              "serviceLifeYears":5,
+              "price":12345.67,
+              "manufacturer":"厂家甲",
+              "portNo":"COM1",
+              "ipAddress":"192.168.1.10",
+              "commonStartupTime":"08:00:00",
+              "commonShutdownTime":"18:00:00",
+              "commonUsageContent":"常规切片",
+              "commonlyUsed":true,
+              "setTemperature":24.5,
+              "currentTemperature":23.5,
+              "rfid":"RFID-001"
+            }
+            """.formatted(System.nanoTime(), LocalDateTime.now().minusDays(3).withNano(0))), 200);
+        String equipmentId = equipment.path("id").asText();
+
+        assertThat(equipment.path("managementCode").asText()).isEqualTo("GL-001");
+        assertThat(equipment.path("commonlyUsed").asBoolean()).isTrue();
+        assertThat(equipment.path("price").asText()).isEqualTo("12345.67");
+
+        JsonNode queried = responseBody(mockMvc.perform(authorized(get("/api/v1/equipment-records"), USER_M1_REAGENT)
+            .param("keyword", "RFID-001")), 200);
+        assertThat(queried).hasSize(1);
+        assertThat(queried.get(0).path("manufacturer").asText()).isEqualTo("厂家甲");
+
+        mockMvc.perform(authorized(post("/api/v1/equipment-records/batch-status"), USER_M1_REAGENT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "equipmentIds":["%s"],
+                      "equipmentStatus":"DISABLED"
+                    }
+            """.formatted(equipmentId)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].id").value(equipmentId))
+            .andExpect(jsonPath("$.data[0].equipmentStatus").value("DISABLED"));
+
+        mockMvc.perform(authorized(post("/api/v1/equipment-records/batch-status"), USER_M1_REAGENT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "equipmentIds":[],
+                      "equipmentStatus":"ACTIVE"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("INVALID_ARGUMENT"));
+
+        mockMvc.perform(authorized(post("/api/v1/equipment-records/batch-status"), USER_M1_REAGENT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "equipmentIds":["%s"],
+                      "equipmentStatus":"MAINTENANCE"
+                    }
+                    """.formatted(equipmentId)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("INVALID_ARGUMENT"));
+
+        mockMvc.perform(authorized(post("/api/v1/equipment-records/batch-status"), USER_M1_ARCHIVE)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "equipmentIds":["%s"],
+                      "equipmentStatus":"ACTIVE"
+                    }
+                    """.formatted(equipmentId)))
+            .andExpect(status().isForbidden());
     }
 }

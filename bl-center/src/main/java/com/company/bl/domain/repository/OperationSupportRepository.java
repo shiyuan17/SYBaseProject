@@ -44,11 +44,27 @@ public interface OperationSupportRepository {
 
     void updateEquipmentRecord(UpdateEquipmentRecordCommand command);
 
+    void updateEquipmentStatusBatch(List<String> equipmentIds, String equipmentStatus, LocalDateTime updatedAt);
+
     List<EquipmentMaintenanceLog> findEquipmentMaintenanceLogs(String equipmentId);
 
     void insertEquipmentMaintenanceLog(CreateEquipmentMaintenanceLogCommand command);
 
     List<EquipmentWarning> findEquipmentWarnings(LocalDateTime now, LocalDateTime dueSoonThreshold);
+
+    List<WhiteSlideStock> findWhiteSlideStocks(String keyword, String status);
+
+    Optional<WhiteSlideStock> findWhiteSlideStockById(String stockId);
+
+    void updateWhiteSlideStockQuantities(UpdateWhiteSlideStockQuantitiesCommand command);
+
+    List<WhiteSlideLoan> findWhiteSlideLoans(String keyword, String loanStatus);
+
+    Optional<WhiteSlideLoan> findWhiteSlideLoanById(String loanId);
+
+    void insertWhiteSlideLoan(CreateWhiteSlideLoanCommand command);
+
+    void updateWhiteSlideLoanReturned(UpdateWhiteSlideLoanReturnedCommand command);
 
     record Reagent(
         String id,
@@ -303,6 +319,32 @@ public interface OperationSupportRepository {
         String locationDescription,
         LocalDateTime enabledAt,
         LocalDateTime nextMaintenanceAt,
+        Integer quantity,
+        LocalDate purchaseDate,
+        String purchaserName,
+        String purchaserCode,
+        String managementUnit,
+        String managementCode,
+        String useUnit,
+        String principalCode,
+        String principalName,
+        String userName,
+        LocalDate productionDate,
+        LocalDate warrantyEndDate,
+        String factoryNo,
+        String depreciationMethod,
+        Integer serviceLifeYears,
+        BigDecimal price,
+        String manufacturer,
+        String portNo,
+        String ipAddress,
+        String commonStartupTime,
+        String commonShutdownTime,
+        String commonUsageContent,
+        boolean commonlyUsed,
+        BigDecimal setTemperature,
+        BigDecimal currentTemperature,
+        String rfid,
         String remarks
     ) {
     }
@@ -317,6 +359,32 @@ public interface OperationSupportRepository {
         String locationDescription,
         LocalDateTime enabledAt,
         LocalDateTime nextMaintenanceAt,
+        Integer quantity,
+        LocalDate purchaseDate,
+        String purchaserName,
+        String purchaserCode,
+        String managementUnit,
+        String managementCode,
+        String useUnit,
+        String principalCode,
+        String principalName,
+        String userName,
+        LocalDate productionDate,
+        LocalDate warrantyEndDate,
+        String factoryNo,
+        String depreciationMethod,
+        Integer serviceLifeYears,
+        BigDecimal price,
+        String manufacturer,
+        String portNo,
+        String ipAddress,
+        String commonStartupTime,
+        String commonShutdownTime,
+        String commonUsageContent,
+        boolean commonlyUsed,
+        BigDecimal setTemperature,
+        BigDecimal currentTemperature,
+        String rfid,
         String remarks,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
@@ -332,6 +400,32 @@ public interface OperationSupportRepository {
         String locationDescription,
         LocalDateTime enabledAt,
         LocalDateTime nextMaintenanceAt,
+        Integer quantity,
+        LocalDate purchaseDate,
+        String purchaserName,
+        String purchaserCode,
+        String managementUnit,
+        String managementCode,
+        String useUnit,
+        String principalCode,
+        String principalName,
+        String userName,
+        LocalDate productionDate,
+        LocalDate warrantyEndDate,
+        String factoryNo,
+        String depreciationMethod,
+        Integer serviceLifeYears,
+        BigDecimal price,
+        String manufacturer,
+        String portNo,
+        String ipAddress,
+        String commonStartupTime,
+        String commonShutdownTime,
+        String commonUsageContent,
+        boolean commonlyUsed,
+        BigDecimal setTemperature,
+        BigDecimal currentTemperature,
+        String rfid,
         String remarks,
         LocalDateTime updatedAt
     ) {
@@ -374,6 +468,98 @@ public interface OperationSupportRepository {
         String warningType,
         LocalDateTime nextMaintenanceAt,
         String equipmentStatus
+    ) {
+    }
+
+    record WhiteSlideStock(
+        String id,
+        String stockNo,
+        String stockCode,
+        String specification,
+        Integer quantityAvailable,
+        Integer quantityBorrowed,
+        String status,
+        String remarks
+    ) {
+    }
+
+    record UpdateWhiteSlideStockQuantitiesCommand(
+        String id,
+        Integer quantityAvailable,
+        Integer quantityBorrowed,
+        LocalDateTime updatedAt
+    ) {
+    }
+
+    record WhiteSlideLoan(
+        String id,
+        String loanNo,
+        String stockId,
+        String stockNo,
+        String stockCode,
+        Integer quantity,
+        String caseId,
+        String pathologyNo,
+        String patientName,
+        String embeddingBoxNo,
+        String slicePurpose,
+        String sliceThickness,
+        String borrowerName,
+        String borrowerIdentityNo,
+        String borrowerUnit,
+        String borrowerPhone,
+        BigDecimal unitPrice,
+        BigDecimal amount,
+        boolean saveDirectPrint,
+        String loanStatus,
+        String waxBlockUsage,
+        String operatorUserId,
+        String operatorName,
+        LocalDateTime loanedAt,
+        LocalDateTime returnedAt,
+        String returnedByUserId,
+        String returnedByName,
+        String remarks
+    ) {
+    }
+
+    record CreateWhiteSlideLoanCommand(
+        String id,
+        String loanNo,
+        String stockId,
+        Integer quantity,
+        String caseId,
+        String pathologyNo,
+        String patientName,
+        String embeddingBoxNo,
+        String slicePurpose,
+        String sliceThickness,
+        String borrowerName,
+        String borrowerIdentityNo,
+        String borrowerUnit,
+        String borrowerPhone,
+        BigDecimal unitPrice,
+        BigDecimal amount,
+        boolean saveDirectPrint,
+        String loanStatus,
+        String waxBlockUsage,
+        String operatorUserId,
+        String operatorName,
+        LocalDateTime loanedAt,
+        String remarks,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
+    ) {
+    }
+
+    record UpdateWhiteSlideLoanReturnedCommand(
+        String id,
+        String loanStatus,
+        LocalDateTime returnedAt,
+        String returnedByUserId,
+        String returnedByName,
+        String remarks,
+        LocalDateTime updatedAt
     ) {
     }
 }

@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -419,6 +420,32 @@ public class OperationSupportService {
                     command.locationDescription(),
                     parseDateTime(command.enabledAt()),
                     parseDateTime(command.nextMaintenanceAt()),
+                    command.quantity(),
+                    parseDate(command.purchaseDate()),
+                    blankToNull(command.purchaserName()),
+                    blankToNull(command.purchaserCode()),
+                    blankToNull(command.managementUnit()),
+                    blankToNull(command.managementCode()),
+                    blankToNull(command.useUnit()),
+                    blankToNull(command.principalCode()),
+                    blankToNull(command.principalName()),
+                    blankToNull(command.userName()),
+                    parseDate(command.productionDate()),
+                    parseDate(command.warrantyEndDate()),
+                    blankToNull(command.factoryNo()),
+                    blankToNull(command.depreciationMethod()),
+                    command.serviceLifeYears(),
+                    command.price(),
+                    blankToNull(command.manufacturer()),
+                    blankToNull(command.portNo()),
+                    blankToNull(command.ipAddress()),
+                    parseTime(command.commonStartupTime()),
+                    parseTime(command.commonShutdownTime()),
+                    blankToNull(command.commonUsageContent()),
+                    command.commonlyUsed(),
+                    command.setTemperature(),
+                    command.currentTemperature(),
+                    blankToNull(command.rfid()),
                     command.remarks(),
                     now,
                     now));
@@ -443,10 +470,58 @@ public class OperationSupportService {
                 command.locationDescription(),
                 parseDateTime(command.enabledAt()),
                 parseDateTime(command.nextMaintenanceAt()),
+                command.quantity(),
+                parseDate(command.purchaseDate()),
+                blankToNull(command.purchaserName()),
+                blankToNull(command.purchaserCode()),
+                blankToNull(command.managementUnit()),
+                blankToNull(command.managementCode()),
+                blankToNull(command.useUnit()),
+                blankToNull(command.principalCode()),
+                blankToNull(command.principalName()),
+                blankToNull(command.userName()),
+                parseDate(command.productionDate()),
+                parseDate(command.warrantyEndDate()),
+                blankToNull(command.factoryNo()),
+                blankToNull(command.depreciationMethod()),
+                command.serviceLifeYears(),
+                command.price(),
+                blankToNull(command.manufacturer()),
+                blankToNull(command.portNo()),
+                blankToNull(command.ipAddress()),
+                parseTime(command.commonStartupTime()),
+                parseTime(command.commonShutdownTime()),
+                blankToNull(command.commonUsageContent()),
+                command.commonlyUsed(),
+                command.setTemperature(),
+                command.currentTemperature(),
+                blankToNull(command.rfid()),
                 command.remarks(),
                 LocalDateTime.now()));
             return toEquipmentRecordView(operationSupportRepository.findEquipmentRecordById(command.equipmentId()).orElseThrow());
         }, OperationSupportModels.EquipmentRecordView::id, () -> command.equipmentId(), command.operatorUserId(), command.operatorName(), command::equipmentId);
+    }
+
+    @Transactional
+    public List<OperationSupportModels.EquipmentRecordView> batchUpdateEquipmentStatus(OperationSupportModels.BatchUpdateEquipmentStatusCommand command) {
+        return operationAuditService.audit("M5_SUPPORT", "EQUIPMENT", "batch_update_equipment_status", () -> {
+            List<String> equipmentIds = normalizeIds(command.equipmentIds());
+            if (equipmentIds.isEmpty()) {
+                throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Equipment IDs are required");
+            }
+            String equipmentStatus = blankToNull(command.equipmentStatus());
+            if (!"ACTIVE".equals(equipmentStatus) && !"DISABLED".equals(equipmentStatus)) {
+                throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Unsupported equipment status");
+            }
+            for (String equipmentId : equipmentIds) {
+                operationSupportRepository.findEquipmentRecordById(equipmentId)
+                    .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Equipment record not found"));
+            }
+            operationSupportRepository.updateEquipmentStatusBatch(equipmentIds, equipmentStatus, LocalDateTime.now());
+            return equipmentIds.stream()
+                .map(id -> toEquipmentRecordView(operationSupportRepository.findEquipmentRecordById(id).orElseThrow()))
+                .toList();
+        }, item -> item.isEmpty() ? null : item.get(0).id(), null, command.operatorUserId(), command.operatorName(), () -> String.join(",", command.equipmentIds()));
     }
 
     @Transactional(readOnly = true)
@@ -497,6 +572,32 @@ public class OperationSupportService {
                     equipment.locationDescription(),
                     equipment.enabledAt(),
                     nextMaintenanceAt,
+                    equipment.quantity(),
+                    equipment.purchaseDate(),
+                    equipment.purchaserName(),
+                    equipment.purchaserCode(),
+                    equipment.managementUnit(),
+                    equipment.managementCode(),
+                    equipment.useUnit(),
+                    equipment.principalCode(),
+                    equipment.principalName(),
+                    equipment.userName(),
+                    equipment.productionDate(),
+                    equipment.warrantyEndDate(),
+                    equipment.factoryNo(),
+                    equipment.depreciationMethod(),
+                    equipment.serviceLifeYears(),
+                    equipment.price(),
+                    equipment.manufacturer(),
+                    equipment.portNo(),
+                    equipment.ipAddress(),
+                    equipment.commonStartupTime(),
+                    equipment.commonShutdownTime(),
+                    equipment.commonUsageContent(),
+                    equipment.commonlyUsed(),
+                    equipment.setTemperature(),
+                    equipment.currentTemperature(),
+                    equipment.rfid(),
                     equipment.remarks(),
                     now));
             }
@@ -518,6 +619,113 @@ public class OperationSupportService {
             item.warningType(),
             stringify(item.nextMaintenanceAt()),
             item.equipmentStatus())).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<OperationSupportModels.WhiteSlideStockView> listWhiteSlideStocks(String keyword, String status) {
+        return operationSupportRepository.findWhiteSlideStocks(keyword, blankToNull(status)).stream()
+            .map(this::toWhiteSlideStockView)
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<OperationSupportModels.WhiteSlideLoanView> listWhiteSlideLoans(String keyword, String loanStatus) {
+        String normalizedLoanStatus = blankToNull(loanStatus);
+        return operationSupportRepository.findWhiteSlideLoans(keyword, normalizedLoanStatus == null ? "BORROWED" : normalizedLoanStatus).stream()
+            .map(this::toWhiteSlideLoanView)
+            .toList();
+    }
+
+    @Transactional
+    public OperationSupportModels.WhiteSlideLoanView createWhiteSlideLoan(OperationSupportModels.CreateWhiteSlideLoanCommand command) {
+        return operationAuditService.audit("M5_SUPPORT", "WHITE_SLIDE_LOAN", "create_white_slide_loan", () -> {
+            OperationSupportRepository.WhiteSlideStock stock = operationSupportRepository.findWhiteSlideStockById(command.stockId())
+                .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "White slide stock not found"));
+            if (!"ACTIVE".equals(stock.status())) {
+                throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "White slide stock is not active");
+            }
+            int quantity = requirePositiveInt(command.quantity(), "Quantity must be greater than zero");
+            int available = stock.quantityAvailable() == null ? 0 : stock.quantityAvailable();
+            int borrowed = stock.quantityBorrowed() == null ? 0 : stock.quantityBorrowed();
+            if (available < quantity) {
+                throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "White slide stock is insufficient");
+            }
+
+            String loanId = diagnosticReportSupport.nextId("WSL");
+            String loanNo = "WS-" + System.currentTimeMillis();
+            LocalDateTime now = LocalDateTime.now();
+            BigDecimal unitPrice = command.unitPrice();
+            BigDecimal amount = resolveWhiteSlideAmount(command.amount(), unitPrice, quantity);
+
+            operationSupportRepository.insertWhiteSlideLoan(new OperationSupportRepository.CreateWhiteSlideLoanCommand(
+                loanId,
+                loanNo,
+                stock.id(),
+                quantity,
+                blankToNull(command.caseId()),
+                blankToNull(command.pathologyNo()),
+                blankToNull(command.patientName()),
+                blankToNull(command.embeddingBoxNo()),
+                blankToNull(command.slicePurpose()),
+                blankToNull(command.sliceThickness()),
+                command.borrowerName(),
+                blankToNull(command.borrowerIdentityNo()),
+                blankToNull(command.borrowerUnit()),
+                blankToNull(command.borrowerPhone()),
+                unitPrice,
+                amount,
+                command.saveDirectPrint(),
+                "BORROWED",
+                blankToNull(command.waxBlockUsage()),
+                command.operatorUserId(),
+                command.operatorName(),
+                now,
+                blankToNull(command.remarks()),
+                now,
+                now));
+
+            operationSupportRepository.updateWhiteSlideStockQuantities(new OperationSupportRepository.UpdateWhiteSlideStockQuantitiesCommand(
+                stock.id(),
+                available - quantity,
+                borrowed + quantity,
+                now));
+
+            return toWhiteSlideLoanView(operationSupportRepository.findWhiteSlideLoanById(loanId).orElseThrow());
+        }, OperationSupportModels.WhiteSlideLoanView::id, null, command.operatorUserId(), command.operatorName(), command::stockId);
+    }
+
+    @Transactional
+    public OperationSupportModels.WhiteSlideLoanView returnWhiteSlideLoan(OperationSupportModels.ReturnWhiteSlideLoanCommand command) {
+        return operationAuditService.audit("M5_SUPPORT", "WHITE_SLIDE_LOAN", "return_white_slide_loan", () -> {
+            OperationSupportRepository.WhiteSlideLoan loan = operationSupportRepository.findWhiteSlideLoanById(command.loanId())
+                .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "White slide loan not found"));
+            if (!"BORROWED".equals(loan.loanStatus())) {
+                throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "White slide loan has already been returned");
+            }
+            OperationSupportRepository.WhiteSlideStock stock = operationSupportRepository.findWhiteSlideStockById(loan.stockId())
+                .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "White slide stock not found"));
+
+            LocalDateTime now = LocalDateTime.now();
+            int available = stock.quantityAvailable() == null ? 0 : stock.quantityAvailable();
+            int borrowed = stock.quantityBorrowed() == null ? 0 : stock.quantityBorrowed();
+            int quantity = loan.quantity() == null ? 0 : loan.quantity();
+
+            operationSupportRepository.updateWhiteSlideLoanReturned(new OperationSupportRepository.UpdateWhiteSlideLoanReturnedCommand(
+                loan.id(),
+                "RETURNED",
+                now,
+                command.operatorUserId(),
+                command.operatorName(),
+                blankToNull(command.remarks()),
+                now));
+            operationSupportRepository.updateWhiteSlideStockQuantities(new OperationSupportRepository.UpdateWhiteSlideStockQuantitiesCommand(
+                stock.id(),
+                available + quantity,
+                Math.max(0, borrowed - quantity),
+                now));
+
+            return toWhiteSlideLoanView(operationSupportRepository.findWhiteSlideLoanById(loan.id()).orElseThrow());
+        }, OperationSupportModels.WhiteSlideLoanView::id, command::loanId, command.operatorUserId(), command.operatorName(), command::loanId);
     }
 
     private OperationSupportModels.ReagentStockView adjustReagentStock(OperationSupportModels.ReagentStockActionCommand command,
@@ -616,6 +824,23 @@ public class OperationSupportService {
             throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Quantity must be greater than zero");
         }
         return quantity;
+    }
+
+    private int requirePositiveInt(Integer value, String message) {
+        if (value == null || value <= 0) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, message);
+        }
+        return value;
+    }
+
+    private BigDecimal resolveWhiteSlideAmount(BigDecimal requestedAmount, BigDecimal unitPrice, int quantity) {
+        if (requestedAmount != null) {
+            return requestedAmount;
+        }
+        if (unitPrice == null) {
+            return null;
+        }
+        return unitPrice.multiply(BigDecimal.valueOf(quantity));
     }
 
     private boolean isClosedStockStatus(String stockStatus) {
@@ -858,11 +1083,99 @@ public class OperationSupportService {
             item.locationDescription(),
             stringify(item.enabledAt()),
             stringify(item.nextMaintenanceAt()),
+            item.quantity(),
+            stringifyDate(item.purchaseDate()),
+            item.purchaserName(),
+            item.purchaserCode(),
+            item.managementUnit(),
+            item.managementCode(),
+            item.useUnit(),
+            item.principalCode(),
+            item.principalName(),
+            item.userName(),
+            stringifyDate(item.productionDate()),
+            stringifyDate(item.warrantyEndDate()),
+            item.factoryNo(),
+            item.depreciationMethod(),
+            item.serviceLifeYears(),
+            item.price(),
+            item.manufacturer(),
+            item.portNo(),
+            item.ipAddress(),
+            item.commonStartupTime(),
+            item.commonShutdownTime(),
+            item.commonUsageContent(),
+            item.commonlyUsed(),
+            item.setTemperature(),
+            item.currentTemperature(),
+            item.rfid(),
             item.remarks());
+    }
+
+    private OperationSupportModels.WhiteSlideStockView toWhiteSlideStockView(OperationSupportRepository.WhiteSlideStock item) {
+        return new OperationSupportModels.WhiteSlideStockView(
+            item.id(),
+            item.stockNo(),
+            item.stockCode(),
+            item.specification(),
+            item.quantityAvailable(),
+            item.quantityBorrowed(),
+            item.status(),
+            item.remarks());
+    }
+
+    private OperationSupportModels.WhiteSlideLoanView toWhiteSlideLoanView(OperationSupportRepository.WhiteSlideLoan item) {
+        return new OperationSupportModels.WhiteSlideLoanView(
+            item.id(),
+            item.loanNo(),
+            item.stockId(),
+            item.stockNo(),
+            item.stockCode(),
+            item.quantity(),
+            item.caseId(),
+            item.pathologyNo(),
+            item.patientName(),
+            item.embeddingBoxNo(),
+            item.slicePurpose(),
+            item.sliceThickness(),
+            item.borrowerName(),
+            item.borrowerIdentityNo(),
+            item.borrowerUnit(),
+            item.borrowerPhone(),
+            item.unitPrice(),
+            item.amount(),
+            item.saveDirectPrint(),
+            item.loanStatus(),
+            item.waxBlockUsage(),
+            item.operatorName(),
+            stringify(item.loanedAt()),
+            stringify(item.returnedAt()),
+            item.returnedByName(),
+            item.remarks());
+    }
+
+    private List<String> normalizeIds(List<String> values) {
+        return values == null ? List.of() : values.stream()
+            .map(this::blankToNull)
+            .filter(item -> item != null)
+            .distinct()
+            .toList();
     }
 
     private LocalDateTime parseDateTime(String value) {
         return value == null || value.isBlank() ? null : LocalDateTime.parse(value);
+    }
+
+    private String parseTime(String value) {
+        String normalized = blankToNull(value);
+        if (normalized == null) {
+            return null;
+        }
+        return LocalTime.parse(normalized).toString();
+    }
+
+    private String stringifyDate(LocalDate value) {
+        return value == null ? null : value.toString();
     }
 
     private String stringify(LocalDateTime value) {

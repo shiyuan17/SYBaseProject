@@ -465,11 +465,20 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
         String like = keyword == null || keyword.isBlank() ? null : "%" + keyword.trim().toUpperCase() + "%";
         return jdbcTemplate.query("""
             select id, equipment_code, equipment_name, equipment_category, model_no, equipment_status,
-                   location_description, enabled_at, next_maintenance_at, remarks
+                   location_description, enabled_at, next_maintenance_at, quantity, purchase_date,
+                   purchaser_name, purchaser_code, management_unit, management_code, use_unit,
+                   principal_code, principal_name, user_name, production_date, warranty_end_date,
+                   factory_no, depreciation_method, service_life_years, price, manufacturer,
+                   port_no, ip_address, common_startup_time, common_shutdown_time, common_usage_content,
+                   commonly_used, set_temperature, current_temperature, rfid, remarks
             from equipment_records
             where (:equipmentStatus is null or equipment_status = :equipmentStatus)
               and (:keywordLike is null or upper(equipment_code) like :keywordLike
-                   or upper(equipment_name) like :keywordLike)
+                   or upper(equipment_name) like :keywordLike
+                   or upper(coalesce(management_code, '')) like :keywordLike
+                   or upper(coalesce(model_no, '')) like :keywordLike
+                   or upper(coalesce(manufacturer, '')) like :keywordLike
+                   or upper(coalesce(rfid, '')) like :keywordLike)
             order by equipment_code asc
             """, new MapSqlParameterSource()
             .addValue("equipmentStatus", equipmentStatus)
@@ -480,7 +489,12 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
     public Optional<EquipmentRecord> findEquipmentRecordById(String equipmentId) {
         return jdbcTemplate.query("""
             select id, equipment_code, equipment_name, equipment_category, model_no, equipment_status,
-                   location_description, enabled_at, next_maintenance_at, remarks
+                   location_description, enabled_at, next_maintenance_at, quantity, purchase_date,
+                   purchaser_name, purchaser_code, management_unit, management_code, use_unit,
+                   principal_code, principal_name, user_name, production_date, warranty_end_date,
+                   factory_no, depreciation_method, service_life_years, price, manufacturer,
+                   port_no, ip_address, common_startup_time, common_shutdown_time, common_usage_content,
+                   commonly_used, set_temperature, current_temperature, rfid, remarks
             from equipment_records
             where id = :id
             """, Map.of("id", equipmentId), this::mapEquipmentRecord).stream().findFirst();
@@ -491,10 +505,20 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
         jdbcTemplate.update("""
             insert into equipment_records
                 (id, equipment_code, equipment_name, equipment_category, model_no, equipment_status,
-                 location_description, enabled_at, next_maintenance_at, remarks, created_at, updated_at)
+                 location_description, enabled_at, next_maintenance_at, quantity, purchase_date,
+                 purchaser_name, purchaser_code, management_unit, management_code, use_unit,
+                 principal_code, principal_name, user_name, production_date, warranty_end_date,
+                 factory_no, depreciation_method, service_life_years, price, manufacturer,
+                 port_no, ip_address, common_startup_time, common_shutdown_time, common_usage_content,
+                 commonly_used, set_temperature, current_temperature, rfid, remarks, created_at, updated_at)
             values
                 (:id, :equipmentCode, :equipmentName, :equipmentCategory, :modelNo, :equipmentStatus,
-                 :locationDescription, :enabledAt, :nextMaintenanceAt, :remarks, :createdAt, :updatedAt)
+                 :locationDescription, :enabledAt, :nextMaintenanceAt, :quantity, :purchaseDate,
+                 :purchaserName, :purchaserCode, :managementUnit, :managementCode, :useUnit,
+                 :principalCode, :principalName, :userName, :productionDate, :warrantyEndDate,
+                 :factoryNo, :depreciationMethod, :serviceLifeYears, :price, :manufacturer,
+                 :portNo, :ipAddress, :commonStartupTime, :commonShutdownTime, :commonUsageContent,
+                 :commonlyUsed, :setTemperature, :currentTemperature, :rfid, :remarks, :createdAt, :updatedAt)
             """, new MapSqlParameterSource()
             .addValue("id", command.id())
             .addValue("equipmentCode", command.equipmentCode())
@@ -505,6 +529,32 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
             .addValue("locationDescription", command.locationDescription())
             .addValue("enabledAt", command.enabledAt())
             .addValue("nextMaintenanceAt", command.nextMaintenanceAt())
+            .addValue("quantity", command.quantity())
+            .addValue("purchaseDate", command.purchaseDate())
+            .addValue("purchaserName", command.purchaserName())
+            .addValue("purchaserCode", command.purchaserCode())
+            .addValue("managementUnit", command.managementUnit())
+            .addValue("managementCode", command.managementCode())
+            .addValue("useUnit", command.useUnit())
+            .addValue("principalCode", command.principalCode())
+            .addValue("principalName", command.principalName())
+            .addValue("userName", command.userName())
+            .addValue("productionDate", command.productionDate())
+            .addValue("warrantyEndDate", command.warrantyEndDate())
+            .addValue("factoryNo", command.factoryNo())
+            .addValue("depreciationMethod", command.depreciationMethod())
+            .addValue("serviceLifeYears", command.serviceLifeYears())
+            .addValue("price", command.price())
+            .addValue("manufacturer", command.manufacturer())
+            .addValue("portNo", command.portNo())
+            .addValue("ipAddress", command.ipAddress())
+            .addValue("commonStartupTime", command.commonStartupTime())
+            .addValue("commonShutdownTime", command.commonShutdownTime())
+            .addValue("commonUsageContent", command.commonUsageContent())
+            .addValue("commonlyUsed", command.commonlyUsed() ? 1 : 0)
+            .addValue("setTemperature", command.setTemperature())
+            .addValue("currentTemperature", command.currentTemperature())
+            .addValue("rfid", command.rfid())
             .addValue("remarks", command.remarks())
             .addValue("createdAt", command.createdAt())
             .addValue("updatedAt", command.updatedAt()));
@@ -521,6 +571,32 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
                 location_description = :locationDescription,
                 enabled_at = :enabledAt,
                 next_maintenance_at = :nextMaintenanceAt,
+                quantity = :quantity,
+                purchase_date = :purchaseDate,
+                purchaser_name = :purchaserName,
+                purchaser_code = :purchaserCode,
+                management_unit = :managementUnit,
+                management_code = :managementCode,
+                use_unit = :useUnit,
+                principal_code = :principalCode,
+                principal_name = :principalName,
+                user_name = :userName,
+                production_date = :productionDate,
+                warranty_end_date = :warrantyEndDate,
+                factory_no = :factoryNo,
+                depreciation_method = :depreciationMethod,
+                service_life_years = :serviceLifeYears,
+                price = :price,
+                manufacturer = :manufacturer,
+                port_no = :portNo,
+                ip_address = :ipAddress,
+                common_startup_time = :commonStartupTime,
+                common_shutdown_time = :commonShutdownTime,
+                common_usage_content = :commonUsageContent,
+                commonly_used = :commonlyUsed,
+                set_temperature = :setTemperature,
+                current_temperature = :currentTemperature,
+                rfid = :rfid,
                 remarks = :remarks,
                 updated_at = :updatedAt
             where id = :id
@@ -533,8 +609,47 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
             .addValue("locationDescription", command.locationDescription())
             .addValue("enabledAt", command.enabledAt())
             .addValue("nextMaintenanceAt", command.nextMaintenanceAt())
+            .addValue("quantity", command.quantity())
+            .addValue("purchaseDate", command.purchaseDate())
+            .addValue("purchaserName", command.purchaserName())
+            .addValue("purchaserCode", command.purchaserCode())
+            .addValue("managementUnit", command.managementUnit())
+            .addValue("managementCode", command.managementCode())
+            .addValue("useUnit", command.useUnit())
+            .addValue("principalCode", command.principalCode())
+            .addValue("principalName", command.principalName())
+            .addValue("userName", command.userName())
+            .addValue("productionDate", command.productionDate())
+            .addValue("warrantyEndDate", command.warrantyEndDate())
+            .addValue("factoryNo", command.factoryNo())
+            .addValue("depreciationMethod", command.depreciationMethod())
+            .addValue("serviceLifeYears", command.serviceLifeYears())
+            .addValue("price", command.price())
+            .addValue("manufacturer", command.manufacturer())
+            .addValue("portNo", command.portNo())
+            .addValue("ipAddress", command.ipAddress())
+            .addValue("commonStartupTime", command.commonStartupTime())
+            .addValue("commonShutdownTime", command.commonShutdownTime())
+            .addValue("commonUsageContent", command.commonUsageContent())
+            .addValue("commonlyUsed", command.commonlyUsed() ? 1 : 0)
+            .addValue("setTemperature", command.setTemperature())
+            .addValue("currentTemperature", command.currentTemperature())
+            .addValue("rfid", command.rfid())
             .addValue("remarks", command.remarks())
             .addValue("updatedAt", command.updatedAt()));
+    }
+
+    @Override
+    public void updateEquipmentStatusBatch(List<String> equipmentIds, String equipmentStatus, LocalDateTime updatedAt) {
+        jdbcTemplate.update("""
+            update equipment_records
+            set equipment_status = :equipmentStatus,
+                updated_at = :updatedAt
+            where id in (:equipmentIds)
+            """, new MapSqlParameterSource()
+            .addValue("equipmentStatus", equipmentStatus)
+            .addValue("updatedAt", updatedAt)
+            .addValue("equipmentIds", equipmentIds));
     }
 
     @Override
@@ -592,6 +707,152 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
                 nextMaintenanceAt,
                 rs.getString("equipment_status"));
         });
+    }
+
+    @Override
+    public List<WhiteSlideStock> findWhiteSlideStocks(String keyword, String status) {
+        String like = keyword == null || keyword.isBlank() ? null : "%" + keyword.trim().toUpperCase() + "%";
+        return jdbcTemplate.query("""
+            select id, stock_no, stock_code, specification, quantity_available, quantity_borrowed, status, remarks
+            from white_slide_stocks
+            where (:status is null or status = :status)
+              and (:keywordLike is null or upper(stock_no) like :keywordLike
+                   or upper(stock_code) like :keywordLike
+                   or upper(coalesce(specification, '')) like :keywordLike
+                   or upper(coalesce(remarks, '')) like :keywordLike)
+            order by stock_no asc
+            """, new MapSqlParameterSource()
+            .addValue("status", blankToNull(status))
+            .addValue("keywordLike", like), this::mapWhiteSlideStock);
+    }
+
+    @Override
+    public Optional<WhiteSlideStock> findWhiteSlideStockById(String stockId) {
+        return jdbcTemplate.query("""
+            select id, stock_no, stock_code, specification, quantity_available, quantity_borrowed, status, remarks
+            from white_slide_stocks
+            where id = :id
+            """, Map.of("id", stockId), this::mapWhiteSlideStock).stream().findFirst();
+    }
+
+    @Override
+    public void updateWhiteSlideStockQuantities(UpdateWhiteSlideStockQuantitiesCommand command) {
+        jdbcTemplate.update("""
+            update white_slide_stocks
+            set quantity_available = :quantityAvailable,
+                quantity_borrowed = :quantityBorrowed,
+                updated_at = :updatedAt
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", command.id())
+            .addValue("quantityAvailable", command.quantityAvailable())
+            .addValue("quantityBorrowed", command.quantityBorrowed())
+            .addValue("updatedAt", command.updatedAt()));
+    }
+
+    @Override
+    public List<WhiteSlideLoan> findWhiteSlideLoans(String keyword, String loanStatus) {
+        String like = keyword == null || keyword.isBlank() ? null : "%" + keyword.trim().toUpperCase() + "%";
+        return jdbcTemplate.query("""
+            select l.id, l.loan_no, l.stock_id, s.stock_no, s.stock_code, l.quantity, l.case_id, l.pathology_no,
+                   l.patient_name, l.embedding_box_no, l.slice_purpose, l.slice_thickness, l.borrower_name,
+                   l.borrower_identity_no, l.borrower_unit, l.borrower_phone, l.unit_price, l.amount,
+                   l.save_direct_print, l.loan_status, l.wax_block_usage, l.operator_user_id, l.operator_name,
+                   l.loaned_at, l.returned_at, l.returned_by_user_id, l.returned_by_name, l.remarks
+            from white_slide_loans l
+            join white_slide_stocks s on s.id = l.stock_id
+            where (:loanStatus is null or l.loan_status = :loanStatus)
+              and (:keywordLike is null or upper(l.loan_no) like :keywordLike
+                   or upper(coalesce(l.pathology_no, '')) like :keywordLike
+                   or upper(coalesce(l.patient_name, '')) like :keywordLike
+                   or upper(coalesce(l.embedding_box_no, '')) like :keywordLike
+                   or upper(coalesce(l.borrower_name, '')) like :keywordLike
+                   or upper(coalesce(l.borrower_phone, '')) like :keywordLike
+                   or upper(coalesce(l.borrower_unit, '')) like :keywordLike
+                   or upper(coalesce(l.borrower_identity_no, '')) like :keywordLike
+                   or upper(coalesce(l.slice_purpose, '')) like :keywordLike
+                   or upper(coalesce(s.stock_no, '')) like :keywordLike
+                   or upper(coalesce(s.stock_code, '')) like :keywordLike)
+            order by l.loaned_at desc, l.loan_no desc
+            """, new MapSqlParameterSource()
+            .addValue("loanStatus", blankToNull(loanStatus))
+            .addValue("keywordLike", like), this::mapWhiteSlideLoan);
+    }
+
+    @Override
+    public Optional<WhiteSlideLoan> findWhiteSlideLoanById(String loanId) {
+        return jdbcTemplate.query("""
+            select l.id, l.loan_no, l.stock_id, s.stock_no, s.stock_code, l.quantity, l.case_id, l.pathology_no,
+                   l.patient_name, l.embedding_box_no, l.slice_purpose, l.slice_thickness, l.borrower_name,
+                   l.borrower_identity_no, l.borrower_unit, l.borrower_phone, l.unit_price, l.amount,
+                   l.save_direct_print, l.loan_status, l.wax_block_usage, l.operator_user_id, l.operator_name,
+                   l.loaned_at, l.returned_at, l.returned_by_user_id, l.returned_by_name, l.remarks
+            from white_slide_loans l
+            join white_slide_stocks s on s.id = l.stock_id
+            where l.id = :id
+            """, Map.of("id", loanId), this::mapWhiteSlideLoan).stream().findFirst();
+    }
+
+    @Override
+    public void insertWhiteSlideLoan(CreateWhiteSlideLoanCommand command) {
+        jdbcTemplate.update("""
+            insert into white_slide_loans
+                (id, loan_no, stock_id, quantity, case_id, pathology_no, patient_name, embedding_box_no,
+                 slice_purpose, slice_thickness, borrower_name, borrower_identity_no, borrower_unit, borrower_phone,
+                 unit_price, amount, save_direct_print, loan_status, wax_block_usage, operator_user_id, operator_name,
+                 loaned_at, remarks, created_at, updated_at)
+            values
+                (:id, :loanNo, :stockId, :quantity, :caseId, :pathologyNo, :patientName, :embeddingBoxNo,
+                 :slicePurpose, :sliceThickness, :borrowerName, :borrowerIdentityNo, :borrowerUnit, :borrowerPhone,
+                 :unitPrice, :amount, :saveDirectPrint, :loanStatus, :waxBlockUsage, :operatorUserId, :operatorName,
+                 :loanedAt, :remarks, :createdAt, :updatedAt)
+            """, new MapSqlParameterSource()
+            .addValue("id", command.id())
+            .addValue("loanNo", command.loanNo())
+            .addValue("stockId", command.stockId())
+            .addValue("quantity", command.quantity())
+            .addValue("caseId", command.caseId())
+            .addValue("pathologyNo", command.pathologyNo())
+            .addValue("patientName", command.patientName())
+            .addValue("embeddingBoxNo", command.embeddingBoxNo())
+            .addValue("slicePurpose", command.slicePurpose())
+            .addValue("sliceThickness", command.sliceThickness())
+            .addValue("borrowerName", command.borrowerName())
+            .addValue("borrowerIdentityNo", command.borrowerIdentityNo())
+            .addValue("borrowerUnit", command.borrowerUnit())
+            .addValue("borrowerPhone", command.borrowerPhone())
+            .addValue("unitPrice", command.unitPrice())
+            .addValue("amount", command.amount())
+            .addValue("saveDirectPrint", command.saveDirectPrint() ? 1 : 0)
+            .addValue("loanStatus", command.loanStatus())
+            .addValue("waxBlockUsage", command.waxBlockUsage())
+            .addValue("operatorUserId", command.operatorUserId())
+            .addValue("operatorName", command.operatorName())
+            .addValue("loanedAt", command.loanedAt())
+            .addValue("remarks", command.remarks())
+            .addValue("createdAt", command.createdAt())
+            .addValue("updatedAt", command.updatedAt()));
+    }
+
+    @Override
+    public void updateWhiteSlideLoanReturned(UpdateWhiteSlideLoanReturnedCommand command) {
+        jdbcTemplate.update("""
+            update white_slide_loans
+            set loan_status = :loanStatus,
+                returned_at = :returnedAt,
+                returned_by_user_id = :returnedByUserId,
+                returned_by_name = :returnedByName,
+                remarks = :remarks,
+                updated_at = :updatedAt
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", command.id())
+            .addValue("loanStatus", command.loanStatus())
+            .addValue("returnedAt", command.returnedAt())
+            .addValue("returnedByUserId", command.returnedByUserId())
+            .addValue("returnedByName", command.returnedByName())
+            .addValue("remarks", command.remarks())
+            .addValue("updatedAt", command.updatedAt()));
     }
 
     private Reagent mapReagent(ResultSet rs, int rowNum) throws SQLException {
@@ -690,6 +951,32 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
             rs.getString("location_description"),
             toLocalDateTime(rs.getTimestamp("enabled_at")),
             toLocalDateTime(rs.getTimestamp("next_maintenance_at")),
+            rs.getObject("quantity") == null ? null : rs.getInt("quantity"),
+            toLocalDate(rs.getDate("purchase_date")),
+            rs.getString("purchaser_name"),
+            rs.getString("purchaser_code"),
+            rs.getString("management_unit"),
+            rs.getString("management_code"),
+            rs.getString("use_unit"),
+            rs.getString("principal_code"),
+            rs.getString("principal_name"),
+            rs.getString("user_name"),
+            toLocalDate(rs.getDate("production_date")),
+            toLocalDate(rs.getDate("warranty_end_date")),
+            rs.getString("factory_no"),
+            rs.getString("depreciation_method"),
+            rs.getObject("service_life_years") == null ? null : rs.getInt("service_life_years"),
+            rs.getBigDecimal("price"),
+            rs.getString("manufacturer"),
+            rs.getString("port_no"),
+            rs.getString("ip_address"),
+            rs.getString("common_startup_time"),
+            rs.getString("common_shutdown_time"),
+            rs.getString("common_usage_content"),
+            rs.getInt("commonly_used") == 1,
+            rs.getBigDecimal("set_temperature"),
+            rs.getBigDecimal("current_temperature"),
+            rs.getString("rfid"),
             rs.getString("remarks"));
     }
 
@@ -704,6 +991,50 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
             rs.getString("performed_by_name"),
             rs.getString("description"),
             toLocalDateTime(rs.getTimestamp("next_maintenance_at")),
+            rs.getString("remarks"));
+    }
+
+    private WhiteSlideStock mapWhiteSlideStock(ResultSet rs, int rowNum) throws SQLException {
+        return new WhiteSlideStock(
+            rs.getString("id"),
+            rs.getString("stock_no"),
+            rs.getString("stock_code"),
+            rs.getString("specification"),
+            rs.getInt("quantity_available"),
+            rs.getInt("quantity_borrowed"),
+            rs.getString("status"),
+            rs.getString("remarks"));
+    }
+
+    private WhiteSlideLoan mapWhiteSlideLoan(ResultSet rs, int rowNum) throws SQLException {
+        return new WhiteSlideLoan(
+            rs.getString("id"),
+            rs.getString("loan_no"),
+            rs.getString("stock_id"),
+            rs.getString("stock_no"),
+            rs.getString("stock_code"),
+            rs.getInt("quantity"),
+            rs.getString("case_id"),
+            rs.getString("pathology_no"),
+            rs.getString("patient_name"),
+            rs.getString("embedding_box_no"),
+            rs.getString("slice_purpose"),
+            rs.getString("slice_thickness"),
+            rs.getString("borrower_name"),
+            rs.getString("borrower_identity_no"),
+            rs.getString("borrower_unit"),
+            rs.getString("borrower_phone"),
+            rs.getBigDecimal("unit_price"),
+            rs.getBigDecimal("amount"),
+            rs.getInt("save_direct_print") == 1,
+            rs.getString("loan_status"),
+            rs.getString("wax_block_usage"),
+            rs.getString("operator_user_id"),
+            rs.getString("operator_name"),
+            toLocalDateTime(rs.getTimestamp("loaned_at")),
+            toLocalDateTime(rs.getTimestamp("returned_at")),
+            rs.getString("returned_by_user_id"),
+            rs.getString("returned_by_name"),
             rs.getString("remarks"));
     }
 
