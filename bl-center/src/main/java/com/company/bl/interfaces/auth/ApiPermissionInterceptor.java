@@ -34,7 +34,11 @@ public class ApiPermissionInterceptor implements HandlerInterceptor {
         if (permission == null) {
             permission = AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getBeanType(), RequirePermission.class);
         }
-        if (permission == null) {
+        RequireAnyPermission anyPermission = AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getMethod(), RequireAnyPermission.class);
+        if (anyPermission == null) {
+            anyPermission = AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getBeanType(), RequireAnyPermission.class);
+        }
+        if (permission == null && anyPermission == null) {
             return true;
         }
         AuthenticatedPrincipal principal = AuthenticatedPrincipalContext.currentPrincipal(request);
@@ -43,9 +47,13 @@ public class ApiPermissionInterceptor implements HandlerInterceptor {
                 "Authorization bearer token is required");
         }
         String normalizedUserId = principal.userId().trim();
-        if (!permissionRepository.hasPermission(normalizedUserId, permission.value())) {
+        if (permission != null && !permissionRepository.hasPermission(normalizedUserId, permission.value())) {
             throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403,
                 "User does not have permission: " + permission.value());
+        }
+        if (anyPermission != null && !permissionRepository.hasAnyPermission(normalizedUserId, anyPermission.value())) {
+            throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403,
+                "User does not have any required permission: " + String.join(", ", anyPermission.value()));
         }
         request.setAttribute(ApiPermissionContext.CURRENT_USER_ID, normalizedUserId);
         String loginName = principal.loginName() == null ? null : principal.loginName().trim();

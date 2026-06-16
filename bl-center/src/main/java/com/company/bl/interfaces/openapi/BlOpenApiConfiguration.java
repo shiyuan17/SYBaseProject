@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.openapi;
 
 import com.company.bl.interfaces.auth.RequirePermission;
+import com.company.bl.interfaces.auth.RequireAnyPermission;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
@@ -54,9 +55,14 @@ public class BlOpenApiConfiguration {
             }
             ensureValidationResponse(operation);
             RequirePermission permission = findPermission(handlerMethod);
-            if (permission != null) {
+            RequireAnyPermission anyPermission = findAnyPermission(handlerMethod);
+            if (permission != null || anyPermission != null) {
                 operation.addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME));
-                operation.setDescription(appendPermission(operation.getDescription(), permission.value()));
+                if (permission != null) {
+                    operation.setDescription(appendPermission(operation.getDescription(), permission.value()));
+                } else {
+                    operation.setDescription(appendAnyPermission(operation.getDescription(), anyPermission.value()));
+                }
                 ensureErrorResponse(operation, "401", "未提供 Bearer Token 或 Token 无效");
                 ensureErrorResponse(operation, "403", "当前用户缺少接口权限");
             }
@@ -153,6 +159,14 @@ public class BlOpenApiConfiguration {
         return AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getBeanType(), RequirePermission.class);
     }
 
+    private RequireAnyPermission findAnyPermission(HandlerMethod handlerMethod) {
+        RequireAnyPermission permission = AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getMethod(), RequireAnyPermission.class);
+        if (permission != null) {
+            return permission;
+        }
+        return AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getBeanType(), RequireAnyPermission.class);
+    }
+
     private boolean isApiMethod(HandlerMethod handlerMethod) {
         return hasApiPrefix(AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getBeanType(), RequestMapping.class))
             || hasApiPrefix(AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getMethod(), RequestMapping.class));
@@ -182,6 +196,14 @@ public class BlOpenApiConfiguration {
         }
         if (description.contains(permissionCode)) {
             return description;
+        }
+        return description + "\n\n" + permissionLine;
+    }
+
+    private String appendAnyPermission(String description, String[] permissionCodes) {
+        String permissionLine = "权限码（满足其一）：`" + String.join("`、`", permissionCodes) + "`。";
+        if (description == null || description.isBlank()) {
+            return permissionLine;
         }
         return description + "\n\n" + permissionLine;
     }

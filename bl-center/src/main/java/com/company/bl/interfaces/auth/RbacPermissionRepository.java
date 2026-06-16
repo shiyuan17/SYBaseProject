@@ -24,6 +24,21 @@ public class RbacPermissionRepository {
         return effectivePermissionCodes.contains(permissionCode);
     }
 
+    public boolean hasAnyPermission(String userId, String[] permissionCodes) {
+        if (permissionCodes == null || permissionCodes.length == 0) {
+            return true;
+        }
+        Set<String> effectivePermissionCodes = MenuEntryPermissionResolver.resolveEffectivePermissionCodes(
+            findExplicitPermissionCodes(userId),
+            findGrantedMenuPermissions(userId));
+        for (String permissionCode : permissionCodes) {
+            if (effectivePermissionCodes.contains(permissionCode)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public String findPrimaryRoleCode(String userId) {
         return jdbcTemplate.query("""
             select role
