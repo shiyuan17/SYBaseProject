@@ -9,6 +9,9 @@ import com.company.bl.interfaces.dto.ArchiveApplicationFormRequest;
 import com.company.bl.interfaces.dto.ArchiveEmbeddingBoxRequest;
 import com.company.bl.interfaces.dto.ArchiveSlideRequest;
 import com.company.bl.interfaces.dto.ArchiveSpecimenRequest;
+import com.company.bl.interfaces.dto.BatchArchiveEmbeddingBoxRequest;
+import com.company.bl.interfaces.dto.BatchArchiveSlideRequest;
+import com.company.bl.interfaces.dto.BatchArchiveSpecimenRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,11 +43,14 @@ public class ArchiveRecordController extends TechnicalControllerSupport {
         return archiveWorkflowService.archiveApplicationForm(new ArchiveModels.ArchiveObjectCommand(
             request.getCaseId(),
             request.getArchivePositionId(),
+            null,
             resolveUserId(httpServletRequest),
             resolveOperatorName(httpServletRequest),
             request.getTerminalCode(),
             request.getFileUrl(),
             request.getFileName(),
+            null,
+            null,
             request.getRemarks()));
     }
 
@@ -55,9 +61,12 @@ public class ArchiveRecordController extends TechnicalControllerSupport {
         return archiveWorkflowService.archiveEmbeddingBox(new ArchiveModels.ArchiveObjectCommand(
             request.getEmbeddingBoxId(),
             request.getArchivePositionId(),
+            null,
             resolveUserId(httpServletRequest),
             resolveOperatorName(httpServletRequest),
             request.getTerminalCode(),
+            null,
+            null,
             null,
             null,
             request.getRemarks()));
@@ -70,9 +79,12 @@ public class ArchiveRecordController extends TechnicalControllerSupport {
         return archiveWorkflowService.archiveSlide(new ArchiveModels.ArchiveObjectCommand(
             request.getSlideId(),
             request.getArchivePositionId(),
+            null,
             resolveUserId(httpServletRequest),
             resolveOperatorName(httpServletRequest),
             request.getTerminalCode(),
+            null,
+            null,
             null,
             null,
             request.getRemarks()));
@@ -85,11 +97,59 @@ public class ArchiveRecordController extends TechnicalControllerSupport {
         return archiveWorkflowService.archiveSpecimen(new ArchiveModels.ArchiveObjectCommand(
             request.getSpecimenId(),
             request.getArchivePositionId(),
+            null,
             resolveUserId(httpServletRequest),
             resolveOperatorName(httpServletRequest),
             request.getTerminalCode(),
             null,
             null,
+            null,
+            null,
+            request.getRemarks()));
+    }
+
+    @RequirePermission(M5PermissionCodes.EMBEDDING_BOX_ARCHIVE)
+    @PostMapping("/archive/embedding-boxes/batch")
+    public List<ArchiveModels.ArchiveActionResult> batchArchiveEmbeddingBoxes(@Valid @RequestBody BatchArchiveEmbeddingBoxRequest request,
+                                                                              HttpServletRequest httpServletRequest) {
+        return archiveWorkflowService.batchArchiveEmbeddingBoxes(new ArchiveModels.BatchArchiveObjectCommand(
+            request.getArchiveCabinetId(),
+            request.getObjectIds(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
+            request.getTerminalCode(),
+            null,
+            null,
+            request.getRemarks()));
+    }
+
+    @RequirePermission(M5PermissionCodes.SLIDE_ARCHIVE)
+    @PostMapping("/archive/slides/batch")
+    public List<ArchiveModels.ArchiveActionResult> batchArchiveSlides(@Valid @RequestBody BatchArchiveSlideRequest request,
+                                                                      HttpServletRequest httpServletRequest) {
+        return archiveWorkflowService.batchArchiveSlides(new ArchiveModels.BatchArchiveObjectCommand(
+            request.getArchiveCabinetId(),
+            request.getObjectIds(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
+            request.getTerminalCode(),
+            null,
+            null,
+            request.getRemarks()));
+    }
+
+    @RequirePermission(M5PermissionCodes.SPECIMEN_ARCHIVE)
+    @PostMapping("/archive/specimens/batch")
+    public List<ArchiveModels.ArchiveActionResult> batchArchiveSpecimens(@Valid @RequestBody BatchArchiveSpecimenRequest request,
+                                                                         HttpServletRequest httpServletRequest) {
+        return archiveWorkflowService.batchArchiveSpecimens(new ArchiveModels.BatchArchiveObjectCommand(
+            request.getArchiveCabinetId(),
+            request.getObjectIds(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
+            request.getTerminalCode(),
+            request.getArchiveExpiresAt(),
+            request.getArchiveReminderDays(),
             request.getRemarks()));
     }
 

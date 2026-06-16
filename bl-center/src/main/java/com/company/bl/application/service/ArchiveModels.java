@@ -2,6 +2,7 @@ package com.company.bl.application.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public final class ArchiveModels {
@@ -33,6 +34,21 @@ public final class ArchiveModels {
     ) {
     }
 
+    public record ArchiveCabinetNodeView(
+        String id,
+        String parentId,
+        String nodeCode,
+        String nodeType,
+        String cabinetType,
+        String cabinetId,
+        Integer layerNo,
+        int capacity,
+        int remainingCapacity,
+        String pathLocation,
+        String remarks
+    ) {
+    }
+
     public record CreateArchiveCabinetCommand(
         String cabinetCode,
         String cabinetName,
@@ -48,6 +64,7 @@ public final class ArchiveModels {
     }
 
     public record BatchCreateArchiveCabinetCommand(
+        String parentId,
         String cabinetType,
         String cabinetCodePrefix,
         int startNo,
@@ -64,6 +81,20 @@ public final class ArchiveModels {
     ) {
     }
 
+    public record CreateArchiveCabinetNodeCommand(
+        String parentId,
+        String nodeCode,
+        String nodeType,
+        String cabinetType,
+        int capacity,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String pathLocation,
+        String remarks
+    ) {
+    }
+
     public record UpdateArchiveCabinetCommand(
         String cabinetId,
         String cabinetName,
@@ -76,14 +107,42 @@ public final class ArchiveModels {
     ) {
     }
 
+    public record UpdateArchiveCabinetNodeCommand(
+        String nodeId,
+        String nodeCode,
+        String cabinetType,
+        int capacity,
+        String pathLocation,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
     public record ArchiveObjectCommand(
         String objectId,
         String archivePositionId,
+        String archiveCabinetId,
         String operatorUserId,
         String operatorName,
         String terminalCode,
         String fileUrl,
         String fileName,
+        LocalDateTime archiveExpiresAt,
+        Integer archiveReminderDays,
+        String remarks
+    ) {
+    }
+
+    public record BatchArchiveObjectCommand(
+        String archiveCabinetId,
+        List<String> objectIds,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        LocalDateTime archiveExpiresAt,
+        Integer archiveReminderDays,
         String remarks
     ) {
     }
@@ -109,6 +168,8 @@ public final class ArchiveModels {
         String pathologyNo,
         String applicationNo,
         String patientName,
+        String applicantDoctorName,
+        String applicationDate,
         String objectType,
         String objectId,
         String objectCode,
@@ -118,7 +179,15 @@ public final class ArchiveModels {
         String archivedAt,
         String storedByName,
         String borrowedByName,
-        String borrowedAt
+        String borrowedAt,
+        String objectStatus,
+        String sampledByName,
+        String sampledAt,
+        String slicedByName,
+        String slicedAt,
+        String contentDescribedByName,
+        String archiveExpiresAt,
+        Integer archiveReminderDays
     ) {
     }
 
@@ -143,7 +212,10 @@ public final class ArchiveModels {
         String materialId,
         String borrowedByUserId,
         String borrowedByName,
+        String borrowerPhone,
+        String borrowerUnit,
         String borrowPurpose,
+        BigDecimal depositAmount,
         String operatorUserId,
         String operatorName,
         String terminalCode,
@@ -173,11 +245,53 @@ public final class ArchiveModels {
         String loanStatus,
         String borrowedByName,
         String borrowedAt,
+        String borrowerPhone,
+        String borrowerUnit,
         String borrowPurpose,
+        BigDecimal depositAmount,
         String approvedByName,
         String returnedByName,
         String returnedAt,
         String remarks
+    ) {
+    }
+
+    public record CreateMaterialLoanAbnormalRecordCommand(
+        String materialType,
+        String materialId,
+        String loanId,
+        String abnormalReason,
+        Boolean contacted,
+        String contactResult,
+        String borrowedSlideNo,
+        String borrowerName,
+        String borrowerRelationship,
+        String borrowerPhone,
+        String borrowerUnit,
+        String borrowerIdentityNo,
+        LocalDateTime borrowedAt,
+        LocalDateTime expectedReturnAt,
+        Integer slideCount,
+        BigDecimal depositAmount,
+        String borrowedContent,
+        String returnAbnormalInfo,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode
+    ) {
+    }
+
+    public record MaterialLoanAbnormalRecordView(
+        String id,
+        String caseId,
+        String materialType,
+        String materialId,
+        String loanId,
+        String abnormalReason,
+        Boolean contacted,
+        String contactResult,
+        String registeredByName,
+        String registeredAt
     ) {
     }
 }

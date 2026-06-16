@@ -9,6 +9,7 @@ import org.springframework.test.context.ActiveProfiles;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -67,6 +68,15 @@ class ArchiveRoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflow
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
 
+        postJson("/api/v1/archive-cabinet-nodes", USER_M1_REAGENT, """
+            {
+              "nodeCode":"AREA-M5-AUTH-FORBIDDEN",
+              "nodeType":"AREA"
+            }
+            """)
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+
         postJson("/api/v1/archive/specimens", USER_M1_REAGENT, """
             {
               "specimenId":"SPECIMEN-M5-AUTH-FORBIDDEN",
@@ -77,6 +87,15 @@ class ArchiveRoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflow
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
 
         mockMvc.perform(authorized(delete("/api/v1/archive-cabinets/{id}", cabinet.path("id").asText()), USER_M1_REAGENT))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+
+        mockMvc.perform(authorized(get("/api/v1/archive-cabinet-nodes"), USER_M1_REAGENT))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+
+        mockMvc.perform(authorized(get("/api/v1/material-loans"), USER_M1_REAGENT)
+                .param("loanStatus", "RETURNED"))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
     }
@@ -104,6 +123,17 @@ class ArchiveRoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflow
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
 
         mockMvc.perform(authorized(get("/api/v1/archive-cabinets"), USER_M4_NO_PERMISSION))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+
+        mockMvc.perform(authorized(patch("/api/v1/archive-cabinet-nodes/{id}", "NODE-M5-AUTH-FORBIDDEN"), USER_M4_NO_PERMISSION)
+                .contentType("application/json")
+                .content("""
+                    {
+                      "nodeCode":"Forbidden",
+                      "capacity":1
+                    }
+                    """))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
     }

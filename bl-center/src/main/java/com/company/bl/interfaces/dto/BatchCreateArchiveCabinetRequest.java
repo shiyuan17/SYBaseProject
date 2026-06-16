@@ -15,6 +15,9 @@ import lombok.Setter;
 @RejectLegacyOperatorFields
 public class BatchCreateArchiveCabinetRequest {
 
+    @Size(max = 64)
+    private String parentId;
+
     @NotBlank
     @Size(max = 32)
     private String cabinetType;

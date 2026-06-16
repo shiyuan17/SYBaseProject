@@ -16,15 +16,33 @@ public interface ArchiveRepository {
 
     boolean existsArchiveCabinetByCodes(List<String> cabinetCodes);
 
+    List<ArchiveCabinetNode> findArchiveCabinetNodes();
+
+    Optional<ArchiveCabinetNode> findArchiveCabinetNodeById(String nodeId);
+
+    Optional<ArchiveCabinetNode> findArchiveCabinetNodeByCabinetIdAndType(String cabinetId, String nodeType);
+
+    Optional<ArchiveCabinetNode> findArchiveCabinetNodeByCabinetIdAndLayerNo(String cabinetId, int layerNo);
+
     void insertArchiveCabinet(CreateArchiveCabinetCommand command);
 
     void updateArchiveCabinet(UpdateArchiveCabinetCommand command);
+
+    void updateArchiveCabinetCapacity(UpdateArchiveCabinetCapacityCommand command);
+
+    void insertArchiveCabinetNode(CreateArchiveCabinetNodeCommand command);
+
+    void updateArchiveCabinetNode(UpdateArchiveCabinetNodeCommand command);
+
+    void updateArchiveCabinetNodeCapacity(UpdateArchiveCabinetNodeCapacityCommand command);
 
     boolean hasNonEmptyArchivePositions(String cabinetId);
 
     boolean hasArchivePositionReferences(String cabinetId);
 
     void deleteArchivePositionsByCabinetId(String cabinetId);
+
+    void deleteArchiveCabinetNodesByCabinetId(String cabinetId);
 
     void deleteArchiveCabinet(String cabinetId);
 
@@ -33,6 +51,8 @@ public interface ArchiveRepository {
     List<ArchivePosition> findArchivePositionsByCabinetId(String cabinetId);
 
     Optional<ArchivePosition> findArchivePositionById(String positionId);
+
+    List<ArchivePosition> findAvailableArchivePositionsByCabinetId(String cabinetId, int limit);
 
     void insertArchivePosition(CreateArchivePositionCommand command);
 
@@ -52,13 +72,19 @@ public interface ArchiveRepository {
 
     Optional<MaterialLoan> findMaterialLoanById(String loanId);
 
+    List<MaterialLoan> findMaterialLoans(String keyword, String materialType, String loanStatus);
+
     List<MaterialLoan> findPendingMaterialLoans(String keyword, String materialType);
 
     void insertMaterialLoan(CreateMaterialLoanCommand command);
 
     void updateMaterialLoanReturned(UpdateMaterialLoanReturnedCommand command);
 
+    void insertMaterialLoanAbnormalRecord(CreateMaterialLoanAbnormalRecordCommand command);
+
     Optional<ApplicationArchiveSummary> findApplicationArchiveSummary(String caseId, String applicationId);
+
+    List<ObjectArchiveSummary> findSpecimenArchiveSummaries(String caseId);
 
     List<ObjectArchiveSummary> findEmbeddingBoxArchiveSummaries(String caseId);
 
@@ -74,6 +100,21 @@ public interface ArchiveRepository {
         int capacity,
         String cabinetStatus,
         String locationDescription,
+        String remarks
+    ) {
+    }
+
+    record ArchiveCabinetNode(
+        String id,
+        String parentId,
+        String nodeCode,
+        String nodeType,
+        String cabinetType,
+        String cabinetId,
+        Integer layerNo,
+        int capacity,
+        int remainingCapacity,
+        String pathLocation,
         String remarks
     ) {
     }
@@ -100,6 +141,49 @@ public interface ArchiveRepository {
         String cabinetStatus,
         String locationDescription,
         String remarks,
+        LocalDateTime updatedAt
+    ) {
+    }
+
+    record UpdateArchiveCabinetCapacityCommand(
+        String id,
+        int layerCount,
+        int slotCountPerLayer,
+        int capacity,
+        LocalDateTime updatedAt
+    ) {
+    }
+
+    record CreateArchiveCabinetNodeCommand(
+        String id,
+        String parentId,
+        String nodeCode,
+        String nodeType,
+        String cabinetType,
+        String cabinetId,
+        Integer layerNo,
+        int capacity,
+        String pathLocation,
+        String remarks,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
+    ) {
+    }
+
+    record UpdateArchiveCabinetNodeCommand(
+        String id,
+        String nodeCode,
+        String cabinetType,
+        int capacity,
+        String pathLocation,
+        String remarks,
+        LocalDateTime updatedAt
+    ) {
+    }
+
+    record UpdateArchiveCabinetNodeCapacityCommand(
+        String id,
+        int capacity,
         LocalDateTime updatedAt
     ) {
     }
@@ -145,6 +229,8 @@ public interface ArchiveRepository {
         String storedByUserId,
         String storedByName,
         LocalDateTime storedAt,
+        LocalDateTime archiveExpiresAt,
+        Integer archiveReminderDays,
         String remarks
     ) {
     }
@@ -164,6 +250,8 @@ public interface ArchiveRepository {
         String storedByUserId,
         String storedByName,
         LocalDateTime storedAt,
+        LocalDateTime archiveExpiresAt,
+        Integer archiveReminderDays,
         String remarks,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
@@ -181,6 +269,8 @@ public interface ArchiveRepository {
         String storedByUserId,
         String storedByName,
         LocalDateTime storedAt,
+        LocalDateTime archiveExpiresAt,
+        Integer archiveReminderDays,
         String remarks,
         LocalDateTime updatedAt
     ) {
@@ -198,6 +288,8 @@ public interface ArchiveRepository {
         String pathologyNo,
         String applicationNo,
         String patientName,
+        String applicantDoctorName,
+        LocalDate applicationDate,
         String objectType,
         String objectId,
         String objectCode,
@@ -207,7 +299,15 @@ public interface ArchiveRepository {
         LocalDateTime archivedAt,
         String storedByName,
         String borrowedByName,
-        LocalDateTime borrowedAt
+        LocalDateTime borrowedAt,
+        String objectStatus,
+        String sampledByName,
+        LocalDateTime sampledAt,
+        String slicedByName,
+        LocalDateTime slicedAt,
+        String contentDescribedByName,
+        LocalDateTime archiveExpiresAt,
+        Integer archiveReminderDays
     ) {
     }
 
@@ -236,7 +336,10 @@ public interface ArchiveRepository {
         String borrowedByUserId,
         String borrowedByName,
         LocalDateTime borrowedAt,
+        String borrowerPhone,
+        String borrowerUnit,
         String borrowPurpose,
+        BigDecimal depositAmount,
         String approvedByUserId,
         String approvedByName,
         String returnedByUserId,
@@ -261,7 +364,10 @@ public interface ArchiveRepository {
         String borrowedByUserId,
         String borrowedByName,
         LocalDateTime borrowedAt,
+        String borrowerPhone,
+        String borrowerUnit,
         String borrowPurpose,
+        BigDecimal depositAmount,
         String approvedByUserId,
         String approvedByName,
         String remarks,
@@ -277,6 +383,35 @@ public interface ArchiveRepository {
         String returnedByName,
         LocalDateTime returnedAt,
         String remarks,
+        LocalDateTime updatedAt
+    ) {
+    }
+
+    record CreateMaterialLoanAbnormalRecordCommand(
+        String id,
+        String caseId,
+        String materialType,
+        String materialId,
+        String loanId,
+        String abnormalReason,
+        boolean contacted,
+        String contactResult,
+        String borrowedSlideNo,
+        String borrowerName,
+        String borrowerRelationship,
+        String borrowerPhone,
+        String borrowerUnit,
+        String borrowerIdentityNo,
+        LocalDateTime borrowedAt,
+        LocalDateTime expectedReturnAt,
+        Integer slideCount,
+        BigDecimal depositAmount,
+        String borrowedContent,
+        String returnAbnormalInfo,
+        String registeredByUserId,
+        String registeredByName,
+        LocalDateTime registeredAt,
+        LocalDateTime createdAt,
         LocalDateTime updatedAt
     ) {
     }

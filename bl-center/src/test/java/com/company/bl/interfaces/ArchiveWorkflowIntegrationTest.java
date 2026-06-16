@@ -94,6 +94,24 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
         assertThat(tracking.path("applicationFormArchiveLocation").asText()).isEqualTo(applicationPositionCode);
         assertThat(tracking.path("applicationFormImageUrl").asText()).isEqualTo("https://example.test/archive/app-form-001.jpg");
 
+        JsonNode lifecycle = lifecycleTracking(context.caseId(), USER_M4_TRACKING);
+        assertThat(lifecycle.path("applicationForm").path("archiveStatus").asText()).isEqualTo("IN_STORAGE");
+        assertThat(lifecycle.path("applicationForm").path("archiveLocation").asText()).isEqualTo(applicationPositionCode);
+        assertThat(lifecycle.path("applicationForm").path("imageUrl").asText()).isEqualTo("https://example.test/archive/app-form-001.jpg");
+        assertThat(lifecycle.path("specimens")).hasSize(1);
+        JsonNode lifecycleSpecimen = lifecycle.path("specimens").get(0);
+        assertThat(lifecycleSpecimen.path("archiveStatus").asText()).isNotBlank();
+        assertThat(lifecycleSpecimen.path("blocks")).hasSize(1);
+        JsonNode lifecycleBlock = lifecycleSpecimen.path("blocks").get(0);
+        assertThat(lifecycleBlock.path("archiveStatus").asText()).isEqualTo("IN_STORAGE");
+        assertThat(lifecycleBlock.path("archiveLocation").asText()).isEqualTo(embeddingBoxPositionCode);
+        assertThat(lifecycleBlock.path("slides")).hasSize(1);
+        JsonNode lifecycleSlide = lifecycleBlock.path("slides").get(0);
+        assertThat(lifecycleSlide.path("archiveStatus").asText()).isEqualTo("IN_STORAGE");
+        assertThat(lifecycleSlide.path("archiveLocation").asText()).isEqualTo(slidePositionCode);
+        assertThat(lifecycle.path("reportLifecycle").path("currentReport").path("reportId").asText()).isEqualTo(context.reportId());
+        assertThat(lifecycle.path("reportLifecycle").path("versions").isArray()).isTrue();
+
         assertThat(queryCaseMediaUrls(applicationId)).contains("https://example.test/archive/app-form-001.jpg");
     }
 
@@ -114,8 +132,11 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
         assertThat(applicationObjectsBeforeArchive.path("total").asLong()).isGreaterThanOrEqualTo(1);
         assertThat(applicationRowBeforeArchive.path("objectType").asText()).isEqualTo("APPLICATION_FORM");
         assertThat(applicationRowBeforeArchive.path("objectCode").asText()).isEqualTo("APP-M5-ARCH-OBJECTS-001");
+        assertThat(applicationRowBeforeArchive.path("applicantDoctorName").asText()).isNotBlank();
+        assertThat(applicationRowBeforeArchive.path("applicationDate").asText()).isNotBlank();
         assertThat(applicationRowBeforeArchive.path("archiveStatus").isMissingNode()
             || applicationRowBeforeArchive.path("archiveStatus").isNull()).isTrue();
+        assertThat(applicationRowBeforeArchive.path("loanStatus").asText()).isEqualTo("NONE");
 
         JsonNode embeddingObjectsBeforeArchive = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-objects"), USER_M1_ARCHIVE)
             .param("objectType", "EMBEDDING_BOX")
@@ -246,6 +267,116 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
     }
 
     @Test
+    void shouldBatchArchivePhysicalObjectsWithCabinetAutoAllocationAndSpecimenReminder() throws Exception {
+        PublishedReportContext boxContext = preparePublishedReportContext("APP-M5-BATCH-BOX-001", "BC-M5-BATCH-BOX-001");
+        PublishedReportContext specimenContext = preparePublishedReportContext("APP-M5-BATCH-SPECIMEN-001", "BC-M5-BATCH-SPECIMEN-001");
+        Map<String, Object> embeddingBox = queryEmbeddingBox(boxContext.caseId());
+        Map<String, Object> specimen = querySpecimen(specimenContext.caseId());
+        JsonNode cabinet = createArchiveCabinet("CAB-M5-BATCH-OK");
+        JsonNode positionsBefore = listAvailablePositions(cabinet.path("id").asText());
+
+        responseBody(postJson("/api/v1/archive/embedding-boxes/batch", USER_M1_ARCHIVE, """
+            {
+              "archiveCabinetId":"%s",
+              "objectIds":["%s"],
+              "terminalCode":"M5-BATCH-BOX",
+              "remarks":"batch box"
+            }
+            """.formatted(cabinet.path("id").asText(), embeddingBox.get("id"))), 200);
+        responseBody(postJson("/api/v1/archive/specimens/batch", USER_M1_ARCHIVE, """
+            {
+              "archiveCabinetId":"%s",
+              "objectIds":["%s"],
+              "archiveExpiresAt":"2026-06-30T18:00:00",
+              "archiveReminderDays":1,
+              "terminalCode":"M5-BATCH-SPECIMEN",
+              "remarks":"batch specimen"
+            }
+            """.formatted(cabinet.path("id").asText(), specimen.get("id"))), 200);
+
+        JsonNode embeddingObjects = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-objects"), USER_M1_ARCHIVE)
+            .param("objectType", "EMBEDDING_BOX")
+            .param("keyword", String.valueOf(embeddingBox.get("embeddingBoxNo")))
+            .param("page", "1")
+            .param("size", "20")), 200);
+        JsonNode embeddingRow = findArchiveObject(embeddingObjects, String.valueOf(embeddingBox.get("id")));
+        assertThat(embeddingRow.path("archiveStatus").asText()).isEqualTo("IN_STORAGE");
+        assertThat(embeddingRow.path("archiveLocation").asText()).isEqualTo(positionsBefore.get(0).path("positionCode").asText());
+        assertThat(embeddingRow.path("objectStatus").asText()).isNotBlank();
+
+        JsonNode specimenObjects = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-objects"), USER_M1_ARCHIVE)
+            .param("objectType", "SPECIMEN")
+            .param("keyword", String.valueOf(specimen.get("specimenNo")))
+            .param("page", "1")
+            .param("size", "20")), 200);
+        JsonNode specimenRow = findArchiveObject(specimenObjects, String.valueOf(specimen.get("id")));
+        assertThat(specimenRow.path("archiveStatus").asText()).isEqualTo("IN_STORAGE");
+        assertThat(specimenRow.path("archiveLocation").asText()).isEqualTo(positionsBefore.get(1).path("positionCode").asText());
+        assertThat(specimenRow.path("archiveExpiresAt").asText()).startsWith("2026-06-30T18:00");
+        assertThat(specimenRow.path("archiveReminderDays").asInt()).isEqualTo(1);
+        assertThat(specimenRow.path("contentDescribedByName").asText()).isNotBlank();
+    }
+
+    @Test
+    void shouldRollbackWholeBatchArchiveWhenCabinetCapacityIsInsufficient() throws Exception {
+        PublishedReportContext firstContext = preparePublishedReportContext("APP-M5-BATCH-ROLLBACK-001", "BC-M5-BATCH-ROLLBACK-001");
+        PublishedReportContext secondContext = preparePublishedReportContext("APP-M5-BATCH-ROLLBACK-002", "BC-M5-BATCH-ROLLBACK-002");
+        Map<String, Object> firstSlide = querySlide(firstContext.caseId());
+        Map<String, Object> secondSlide = querySlide(secondContext.caseId());
+        JsonNode cabinet = createArchiveCabinet("CAB-M5-BATCH-ROLLBACK");
+        JsonNode positions = listAvailablePositions(cabinet.path("id").asText());
+
+        responseBody(postJson("/api/v1/archive/application-forms", USER_M1_ARCHIVE, """
+            {
+              "caseId":"%s",
+              "archivePositionId":"%s",
+              "terminalCode":"M5-BATCH-FILL-1"
+            }
+            """.formatted(firstContext.caseId(), positions.get(0).path("id").asText())), 200);
+        responseBody(postJson("/api/v1/archive/application-forms", USER_M1_ARCHIVE, """
+            {
+              "caseId":"%s",
+              "archivePositionId":"%s",
+              "terminalCode":"M5-BATCH-FILL-2"
+            }
+            """.formatted(secondContext.caseId(), positions.get(1).path("id").asText())), 200);
+        responseBody(postJson("/api/v1/archive/specimens", USER_M1_ARCHIVE, """
+            {
+              "specimenId":"%s",
+              "archivePositionId":"%s",
+              "terminalCode":"M5-BATCH-FILL-3"
+            }
+            """.formatted(querySpecimen(firstContext.caseId()).get("id"), positions.get(2).path("id").asText())), 200);
+
+        postJson("/api/v1/archive/slides/batch", USER_M1_ARCHIVE, """
+            {
+              "archiveCabinetId":"%s",
+              "objectIds":["%s","%s"],
+              "terminalCode":"M5-BATCH-ROLLBACK"
+            }
+            """.formatted(cabinet.path("id").asText(), firstSlide.get("id"), secondSlide.get("id")))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("RESOURCE_CONFLICT"));
+
+        JsonNode firstSlideObjects = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-objects"), USER_M1_ARCHIVE)
+            .param("objectType", "SLIDE")
+            .param("keyword", String.valueOf(firstSlide.get("slideNo")))
+            .param("page", "1")
+            .param("size", "20")), 200);
+        JsonNode secondSlideObjects = responseBody(mockMvc.perform(authorized(get("/api/v1/archive-objects"), USER_M1_ARCHIVE)
+            .param("objectType", "SLIDE")
+            .param("keyword", String.valueOf(secondSlide.get("slideNo")))
+            .param("page", "1")
+            .param("size", "20")), 200);
+        JsonNode firstSlideRow = findArchiveObject(firstSlideObjects, String.valueOf(firstSlide.get("id")));
+        JsonNode secondSlideRow = findArchiveObject(secondSlideObjects, String.valueOf(secondSlide.get("id")));
+        assertThat(firstSlideRow.path("archiveStatus").isNull()
+            || firstSlideRow.path("archiveStatus").isMissingNode()).isTrue();
+        assertThat(secondSlideRow.path("archiveStatus").isNull()
+            || secondSlideRow.path("archiveStatus").isMissingNode()).isTrue();
+    }
+
+    @Test
     void shouldBorrowAndReturnArchivedSlideAndReflectStatus() throws Exception {
         PublishedReportContext context = preparePublishedReportContext("APP-M5-ARCH-002", "BC-M5-ARCH-002");
         JsonNode cabinet = createArchiveCabinet("CAB-M5-A2");
@@ -268,12 +399,27 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
               "materialId":"%s",
               "borrowedByUserId":"DOC-BORROW-01",
               "borrowedByName":"Borrow Doctor",
+              "borrowerPhone":"13800000000",
+              "borrowerUnit":"External Hospital",
               "borrowPurpose":"case review",
+              "depositAmount":10,
               "terminalCode":"M5-LOAN-01"
             }
             """.formatted(slide.get("id"))), 200);
         String loanId = loan.path("loanId").asText();
         assertThat(loan.path("loanStatus").asText()).isEqualTo("BORROWED");
+        assertThat(loan.path("borrowerPhone").asText()).isEqualTo("13800000000");
+        assertThat(loan.path("borrowerUnit").asText()).isEqualTo("External Hospital");
+        assertThat(loan.path("depositAmount").decimalValue()).isEqualByComparingTo("10");
+
+        JsonNode borrowedLoans = responseBody(mockMvc.perform(authorized(get("/api/v1/material-loans"), USER_M1_ARCHIVE)
+            .param("keyword", String.valueOf(slide.get("slideNo")))
+            .param("loanStatus", "BORROWED")), 200);
+        assertThat(borrowedLoans).hasSize(1);
+        assertThat(borrowedLoans.get(0).path("loanStatus").asText()).isEqualTo("BORROWED");
+        assertThat(borrowedLoans.get(0).path("borrowerPhone").asText()).isEqualTo("13800000000");
+        assertThat(borrowedLoans.get(0).path("borrowerUnit").asText()).isEqualTo("External Hospital");
+        assertThat(borrowedLoans.get(0).path("depositAmount").decimalValue()).isEqualByComparingTo("10");
 
         JsonNode pendingLoans = responseBody(mockMvc.perform(authorized(get("/api/v1/material-loans/pending"), USER_M1_ARCHIVE)
             .param("keyword", String.valueOf(slide.get("slideNo")))), 200);
@@ -290,6 +436,18 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
               "remarks":"returned to archive"
             }
             """), 200);
+
+        JsonNode pendingLoansAfterReturn = responseBody(mockMvc.perform(authorized(get("/api/v1/material-loans/pending"), USER_M1_ARCHIVE)
+            .param("keyword", String.valueOf(slide.get("slideNo")))), 200);
+        assertThat(pendingLoansAfterReturn).isEmpty();
+
+        JsonNode returnedLoans = responseBody(mockMvc.perform(authorized(get("/api/v1/material-loans"), USER_M1_ARCHIVE)
+            .param("keyword", String.valueOf(slide.get("slideNo")))
+            .param("loanStatus", "RETURNED")), 200);
+        assertThat(returnedLoans).hasSize(1);
+        assertThat(returnedLoans.get(0).path("loanStatus").asText()).isEqualTo("RETURNED");
+        assertThat(returnedLoans.get(0).path("returnedAt").asText()).isNotBlank();
+        assertThat(returnedLoans.get(0).path("returnedByName").asText()).isNotBlank();
 
         JsonNode workbenchAfterReturn = diagnosticWorkbench(context.caseId(), USER_M4_DIAGNOSIS);
         assertThat(workbenchAfterReturn.path("slides").get(0).path("archiveStatus").asText()).isEqualTo("IN_STORAGE");
@@ -338,11 +496,17 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
               "materialId":"%s",
               "borrowedByUserId":"DOC-BORROW-02",
               "borrowedByName":"Borrow Doctor",
+              "borrowerPhone":"13900000000",
+              "borrowerUnit":"Peer Review Center",
               "borrowPurpose":"peer review",
+              "depositAmount":20,
               "terminalCode":"M5-LOAN-03"
             }
             """.formatted(embeddingBox.get("id"))), 200);
         String loanId = loan.path("loanId").asText();
+        assertThat(loan.path("borrowerPhone").asText()).isEqualTo("13900000000");
+        assertThat(loan.path("borrowerUnit").asText()).isEqualTo("Peer Review Center");
+        assertThat(loan.path("depositAmount").decimalValue()).isEqualByComparingTo("20");
 
         postJson("/api/v1/material-loans", USER_M1_ARCHIVE, """
             {
@@ -370,6 +534,131 @@ class ArchiveWorkflowIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
             """)
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.code").value("OPERATION_NOT_ALLOWED"));
+    }
+
+    @Test
+    void shouldRegisterMaterialLoanAbnormalRecordsForSlideAndEmbeddingBox() throws Exception {
+        PublishedReportContext context = preparePublishedReportContext("APP-M5-LOAN-ABNORMAL-001", "BC-M5-LOAN-ABNORMAL-001");
+        JsonNode cabinet = createArchiveCabinet("CAB-M5-ABNORMAL");
+        JsonNode positions = listAvailablePositions(cabinet.path("id").asText());
+        Map<String, Object> embeddingBox = queryEmbeddingBox(context.caseId());
+        Map<String, Object> slide = querySlide(context.caseId());
+
+        responseBody(postJson("/api/v1/archive/embedding-boxes", USER_M1_ARCHIVE, """
+            {
+              "embeddingBoxId":"%s",
+              "archivePositionId":"%s",
+              "terminalCode":"M5-ABNORMAL-BOX-ARCHIVE"
+            }
+            """.formatted(embeddingBox.get("id"), positions.get(0).path("id").asText())), 200);
+        responseBody(postJson("/api/v1/archive/slides", USER_M1_ARCHIVE, """
+            {
+              "slideId":"%s",
+              "archivePositionId":"%s",
+              "terminalCode":"M5-ABNORMAL-SLIDE-ARCHIVE"
+            }
+            """.formatted(slide.get("id"), positions.get(1).path("id").asText())), 200);
+
+        JsonNode loan = responseBody(postJson("/api/v1/material-loans", USER_M1_ARCHIVE, """
+            {
+              "materialType":"SLIDE",
+              "materialId":"%s",
+              "borrowedByUserId":"DOC-ABNORMAL",
+              "borrowedByName":"Borrower For Abnormal",
+              "borrowPurpose":"abnormal registration",
+              "terminalCode":"M5-ABNORMAL-LOAN"
+            }
+            """.formatted(slide.get("id"))), 200);
+
+        JsonNode slideAbnormal = responseBody(postJson("/api/v1/material-loans/abnormal-records", USER_M1_ARCHIVE, """
+            {
+              "materialType":"SLIDE",
+              "materialId":"%s",
+              "loanId":"%s",
+              "abnormalReason":"玻片破损",
+              "contacted":true,
+              "contactResult":"已电话联系",
+              "borrowedSlideNo":"%s",
+              "borrowerName":"Borrower For Abnormal",
+              "borrowerRelationship":"患者家属",
+              "borrowerPhone":"13800000000",
+              "borrowerUnit":"外院",
+              "borrowerIdentityNo":"ID-ABNORMAL",
+              "borrowedAt":"2026-04-16T09:38:06",
+              "expectedReturnAt":"2026-05-16T09:38:06",
+              "slideCount":1,
+              "depositAmount":0,
+              "borrowedContent":"HE 玻片 1 张",
+              "returnAbnormalInfo":"边角缺损",
+              "terminalCode":"M5-ABNORMAL-SLIDE"
+            }
+            """.formatted(slide.get("id"), loan.path("loanId").asText(), slide.get("slideNo"))), 200);
+
+        assertThat(slideAbnormal.path("materialType").asText()).isEqualTo("SLIDE");
+        assertThat(slideAbnormal.path("loanId").asText()).isEqualTo(loan.path("loanId").asText());
+        assertThat(slideAbnormal.path("abnormalReason").asText()).isEqualTo("玻片破损");
+        assertThat(slideAbnormal.path("registeredAt").asText()).isNotBlank();
+
+        JsonNode boxAbnormal = responseBody(postJson("/api/v1/material-loans/abnormal-records", USER_M1_ARCHIVE, """
+            {
+              "materialType":"EMBEDDING_BOX",
+              "materialId":"%s",
+              "abnormalReason":"蜡块缺角",
+              "terminalCode":"M5-ABNORMAL-BOX"
+            }
+            """.formatted(embeddingBox.get("id"))), 200);
+        assertThat(boxAbnormal.path("materialType").asText()).isEqualTo("EMBEDDING_BOX");
+        assertThat(boxAbnormal.path("loanId").isMissingNode() || boxAbnormal.path("loanId").isNull()).isTrue();
+
+        Integer abnormalCount = namedParameterJdbcTemplate.queryForObject("""
+            select count(*)
+            from material_loan_abnormal_records
+            where case_id = :caseId
+            """, Map.of("caseId", context.caseId()), Integer.class);
+        assertThat(abnormalCount).isEqualTo(2);
+
+        Map<String, Object> slideAbnormalRow = namedParameterJdbcTemplate.queryForMap("""
+            select borrower_phone as borrowerPhone, contact_result as contactResult, return_abnormal_info as returnAbnormalInfo
+            from material_loan_abnormal_records
+            where id = :id
+            """, Map.of("id", slideAbnormal.path("id").asText()));
+        assertThat(slideAbnormalRow.get("borrowerPhone")).isEqualTo("13800000000");
+        assertThat(slideAbnormalRow.get("contactResult")).isEqualTo("已电话联系");
+        assertThat(slideAbnormalRow.get("returnAbnormalInfo")).isEqualTo("边角缺损");
+    }
+
+    @Test
+    void shouldRejectInvalidMaterialLoanAbnormalRegistration() throws Exception {
+        PublishedReportContext context = preparePublishedReportContext("APP-M5-LOAN-ABNORMAL-002", "BC-M5-LOAN-ABNORMAL-002");
+        JsonNode cabinet = createArchiveCabinet("CAB-M5-ABNORMAL-REJECT");
+        JsonNode positions = listAvailablePositions(cabinet.path("id").asText());
+        Map<String, Object> slide = querySlide(context.caseId());
+
+        responseBody(postJson("/api/v1/archive/slides", USER_M1_ARCHIVE, """
+            {
+              "slideId":"%s",
+              "archivePositionId":"%s",
+              "terminalCode":"M5-ABNORMAL-REJECT-ARCHIVE"
+            }
+            """.formatted(slide.get("id"), positions.get(0).path("id").asText())), 200);
+
+        postJson("/api/v1/material-loans/abnormal-records", USER_M1_ARCHIVE, """
+            {
+              "materialType":"SLIDE",
+              "materialId":"%s",
+              "abnormalReason":""
+            }
+            """.formatted(slide.get("id")))
+            .andExpect(status().isBadRequest());
+
+        postJson("/api/v1/material-loans/abnormal-records", "USER_M1_REAGENT", """
+            {
+              "materialType":"SLIDE",
+              "materialId":"%s",
+              "abnormalReason":"无权限登记"
+            }
+            """.formatted(slide.get("id")))
+            .andExpect(status().isForbidden());
     }
 
     private JsonNode createArchiveCabinet(String cabinetCode) throws Exception {

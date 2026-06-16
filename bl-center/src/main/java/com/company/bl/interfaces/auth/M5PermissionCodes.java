@@ -14,6 +14,10 @@ public final class M5PermissionCodes {
     public static final String LOAN_CREATE = "PERM_M5_LOAN_CREATE";
     public static final String LOAN_RETURN = "PERM_M5_LOAN_RETURN";
     public static final String LOAN_QUERY = "PERM_M5_LOAN_QUERY";
+    public static final String LOAN_ABNORMAL_REGISTER = "PERM_M5_LOAN_ABNORMAL_REGISTER";
+    public static final String WHITE_SLIDE_QUERY = "PERM_M5_WHITE_SLIDE_QUERY";
+    public static final String WHITE_SLIDE_CREATE = "PERM_M5_WHITE_SLIDE_CREATE";
+    public static final String WHITE_SLIDE_RETURN = "PERM_M5_WHITE_SLIDE_RETURN";
     public static final String REAGENT_QUERY = "PERM_M5_REAGENT_QUERY";
     public static final String REAGENT_CREATE = "PERM_M5_REAGENT_CREATE";
     public static final String REAGENT_UPDATE = "PERM_M5_REAGENT_UPDATE";

@@ -7,7 +7,9 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +60,103 @@ final class JdbcArchiveQueries {
             where cabinet_code in (:cabinetCodes)
             """, Map.of("cabinetCodes", cabinetCodes), Integer.class);
         return count != null && count > 0;
+    }
+
+    List<ArchiveRepository.ArchiveCabinetNode> findArchiveCabinetNodes() {
+        return jdbcTemplate.query("""
+            select acn.id, acn.parent_id, acn.node_code, acn.node_type, acn.cabinet_type, acn.cabinet_id,
+                   acn.layer_no, acn.capacity, acn.path_location, acn.remarks,
+                   case
+                       when acn.node_type = 'AREA' then (
+                           select count(*)
+                           from archive_positions ap
+                           join archive_cabinets ac on ac.id = ap.cabinet_id
+                           join archive_cabinet_nodes cabinet_node on cabinet_node.cabinet_id = ac.id
+                               and cabinet_node.node_type = 'CABINET'
+                           where cabinet_node.parent_id = acn.id
+                             and ap.position_status = 'AVAILABLE'
+                       )
+                       when acn.node_type = 'CABINET' then (
+                           select count(*)
+                           from archive_positions ap
+                           where ap.cabinet_id = acn.cabinet_id
+                             and ap.position_status = 'AVAILABLE'
+                       )
+                       when acn.node_type = 'DRAWER' then (
+                           select count(*)
+                           from archive_positions ap
+                           where ap.cabinet_id = acn.cabinet_id
+                             and ap.layer_no = acn.layer_no
+                             and ap.position_status = 'AVAILABLE'
+                       )
+                       else 0
+                   end as remaining_capacity
+            from archive_cabinet_nodes acn
+            order by
+                case acn.node_type when 'AREA' then 1 when 'CABINET' then 2 when 'DRAWER' then 3 else 9 end,
+                acn.node_code asc,
+                acn.layer_no asc nulls first
+            """, this::mapArchiveCabinetNode);
+    }
+
+    Optional<ArchiveRepository.ArchiveCabinetNode> findArchiveCabinetNodeById(String nodeId) {
+        return jdbcTemplate.query("""
+            select acn.id, acn.parent_id, acn.node_code, acn.node_type, acn.cabinet_type, acn.cabinet_id,
+                   acn.layer_no, acn.capacity, acn.path_location, acn.remarks,
+                   case
+                       when acn.node_type = 'CABINET' then (
+                           select count(*) from archive_positions ap
+                           where ap.cabinet_id = acn.cabinet_id and ap.position_status = 'AVAILABLE'
+                       )
+                       when acn.node_type = 'DRAWER' then (
+                           select count(*) from archive_positions ap
+                           where ap.cabinet_id = acn.cabinet_id and ap.layer_no = acn.layer_no and ap.position_status = 'AVAILABLE'
+                       )
+                       else 0
+                   end as remaining_capacity
+            from archive_cabinet_nodes acn
+            where acn.id = :id
+            """, Map.of("id", nodeId), this::mapArchiveCabinetNode).stream().findFirst();
+    }
+
+    Optional<ArchiveRepository.ArchiveCabinetNode> findArchiveCabinetNodeByCabinetIdAndType(String cabinetId, String nodeType) {
+        return jdbcTemplate.query("""
+            select acn.id, acn.parent_id, acn.node_code, acn.node_type, acn.cabinet_type, acn.cabinet_id,
+                   acn.layer_no, acn.capacity, acn.path_location, acn.remarks,
+                   case
+                       when acn.node_type = 'CABINET' then (
+                           select count(*) from archive_positions ap
+                           where ap.cabinet_id = acn.cabinet_id and ap.position_status = 'AVAILABLE'
+                       )
+                       when acn.node_type = 'DRAWER' then (
+                           select count(*) from archive_positions ap
+                           where ap.cabinet_id = acn.cabinet_id and ap.layer_no = acn.layer_no and ap.position_status = 'AVAILABLE'
+                       )
+                       else 0
+                   end as remaining_capacity
+            from archive_cabinet_nodes acn
+            where acn.cabinet_id = :cabinetId
+              and acn.node_type = :nodeType
+            """, new MapSqlParameterSource()
+            .addValue("cabinetId", cabinetId)
+            .addValue("nodeType", nodeType), this::mapArchiveCabinetNode).stream().findFirst();
+    }
+
+    Optional<ArchiveRepository.ArchiveCabinetNode> findArchiveCabinetNodeByCabinetIdAndLayerNo(String cabinetId, int layerNo) {
+        return jdbcTemplate.query("""
+            select acn.id, acn.parent_id, acn.node_code, acn.node_type, acn.cabinet_type, acn.cabinet_id,
+                   acn.layer_no, acn.capacity, acn.path_location, acn.remarks,
+                   (
+                       select count(*) from archive_positions ap
+                       where ap.cabinet_id = acn.cabinet_id and ap.layer_no = acn.layer_no and ap.position_status = 'AVAILABLE'
+                   ) as remaining_capacity
+            from archive_cabinet_nodes acn
+            where acn.cabinet_id = :cabinetId
+              and acn.node_type = 'DRAWER'
+              and acn.layer_no = :layerNo
+            """, new MapSqlParameterSource()
+            .addValue("cabinetId", cabinetId)
+            .addValue("layerNo", layerNo), this::mapArchiveCabinetNode).stream().findFirst();
     }
 
     boolean hasNonEmptyArchivePositions(String cabinetId) {
@@ -130,10 +229,27 @@ final class JdbcArchiveQueries {
             """, Map.of("id", positionId), this::mapArchivePosition).stream().findFirst();
     }
 
+    List<ArchiveRepository.ArchivePosition> findAvailableArchivePositionsByCabinetId(String cabinetId, int limit) {
+        return jdbcTemplate.query("""
+            select id, cabinet_id, position_code, layer_no, slot_no, position_status,
+                   current_object_type, current_object_id, remarks
+            from archive_positions
+            where cabinet_id = :cabinetId
+              and position_status = 'AVAILABLE'
+              and current_object_type is null
+              and current_object_id is null
+            order by layer_no asc, slot_no asc
+            fetch first :limit rows only
+            """, new MapSqlParameterSource()
+            .addValue("cabinetId", cabinetId)
+            .addValue("limit", limit), this::mapArchivePosition);
+    }
+
     Optional<ArchiveRepository.StorageRecord> findStorageRecord(String objectType, String objectId) {
         return jdbcTemplate.query("""
             select id, case_id, specimen_id, object_type, object_id, storage_status, storage_location,
-                   archive_position_id, cabinet_no, layer_no, slot_no, stored_by_user_id, stored_by_name, stored_at, remarks
+                   archive_position_id, cabinet_no, layer_no, slot_no, stored_by_user_id, stored_by_name,
+                   stored_at, archive_expires_at, archive_reminder_days, remarks
             from specimen_storage_records
             where object_type = :objectType and object_id = :objectId
             """, new MapSqlParameterSource()
@@ -151,6 +267,8 @@ final class JdbcArchiveQueries {
                        pc.pathology_no,
                        app.application_no,
                        app.patient_name,
+                       app.submitting_doctor_name as applicant_doctor_name,
+                       app.application_date,
                        ssr.object_type,
                        ssr.object_id,
                        app.application_no as object_code,
@@ -169,7 +287,15 @@ final class JdbcArchiveQueries {
                         fetch first 1 row only) as borrowed_by_name,
                        (select ml.borrowed_at from material_loans ml
                         where ml.material_type = ssr.object_type and ml.material_id = ssr.object_id and ml.loan_status = 'BORROWED'
-                        fetch first 1 row only) as borrowed_at
+                        fetch first 1 row only) as borrowed_at,
+                       null as object_status,
+                       null as sampled_by_name,
+                       null as sampled_at,
+                       null as sliced_by_name,
+                       null as sliced_at,
+                       null as content_described_by_name,
+                       ssr.archive_expires_at,
+                       ssr.archive_reminder_days
                 from specimen_storage_records ssr
                 join pathology_cases pc on pc.id = ssr.case_id
                 join applications app on app.id = pc.application_id
@@ -179,6 +305,8 @@ final class JdbcArchiveQueries {
                        pc.pathology_no,
                        app.application_no,
                        app.patient_name,
+                       app.submitting_doctor_name as applicant_doctor_name,
+                       app.application_date,
                        ssr.object_type,
                        ssr.object_id,
                        eb.embedding_box_no as object_code,
@@ -197,17 +325,29 @@ final class JdbcArchiveQueries {
                         fetch first 1 row only) as borrowed_by_name,
                        (select ml.borrowed_at from material_loans ml
                         where ml.material_type = ssr.object_type and ml.material_id = ssr.object_id and ml.loan_status = 'BORROWED'
-                        fetch first 1 row only) as borrowed_at
+                        fetch first 1 row only) as borrowed_at,
+                       eb.storage_status as object_status,
+                       sm.sampled_by_name,
+                       sm.sampled_at,
+                       null as sliced_by_name,
+                       null as sliced_at,
+                       null as content_described_by_name,
+                       ssr.archive_expires_at,
+                       ssr.archive_reminder_days
                 from specimen_storage_records ssr
                 join pathology_cases pc on pc.id = ssr.case_id
                 join applications app on app.id = pc.application_id
                 join embedding_boxes eb on eb.id = ssr.object_id
+                left join sampling_blocks sb on sb.id = eb.sampling_block_id
+                left join samplings sm on sm.id = sb.sampling_id
                 where ssr.object_type = 'EMBEDDING_BOX'
                 union all
                 select ssr.case_id,
                        pc.pathology_no,
                        app.application_no,
                        app.patient_name,
+                       app.submitting_doctor_name as applicant_doctor_name,
+                       app.application_date,
                        ssr.object_type,
                        ssr.object_id,
                        s.slide_no as object_code,
@@ -226,12 +366,66 @@ final class JdbcArchiveQueries {
                         fetch first 1 row only) as borrowed_by_name,
                        (select ml.borrowed_at from material_loans ml
                         where ml.material_type = ssr.object_type and ml.material_id = ssr.object_id and ml.loan_status = 'BORROWED'
-                        fetch first 1 row only) as borrowed_at
+                        fetch first 1 row only) as borrowed_at,
+                       s.slide_status as object_status,
+                       null as sampled_by_name,
+                       null as sampled_at,
+                       slc.sliced_by_name,
+                       slc.sliced_at,
+                       null as content_described_by_name,
+                       ssr.archive_expires_at,
+                       ssr.archive_reminder_days
                 from specimen_storage_records ssr
                 join pathology_cases pc on pc.id = ssr.case_id
                 join applications app on app.id = pc.application_id
                 join slides s on s.id = ssr.object_id
+                left join slicings slc on slc.id = s.slicing_id
                 where ssr.object_type = 'SLIDE'
+                union all
+                select ssr.case_id,
+                       pc.pathology_no,
+                       app.application_no,
+                       app.patient_name,
+                       app.submitting_doctor_name as applicant_doctor_name,
+                       app.application_date,
+                       ssr.object_type,
+                       ssr.object_id,
+                       sp.specimen_no as object_code,
+                       ssr.storage_status as archive_status,
+                       ssr.storage_location as archive_location,
+                       case when exists (
+                           select 1 from material_loans ml
+                           where ml.material_type = ssr.object_type
+                             and ml.material_id = ssr.object_id
+                             and ml.loan_status = 'BORROWED'
+                       ) then 'BORROWED' else 'NONE' end as loan_status,
+                       ssr.stored_at as archived_at,
+                       ssr.stored_by_name,
+                       (select ml.borrowed_by_name from material_loans ml
+                        where ml.material_type = ssr.object_type and ml.material_id = ssr.object_id and ml.loan_status = 'BORROWED'
+                        fetch first 1 row only) as borrowed_by_name,
+                       (select ml.borrowed_at from material_loans ml
+                        where ml.material_type = ssr.object_type and ml.material_id = ssr.object_id and ml.loan_status = 'BORROWED'
+                        fetch first 1 row only) as borrowed_at,
+                       sp.specimen_status as object_status,
+                       null as sampled_by_name,
+                       null as sampled_at,
+                       null as sliced_by_name,
+                       null as sliced_at,
+                       (
+                         select sm.sampled_by_name
+                         from samplings sm
+                         where sm.specimen_id = sp.id
+                         order by sm.sampled_at desc nulls last, sm.created_at desc
+                         fetch first 1 row only
+                       ) as content_described_by_name,
+                       ssr.archive_expires_at,
+                       ssr.archive_reminder_days
+                from specimen_storage_records ssr
+                join pathology_cases pc on pc.id = ssr.case_id
+                join applications app on app.id = pc.application_id
+                join specimens sp on sp.id = ssr.object_id
+                where ssr.object_type = 'SPECIMEN'
             ) records
             where (:objectType is null or records.object_type = :objectType)
               and (:caseId is null or records.case_id = :caseId)
@@ -277,19 +471,27 @@ final class JdbcArchiveQueries {
             """, Map.of("id", loanId), this::mapMaterialLoan).stream().findFirst();
     }
 
-    List<ArchiveRepository.MaterialLoan> findPendingMaterialLoans(String keyword, String materialType) {
+    List<ArchiveRepository.MaterialLoan> findMaterialLoans(String keyword, String materialType, String loanStatus) {
         String like = keyword == null || keyword.isBlank() ? null : "%" + keyword.trim().toUpperCase() + "%";
         return jdbcTemplate.query(materialLoanSelect() + """
-            where ml.loan_status = 'BORROWED'
+            where ml.loan_status = :loanStatus
               and (:materialType is null or ml.material_type = :materialType)
               and (:keywordLike is null or upper(pc.pathology_no) like :keywordLike
                    or upper(app.application_no) like :keywordLike
                    or upper(app.patient_name) like :keywordLike
                    or upper(coalesce(eb.embedding_box_no, s.slide_no, app.application_no)) like :keywordLike)
-            order by ml.borrowed_at desc, ml.id desc
+            order by
+                case when :loanStatus = 'RETURNED' then ml.returned_at else ml.borrowed_at end desc nulls last,
+                ml.borrowed_at desc,
+                ml.id desc
             """, new MapSqlParameterSource()
+            .addValue("loanStatus", loanStatus)
             .addValue("materialType", materialType)
             .addValue("keywordLike", like), this::mapMaterialLoan);
+    }
+
+    List<ArchiveRepository.MaterialLoan> findPendingMaterialLoans(String keyword, String materialType) {
+        return findMaterialLoans(keyword, materialType, "BORROWED");
     }
 
     Optional<ArchiveRepository.ApplicationArchiveSummary> findApplicationArchiveSummary(String caseId, String applicationId) {
@@ -347,6 +549,18 @@ final class JdbcArchiveQueries {
             """, Map.of("caseId", caseId), this::mapObjectArchiveSummary);
     }
 
+    List<ArchiveRepository.ObjectArchiveSummary> findSpecimenArchiveSummaries(String caseId) {
+        return jdbcTemplate.query("""
+            select ssr.object_id,
+                   ssr.storage_status as archive_status,
+                   ssr.storage_location as archive_location,
+                   'NONE' as loan_status
+            from specimen_storage_records ssr
+            where ssr.case_id = :caseId
+              and ssr.object_type = 'SPECIMEN'
+            """, Map.of("caseId", caseId), this::mapObjectArchiveSummary);
+    }
+
     List<ArchiveRepository.ObjectArchiveSummary> findSlideArchiveSummaries(String caseId) {
         return jdbcTemplate.query("""
             select ssr.object_id,
@@ -367,9 +581,9 @@ final class JdbcArchiveQueries {
     private String materialLoanSelect() {
         return """
             select ml.id, ml.case_id, ml.specimen_id, ml.material_type, ml.material_id, ml.archive_position_id,
-                   ml.loan_status, ml.borrowed_by_user_id, ml.borrowed_by_name, ml.borrowed_at, ml.borrow_purpose,
-                   ml.approved_by_user_id, ml.approved_by_name, ml.returned_by_user_id, ml.returned_by_name, ml.returned_at,
-                   ml.remarks,
+                   ml.loan_status, ml.borrowed_by_user_id, ml.borrowed_by_name, ml.borrowed_at, ml.borrower_phone,
+                   ml.borrower_unit, ml.borrow_purpose, ml.deposit_amount, ml.approved_by_user_id, ml.approved_by_name,
+                   ml.returned_by_user_id, ml.returned_by_name, ml.returned_at, ml.remarks,
                    pc.pathology_no,
                    app.application_no,
                    app.patient_name,
@@ -389,6 +603,8 @@ final class JdbcArchiveQueries {
                        pc.pathology_no,
                        app.application_no,
                        app.patient_name,
+                       app.submitting_doctor_name as applicant_doctor_name,
+                       app.application_date,
                        'APPLICATION_FORM' as object_type,
                        app.id as object_id,
                        app.application_no as object_code,
@@ -398,7 +614,15 @@ final class JdbcArchiveQueries {
                        ssr.stored_at as archived_at,
                        ssr.stored_by_name,
                        null as borrowed_by_name,
-                       null as borrowed_at
+                       null as borrowed_at,
+                       null as object_status,
+                       null as sampled_by_name,
+                       null as sampled_at,
+                       null as sliced_by_name,
+                       null as sliced_at,
+                       null as content_described_by_name,
+                       ssr.archive_expires_at,
+                       ssr.archive_reminder_days
                 from applications app
                 join pathology_cases pc on pc.application_id = app.id
                 left join specimen_storage_records ssr
@@ -413,6 +637,8 @@ final class JdbcArchiveQueries {
                        pc.pathology_no,
                        app.application_no,
                        app.patient_name,
+                       app.submitting_doctor_name as applicant_doctor_name,
+                       app.application_date,
                        'EMBEDDING_BOX' as object_type,
                        eb.id as object_id,
                        eb.embedding_box_no as object_code,
@@ -437,13 +663,23 @@ final class JdbcArchiveQueries {
                           and ml.material_id = eb.id
                           and ml.loan_status = 'BORROWED'
                         order by ml.borrowed_at desc
-                        fetch first 1 row only) as borrowed_at
+                        fetch first 1 row only) as borrowed_at,
+                       eb.storage_status as object_status,
+                       sm.sampled_by_name,
+                       sm.sampled_at,
+                       null as sliced_by_name,
+                       null as sliced_at,
+                       null as content_described_by_name,
+                       ssr.archive_expires_at,
+                       ssr.archive_reminder_days
                 from embedding_boxes eb
                 join pathology_cases pc on pc.id = eb.case_id
                 join applications app on app.id = pc.application_id
                 left join specimen_storage_records ssr
                   on ssr.object_type = 'EMBEDDING_BOX'
                  and ssr.object_id = eb.id
+                left join sampling_blocks sb on sb.id = eb.sampling_block_id
+                left join samplings sm on sm.id = sb.sampling_id
                 where (:keywordLike is null or upper(pc.pathology_no) like :keywordLike
                        or upper(app.application_no) like :keywordLike
                        or upper(app.patient_name) like :keywordLike
@@ -454,6 +690,8 @@ final class JdbcArchiveQueries {
                        pc.pathology_no,
                        app.application_no,
                        app.patient_name,
+                       app.submitting_doctor_name as applicant_doctor_name,
+                       app.application_date,
                        'SLIDE' as object_type,
                        s.id as object_id,
                        s.slide_no as object_code,
@@ -478,13 +716,22 @@ final class JdbcArchiveQueries {
                           and ml.material_id = s.id
                           and ml.loan_status = 'BORROWED'
                         order by ml.borrowed_at desc
-                        fetch first 1 row only) as borrowed_at
+                        fetch first 1 row only) as borrowed_at,
+                       s.slide_status as object_status,
+                       null as sampled_by_name,
+                       null as sampled_at,
+                       slc.sliced_by_name,
+                       slc.sliced_at,
+                       null as content_described_by_name,
+                       ssr.archive_expires_at,
+                       ssr.archive_reminder_days
                 from slides s
                 join pathology_cases pc on pc.id = s.case_id
                 join applications app on app.id = pc.application_id
                 left join specimen_storage_records ssr
                   on ssr.object_type = 'SLIDE'
                  and ssr.object_id = s.id
+                left join slicings slc on slc.id = s.slicing_id
                 where (:keywordLike is null or upper(pc.pathology_no) like :keywordLike
                        or upper(app.application_no) like :keywordLike
                        or upper(app.patient_name) like :keywordLike
@@ -495,6 +742,8 @@ final class JdbcArchiveQueries {
                        pc.pathology_no,
                        app.application_no,
                        app.patient_name,
+                       app.submitting_doctor_name as applicant_doctor_name,
+                       app.application_date,
                        'SPECIMEN' as object_type,
                        sp.id as object_id,
                        sp.specimen_no as object_code,
@@ -504,7 +753,21 @@ final class JdbcArchiveQueries {
                        ssr.stored_at as archived_at,
                        ssr.stored_by_name,
                        null as borrowed_by_name,
-                       null as borrowed_at
+                       null as borrowed_at,
+                       sp.specimen_status as object_status,
+                       null as sampled_by_name,
+                       null as sampled_at,
+                       null as sliced_by_name,
+                       null as sliced_at,
+                       (
+                         select sm.sampled_by_name
+                         from samplings sm
+                         where sm.specimen_id = sp.id
+                         order by sm.sampled_at desc nulls last, sm.created_at desc
+                         fetch first 1 row only
+                       ) as content_described_by_name,
+                       ssr.archive_expires_at,
+                       ssr.archive_reminder_days
                 from specimens sp
                 join pathology_cases pc on pc.id = sp.case_id
                 join applications app on app.id = pc.application_id
@@ -531,6 +794,23 @@ final class JdbcArchiveQueries {
             rs.getInt("capacity"),
             rs.getString("cabinet_status"),
             rs.getString("location_description"),
+            rs.getString("remarks"));
+    }
+
+    private ArchiveRepository.ArchiveCabinetNode mapArchiveCabinetNode(ResultSet rs, int rowNum) throws SQLException {
+        int layerNo = rs.getInt("layer_no");
+        boolean layerNoWasNull = rs.wasNull();
+        return new ArchiveRepository.ArchiveCabinetNode(
+            rs.getString("id"),
+            rs.getString("parent_id"),
+            rs.getString("node_code"),
+            rs.getString("node_type"),
+            rs.getString("cabinet_type"),
+            rs.getString("cabinet_id"),
+            layerNoWasNull ? null : layerNo,
+            rs.getInt("capacity"),
+            rs.getInt("remaining_capacity"),
+            rs.getString("path_location"),
             rs.getString("remarks"));
     }
 
@@ -563,6 +843,8 @@ final class JdbcArchiveQueries {
             rs.getString("stored_by_user_id"),
             rs.getString("stored_by_name"),
             toLocalDateTime(rs.getTimestamp("stored_at")),
+            toLocalDateTime(rs.getTimestamp("archive_expires_at")),
+            getNullableInteger(rs, "archive_reminder_days"),
             rs.getString("remarks"));
     }
 
@@ -572,6 +854,8 @@ final class JdbcArchiveQueries {
             rs.getString("pathology_no"),
             rs.getString("application_no"),
             rs.getString("patient_name"),
+            rs.getString("applicant_doctor_name"),
+            toLocalDate(rs.getDate("application_date")),
             rs.getString("object_type"),
             rs.getString("object_id"),
             rs.getString("object_code"),
@@ -581,7 +865,15 @@ final class JdbcArchiveQueries {
             toLocalDateTime(rs.getTimestamp("archived_at")),
             rs.getString("stored_by_name"),
             rs.getString("borrowed_by_name"),
-            toLocalDateTime(rs.getTimestamp("borrowed_at")));
+            toLocalDateTime(rs.getTimestamp("borrowed_at")),
+            rs.getString("object_status"),
+            rs.getString("sampled_by_name"),
+            toLocalDateTime(rs.getTimestamp("sampled_at")),
+            rs.getString("sliced_by_name"),
+            toLocalDateTime(rs.getTimestamp("sliced_at")),
+            rs.getString("content_described_by_name"),
+            toLocalDateTime(rs.getTimestamp("archive_expires_at")),
+            getNullableInteger(rs, "archive_reminder_days"));
     }
 
     private ArchiveRepository.MaterialLoan mapMaterialLoan(ResultSet rs, int rowNum) throws SQLException {
@@ -596,7 +888,10 @@ final class JdbcArchiveQueries {
             rs.getString("borrowed_by_user_id"),
             rs.getString("borrowed_by_name"),
             toLocalDateTime(rs.getTimestamp("borrowed_at")),
+            rs.getString("borrower_phone"),
+            rs.getString("borrower_unit"),
             rs.getString("borrow_purpose"),
+            rs.getBigDecimal("deposit_amount"),
             rs.getString("approved_by_user_id"),
             rs.getString("approved_by_name"),
             rs.getString("returned_by_user_id"),
@@ -617,7 +912,16 @@ final class JdbcArchiveQueries {
             rs.getString("loan_status"));
     }
 
+    private Integer getNullableInteger(ResultSet rs, String columnName) throws SQLException {
+        int value = rs.getInt(columnName);
+        return rs.wasNull() ? null : value;
+    }
+
     private LocalDateTime toLocalDateTime(Timestamp value) {
         return value == null ? null : value.toLocalDateTime();
+    }
+
+    private LocalDate toLocalDate(Date value) {
+        return value == null ? null : value.toLocalDate();
     }
 }

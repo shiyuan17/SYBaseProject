@@ -6,7 +6,9 @@ import com.company.bl.application.service.ArchiveWorkflowService;
 import com.company.bl.interfaces.auth.M5PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.BatchCreateArchiveCabinetRequest;
+import com.company.bl.interfaces.dto.CreateArchiveCabinetNodeRequest;
 import com.company.bl.interfaces.dto.CreateArchiveCabinetRequest;
+import com.company.bl.interfaces.dto.UpdateArchiveCabinetNodeRequest;
 import com.company.bl.interfaces.dto.UpdateArchiveCabinetRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -42,6 +44,12 @@ public class ArchiveCabinetController extends TechnicalControllerSupport {
         return archiveQueryService.listArchiveCabinets();
     }
 
+    @RequirePermission(M5PermissionCodes.ARCHIVE_CABINET_QUERY)
+    @GetMapping("/archive-cabinet-nodes")
+    public List<ArchiveModels.ArchiveCabinetNodeView> listArchiveCabinetNodes() {
+        return archiveQueryService.listArchiveCabinetNodes();
+    }
+
     @RequirePermission(M5PermissionCodes.ARCHIVE_CABINET_CREATE)
     @PostMapping("/archive-cabinets")
     public ArchiveModels.ArchiveCabinetView createArchiveCabinet(@Valid @RequestBody CreateArchiveCabinetRequest request,
@@ -60,10 +68,28 @@ public class ArchiveCabinetController extends TechnicalControllerSupport {
     }
 
     @RequirePermission(M5PermissionCodes.ARCHIVE_CABINET_CREATE)
+    @PostMapping("/archive-cabinet-nodes")
+    public ArchiveModels.ArchiveCabinetNodeView createArchiveCabinetNode(@Valid @RequestBody CreateArchiveCabinetNodeRequest request,
+                                                                         HttpServletRequest httpServletRequest) {
+        return archiveWorkflowService.createArchiveCabinetNode(new ArchiveModels.CreateArchiveCabinetNodeCommand(
+            request.getParentId(),
+            request.getNodeCode(),
+            request.getNodeType(),
+            request.getCabinetType(),
+            request.getCapacity(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
+            request.getTerminalCode(),
+            request.getPathLocation(),
+            request.getRemarks()));
+    }
+
+    @RequirePermission(M5PermissionCodes.ARCHIVE_CABINET_CREATE)
     @PostMapping("/archive-cabinets/batch")
     public List<ArchiveModels.ArchiveCabinetView> batchCreateArchiveCabinets(@Valid @RequestBody BatchCreateArchiveCabinetRequest request,
                                                                              HttpServletRequest httpServletRequest) {
         return archiveWorkflowService.batchCreateArchiveCabinets(new ArchiveModels.BatchCreateArchiveCabinetCommand(
+            request.getParentId(),
             request.getCabinetType(),
             request.getCabinetCodePrefix(),
             request.getStartNo(),
@@ -89,6 +115,23 @@ public class ArchiveCabinetController extends TechnicalControllerSupport {
             request.getCabinetName(),
             request.getCabinetStatus(),
             request.getLocationDescription(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
+            request.getTerminalCode(),
+            request.getRemarks()));
+    }
+
+    @RequirePermission(M5PermissionCodes.ARCHIVE_CABINET_UPDATE)
+    @PatchMapping("/archive-cabinet-nodes/{id}")
+    public ArchiveModels.ArchiveCabinetNodeView updateArchiveCabinetNode(@PathVariable("id") String nodeId,
+                                                                         @Valid @RequestBody UpdateArchiveCabinetNodeRequest request,
+                                                                         HttpServletRequest httpServletRequest) {
+        return archiveWorkflowService.updateArchiveCabinetNode(new ArchiveModels.UpdateArchiveCabinetNodeCommand(
+            nodeId,
+            request.getNodeCode(),
+            request.getCabinetType(),
+            request.getCapacity(),
+            request.getPathLocation(),
             resolveUserId(httpServletRequest),
             resolveOperatorName(httpServletRequest),
             request.getTerminalCode(),

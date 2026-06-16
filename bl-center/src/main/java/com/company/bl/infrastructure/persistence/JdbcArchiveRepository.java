@@ -40,6 +40,26 @@ public class JdbcArchiveRepository implements ArchiveRepository {
     }
 
     @Override
+    public List<ArchiveCabinetNode> findArchiveCabinetNodes() {
+        return queries.findArchiveCabinetNodes();
+    }
+
+    @Override
+    public Optional<ArchiveCabinetNode> findArchiveCabinetNodeById(String nodeId) {
+        return queries.findArchiveCabinetNodeById(nodeId);
+    }
+
+    @Override
+    public Optional<ArchiveCabinetNode> findArchiveCabinetNodeByCabinetIdAndType(String cabinetId, String nodeType) {
+        return queries.findArchiveCabinetNodeByCabinetIdAndType(cabinetId, nodeType);
+    }
+
+    @Override
+    public Optional<ArchiveCabinetNode> findArchiveCabinetNodeByCabinetIdAndLayerNo(String cabinetId, int layerNo) {
+        return queries.findArchiveCabinetNodeByCabinetIdAndLayerNo(cabinetId, layerNo);
+    }
+
+    @Override
     public void insertArchiveCabinet(CreateArchiveCabinetCommand command) {
         mutations.insertArchiveCabinet(command);
     }
@@ -47,6 +67,26 @@ public class JdbcArchiveRepository implements ArchiveRepository {
     @Override
     public void updateArchiveCabinet(UpdateArchiveCabinetCommand command) {
         mutations.updateArchiveCabinet(command);
+    }
+
+    @Override
+    public void updateArchiveCabinetCapacity(UpdateArchiveCabinetCapacityCommand command) {
+        mutations.updateArchiveCabinetCapacity(command);
+    }
+
+    @Override
+    public void insertArchiveCabinetNode(CreateArchiveCabinetNodeCommand command) {
+        mutations.insertArchiveCabinetNode(command);
+    }
+
+    @Override
+    public void updateArchiveCabinetNode(UpdateArchiveCabinetNodeCommand command) {
+        mutations.updateArchiveCabinetNode(command);
+    }
+
+    @Override
+    public void updateArchiveCabinetNodeCapacity(UpdateArchiveCabinetNodeCapacityCommand command) {
+        mutations.updateArchiveCabinetNodeCapacity(command);
     }
 
     @Override
@@ -62,6 +102,11 @@ public class JdbcArchiveRepository implements ArchiveRepository {
     @Override
     public void deleteArchivePositionsByCabinetId(String cabinetId) {
         mutations.deleteArchivePositionsByCabinetId(cabinetId);
+    }
+
+    @Override
+    public void deleteArchiveCabinetNodesByCabinetId(String cabinetId) {
+        mutations.deleteArchiveCabinetNodesByCabinetId(cabinetId);
     }
 
     @Override
@@ -82,6 +127,11 @@ public class JdbcArchiveRepository implements ArchiveRepository {
     @Override
     public Optional<ArchivePosition> findArchivePositionById(String positionId) {
         return queries.findArchivePositionById(positionId);
+    }
+
+    @Override
+    public List<ArchivePosition> findAvailableArchivePositionsByCabinetId(String cabinetId, int limit) {
+        return queries.findAvailableArchivePositionsByCabinetId(cabinetId, limit);
     }
 
     @Override
@@ -130,6 +180,11 @@ public class JdbcArchiveRepository implements ArchiveRepository {
     }
 
     @Override
+    public List<MaterialLoan> findMaterialLoans(String keyword, String materialType, String loanStatus) {
+        return queries.findMaterialLoans(keyword, materialType, loanStatus);
+    }
+
+    @Override
     public List<MaterialLoan> findPendingMaterialLoans(String keyword, String materialType) {
         return queries.findPendingMaterialLoans(keyword, materialType);
     }
@@ -145,8 +200,18 @@ public class JdbcArchiveRepository implements ArchiveRepository {
     }
 
     @Override
+    public void insertMaterialLoanAbnormalRecord(CreateMaterialLoanAbnormalRecordCommand command) {
+        mutations.insertMaterialLoanAbnormalRecord(command);
+    }
+
+    @Override
     public Optional<ApplicationArchiveSummary> findApplicationArchiveSummary(String caseId, String applicationId) {
         return queries.findApplicationArchiveSummary(caseId, applicationId);
+    }
+
+    @Override
+    public List<ObjectArchiveSummary> findSpecimenArchiveSummaries(String caseId) {
+        return queries.findSpecimenArchiveSummaries(caseId);
     }
 
     @Override

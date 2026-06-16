@@ -53,10 +53,96 @@ final class JdbcArchiveMutations {
             .addValue("updatedAt", command.updatedAt()));
     }
 
+    void updateArchiveCabinetCapacity(ArchiveRepository.UpdateArchiveCabinetCapacityCommand command) {
+        jdbcTemplate.update("""
+            update archive_cabinets
+            set layer_count = :layerCount,
+                slot_count_per_layer = :slotCountPerLayer,
+                capacity = :capacity,
+                updated_at = :updatedAt
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", command.id())
+            .addValue("layerCount", command.layerCount())
+            .addValue("slotCountPerLayer", command.slotCountPerLayer())
+            .addValue("capacity", command.capacity())
+            .addValue("updatedAt", command.updatedAt()));
+    }
+
+    void insertArchiveCabinetNode(ArchiveRepository.CreateArchiveCabinetNodeCommand command) {
+        jdbcTemplate.update("""
+            insert into archive_cabinet_nodes
+                (id, parent_id, node_code, node_type, cabinet_type, cabinet_id, layer_no, capacity,
+                 path_location, remarks, created_at, updated_at)
+            values
+                (:id, :parentId, :nodeCode, :nodeType, :cabinetType, :cabinetId, :layerNo, :capacity,
+                 :pathLocation, :remarks, :createdAt, :updatedAt)
+            """, new MapSqlParameterSource()
+            .addValue("id", command.id())
+            .addValue("parentId", command.parentId())
+            .addValue("nodeCode", command.nodeCode())
+            .addValue("nodeType", command.nodeType())
+            .addValue("cabinetType", command.cabinetType())
+            .addValue("cabinetId", command.cabinetId())
+            .addValue("layerNo", command.layerNo())
+            .addValue("capacity", command.capacity())
+            .addValue("pathLocation", command.pathLocation())
+            .addValue("remarks", command.remarks())
+            .addValue("createdAt", command.createdAt())
+            .addValue("updatedAt", command.updatedAt()));
+    }
+
+    void updateArchiveCabinetNode(ArchiveRepository.UpdateArchiveCabinetNodeCommand command) {
+        jdbcTemplate.update("""
+            update archive_cabinet_nodes
+            set node_code = :nodeCode,
+                cabinet_type = :cabinetType,
+                capacity = :capacity,
+                path_location = :pathLocation,
+                remarks = :remarks,
+                updated_at = :updatedAt
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", command.id())
+            .addValue("nodeCode", command.nodeCode())
+            .addValue("cabinetType", command.cabinetType())
+            .addValue("capacity", command.capacity())
+            .addValue("pathLocation", command.pathLocation())
+            .addValue("remarks", command.remarks())
+            .addValue("updatedAt", command.updatedAt()));
+    }
+
+    void updateArchiveCabinetNodeCapacity(ArchiveRepository.UpdateArchiveCabinetNodeCapacityCommand command) {
+        jdbcTemplate.update("""
+            update archive_cabinet_nodes
+            set capacity = :capacity,
+                updated_at = :updatedAt
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", command.id())
+            .addValue("capacity", command.capacity())
+            .addValue("updatedAt", command.updatedAt()));
+    }
+
     void deleteArchivePositionsByCabinetId(String cabinetId) {
         jdbcTemplate.update("""
             delete from archive_positions
             where cabinet_id = :cabinetId
+            """, new MapSqlParameterSource()
+            .addValue("cabinetId", cabinetId));
+    }
+
+    void deleteArchiveCabinetNodesByCabinetId(String cabinetId) {
+        jdbcTemplate.update("""
+            delete from archive_cabinet_nodes
+            where cabinet_id = :cabinetId
+              and node_type = 'DRAWER'
+            """, new MapSqlParameterSource()
+            .addValue("cabinetId", cabinetId));
+        jdbcTemplate.update("""
+            delete from archive_cabinet_nodes
+            where cabinet_id = :cabinetId
+              and node_type = 'CABINET'
             """, new MapSqlParameterSource()
             .addValue("cabinetId", cabinetId));
     }
@@ -123,10 +209,12 @@ final class JdbcArchiveMutations {
         jdbcTemplate.update("""
             insert into specimen_storage_records
                 (id, case_id, specimen_id, object_type, object_id, storage_status, storage_location, archive_position_id,
-                 cabinet_no, layer_no, slot_no, stored_by_user_id, stored_by_name, stored_at, remarks, created_at, updated_at)
+                 cabinet_no, layer_no, slot_no, stored_by_user_id, stored_by_name, stored_at, archive_expires_at,
+                 archive_reminder_days, remarks, created_at, updated_at)
             values
                 (:id, :caseId, :specimenId, :objectType, :objectId, :storageStatus, :storageLocation, :archivePositionId,
-                 :cabinetNo, :layerNo, :slotNo, :storedByUserId, :storedByName, :storedAt, :remarks, :createdAt, :updatedAt)
+                 :cabinetNo, :layerNo, :slotNo, :storedByUserId, :storedByName, :storedAt, :archiveExpiresAt,
+                 :archiveReminderDays, :remarks, :createdAt, :updatedAt)
             """, new MapSqlParameterSource()
             .addValue("id", command.id())
             .addValue("caseId", command.caseId())
@@ -142,6 +230,8 @@ final class JdbcArchiveMutations {
             .addValue("storedByUserId", command.storedByUserId())
             .addValue("storedByName", command.storedByName())
             .addValue("storedAt", command.storedAt())
+            .addValue("archiveExpiresAt", command.archiveExpiresAt())
+            .addValue("archiveReminderDays", command.archiveReminderDays())
             .addValue("remarks", command.remarks())
             .addValue("createdAt", command.createdAt())
             .addValue("updatedAt", command.updatedAt()));
@@ -159,6 +249,8 @@ final class JdbcArchiveMutations {
                 stored_by_user_id = :storedByUserId,
                 stored_by_name = :storedByName,
                 stored_at = :storedAt,
+                archive_expires_at = :archiveExpiresAt,
+                archive_reminder_days = :archiveReminderDays,
                 remarks = :remarks,
                 updated_at = :updatedAt
             where id = :id
@@ -173,6 +265,8 @@ final class JdbcArchiveMutations {
             .addValue("storedByUserId", command.storedByUserId())
             .addValue("storedByName", command.storedByName())
             .addValue("storedAt", command.storedAt())
+            .addValue("archiveExpiresAt", command.archiveExpiresAt())
+            .addValue("archiveReminderDays", command.archiveReminderDays())
             .addValue("remarks", command.remarks())
             .addValue("updatedAt", command.updatedAt()));
     }
@@ -181,12 +275,12 @@ final class JdbcArchiveMutations {
         jdbcTemplate.update("""
             insert into material_loans
                 (id, case_id, specimen_id, material_type, material_id, archive_position_id, loan_status,
-                 borrowed_by_user_id, borrowed_by_name, borrowed_at, borrow_purpose, approved_by_user_id,
-                 approved_by_name, remarks, created_at, updated_at)
+                 borrowed_by_user_id, borrowed_by_name, borrowed_at, borrower_phone, borrower_unit, borrow_purpose,
+                 deposit_amount, approved_by_user_id, approved_by_name, remarks, created_at, updated_at)
             values
                 (:id, :caseId, :specimenId, :materialType, :materialId, :archivePositionId, :loanStatus,
-                 :borrowedByUserId, :borrowedByName, :borrowedAt, :borrowPurpose, :approvedByUserId,
-                 :approvedByName, :remarks, :createdAt, :updatedAt)
+                 :borrowedByUserId, :borrowedByName, :borrowedAt, :borrowerPhone, :borrowerUnit, :borrowPurpose,
+                 :depositAmount, :approvedByUserId, :approvedByName, :remarks, :createdAt, :updatedAt)
             """, new MapSqlParameterSource()
             .addValue("id", command.id())
             .addValue("caseId", command.caseId())
@@ -198,7 +292,10 @@ final class JdbcArchiveMutations {
             .addValue("borrowedByUserId", command.borrowedByUserId())
             .addValue("borrowedByName", command.borrowedByName())
             .addValue("borrowedAt", command.borrowedAt())
+            .addValue("borrowerPhone", command.borrowerPhone())
+            .addValue("borrowerUnit", command.borrowerUnit())
             .addValue("borrowPurpose", command.borrowPurpose())
+            .addValue("depositAmount", command.depositAmount())
             .addValue("approvedByUserId", command.approvedByUserId())
             .addValue("approvedByName", command.approvedByName())
             .addValue("remarks", command.remarks())
@@ -223,6 +320,48 @@ final class JdbcArchiveMutations {
             .addValue("returnedByName", command.returnedByName())
             .addValue("returnedAt", command.returnedAt())
             .addValue("remarks", command.remarks())
+            .addValue("updatedAt", command.updatedAt()));
+    }
+
+    void insertMaterialLoanAbnormalRecord(ArchiveRepository.CreateMaterialLoanAbnormalRecordCommand command) {
+        jdbcTemplate.update("""
+            insert into material_loan_abnormal_records
+                (id, case_id, material_type, material_id, loan_id, abnormal_reason, contacted, contact_result,
+                 borrowed_slide_no, borrower_name, borrower_relationship, borrower_phone, borrower_unit,
+                 borrower_identity_no, borrowed_at, expected_return_at, slide_count, deposit_amount,
+                 borrowed_content, return_abnormal_info, registered_by_user_id, registered_by_name,
+                 registered_at, created_at, updated_at)
+            values
+                (:id, :caseId, :materialType, :materialId, :loanId, :abnormalReason, :contacted, :contactResult,
+                 :borrowedSlideNo, :borrowerName, :borrowerRelationship, :borrowerPhone, :borrowerUnit,
+                 :borrowerIdentityNo, :borrowedAt, :expectedReturnAt, :slideCount, :depositAmount,
+                 :borrowedContent, :returnAbnormalInfo, :registeredByUserId, :registeredByName,
+                 :registeredAt, :createdAt, :updatedAt)
+            """, new MapSqlParameterSource()
+            .addValue("id", command.id())
+            .addValue("caseId", command.caseId())
+            .addValue("materialType", command.materialType())
+            .addValue("materialId", command.materialId())
+            .addValue("loanId", command.loanId())
+            .addValue("abnormalReason", command.abnormalReason())
+            .addValue("contacted", command.contacted() ? 1 : 0)
+            .addValue("contactResult", command.contactResult())
+            .addValue("borrowedSlideNo", command.borrowedSlideNo())
+            .addValue("borrowerName", command.borrowerName())
+            .addValue("borrowerRelationship", command.borrowerRelationship())
+            .addValue("borrowerPhone", command.borrowerPhone())
+            .addValue("borrowerUnit", command.borrowerUnit())
+            .addValue("borrowerIdentityNo", command.borrowerIdentityNo())
+            .addValue("borrowedAt", command.borrowedAt())
+            .addValue("expectedReturnAt", command.expectedReturnAt())
+            .addValue("slideCount", command.slideCount())
+            .addValue("depositAmount", command.depositAmount())
+            .addValue("borrowedContent", command.borrowedContent())
+            .addValue("returnAbnormalInfo", command.returnAbnormalInfo())
+            .addValue("registeredByUserId", command.registeredByUserId())
+            .addValue("registeredByName", command.registeredByName())
+            .addValue("registeredAt", command.registeredAt())
+            .addValue("createdAt", command.createdAt())
             .addValue("updatedAt", command.updatedAt()));
     }
 }

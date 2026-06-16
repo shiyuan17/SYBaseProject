@@ -5,6 +5,7 @@ import com.company.bl.application.service.ArchiveQueryService;
 import com.company.bl.application.service.ArchiveWorkflowService;
 import com.company.bl.interfaces.auth.M5PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
+import com.company.bl.interfaces.dto.CreateMaterialLoanAbnormalRecordRequest;
 import com.company.bl.interfaces.dto.CreateMaterialLoanRequest;
 import com.company.bl.interfaces.dto.ReturnMaterialLoanRequest;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,6 +34,14 @@ public class MaterialLoanController extends TechnicalControllerSupport {
     }
 
     @RequirePermission(M5PermissionCodes.LOAN_QUERY)
+    @GetMapping
+    public List<ArchiveModels.MaterialLoanView> listMaterialLoans(@RequestParam(required = false) String keyword,
+                                                                  @RequestParam(required = false) String materialType,
+                                                                  @RequestParam(required = false) String loanStatus) {
+        return archiveQueryService.listMaterialLoans(keyword, materialType, loanStatus);
+    }
+
+    @RequirePermission(M5PermissionCodes.LOAN_QUERY)
     @GetMapping("/pending")
     public List<ArchiveModels.MaterialLoanView> listPendingMaterialLoans(@RequestParam(required = false) String keyword,
                                                                          @RequestParam(required = false) String materialType) {
@@ -48,7 +57,10 @@ public class MaterialLoanController extends TechnicalControllerSupport {
             request.getMaterialId(),
             request.getBorrowedByUserId(),
             request.getBorrowedByName(),
+            request.getBorrowerPhone(),
+            request.getBorrowerUnit(),
             request.getBorrowPurpose(),
+            request.getDepositAmount(),
             resolveUserId(httpServletRequest),
             resolveOperatorName(httpServletRequest),
             request.getTerminalCode(),
@@ -67,5 +79,34 @@ public class MaterialLoanController extends TechnicalControllerSupport {
             resolveOperatorName(httpServletRequest),
             request.getTerminalCode(),
             request.getRemarks()));
+    }
+
+    @RequirePermission(M5PermissionCodes.LOAN_ABNORMAL_REGISTER)
+    @PostMapping("/abnormal-records")
+    public ArchiveModels.MaterialLoanAbnormalRecordView createMaterialLoanAbnormalRecord(
+        @Valid @RequestBody CreateMaterialLoanAbnormalRecordRequest request,
+        HttpServletRequest httpServletRequest) {
+        return archiveWorkflowService.createMaterialLoanAbnormalRecord(new ArchiveModels.CreateMaterialLoanAbnormalRecordCommand(
+            request.getMaterialType(),
+            request.getMaterialId(),
+            request.getLoanId(),
+            request.getAbnormalReason(),
+            request.getContacted(),
+            request.getContactResult(),
+            request.getBorrowedSlideNo(),
+            request.getBorrowerName(),
+            request.getBorrowerRelationship(),
+            request.getBorrowerPhone(),
+            request.getBorrowerUnit(),
+            request.getBorrowerIdentityNo(),
+            request.getBorrowedAt(),
+            request.getExpectedReturnAt(),
+            request.getSlideCount(),
+            request.getDepositAmount(),
+            request.getBorrowedContent(),
+            request.getReturnAbnormalInfo(),
+            resolveUserId(httpServletRequest),
+            resolveOperatorName(httpServletRequest),
+            request.getTerminalCode()));
     }
 }
