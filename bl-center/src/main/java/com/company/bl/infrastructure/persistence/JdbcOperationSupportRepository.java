@@ -9,7 +9,6 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -47,9 +46,9 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
             order by r.reagent_code asc
             """, new MapSqlParameterSource()
             .addValue("enabled", enabled == null ? null : (enabled ? 1 : 0))
-            .addValue("reagentType", blankToNull(reagentType))
-            .addValue("templateStatus", blankToNull(templateStatus))
-            .addValue("keywordLike", like), this::mapReagent);
+            .addValue("reagentType", JdbcOperationSupportRowMappers.blankToNull(reagentType))
+            .addValue("templateStatus", JdbcOperationSupportRowMappers.blankToNull(templateStatus))
+            .addValue("keywordLike", like), JdbcOperationSupportRowMappers::mapReagent);
     }
 
     @Override
@@ -64,7 +63,7 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
             from reagents r
             left join medical_order_dict_items moi on moi.id = r.order_dict_item_id
             where r.id = :id
-            """, Map.of("id", reagentId), this::mapReagent).stream().findFirst();
+            """, Map.of("id", reagentId), JdbcOperationSupportRowMappers::mapReagent).stream().findFirst();
     }
 
     @Override
@@ -82,13 +81,13 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
                or (:reagentName is not null and r.reagent_name = :reagentName)
             order by case when r.reagent_code = :reagentCode then 0 else 1 end
             """, new MapSqlParameterSource()
-            .addValue("reagentCode", blankToNull(reagentCode))
-            .addValue("reagentName", blankToNull(reagentName)), this::mapReagent).stream().findFirst();
+            .addValue("reagentCode", JdbcOperationSupportRowMappers.blankToNull(reagentCode))
+            .addValue("reagentName", JdbcOperationSupportRowMappers.blankToNull(reagentName)), JdbcOperationSupportRowMappers::mapReagent).stream().findFirst();
     }
 
     @Override
     public boolean existsMedicalOrderItem(String orderDictItemId) {
-        if (blankToNull(orderDictItemId) == null) {
+        if (JdbcOperationSupportRowMappers.blankToNull(orderDictItemId) == null) {
             return true;
         }
         return !jdbcTemplate.query("""
@@ -221,11 +220,11 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
                    or upper(coalesce(moi.order_item_name, '')) like :keywordLike)
             order by r.reagent_code asc, rs.batch_no asc
             """, new MapSqlParameterSource()
-            .addValue("stockStatus", blankToNull(stockStatus))
-            .addValue("reagentType", blankToNull(reagentType))
+            .addValue("stockStatus", JdbcOperationSupportRowMappers.blankToNull(stockStatus))
+            .addValue("reagentType", JdbcOperationSupportRowMappers.blankToNull(reagentType))
             .addValue("dateFrom", dateFrom)
             .addValue("dateTo", dateTo)
-            .addValue("keywordLike", like), this::mapReagentStock);
+            .addValue("keywordLike", like), JdbcOperationSupportRowMappers::mapReagentStock);
     }
 
     @Override
@@ -243,7 +242,7 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
             join reagents r on r.id = rs.reagent_id
             left join medical_order_dict_items moi on moi.id = r.order_dict_item_id
             where rs.id = :id
-            """, Map.of("id", stockId), this::mapReagentStock).stream().findFirst();
+            """, Map.of("id", stockId), JdbcOperationSupportRowMappers::mapReagentStock).stream().findFirst();
     }
 
     @Override
@@ -402,7 +401,7 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
             from reagent_stock_events
             where stock_id = :stockId
             order by occurred_at desc, created_at desc
-            """, Map.of("stockId", stockId), this::mapReagentStockEvent);
+            """, Map.of("stockId", stockId), JdbcOperationSupportRowMappers::mapReagentStockEvent);
     }
 
     @Override
@@ -432,7 +431,7 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
             .addValue("warningDate", Date.valueOf(today.plusDays(3650))), (rs, rowNum) -> {
             String warningType;
             BigDecimal threshold = rs.getBigDecimal("low_stock_threshold");
-            LocalDate expiryDate = toLocalDate(rs.getDate("expiry_date"));
+            LocalDate expiryDate = JdbcOperationSupportRowMappers.toLocalDate(rs.getDate("expiry_date"));
             Integer nearExpiryDays = rs.getObject("near_expiry_days") == null ? null : rs.getInt("near_expiry_days");
             if (threshold != null && rs.getBigDecimal("stock_quantity").compareTo(threshold) <= 0) {
                 warningType = "LOW_STOCK";
@@ -482,7 +481,7 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
             order by equipment_code asc
             """, new MapSqlParameterSource()
             .addValue("equipmentStatus", equipmentStatus)
-            .addValue("keywordLike", like), this::mapEquipmentRecord);
+            .addValue("keywordLike", like), JdbcOperationSupportRowMappers::mapEquipmentRecord);
     }
 
     @Override
@@ -497,7 +496,7 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
                    commonly_used, set_temperature, current_temperature, rfid, remarks
             from equipment_records
             where id = :id
-            """, Map.of("id", equipmentId), this::mapEquipmentRecord).stream().findFirst();
+            """, Map.of("id", equipmentId), JdbcOperationSupportRowMappers::mapEquipmentRecord).stream().findFirst();
     }
 
     @Override
@@ -660,7 +659,7 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
             from equipment_maintenance_logs
             where equipment_id = :equipmentId
             order by performed_at desc, created_at desc
-            """, Map.of("equipmentId", equipmentId), this::mapEquipmentMaintenanceLog);
+            """, Map.of("equipmentId", equipmentId), JdbcOperationSupportRowMappers::mapEquipmentMaintenanceLog);
     }
 
     @Override
@@ -697,7 +696,7 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
             order by next_maintenance_at asc, equipment_code asc
             """, new MapSqlParameterSource()
             .addValue("dueSoonThreshold", dueSoonThreshold), (rs, rowNum) -> {
-            LocalDateTime nextMaintenanceAt = toLocalDateTime(rs.getTimestamp("next_maintenance_at"));
+            LocalDateTime nextMaintenanceAt = JdbcOperationSupportRowMappers.toLocalDateTime(rs.getTimestamp("next_maintenance_at"));
             String warningType = nextMaintenanceAt != null && !nextMaintenanceAt.isAfter(now) ? "OVERDUE" : "DUE_SOON";
             return new EquipmentWarning(
                 rs.getString("id"),
@@ -722,8 +721,8 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
                    or upper(coalesce(remarks, '')) like :keywordLike)
             order by stock_no asc
             """, new MapSqlParameterSource()
-            .addValue("status", blankToNull(status))
-            .addValue("keywordLike", like), this::mapWhiteSlideStock);
+            .addValue("status", JdbcOperationSupportRowMappers.blankToNull(status))
+            .addValue("keywordLike", like), JdbcOperationSupportRowMappers::mapWhiteSlideStock);
     }
 
     @Override
@@ -732,7 +731,7 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
             select id, stock_no, stock_code, specification, quantity_available, quantity_borrowed, status, remarks
             from white_slide_stocks
             where id = :id
-            """, Map.of("id", stockId), this::mapWhiteSlideStock).stream().findFirst();
+            """, Map.of("id", stockId), JdbcOperationSupportRowMappers::mapWhiteSlideStock).stream().findFirst();
     }
 
     @Override
@@ -775,8 +774,8 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
                    or upper(coalesce(s.stock_code, '')) like :keywordLike)
             order by l.loaned_at desc, l.loan_no desc
             """, new MapSqlParameterSource()
-            .addValue("loanStatus", blankToNull(loanStatus))
-            .addValue("keywordLike", like), this::mapWhiteSlideLoan);
+            .addValue("loanStatus", JdbcOperationSupportRowMappers.blankToNull(loanStatus))
+            .addValue("keywordLike", like), JdbcOperationSupportRowMappers::mapWhiteSlideLoan);
     }
 
     @Override
@@ -790,7 +789,7 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
             from white_slide_loans l
             join white_slide_stocks s on s.id = l.stock_id
             where l.id = :id
-            """, Map.of("id", loanId), this::mapWhiteSlideLoan).stream().findFirst();
+            """, Map.of("id", loanId), JdbcOperationSupportRowMappers::mapWhiteSlideLoan).stream().findFirst();
     }
 
     @Override
@@ -855,202 +854,4 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
             .addValue("updatedAt", command.updatedAt()));
     }
 
-    private Reagent mapReagent(ResultSet rs, int rowNum) throws SQLException {
-        return new Reagent(
-            rs.getString("id"),
-            rs.getString("reagent_code"),
-            rs.getString("reagent_name"),
-            rs.getString("specification"),
-            rs.getString("unit"),
-            rs.getString("manufacturer"),
-            rs.getString("reagent_type"),
-            rs.getString("reagent_usage"),
-            rs.getString("order_dict_item_id"),
-            rs.getString("order_item_name"),
-            rs.getString("clone_no"),
-            rs.getString("recommended_dilution"),
-            rs.getString("application_dilution"),
-            rs.getString("template_status"),
-            rs.getObject("validity_days") == null ? null : rs.getInt("validity_days"),
-            rs.getBigDecimal("default_low_stock_threshold"),
-            rs.getBigDecimal("default_stock_threshold"),
-            rs.getObject("default_near_expiry_days") == null ? null : rs.getInt("default_near_expiry_days"),
-            rs.getBigDecimal("stain_capacity"),
-            rs.getBigDecimal("stain_threshold"),
-            rs.getInt("enabled") == 1,
-            toLocalDateTime(rs.getTimestamp("created_at")),
-            toLocalDateTime(rs.getTimestamp("updated_at")),
-            rs.getString("created_by_user_id"),
-            rs.getString("created_by_name"),
-            rs.getString("updated_by_user_id"),
-            rs.getString("updated_by_name"),
-            rs.getString("remarks"));
-    }
-
-    private ReagentStock mapReagentStock(ResultSet rs, int rowNum) throws SQLException {
-        return new ReagentStock(
-            rs.getString("id"),
-            rs.getString("reagent_id"),
-            rs.getString("reagent_code"),
-            rs.getString("reagent_name"),
-            rs.getString("reagent_type"),
-            rs.getString("order_dict_item_id"),
-            rs.getString("order_item_name"),
-            rs.getString("batch_no"),
-            rs.getBigDecimal("initial_quantity"),
-            rs.getBigDecimal("stock_quantity"),
-            rs.getBigDecimal("remaining_quantity"),
-            rs.getString("stock_status"),
-            toLocalDate(rs.getDate("production_date")),
-            toLocalDateTime(rs.getTimestamp("inbound_at")),
-            toLocalDate(rs.getDate("expiry_date")),
-            rs.getString("storage_location"),
-            rs.getBigDecimal("low_stock_threshold"),
-            rs.getObject("near_expiry_days") == null ? null : rs.getInt("near_expiry_days"),
-            rs.getObject("test_reminder_threshold") == null ? null : rs.getInt("test_reminder_threshold"),
-            rs.getObject("expiry_reminder_threshold") == null ? null : rs.getInt("expiry_reminder_threshold"),
-            rs.getString("recommended_dilution"),
-            rs.getString("application_dilution"),
-            rs.getBigDecimal("stain_capacity"),
-            rs.getBigDecimal("stain_threshold"),
-            rs.getObject("validity_days") == null ? null : rs.getInt("validity_days"),
-            toLocalDateTime(rs.getTimestamp("tested_at")),
-            toLocalDateTime(rs.getTimestamp("started_at")),
-            toLocalDateTime(rs.getTimestamp("finished_at")),
-            toLocalDateTime(rs.getTimestamp("created_at")),
-            toLocalDateTime(rs.getTimestamp("updated_at")),
-            rs.getString("created_by_user_id"),
-            rs.getString("created_by_name"),
-            rs.getString("updated_by_user_id"),
-            rs.getString("updated_by_name"),
-            rs.getString("remarks"));
-    }
-
-    private ReagentStockEvent mapReagentStockEvent(ResultSet rs, int rowNum) throws SQLException {
-        return new ReagentStockEvent(
-            rs.getString("id"),
-            rs.getString("stock_id"),
-            rs.getString("event_type"),
-            rs.getBigDecimal("quantity_delta"),
-            rs.getBigDecimal("quantity_before"),
-            rs.getBigDecimal("quantity_after"),
-            toLocalDateTime(rs.getTimestamp("occurred_at")),
-            rs.getString("operator_user_id"),
-            rs.getString("operator_name"),
-            rs.getString("remarks"));
-    }
-
-    private EquipmentRecord mapEquipmentRecord(ResultSet rs, int rowNum) throws SQLException {
-        return new EquipmentRecord(
-            rs.getString("id"),
-            rs.getString("equipment_code"),
-            rs.getString("equipment_name"),
-            rs.getString("equipment_category"),
-            rs.getString("model_no"),
-            rs.getString("equipment_status"),
-            rs.getString("location_description"),
-            toLocalDateTime(rs.getTimestamp("enabled_at")),
-            toLocalDateTime(rs.getTimestamp("next_maintenance_at")),
-            rs.getObject("quantity") == null ? null : rs.getInt("quantity"),
-            toLocalDate(rs.getDate("purchase_date")),
-            rs.getString("purchaser_name"),
-            rs.getString("purchaser_code"),
-            rs.getString("management_unit"),
-            rs.getString("management_code"),
-            rs.getString("use_unit"),
-            rs.getString("principal_code"),
-            rs.getString("principal_name"),
-            rs.getString("user_name"),
-            toLocalDate(rs.getDate("production_date")),
-            toLocalDate(rs.getDate("warranty_end_date")),
-            rs.getString("factory_no"),
-            rs.getString("depreciation_method"),
-            rs.getObject("service_life_years") == null ? null : rs.getInt("service_life_years"),
-            rs.getBigDecimal("price"),
-            rs.getString("manufacturer"),
-            rs.getString("port_no"),
-            rs.getString("ip_address"),
-            rs.getString("common_startup_time"),
-            rs.getString("common_shutdown_time"),
-            rs.getString("common_usage_content"),
-            rs.getInt("commonly_used") == 1,
-            rs.getBigDecimal("set_temperature"),
-            rs.getBigDecimal("current_temperature"),
-            rs.getString("rfid"),
-            rs.getString("remarks"));
-    }
-
-    private EquipmentMaintenanceLog mapEquipmentMaintenanceLog(ResultSet rs, int rowNum) throws SQLException {
-        return new EquipmentMaintenanceLog(
-            rs.getString("id"),
-            rs.getString("equipment_id"),
-            rs.getString("maintenance_type"),
-            rs.getString("maintenance_status"),
-            toLocalDateTime(rs.getTimestamp("performed_at")),
-            rs.getString("performed_by_user_id"),
-            rs.getString("performed_by_name"),
-            rs.getString("description"),
-            toLocalDateTime(rs.getTimestamp("next_maintenance_at")),
-            rs.getString("remarks"));
-    }
-
-    private WhiteSlideStock mapWhiteSlideStock(ResultSet rs, int rowNum) throws SQLException {
-        return new WhiteSlideStock(
-            rs.getString("id"),
-            rs.getString("stock_no"),
-            rs.getString("stock_code"),
-            rs.getString("specification"),
-            rs.getInt("quantity_available"),
-            rs.getInt("quantity_borrowed"),
-            rs.getString("status"),
-            rs.getString("remarks"));
-    }
-
-    private WhiteSlideLoan mapWhiteSlideLoan(ResultSet rs, int rowNum) throws SQLException {
-        return new WhiteSlideLoan(
-            rs.getString("id"),
-            rs.getString("loan_no"),
-            rs.getString("stock_id"),
-            rs.getString("stock_no"),
-            rs.getString("stock_code"),
-            rs.getInt("quantity"),
-            rs.getString("case_id"),
-            rs.getString("pathology_no"),
-            rs.getString("patient_name"),
-            rs.getString("embedding_box_no"),
-            rs.getString("slice_purpose"),
-            rs.getString("slice_thickness"),
-            rs.getString("borrower_name"),
-            rs.getString("borrower_identity_no"),
-            rs.getString("borrower_unit"),
-            rs.getString("borrower_phone"),
-            rs.getBigDecimal("unit_price"),
-            rs.getBigDecimal("amount"),
-            rs.getInt("save_direct_print") == 1,
-            rs.getString("loan_status"),
-            rs.getString("wax_block_usage"),
-            rs.getString("operator_user_id"),
-            rs.getString("operator_name"),
-            toLocalDateTime(rs.getTimestamp("loaned_at")),
-            toLocalDateTime(rs.getTimestamp("returned_at")),
-            rs.getString("returned_by_user_id"),
-            rs.getString("returned_by_name"),
-            rs.getString("remarks"));
-    }
-
-    private LocalDate toLocalDate(Date value) {
-        return value == null ? null : value.toLocalDate();
-    }
-
-    private LocalDateTime toLocalDateTime(Timestamp value) {
-        return value == null ? null : value.toLocalDateTime();
-    }
-
-    private String blankToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
-    }
 }

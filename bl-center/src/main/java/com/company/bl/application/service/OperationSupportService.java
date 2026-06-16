@@ -14,7 +14,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -876,84 +875,24 @@ public class OperationSupportService {
     }
 
     private void appendCsvRow(StringBuilder builder, List<String> values) {
-        for (int index = 0; index < values.size(); index++) {
-            if (index > 0) {
-                builder.append(',');
-            }
-            builder.append(escapeCsv(values.get(index)));
-        }
-        builder.append("\r\n");
-    }
-
-    private String escapeCsv(String value) {
-        if (value == null) {
-            return "";
-        }
-        boolean quoted = value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r");
-        String escaped = value.replace("\"", "\"\"");
-        return quoted ? "\"" + escaped + "\"" : escaped;
+        OperationSupportServiceSupport.appendCsvRow(builder, values);
     }
 
     private List<Map<String, String>> parseCsv(byte[] content) {
-        String text = new String(content, StandardCharsets.UTF_8);
-        if (!text.isEmpty() && text.charAt(0) == '\uFEFF') {
-            text = text.substring(1);
-        }
-        List<String> lines = text.lines().filter(line -> !line.isBlank()).toList();
-        if (lines.isEmpty()) {
-            return List.of();
-        }
-        List<String> headers = parseCsvLine(lines.get(0));
-        List<Map<String, String>> rows = new ArrayList<>();
-        for (int index = 1; index < lines.size(); index++) {
-            List<String> values = parseCsvLine(lines.get(index));
-            Map<String, String> row = new LinkedHashMap<>();
-            for (int column = 0; column < headers.size(); column++) {
-                row.put(headers.get(column), column < values.size() ? values.get(column) : null);
-            }
-            rows.add(row);
-        }
-        return rows;
-    }
-
-    private List<String> parseCsvLine(String line) {
-        List<String> values = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        boolean quoted = false;
-        for (int index = 0; index < line.length(); index++) {
-            char ch = line.charAt(index);
-            if (ch == '"') {
-                if (quoted && index + 1 < line.length() && line.charAt(index + 1) == '"') {
-                    current.append('"');
-                    index++;
-                } else {
-                    quoted = !quoted;
-                }
-            } else if (ch == ',' && !quoted) {
-                values.add(current.toString());
-                current.setLength(0);
-            } else {
-                current.append(ch);
-            }
-        }
-        values.add(current.toString());
-        return values;
+        return OperationSupportServiceSupport.parseCsv(content);
     }
 
     private BigDecimal parseDecimal(String value,
                                     int rowNumber,
                                     String field,
                                     List<OperationSupportModels.ReagentStockImportError> errors) {
-        String normalized = blankToNull(value);
-        if (normalized == null) {
-            return null;
-        }
-        try {
-            return new BigDecimal(normalized);
-        } catch (NumberFormatException exception) {
-            errors.add(importError(rowNumber, field, value, field + " must be a valid decimal number"));
-            return null;
-        }
+        return OperationSupportServiceSupport.parseDecimal(
+            value,
+            rowNumber,
+            field,
+            errors,
+            this::blankToNull,
+            args -> importError(args.rowNumber(), args.field(), args.rejectedValue(), args.message()));
     }
 
     private Integer parseInteger(String value,
@@ -961,16 +900,14 @@ public class OperationSupportService {
                                  int rowNumber,
                                  String field,
                                  List<OperationSupportModels.ReagentStockImportError> errors) {
-        String normalized = blankToNull(value);
-        if (normalized == null) {
-            return defaultValue;
-        }
-        try {
-            return Integer.parseInt(normalized);
-        } catch (NumberFormatException exception) {
-            errors.add(importError(rowNumber, field, value, field + " must be a valid integer"));
-            return null;
-        }
+        return OperationSupportServiceSupport.parseInteger(
+            value,
+            defaultValue,
+            rowNumber,
+            field,
+            errors,
+            this::blankToNull,
+            args -> importError(args.rowNumber(), args.field(), args.rejectedValue(), args.message()));
     }
 
     private LocalDate parseDate(String value) {
@@ -979,11 +916,11 @@ public class OperationSupportService {
     }
 
     private String decimal(BigDecimal value) {
-        return value == null ? "" : value.stripTrailingZeros().toPlainString();
+        return OperationSupportServiceSupport.decimal(value);
     }
 
     private String safe(String value) {
-        return value == null ? "" : value;
+        return OperationSupportServiceSupport.safe(value);
     }
 
     private String blankToNull(String value) {
@@ -1006,152 +943,23 @@ public class OperationSupportService {
     }
 
     private OperationSupportModels.ReagentView toReagentView(OperationSupportRepository.Reagent item) {
-        return new OperationSupportModels.ReagentView(
-            item.id(),
-            item.reagentCode(),
-            item.reagentName(),
-            item.specification(),
-            item.unit(),
-            item.manufacturer(),
-            item.reagentType(),
-            item.reagentUsage(),
-            item.orderDictItemId(),
-            item.orderItemName(),
-            item.cloneNo(),
-            item.recommendedDilution(),
-            item.applicationDilution(),
-            item.templateStatus(),
-            item.validityDays(),
-            item.defaultLowStockThreshold(),
-            item.defaultStockThreshold(),
-            item.defaultNearExpiryDays(),
-            item.stainCapacity(),
-            item.stainThreshold(),
-            item.enabled(),
-            stringify(item.createdAt()),
-            stringify(item.updatedAt()),
-            item.createdByName(),
-            item.updatedByName(),
-            item.remarks());
+        return OperationSupportServiceSupport.toReagentView(item, this::stringify);
     }
 
     private OperationSupportModels.ReagentStockView toReagentStockView(OperationSupportRepository.ReagentStock item) {
-        return new OperationSupportModels.ReagentStockView(
-            item.id(),
-            item.reagentId(),
-            item.reagentCode(),
-            item.reagentName(),
-            item.reagentType(),
-            item.orderDictItemId(),
-            item.orderItemName(),
-            item.batchNo(),
-            item.initialQuantity(),
-            item.stockQuantity(),
-            item.remainingQuantity(),
-            item.stockStatus(),
-            item.productionDate(),
-            stringify(item.inboundAt()),
-            item.expiryDate(),
-            item.storageLocation(),
-            item.lowStockThreshold(),
-            item.nearExpiryDays(),
-            item.testReminderThreshold(),
-            item.expiryReminderThreshold(),
-            item.recommendedDilution(),
-            item.applicationDilution(),
-            item.stainCapacity(),
-            item.stainThreshold(),
-            item.validityDays(),
-            stringify(item.testedAt()),
-            stringify(item.startedAt()),
-            stringify(item.finishedAt()),
-            stringify(item.createdAt()),
-            stringify(item.updatedAt()),
-            item.createdByName(),
-            item.updatedByName(),
-            item.remarks());
+        return OperationSupportServiceSupport.toReagentStockView(item, this::stringify);
     }
 
     private OperationSupportModels.EquipmentRecordView toEquipmentRecordView(OperationSupportRepository.EquipmentRecord item) {
-        return new OperationSupportModels.EquipmentRecordView(
-            item.id(),
-            item.equipmentCode(),
-            item.equipmentName(),
-            item.equipmentCategory(),
-            item.modelNo(),
-            item.equipmentStatus(),
-            item.locationDescription(),
-            stringify(item.enabledAt()),
-            stringify(item.nextMaintenanceAt()),
-            item.quantity(),
-            stringifyDate(item.purchaseDate()),
-            item.purchaserName(),
-            item.purchaserCode(),
-            item.managementUnit(),
-            item.managementCode(),
-            item.useUnit(),
-            item.principalCode(),
-            item.principalName(),
-            item.userName(),
-            stringifyDate(item.productionDate()),
-            stringifyDate(item.warrantyEndDate()),
-            item.factoryNo(),
-            item.depreciationMethod(),
-            item.serviceLifeYears(),
-            item.price(),
-            item.manufacturer(),
-            item.portNo(),
-            item.ipAddress(),
-            item.commonStartupTime(),
-            item.commonShutdownTime(),
-            item.commonUsageContent(),
-            item.commonlyUsed(),
-            item.setTemperature(),
-            item.currentTemperature(),
-            item.rfid(),
-            item.remarks());
+        return OperationSupportServiceSupport.toEquipmentRecordView(item, this::stringify, this::stringifyDate);
     }
 
     private OperationSupportModels.WhiteSlideStockView toWhiteSlideStockView(OperationSupportRepository.WhiteSlideStock item) {
-        return new OperationSupportModels.WhiteSlideStockView(
-            item.id(),
-            item.stockNo(),
-            item.stockCode(),
-            item.specification(),
-            item.quantityAvailable(),
-            item.quantityBorrowed(),
-            item.status(),
-            item.remarks());
+        return OperationSupportServiceSupport.toWhiteSlideStockView(item);
     }
 
     private OperationSupportModels.WhiteSlideLoanView toWhiteSlideLoanView(OperationSupportRepository.WhiteSlideLoan item) {
-        return new OperationSupportModels.WhiteSlideLoanView(
-            item.id(),
-            item.loanNo(),
-            item.stockId(),
-            item.stockNo(),
-            item.stockCode(),
-            item.quantity(),
-            item.caseId(),
-            item.pathologyNo(),
-            item.patientName(),
-            item.embeddingBoxNo(),
-            item.slicePurpose(),
-            item.sliceThickness(),
-            item.borrowerName(),
-            item.borrowerIdentityNo(),
-            item.borrowerUnit(),
-            item.borrowerPhone(),
-            item.unitPrice(),
-            item.amount(),
-            item.saveDirectPrint(),
-            item.loanStatus(),
-            item.waxBlockUsage(),
-            item.operatorName(),
-            stringify(item.loanedAt()),
-            stringify(item.returnedAt()),
-            item.returnedByName(),
-            item.remarks());
+        return OperationSupportServiceSupport.toWhiteSlideLoanView(item, this::stringify);
     }
 
     private List<String> normalizeIds(List<String> values) {
