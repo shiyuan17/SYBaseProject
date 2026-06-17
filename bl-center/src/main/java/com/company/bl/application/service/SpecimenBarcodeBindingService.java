@@ -37,7 +37,6 @@ class SpecimenBarcodeBindingService {
         durationMetric = "specimen_barcode_bind_duration")
     Specimen bindSpecimenBarcode(SpecimenBarcodeBindingCommand command) {
         Specimen specimen = specimenWorkflowSupport.getSpecimenById(command.specimenId());
-        validateBindableSpecimen(specimen, "绑定条码");
         if (!specimenWorkflowSupport.blank(specimen.barcode())) {
             throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Specimen barcode already bound");
         }
@@ -72,7 +71,7 @@ class SpecimenBarcodeBindingService {
         durationMetric = "specimen_barcode_rebind_duration")
     Specimen rebindSpecimenBarcode(SpecimenBarcodeBindingCommand command) {
         Specimen specimen = specimenWorkflowSupport.getSpecimenById(command.specimenId());
-        validateBindableSpecimen(specimen, "重绑条码");
+        validateWorkflowLockedSpecimen(specimen, "重绑条码");
         if (specimenWorkflowSupport.blank(specimen.barcode())) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen barcode must be bound before rebinding");
         }
@@ -110,7 +109,7 @@ class SpecimenBarcodeBindingService {
         durationMetric = "specimen_barcode_unbind_duration")
     Specimen unbindSpecimenBarcode(SpecimenBarcodeUnbindCommand command) {
         Specimen specimen = specimenWorkflowSupport.getSpecimenById(command.specimenId());
-        validateBindableSpecimen(specimen, "取消绑定条码");
+        validateWorkflowLockedSpecimen(specimen, "取消绑定条码");
         if (specimenWorkflowSupport.blank(specimen.barcode())) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen barcode is not bound");
         }
@@ -135,7 +134,7 @@ class SpecimenBarcodeBindingService {
         return specimenWorkflowSupport.getSpecimenById(specimen.id());
     }
 
-    private void validateBindableSpecimen(Specimen specimen, String operationLabel) {
+    private void validateWorkflowLockedSpecimen(Specimen specimen, String operationLabel) {
         if (specimenWorkflowSupport.isReceiptTerminalStatus(specimen.specimenStatus())) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Specimen already reached receipt terminal status");
         }

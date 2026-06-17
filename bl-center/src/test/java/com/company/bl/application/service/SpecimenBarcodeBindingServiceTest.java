@@ -16,6 +16,7 @@ import java.util.Optional;
 
 import static com.company.bl.application.service.SpecimenWorkflowModels.SpecimenBarcodeBindingCommand;
 import static com.company.bl.application.service.SpecimenWorkflowModels.SpecimenBarcodeUnbindCommand;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
@@ -51,6 +52,29 @@ class SpecimenBarcodeBindingServiceTest {
             new SpecimenBarcodeBindingCommand("SPEC-1", "BC-NEW-1", "u1", "Operator", "TERM-1", "remark")))
             .isInstanceOf(BlBusinessException.class)
             .hasMessageContaining("already bound");
+    }
+
+    @Test
+    void bindShouldAllowUncheckedWorkflowLockedSpecimenWhenBarcodeIsBlank() {
+        SpecimenWorkflowSupport support = SpecimenWorkflowServiceTestFixtures.support(applicationRepository, queryRepository);
+        when(queryRepository.findSpecimenById("SPEC-1"))
+            .thenReturn(Optional.of(SpecimenWorkflowServiceTestFixtures.specimen(
+                "APP-1",
+                "SPEC-1",
+                null,
+                SpecimenStatus.CHECKED_IN,
+                FixationStatus.COMPLETED,
+                "VERIFIED",
+                LocalDateTime.now().minusMinutes(40),
+                "CHECKED_IN",
+                null)));
+        when(queryRepository.findSpecimenByBarcode("BC-NEW-1"))
+            .thenReturn(Optional.empty());
+        SpecimenBarcodeBindingService service = new SpecimenBarcodeBindingService(commandRepository, support);
+
+        assertThatCode(() -> service.bindSpecimenBarcode(
+            new SpecimenBarcodeBindingCommand("SPEC-1", "BC-NEW-1", "u1", "Operator", "TERM-1", "remark")))
+            .doesNotThrowAnyException();
     }
 
     @Test

@@ -8,6 +8,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -89,7 +90,7 @@ class SpecimenBarcodeBindingIntegrationTest extends AbstractSpecimenWorkflowInte
     }
 
     @Test
-    void shouldRejectBindingOperationsAfterCheckIn() throws Exception {
+    void shouldAllowFirstBindingAfterWorkflowProgressButKeepRebindAndUnbindLocked() throws Exception {
         String applicationId = createApplication("APP-BIND-409");
         JsonNode registration = registerSpecimens(
             applicationId,
@@ -101,6 +102,11 @@ class SpecimenBarcodeBindingIntegrationTest extends AbstractSpecimenWorkflowInte
         String specimenId = registration.path("specimens").get(0).path("id").asText();
 
         prepareTransportReadySpecimen(barcode);
+        jdbcTemplate.update("""
+            update specimens
+            set barcode = null
+            where id = :specimenId
+            """, Map.of("specimenId", specimenId));
 
         mockMvc.perform(authorized(post("/api/v1/specimens/{specimenId}/barcode-binding", specimenId), USER_REGISTER)
                 .contentType(APPLICATION_JSON)
@@ -111,9 +117,31 @@ class SpecimenBarcodeBindingIntegrationTest extends AbstractSpecimenWorkflowInte
                       "remarks": "已入库后尝试绑定"
                     }
                     """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.barcode").value("BC-BIND-409-NEW"))
+            .andExpect(jsonPath("$.data.barcodeBindingStatus").value("BOUND"));
+
+        assertThat(querySingleString(
+            """
+                select barcode
+                from specimens
+                where id = :specimenId
+                """,
+            "specimenId",
+            specimenId)).isEqualTo("BC-BIND-409-NEW");
+
+        mockMvc.perform(authorized(put("/api/v1/specimens/{specimenId}/barcode-binding", specimenId), USER_REGISTER)
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "targetBarcode": "BC-BIND-409-REBIND",
+                      "terminalCode": "TERM-BIND-409-REBIND",
+                      "remarks": "已入库后尝试重绑"
+                    }
+                    """))
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.code").value("OPERATION_NOT_ALLOWED"))
-            .andExpect(jsonPath("$.message").value("绑定条码前标本不能已入库"));
+            .andExpect(jsonPath("$.message").value("重绑条码前标本不能已入库"));
 
         mockMvc.perform(authorized(delete("/api/v1/specimens/{specimenId}/barcode-binding", specimenId), USER_REGISTER)
                 .param("terminalCode", "TERM-BIND-410")
@@ -121,6 +149,75 @@ class SpecimenBarcodeBindingIntegrationTest extends AbstractSpecimenWorkflowInte
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.code").value("OPERATION_NOT_ALLOWED"))
             .andExpect(jsonPath("$.message").value("取消绑定条码前标本不能已入库"));
+    }
+
+    @Test
+    void shouldAllowFirstBindingAfterReceiptTerminalStatus() throws Exception {
+        String applicationId = createApplication("APP-BIND-RECEIVED-001");
+        JsonNode registration = registerSpecimens(
+            applicationId,
+            USER_REGISTER,
+            "P-01",
+            "/api/v1/specimens/register",
+            "BC-BIND-RECEIVED-001");
+        String barcode = registration.path("specimens").get(0).path("barcode").asText();
+        String specimenId = registration.path("specimens").get(0).path("id").asText();
+
+        prepareTransportReadySpecimen(barcode);
+        String orderId = createTransportOrder(applicationId, barcode).path("id").asText();
+        postJson("/api/v1/transport-orders/%s/handover".formatted(orderId), USER_TRANSPORT, """
+            {
+              "receiverUserName": "receiver-complete",
+              "terminalCode": "T-BIND-RECEIVED"
+            }
+            """)
+            .andExpect(status().isOk());
+        postJson("/api/v1/specimen-receipts", USER_RECEIVE, """
+            {
+              "transportOrderId": "%s",
+              "receivedByName": "receiver-complete",
+              "logisticsStaffName": "物流员绑定终态",
+              "terminalCode": "T-BIND-RECEIVED",
+              "items": [
+                {
+                  "specimenBarcode": "%s",
+                  "receiptStatus": "RECEIVED",
+                  "containerCount": 1,
+                  "qualityCheckResult": "PASSED"
+                }
+              ]
+            }
+            """.formatted(orderId, barcode))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.receiptStatus").value("RECEIVED"));
+
+        jdbcTemplate.update("""
+            update specimens
+            set barcode = null
+            where id = :specimenId
+            """, Map.of("specimenId", specimenId));
+
+        mockMvc.perform(authorized(post("/api/v1/specimens/{specimenId}/barcode-binding", specimenId), USER_REGISTER)
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "targetBarcode": "BC-BIND-RECEIVED-NEW",
+                      "terminalCode": "TERM-BIND-RECEIVED",
+                      "remarks": "接收后首次绑定"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.barcode").value("BC-BIND-RECEIVED-NEW"))
+            .andExpect(jsonPath("$.data.barcodeBindingStatus").value("BOUND"));
+
+        assertThat(querySingleString(
+            """
+                select barcode
+                from specimens
+                where id = :specimenId
+                """,
+            "specimenId",
+            specimenId)).isEqualTo("BC-BIND-RECEIVED-NEW");
     }
 
     private String workbenchSavePayload(String inpatientNo, String specimenName, String specimenSite) {
