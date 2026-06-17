@@ -42,6 +42,7 @@ public final class DiagnosticReportViews {
         String caseStatus,
         String patientName,
         String patientId,
+        String patientIdDisplay,
         String patientGender,
         String patientAge,
         String applicationType,

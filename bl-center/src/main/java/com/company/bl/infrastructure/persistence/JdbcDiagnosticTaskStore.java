@@ -216,9 +216,39 @@ final class JdbcDiagnosticTaskStore {
                 pc.application_id,
                 a.application_no,
                 a.patient_name,
+                a.patient_id,
+                (
+                    select w.id_no
+                    from application_registration_workbench w
+                    where w.application_id = pc.application_id
+                    order by w.updated_at desc, w.application_id desc
+                    fetch first 1 rows only
+                ) as patient_id_display,
                 dt.case_id,
                 dt.pathology_no,
                 dt.specimen_id,
+                a.application_type,
+                (
+                    select w.check_item
+                    from application_registration_workbench w
+                    where w.application_id = pc.application_id
+                    order by w.updated_at desc, w.application_id desc
+                    fetch first 1 rows only
+                ) as check_item,
+                coalesce((
+                    select count(1)
+                    from sampling_blocks sb
+                    where sb.case_id = dt.case_id
+                ), 0) as block_count,
+                a.submitting_department_name,
+                (
+                    select listagg(trim(s.specimen_name_standardized), '、') within group (
+                        order by trim(s.specimen_name_standardized)
+                    )
+                    from specimens s
+                    where s.case_id = dt.case_id
+                      and trim(coalesce(s.specimen_name_standardized, '')) <> ''
+                ) as specimen_name,
                 dt.task_type,
                 dt.status,
                 dt.priority,
@@ -290,9 +320,16 @@ final class JdbcDiagnosticTaskStore {
             rs.getString("application_id"),
             rs.getString("application_no"),
             rs.getString("patient_name"),
+            rs.getString("patient_id"),
+            rs.getString("patient_id_display"),
             rs.getString("case_id"),
             rs.getString("pathology_no"),
             rs.getString("specimen_id"),
+            rs.getString("application_type"),
+            rs.getString("check_item"),
+            jdbcInteger(rs, "block_count"),
+            rs.getString("submitting_department_name"),
+            rs.getString("specimen_name"),
             rs.getString("task_type"),
             rs.getString("status"),
             rs.getString("priority"),
@@ -324,5 +361,10 @@ final class JdbcDiagnosticTaskStore {
 
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {
         return timestamp == null ? null : timestamp.toLocalDateTime();
+    }
+
+    private Integer jdbcInteger(ResultSet rs, String column) throws SQLException {
+        int value = rs.getInt(column);
+        return rs.wasNull() ? null : value;
     }
 }

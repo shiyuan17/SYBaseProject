@@ -18,6 +18,8 @@ public record DiagnosticWorkbenchResponse(
     String patientName,
     @Schema(description = "Patient ID")
     String patientId,
+    @Schema(description = "Patient ID display value from registration workbench id_no")
+    String patientIdDisplay,
     @Schema(description = "Patient gender")
     String patientGender,
     @Schema(description = "Patient age")
