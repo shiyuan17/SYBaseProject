@@ -153,6 +153,24 @@ final class JdbcOperationSupportRowMappers {
             rs.getString("remarks"));
     }
 
+    static OperationSupportRepository.EquipmentUsageRecord mapEquipmentUsageRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new OperationSupportRepository.EquipmentUsageRecord(
+            rs.getString("id"),
+            rs.getString("equipment_id"),
+            rs.getString("equipment_category_snapshot"),
+            rs.getString("equipment_name_snapshot"),
+            rs.getInt("commonly_used") == 1,
+            toLocalDateTime(rs.getTimestamp("started_at")),
+            toLocalDateTime(rs.getTimestamp("ended_at")),
+            rs.getBigDecimal("runtime_hours"),
+            rs.getObject("diagnosis_count") == null ? null : rs.getInt("diagnosis_count"),
+            rs.getString("equipment_condition"),
+            rs.getString("operator_user_id"),
+            rs.getString("operator_name"),
+            rs.getString("usage_content"),
+            rs.getString("remarks"));
+    }
+
     static OperationSupportRepository.WhiteSlideStock mapWhiteSlideStock(ResultSet rs, int rowNum) throws SQLException {
         return new OperationSupportRepository.WhiteSlideStock(
             rs.getString("id"),

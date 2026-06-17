@@ -396,6 +396,50 @@ public final class OperationSupportModels {
     ) {
     }
 
+    public record EquipmentCommonDeviceView(
+        String equipmentId,
+        String equipmentCode,
+        String equipmentName,
+        String equipmentCategory,
+        String equipmentStatus,
+        String locationDescription
+    ) {
+    }
+
+    public record EquipmentUsageRecordView(
+        String id,
+        String equipmentId,
+        String equipmentCategory,
+        String equipmentName,
+        boolean commonlyUsed,
+        String startedAt,
+        String endedAt,
+        BigDecimal runtimeHours,
+        Integer diagnosisCount,
+        String equipmentCondition,
+        String operatorName,
+        String usageContent,
+        String remarks
+    ) {
+    }
+
+    public record CreateEquipmentUsageRecordCommand(
+        String equipmentId,
+        String equipmentCategory,
+        String equipmentName,
+        boolean commonlyUsed,
+        String startedAt,
+        String endedAt,
+        BigDecimal runtimeHours,
+        Integer diagnosisCount,
+        String equipmentCondition,
+        String operatorUserId,
+        String operatorName,
+        String usageContent,
+        String remarks
+    ) {
+    }
+
     public record WhiteSlideStockView(
         String id,
         String stockNo,

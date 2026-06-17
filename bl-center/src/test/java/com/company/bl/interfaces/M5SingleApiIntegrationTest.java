@@ -14,6 +14,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -382,6 +383,30 @@ class M5SingleApiIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTe
             .andExpect(jsonPath("$.data.id").value(equipmentId))
             .andExpect(jsonPath("$.data.equipmentName").value("Single Api Equipment Updated"))
             .andExpect(jsonPath("$.data.equipmentStatus").value("MAINTENANCE"));
+
+        mockMvc.perform(authorized(post("/api/v1/equipment-usage-records"), USER_M1_REAGENT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "equipmentId":"%s",
+                      "equipmentCategory":"MICROTOME",
+                      "equipmentName":"Single Api Equipment Updated",
+                      "commonlyUsed":false,
+                      "startedAt":"2026-06-16T08:00:00",
+                      "endedAt":"2026-06-16T17:00:00",
+                      "runtimeHours":9,
+                      "diagnosisCount":4,
+                      "equipmentCondition":"正常",
+                      "usageOperatorName":"设备员甲",
+                      "usageContent":"常规切片"
+                    }
+                    """.formatted(equipmentId)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.equipmentId").value(equipmentId))
+            .andExpect(jsonPath("$.data.equipmentName").value("Single Api Equipment Updated"));
+
+        mockMvc.perform(authorized(get("/api/v1/equipment-usage-records/common-devices"), USER_M1_REAGENT))
+            .andExpect(status().isOk());
 
         responseBody(postJson("/api/v1/reagent-stocks", USER_M1_REAGENT, """
             {

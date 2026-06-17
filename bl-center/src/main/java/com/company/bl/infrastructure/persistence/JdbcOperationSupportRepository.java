@@ -709,6 +709,64 @@ public class JdbcOperationSupportRepository implements OperationSupportRepositor
     }
 
     @Override
+    public List<EquipmentRecord> findCommonlyUsedEquipmentRecords() {
+        return jdbcTemplate.query("""
+            select id, equipment_code, equipment_name, equipment_category, model_no, equipment_status,
+                   location_description, enabled_at, next_maintenance_at, quantity, purchase_date,
+                   purchaser_name, purchaser_code, management_unit, management_code, use_unit,
+                   principal_code, principal_name, user_name, production_date, warranty_end_date,
+                   factory_no, depreciation_method, service_life_years, price, manufacturer,
+                   port_no, ip_address, common_startup_time, common_shutdown_time, common_usage_content,
+                   commonly_used, set_temperature, current_temperature, rfid, remarks
+            from equipment_records
+            where commonly_used = 1
+              and equipment_status = 'ACTIVE'
+            order by equipment_code asc
+            """, JdbcOperationSupportRowMappers::mapEquipmentRecord);
+    }
+
+    @Override
+    public void insertEquipmentUsageRecord(CreateEquipmentUsageRecordCommand command) {
+        jdbcTemplate.update("""
+            insert into equipment_usage_records
+                (id, equipment_id, equipment_category_snapshot, equipment_name_snapshot, commonly_used,
+                 started_at, ended_at, runtime_hours, diagnosis_count, equipment_condition,
+                 operator_user_id, operator_name, usage_content, remarks, created_at, updated_at)
+            values
+                (:id, :equipmentId, :equipmentCategorySnapshot, :equipmentNameSnapshot, :commonlyUsed,
+                 :startedAt, :endedAt, :runtimeHours, :diagnosisCount, :equipmentCondition,
+                 :operatorUserId, :operatorName, :usageContent, :remarks, :createdAt, :updatedAt)
+            """, new MapSqlParameterSource()
+            .addValue("id", command.id())
+            .addValue("equipmentId", command.equipmentId())
+            .addValue("equipmentCategorySnapshot", command.equipmentCategorySnapshot())
+            .addValue("equipmentNameSnapshot", command.equipmentNameSnapshot())
+            .addValue("commonlyUsed", command.commonlyUsed() ? 1 : 0)
+            .addValue("startedAt", command.startedAt())
+            .addValue("endedAt", command.endedAt())
+            .addValue("runtimeHours", command.runtimeHours())
+            .addValue("diagnosisCount", command.diagnosisCount())
+            .addValue("equipmentCondition", command.equipmentCondition())
+            .addValue("operatorUserId", command.operatorUserId())
+            .addValue("operatorName", command.operatorName())
+            .addValue("usageContent", command.usageContent())
+            .addValue("remarks", command.remarks())
+            .addValue("createdAt", command.createdAt())
+            .addValue("updatedAt", command.updatedAt()));
+    }
+
+    @Override
+    public Optional<EquipmentUsageRecord> findEquipmentUsageRecordById(String usageRecordId) {
+        return jdbcTemplate.query("""
+            select id, equipment_id, equipment_category_snapshot, equipment_name_snapshot, commonly_used,
+                   started_at, ended_at, runtime_hours, diagnosis_count, equipment_condition,
+                   operator_user_id, operator_name, usage_content, remarks
+            from equipment_usage_records
+            where id = :id
+            """, Map.of("id", usageRecordId), JdbcOperationSupportRowMappers::mapEquipmentUsageRecord).stream().findFirst();
+    }
+
+    @Override
     public List<WhiteSlideStock> findWhiteSlideStocks(String keyword, String status) {
         String like = keyword == null || keyword.isBlank() ? null : "%" + keyword.trim().toUpperCase() + "%";
         return jdbcTemplate.query("""

@@ -52,6 +52,12 @@ public interface OperationSupportRepository {
 
     List<EquipmentWarning> findEquipmentWarnings(LocalDateTime now, LocalDateTime dueSoonThreshold);
 
+    List<EquipmentRecord> findCommonlyUsedEquipmentRecords();
+
+    void insertEquipmentUsageRecord(CreateEquipmentUsageRecordCommand command);
+
+    Optional<EquipmentUsageRecord> findEquipmentUsageRecordById(String usageRecordId);
+
     List<WhiteSlideStock> findWhiteSlideStocks(String keyword, String status);
 
     Optional<WhiteSlideStock> findWhiteSlideStockById(String stockId);
@@ -468,6 +474,44 @@ public interface OperationSupportRepository {
         String warningType,
         LocalDateTime nextMaintenanceAt,
         String equipmentStatus
+    ) {
+    }
+
+    record EquipmentUsageRecord(
+        String id,
+        String equipmentId,
+        String equipmentCategorySnapshot,
+        String equipmentNameSnapshot,
+        boolean commonlyUsed,
+        LocalDateTime startedAt,
+        LocalDateTime endedAt,
+        BigDecimal runtimeHours,
+        Integer diagnosisCount,
+        String equipmentCondition,
+        String operatorUserId,
+        String operatorName,
+        String usageContent,
+        String remarks
+    ) {
+    }
+
+    record CreateEquipmentUsageRecordCommand(
+        String id,
+        String equipmentId,
+        String equipmentCategorySnapshot,
+        String equipmentNameSnapshot,
+        boolean commonlyUsed,
+        LocalDateTime startedAt,
+        LocalDateTime endedAt,
+        BigDecimal runtimeHours,
+        Integer diagnosisCount,
+        String equipmentCondition,
+        String operatorUserId,
+        String operatorName,
+        String usageContent,
+        String remarks,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
     ) {
     }
 

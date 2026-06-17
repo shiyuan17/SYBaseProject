@@ -539,6 +539,64 @@ public class OperationSupportService {
             item.remarks())).toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<OperationSupportModels.EquipmentCommonDeviceView> listEquipmentCommonDevices() {
+        return operationSupportRepository.findCommonlyUsedEquipmentRecords().stream()
+            .map(OperationSupportServiceSupport::toEquipmentCommonDeviceView)
+            .toList();
+    }
+
+    @Transactional
+    public OperationSupportModels.EquipmentUsageRecordView createEquipmentUsageRecord(
+        OperationSupportModels.CreateEquipmentUsageRecordCommand command
+    ) {
+        return operationAuditService.audit("M5_SUPPORT", "EQUIPMENT_USAGE", "create_equipment_usage_record", () -> {
+            LocalDateTime startedAt = parseDateTime(command.startedAt());
+            LocalDateTime endedAt = parseDateTime(command.endedAt());
+            if (startedAt == null || endedAt == null) {
+                throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Started at and ended at are required");
+            }
+            if (endedAt.isBefore(startedAt)) {
+                throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Ended at must be after started at");
+            }
+            if (command.runtimeHours() == null || command.runtimeHours().compareTo(BigDecimal.ZERO) < 0) {
+                throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Runtime hours must be greater than or equal to zero");
+            }
+            if (command.diagnosisCount() == null || command.diagnosisCount() < 0) {
+                throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Diagnosis count must be greater than or equal to zero");
+            }
+
+            OperationSupportRepository.EquipmentRecord equipment = null;
+            if (blankToNull(command.equipmentId()) != null) {
+                equipment = operationSupportRepository.findEquipmentRecordById(command.equipmentId())
+                    .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Equipment record not found"));
+            }
+
+            String usageRecordId = diagnosticReportSupport.nextId("EQU");
+            LocalDateTime now = LocalDateTime.now();
+            operationSupportRepository.insertEquipmentUsageRecord(new OperationSupportRepository.CreateEquipmentUsageRecordCommand(
+                usageRecordId,
+                equipment == null ? null : equipment.id(),
+                blankToNull(command.equipmentCategory()),
+                blankToNull(command.equipmentName()),
+                command.commonlyUsed(),
+                startedAt,
+                endedAt,
+                command.runtimeHours(),
+                command.diagnosisCount(),
+                blankToNull(command.equipmentCondition()),
+                command.operatorUserId(),
+                blankToNull(command.operatorName()),
+                blankToNull(command.usageContent()),
+                blankToNull(command.remarks()),
+                now,
+                now));
+            return OperationSupportServiceSupport.toEquipmentUsageRecordView(
+                operationSupportRepository.findEquipmentUsageRecordById(usageRecordId).orElseThrow(),
+                this::stringify);
+        }, OperationSupportModels.EquipmentUsageRecordView::id, null, command.operatorUserId(), command.operatorName(), command::equipmentName);
+    }
+
     @Transactional
     public OperationSupportModels.EquipmentMaintenanceLogView createEquipmentMaintenanceLog(OperationSupportModels.CreateEquipmentMaintenanceLogCommand command) {
         return operationAuditService.audit("M5_SUPPORT", "EQUIPMENT_MAINTENANCE", "create_equipment_maintenance_log", () -> {

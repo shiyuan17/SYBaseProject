@@ -206,6 +206,38 @@ final class OperationSupportServiceSupport {
             item.remarks());
     }
 
+    static OperationSupportModels.EquipmentCommonDeviceView toEquipmentCommonDeviceView(
+        OperationSupportRepository.EquipmentRecord item
+    ) {
+        return new OperationSupportModels.EquipmentCommonDeviceView(
+            item.id(),
+            item.equipmentCode(),
+            item.equipmentName(),
+            item.equipmentCategory(),
+            item.equipmentStatus(),
+            item.locationDescription());
+    }
+
+    static OperationSupportModels.EquipmentUsageRecordView toEquipmentUsageRecordView(
+        OperationSupportRepository.EquipmentUsageRecord item,
+        java.util.function.Function<LocalDateTime, String> stringify
+    ) {
+        return new OperationSupportModels.EquipmentUsageRecordView(
+            item.id(),
+            item.equipmentId(),
+            item.equipmentCategorySnapshot(),
+            item.equipmentNameSnapshot(),
+            item.commonlyUsed(),
+            stringify.apply(item.startedAt()),
+            stringify.apply(item.endedAt()),
+            item.runtimeHours(),
+            item.diagnosisCount(),
+            item.equipmentCondition(),
+            item.operatorName(),
+            item.usageContent(),
+            item.remarks());
+    }
+
     static OperationSupportModels.WhiteSlideStockView toWhiteSlideStockView(OperationSupportRepository.WhiteSlideStock item) {
         return new OperationSupportModels.WhiteSlideStockView(
             item.id(),

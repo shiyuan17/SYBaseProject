@@ -401,4 +401,61 @@ class OperationSupportIntegrationTest extends AbstractDiagnosticWorkflowIntegrat
                     """.formatted(equipmentId)))
             .andExpect(status().isForbidden());
     }
+
+    @Test
+    void shouldCreateEquipmentUsageRecordAndListCommonDevices() throws Exception {
+        JsonNode equipment = responseBody(postJson("/api/v1/equipment-records", USER_M1_REAGENT, """
+            {
+              "equipmentCode":"EQ-USE-%d",
+              "equipmentName":"生物显微镜",
+              "equipmentCategory":"显微镜",
+              "equipmentStatus":"ACTIVE",
+              "locationDescription":"镜检室",
+              "commonlyUsed":true
+            }
+            """.formatted(System.nanoTime())), 200);
+        String equipmentId = equipment.path("id").asText();
+
+        JsonNode commonDevices = responseBody(mockMvc.perform(authorized(
+            get("/api/v1/equipment-usage-records/common-devices"), USER_M1_REAGENT)), 200);
+        assertThat(commonDevices).hasSizeGreaterThanOrEqualTo(1);
+        assertThat(commonDevices.toString()).contains(equipmentId);
+
+        JsonNode usageRecord = responseBody(postJson("/api/v1/equipment-usage-records", USER_M1_REAGENT, """
+            {
+              "equipmentId":"%s",
+              "equipmentCategory":"显微镜",
+              "equipmentName":"生物显微镜",
+              "commonlyUsed":true,
+              "startedAt":"2026-06-16T08:00:00",
+              "endedAt":"2026-06-16T17:00:00",
+              "runtimeHours":9,
+              "diagnosisCount":12,
+              "equipmentCondition":"正常",
+              "usageOperatorName":"设备员甲",
+              "usageContent":"常规镜检",
+              "remarks":"班次记录"
+            }
+            """.formatted(equipmentId)), 200);
+        assertThat(usageRecord.path("equipmentId").asText()).isEqualTo(equipmentId);
+        assertThat(usageRecord.path("runtimeHours").asText()).isEqualTo("9.0");
+        assertThat(usageRecord.path("equipmentCondition").asText()).isEqualTo("正常");
+
+        mockMvc.perform(authorized(post("/api/v1/equipment-usage-records"), USER_M1_REAGENT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "equipmentCategory":"显微镜",
+                      "equipmentName":"生物显微镜",
+                      "commonlyUsed":false,
+                      "startedAt":"2026-06-16T17:00:00",
+                      "endedAt":"2026-06-16T08:00:00",
+                      "runtimeHours":-1,
+                      "diagnosisCount":-1,
+                      "equipmentCondition":"正常",
+                      "usageOperatorName":"设备员甲"
+                    }
+                    """))
+            .andExpect(status().isBadRequest());
+    }
 }
