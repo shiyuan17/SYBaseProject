@@ -39,6 +39,7 @@ class SpecimenWorkflowApplicationQuerySupport extends AbstractSpecimenWorkflowQu
                     page,
                     size,
                     specimenWorkflowSupport.trim(query.applicationNo()),
+                    specimenWorkflowSupport.trim(query.pathologyNo()),
                     specimenWorkflowSupport.trim(query.patientName()),
                     specimenWorkflowSupport.trim(query.submittingDepartmentId()),
                     specimenWorkflowSupport.normalizeStatus(query.applicationType()),

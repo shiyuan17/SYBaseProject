@@ -139,6 +139,7 @@ public interface SpecimenWorkflowRepository extends SpecimenWorkflowQueryReposit
         int page,
         int size,
         String applicationNo,
+        String pathologyNo,
         String patientName,
         String submittingDepartmentId,
         String applicationType,

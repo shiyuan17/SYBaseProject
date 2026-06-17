@@ -166,6 +166,7 @@ abstract class JdbcSpecimenWorkflowTransportMutationSupport extends JdbcSpecimen
     }
 
     public void updatePathologyCasePathologyNo(String caseId, String pathologyNo) {
+        LocalDateTime updatedAt = LocalDateTime.now();
         jdbcTemplate.update("""
             update pathology_cases
             set pathology_no = :pathologyNo,
@@ -174,7 +175,16 @@ abstract class JdbcSpecimenWorkflowTransportMutationSupport extends JdbcSpecimen
             """, new MapSqlParameterSource()
             .addValue("caseId", caseId)
             .addValue("pathologyNo", pathologyNo)
-            .addValue("updatedAt", LocalDateTime.now()));
+            .addValue("updatedAt", updatedAt));
+        jdbcTemplate.update("""
+            update diagnostic_tasks
+            set pathology_no = :pathologyNo,
+                updated_at = :updatedAt
+            where case_id = :caseId
+            """, new MapSqlParameterSource()
+            .addValue("caseId", caseId)
+            .addValue("pathologyNo", pathologyNo)
+            .addValue("updatedAt", updatedAt));
     }
 
     public void insertSpecimenReceipt(String applicationId,

@@ -174,6 +174,49 @@ class ApplicationQueryAndDetailIntegrationTest extends AbstractApplicationContro
     }
 
     @Test
+    void shouldFilterApplicationsByPathologyNo() throws Exception {
+        String applicationNo = "APP-LIST-PATHOLOGY-FILTER-" + System.nanoTime();
+        JsonNode application = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "%s",
+                      "applicationType": "ROUTINE",
+                      "applicationDate": "2026-06-17",
+                      "patientId": "P-LIST-PATHOLOGY-FILTER",
+                      "patientName": "Patient Pathology Filter",
+                      "submittingDepartmentId": "DEPT-LIST",
+                      "submittingDepartmentName": "List Department",
+                      "submittingDoctorUserId": "DOC-LIST-PATHOLOGY-FILTER",
+                      "submittingDoctorName": "Dr Pathology Filter",
+                      "clinicalDiagnosis": "pathology filter diagnosis",
+                      "specimenSite": "Lung"
+                    }
+                    """.formatted(applicationNo))), 201);
+        String applicationId = application.path("id").asText();
+
+        jdbcTemplate.update("""
+                insert into pathology_cases
+                    (id, application_id, pathology_no, case_status, created_at, updated_at)
+                values
+                    (:id, :applicationId, :pathologyNo, 'RECEIVED', current_timestamp, current_timestamp)
+                """,
+            new MapSqlParameterSource()
+                .addValue("id", "CASE-LIST-PATHOLOGY-FILTER-" + System.nanoTime())
+                .addValue("applicationId", applicationId)
+                .addValue("pathologyNo", "BL202606170099"));
+
+        mockMvc.perform(authorized(get("/api/v1/applications"), USER_TRACKING)
+                .param("page", "1")
+                .param("size", "20")
+                .param("pathologyNo", "617009"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].applicationNo").value(applicationNo))
+            .andExpect(jsonPath("$.data.items[0].pathologyNo").value("BL202606170099"));
+    }
+
+    @Test
     void shouldReturnEmptyApplicationListWhenNoRecordsMatch() throws Exception {
         mockMvc.perform(authorized(get("/api/v1/applications"), USER_TRACKING)
                 .param("page", "1")

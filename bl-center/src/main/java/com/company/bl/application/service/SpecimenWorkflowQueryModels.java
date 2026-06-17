@@ -66,6 +66,7 @@ public final class SpecimenWorkflowQueryModels {
         int page,
         int size,
         String applicationNo,
+        String pathologyNo,
         String patientName,
         String submittingDepartmentId,
         String applicationType,

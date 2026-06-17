@@ -272,6 +272,16 @@ public class JdbcSpecimenWorkflowQueryRepository
         if (query.applicationNo() != null && !query.applicationNo().isBlank()) {
             builder.append(" and a.application_no like :applicationNo");
         }
+        if (query.pathologyNo() != null && !query.pathologyNo().isBlank()) {
+            builder.append("""
+                 and exists (
+                     select 1
+                     from pathology_cases pc
+                     where pc.application_id = a.id
+                       and upper(coalesce(pc.pathology_no, '')) like :pathologyNo
+                 )
+                """);
+        }
         if (query.patientName() != null && !query.patientName().isBlank()) {
             builder.append(" and a.patient_name like :patientName");
         }
@@ -301,6 +311,9 @@ public class JdbcSpecimenWorkflowQueryRepository
         MapSqlParameterSource parameters = new MapSqlParameterSource();
         if (query.applicationNo() != null && !query.applicationNo().isBlank()) {
             parameters.addValue("applicationNo", "%" + query.applicationNo() + "%");
+        }
+        if (query.pathologyNo() != null && !query.pathologyNo().isBlank()) {
+            parameters.addValue("pathologyNo", "%" + query.pathologyNo().toUpperCase() + "%");
         }
         if (query.patientName() != null && !query.patientName().isBlank()) {
             parameters.addValue("patientName", "%" + query.patientName() + "%");

@@ -16,6 +16,7 @@ final class JdbcDiagnosticTaskStore {
 
     private static final List<String> ACTIVE_STATUSES = List.of("PENDING", "ASSIGNED", "ACCEPTED", "IN_PROGRESS");
     private static final String ROLE_M4_DIAGNOSIS = "M4_DIAGNOSIS";
+    private static final String PATHOLOGY_NO_NORMALIZE_SQL = "replace(trim(dt.pathology_no), '-', '')";
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -252,7 +253,7 @@ final class JdbcDiagnosticTaskStore {
             builder.append(" and dt.status = :taskStatus");
         }
         if (hasText(query.pathologyNo())) {
-            builder.append(" and dt.pathology_no = :pathologyNo");
+            builder.append(" and ").append(PATHOLOGY_NO_NORMALIZE_SQL).append(" = :normalizedPathologyNo");
         }
         if (ROLE_M4_DIAGNOSIS.equals(query.currentRoleCode()) && hasText(query.currentUserId())) {
             builder.append(" and (dt.diagnosis_doctor_user_id = :currentUserId or dt.primary_doctor_user_id = :currentUserId)");
@@ -269,7 +270,7 @@ final class JdbcDiagnosticTaskStore {
             params.addValue("taskStatus", query.taskStatus());
         }
         if (hasText(query.pathologyNo())) {
-            params.addValue("pathologyNo", query.pathologyNo());
+            params.addValue("normalizedPathologyNo", normalizePathologyNo(query.pathologyNo()));
         }
         if (ROLE_M4_DIAGNOSIS.equals(query.currentRoleCode()) && hasText(query.currentUserId())) {
             params.addValue("currentUserId", query.currentUserId());
@@ -315,6 +316,10 @@ final class JdbcDiagnosticTaskStore {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private String normalizePathologyNo(String value) {
+        return value == null ? null : value.trim().replace("-", "");
     }
 
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {

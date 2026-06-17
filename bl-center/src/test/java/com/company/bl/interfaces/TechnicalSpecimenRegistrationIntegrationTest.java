@@ -318,6 +318,64 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
     }
 
     @Test
+    void shouldSyncDiagnosticTaskPathologyNoWhenManualCandidateUpdatesCurrentCase() throws Exception {
+        TechnicalCaseContext context =
+            receiveCaseAndGetPendingRegistration("APP-M3-REG-DIAG-SYNC-001", "BC-M3-REG-DIAG-SYNC-001");
+        String legacyPathologyNo = "BL-LEGACY-" + context.caseId();
+
+        namedParameterJdbcTemplate.update("""
+            insert into diagnostic_tasks
+                (id, case_id, pathology_no, task_type, status, priority, created_at, updated_at)
+            values
+                (:id, :caseId, :pathologyNo, 'PRIMARY', 'PENDING', 'NORMAL', current_timestamp, current_timestamp)
+            """, Map.of(
+            "id", "DT-M3-REG-DIAG-SYNC-" + context.caseId(),
+            "caseId", context.caseId(),
+            "pathologyNo", legacyPathologyNo));
+
+        namedParameterJdbcTemplate.update("""
+            update diagnostic_tasks
+            set pathology_no = :pathologyNo
+            where case_id = :caseId
+            """, Map.of("caseId", context.caseId(), "pathologyNo", legacyPathologyNo));
+
+        namedParameterJdbcTemplate.update("""
+            update pathology_cases
+            set pathology_no = :pathologyNo
+            where id = :caseId
+            """, Map.of("caseId", context.caseId(), "pathologyNo", legacyPathologyNo));
+
+        namedParameterJdbcTemplate.update("""
+            update technical_specimen_registrations
+            set registration_status = 'PENDING',
+                registered_by_user_id = null,
+                registered_by_name = null,
+                registered_at = null,
+                remarks = null
+            where case_id = :caseId
+            """, Map.of("caseId", context.caseId()));
+
+        JsonNode completion =
+            completeTechnicalSpecimenRegistration(
+                context.caseId(),
+                "sync diagnostic task pathology no",
+                "CONSULTATION",
+                "HZ2610001"
+            );
+
+        assertThat(completion.path("pathologyNo").asText()).isEqualTo("HZ2610001");
+
+        List<String> taskPathologyNos = namedParameterJdbcTemplate.query("""
+            select pathology_no
+            from diagnostic_tasks
+            where case_id = :caseId
+            """, Map.of("caseId", context.caseId()), (rs, rowNum) -> rs.getString(1));
+        assertThat(taskPathologyNos)
+            .isNotEmpty()
+            .allMatch("HZ2610001"::equals);
+    }
+
+    @Test
     void shouldRegeneratePathologyNoWhenSelectedTypeDoesNotMatchExistingRule() throws Exception {
         TechnicalCaseContext context =
             receiveCaseAndGetPendingRegistration("APP-M3-REG-SUP-002B", "BC-M3-REG-SUP-002B");
