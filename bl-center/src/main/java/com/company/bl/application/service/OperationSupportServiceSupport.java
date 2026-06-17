@@ -1,5 +1,7 @@
 package com.company.bl.application.service;
 
+import com.company.bl.domain.enums.BlErrorCode;
+import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.domain.repository.OperationSupportRepository;
 
 import java.math.BigDecimal;
@@ -236,6 +238,53 @@ final class OperationSupportServiceSupport {
             item.operatorName(),
             item.usageContent(),
             item.remarks());
+    }
+
+    static void validateEquipmentUsageRecordCommand(
+        OperationSupportModels.CreateEquipmentUsageRecordCommand command,
+        LocalDateTime startedAt,
+        LocalDateTime endedAt
+    ) {
+        if (startedAt == null || endedAt == null) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Started at and ended at are required");
+        }
+        if (endedAt.isBefore(startedAt)) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Ended at must be after started at");
+        }
+        if (command.runtimeHours() == null || command.runtimeHours().compareTo(BigDecimal.ZERO) < 0) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Runtime hours must be greater than or equal to zero");
+        }
+        if (command.diagnosisCount() == null || command.diagnosisCount() < 0) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Diagnosis count must be greater than or equal to zero");
+        }
+    }
+
+    static OperationSupportRepository.CreateEquipmentUsageRecordCommand toCreateEquipmentUsageRecordCommand(
+        String usageRecordId,
+        OperationSupportModels.CreateEquipmentUsageRecordCommand command,
+        OperationSupportRepository.EquipmentRecord equipment,
+        LocalDateTime startedAt,
+        LocalDateTime endedAt,
+        LocalDateTime now,
+        java.util.function.Function<String, String> blankToNull
+    ) {
+        return new OperationSupportRepository.CreateEquipmentUsageRecordCommand(
+            usageRecordId,
+            equipment == null ? null : equipment.id(),
+            blankToNull.apply(command.equipmentCategory()),
+            blankToNull.apply(command.equipmentName()),
+            command.commonlyUsed(),
+            startedAt,
+            endedAt,
+            command.runtimeHours(),
+            command.diagnosisCount(),
+            blankToNull.apply(command.equipmentCondition()),
+            command.operatorUserId(),
+            blankToNull.apply(command.operatorName()),
+            blankToNull.apply(command.usageContent()),
+            blankToNull.apply(command.remarks()),
+            now,
+            now);
     }
 
     static OperationSupportModels.WhiteSlideStockView toWhiteSlideStockView(OperationSupportRepository.WhiteSlideStock item) {

@@ -41,7 +41,7 @@ public class OperationSupportService {
     public List<OperationSupportModels.ReagentView> listReagents(String keyword, Boolean enabled, String reagentType, String templateStatus) {
         return operationSupportRepository.findReagents(keyword, enabled, blankToNull(reagentType), blankToNull(templateStatus))
             .stream()
-            .map(this::toReagentView)
+            .map(item -> OperationSupportServiceSupport.toReagentView(item, this::stringify))
             .toList();
     }
 
@@ -83,7 +83,9 @@ public class OperationSupportService {
                     command.operatorName(),
                     now,
                     now));
-                return toReagentView(operationSupportRepository.findReagentById(reagentId).orElseThrow());
+                return OperationSupportServiceSupport.toReagentView(
+                    operationSupportRepository.findReagentById(reagentId).orElseThrow(),
+                    this::stringify);
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Reagent code already exists");
             }
@@ -123,7 +125,9 @@ public class OperationSupportService {
                 command.operatorUserId(),
                 command.operatorName(),
                 LocalDateTime.now()));
-            return toReagentView(operationSupportRepository.findReagentById(command.reagentId()).orElseThrow());
+            return OperationSupportServiceSupport.toReagentView(
+                operationSupportRepository.findReagentById(command.reagentId()).orElseThrow(),
+                this::stringify);
         }, OperationSupportModels.ReagentView::id, () -> command.reagentId(), command.operatorUserId(), command.operatorName(), command::reagentId);
     }
 
@@ -140,7 +144,7 @@ public class OperationSupportService {
                                                                            LocalDate dateTo) {
         return operationSupportRepository.findReagentStocks(keyword, blankToNull(stockStatus), blankToNull(reagentType), dateFrom, dateTo)
             .stream()
-            .map(this::toReagentStockView)
+            .map(item -> OperationSupportServiceSupport.toReagentStockView(item, this::stringify))
             .toList();
     }
 
@@ -187,7 +191,9 @@ public class OperationSupportService {
                     now));
                 appendStockEvent(stockId, "INBOUND", initialQuantity, BigDecimal.ZERO, remainingQuantity, now,
                     command.operatorUserId(), command.operatorName(), command.remarks());
-                return toReagentStockView(operationSupportRepository.findReagentStockById(stockId).orElseThrow());
+                return OperationSupportServiceSupport.toReagentStockView(
+                    operationSupportRepository.findReagentStockById(stockId).orElseThrow(),
+                    this::stringify);
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Reagent stock batch already exists");
             }
@@ -225,7 +231,9 @@ public class OperationSupportService {
                 command.operatorUserId(),
                 command.operatorName(),
                 LocalDateTime.now()));
-            return toReagentStockView(operationSupportRepository.findReagentStockById(command.stockId()).orElseThrow());
+            return OperationSupportServiceSupport.toReagentStockView(
+                operationSupportRepository.findReagentStockById(command.stockId()).orElseThrow(),
+                this::stringify);
         }, OperationSupportModels.ReagentStockView::id, () -> command.stockId(), command.operatorUserId(), command.operatorName(), command::stockId);
     }
 
@@ -400,7 +408,7 @@ public class OperationSupportService {
 
     @Transactional(readOnly = true)
     public List<OperationSupportModels.EquipmentRecordView> listEquipmentRecords(String keyword, String equipmentStatus) {
-        return operationSupportRepository.findEquipmentRecords(keyword, equipmentStatus).stream().map(this::toEquipmentRecordView).toList();
+        return operationSupportRepository.findEquipmentRecords(keyword, equipmentStatus).stream().map(item -> OperationSupportServiceSupport.toEquipmentRecordView(item, this::stringify, this::stringifyDate)).toList();
     }
 
     @Transactional
@@ -448,7 +456,10 @@ public class OperationSupportService {
                     command.remarks(),
                     now,
                     now));
-                return toEquipmentRecordView(operationSupportRepository.findEquipmentRecordById(equipmentId).orElseThrow());
+                return OperationSupportServiceSupport.toEquipmentRecordView(
+                    operationSupportRepository.findEquipmentRecordById(equipmentId).orElseThrow(),
+                    this::stringify,
+                    this::stringifyDate);
             } catch (DataAccessException exception) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Equipment code already exists");
             }
@@ -497,7 +508,10 @@ public class OperationSupportService {
                 blankToNull(command.rfid()),
                 command.remarks(),
                 LocalDateTime.now()));
-            return toEquipmentRecordView(operationSupportRepository.findEquipmentRecordById(command.equipmentId()).orElseThrow());
+            return OperationSupportServiceSupport.toEquipmentRecordView(
+                operationSupportRepository.findEquipmentRecordById(command.equipmentId()).orElseThrow(),
+                this::stringify,
+                this::stringifyDate);
         }, OperationSupportModels.EquipmentRecordView::id, () -> command.equipmentId(), command.operatorUserId(), command.operatorName(), command::equipmentId);
     }
 
@@ -518,7 +532,10 @@ public class OperationSupportService {
             }
             operationSupportRepository.updateEquipmentStatusBatch(equipmentIds, equipmentStatus, LocalDateTime.now());
             return equipmentIds.stream()
-                .map(id -> toEquipmentRecordView(operationSupportRepository.findEquipmentRecordById(id).orElseThrow()))
+                .map(id -> OperationSupportServiceSupport.toEquipmentRecordView(
+                    operationSupportRepository.findEquipmentRecordById(id).orElseThrow(),
+                    this::stringify,
+                    this::stringifyDate))
                 .toList();
         }, item -> item.isEmpty() ? null : item.get(0).id(), null, command.operatorUserId(), command.operatorName(), () -> String.join(",", command.equipmentIds()));
     }
@@ -541,9 +558,7 @@ public class OperationSupportService {
 
     @Transactional(readOnly = true)
     public List<OperationSupportModels.EquipmentCommonDeviceView> listEquipmentCommonDevices() {
-        return operationSupportRepository.findCommonlyUsedEquipmentRecords().stream()
-            .map(OperationSupportServiceSupport::toEquipmentCommonDeviceView)
-            .toList();
+        return operationSupportRepository.findCommonlyUsedEquipmentRecords().stream().map(OperationSupportServiceSupport::toEquipmentCommonDeviceView).toList();
     }
 
     @Transactional
@@ -553,18 +568,7 @@ public class OperationSupportService {
         return operationAuditService.audit("M5_SUPPORT", "EQUIPMENT_USAGE", "create_equipment_usage_record", () -> {
             LocalDateTime startedAt = parseDateTime(command.startedAt());
             LocalDateTime endedAt = parseDateTime(command.endedAt());
-            if (startedAt == null || endedAt == null) {
-                throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Started at and ended at are required");
-            }
-            if (endedAt.isBefore(startedAt)) {
-                throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Ended at must be after started at");
-            }
-            if (command.runtimeHours() == null || command.runtimeHours().compareTo(BigDecimal.ZERO) < 0) {
-                throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Runtime hours must be greater than or equal to zero");
-            }
-            if (command.diagnosisCount() == null || command.diagnosisCount() < 0) {
-                throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Diagnosis count must be greater than or equal to zero");
-            }
+            OperationSupportServiceSupport.validateEquipmentUsageRecordCommand(command, startedAt, endedAt);
 
             OperationSupportRepository.EquipmentRecord equipment = null;
             if (blankToNull(command.equipmentId()) != null) {
@@ -574,29 +578,19 @@ public class OperationSupportService {
 
             String usageRecordId = diagnosticReportSupport.nextId("EQU");
             LocalDateTime now = LocalDateTime.now();
-            operationSupportRepository.insertEquipmentUsageRecord(new OperationSupportRepository.CreateEquipmentUsageRecordCommand(
+            operationSupportRepository.insertEquipmentUsageRecord(OperationSupportServiceSupport.toCreateEquipmentUsageRecordCommand(
                 usageRecordId,
-                equipment == null ? null : equipment.id(),
-                blankToNull(command.equipmentCategory()),
-                blankToNull(command.equipmentName()),
-                command.commonlyUsed(),
+                command,
+                equipment,
                 startedAt,
                 endedAt,
-                command.runtimeHours(),
-                command.diagnosisCount(),
-                blankToNull(command.equipmentCondition()),
-                command.operatorUserId(),
-                blankToNull(command.operatorName()),
-                blankToNull(command.usageContent()),
-                blankToNull(command.remarks()),
                 now,
-                now));
+                this::blankToNull));
             return OperationSupportServiceSupport.toEquipmentUsageRecordView(
                 operationSupportRepository.findEquipmentUsageRecordById(usageRecordId).orElseThrow(),
                 this::stringify);
         }, OperationSupportModels.EquipmentUsageRecordView::id, null, command.operatorUserId(), command.operatorName(), command::equipmentName);
     }
-
     @Transactional
     public OperationSupportModels.EquipmentMaintenanceLogView createEquipmentMaintenanceLog(OperationSupportModels.CreateEquipmentMaintenanceLogCommand command) {
         return operationAuditService.audit("M5_SUPPORT", "EQUIPMENT_MAINTENANCE", "create_equipment_maintenance_log", () -> {
@@ -681,16 +675,14 @@ public class OperationSupportService {
     @Transactional(readOnly = true)
     public List<OperationSupportModels.WhiteSlideStockView> listWhiteSlideStocks(String keyword, String status) {
         return operationSupportRepository.findWhiteSlideStocks(keyword, blankToNull(status)).stream()
-            .map(this::toWhiteSlideStockView)
+            .map(OperationSupportServiceSupport::toWhiteSlideStockView)
             .toList();
     }
 
     @Transactional(readOnly = true)
     public List<OperationSupportModels.WhiteSlideLoanView> listWhiteSlideLoans(String keyword, String loanStatus) {
         String normalizedLoanStatus = blankToNull(loanStatus);
-        return operationSupportRepository.findWhiteSlideLoans(keyword, normalizedLoanStatus == null ? "BORROWED" : normalizedLoanStatus).stream()
-            .map(this::toWhiteSlideLoanView)
-            .toList();
+        return operationSupportRepository.findWhiteSlideLoans(keyword, normalizedLoanStatus == null ? "BORROWED" : normalizedLoanStatus).stream().map(item -> OperationSupportServiceSupport.toWhiteSlideLoanView(item, this::stringify)).toList();
     }
 
     @Transactional
@@ -747,7 +739,9 @@ public class OperationSupportService {
                 borrowed + quantity,
                 now));
 
-            return toWhiteSlideLoanView(operationSupportRepository.findWhiteSlideLoanById(loanId).orElseThrow());
+            return OperationSupportServiceSupport.toWhiteSlideLoanView(
+                operationSupportRepository.findWhiteSlideLoanById(loanId).orElseThrow(),
+                this::stringify);
         }, OperationSupportModels.WhiteSlideLoanView::id, null, command.operatorUserId(), command.operatorName(), command::stockId);
     }
 
@@ -781,7 +775,9 @@ public class OperationSupportService {
                 Math.max(0, borrowed - quantity),
                 now));
 
-            return toWhiteSlideLoanView(operationSupportRepository.findWhiteSlideLoanById(loan.id()).orElseThrow());
+            return OperationSupportServiceSupport.toWhiteSlideLoanView(
+                operationSupportRepository.findWhiteSlideLoanById(loan.id()).orElseThrow(),
+                this::stringify);
         }, OperationSupportModels.WhiteSlideLoanView::id, command::loanId, command.operatorUserId(), command.operatorName(), command::loanId);
     }
 
@@ -817,7 +813,9 @@ public class OperationSupportService {
                 now));
             appendStockEvent(current.id(), eventType, subtractQuantity ? quantity.negate() : null, before, after,
                 now, command.operatorUserId(), command.operatorName(), command.remarks());
-            return toReagentStockView(operationSupportRepository.findReagentStockById(current.id()).orElseThrow());
+            return OperationSupportServiceSupport.toReagentStockView(
+                operationSupportRepository.findReagentStockById(current.id()).orElseThrow(),
+                this::stringify);
         }, OperationSupportModels.ReagentStockView::id, () -> command.stockId(), command.operatorUserId(), command.operatorName(), command::stockId);
     }
 
@@ -968,83 +966,33 @@ public class OperationSupportService {
             args -> importError(args.rowNumber(), args.field(), args.rejectedValue(), args.message()));
     }
 
-    private LocalDate parseDate(String value) {
-        String normalized = blankToNull(value);
-        return normalized == null ? null : LocalDate.parse(normalized);
-    }
+    private LocalDate parseDate(String value) { String normalized = blankToNull(value); return normalized == null ? null : LocalDate.parse(normalized); }
 
-    private String decimal(BigDecimal value) {
-        return OperationSupportServiceSupport.decimal(value);
-    }
+    private String decimal(BigDecimal value) { return OperationSupportServiceSupport.decimal(value); }
 
-    private String safe(String value) {
-        return OperationSupportServiceSupport.safe(value);
-    }
+    private String safe(String value) { return OperationSupportServiceSupport.safe(value); }
 
     private String blankToNull(String value) {
-        if (value == null) {
-            return null;
-        }
+        if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private <T> T coalesce(T first, T second) {
-        return first != null ? first : second;
-    }
+    private <T> T coalesce(T first, T second) { return first != null ? first : second; }
 
-    private <T> T coalesce(T first, T second, T third) {
-        if (first != null) {
-            return first;
-        }
-        return second != null ? second : third;
-    }
-
-    private OperationSupportModels.ReagentView toReagentView(OperationSupportRepository.Reagent item) {
-        return OperationSupportServiceSupport.toReagentView(item, this::stringify);
-    }
-
-    private OperationSupportModels.ReagentStockView toReagentStockView(OperationSupportRepository.ReagentStock item) {
-        return OperationSupportServiceSupport.toReagentStockView(item, this::stringify);
-    }
-
-    private OperationSupportModels.EquipmentRecordView toEquipmentRecordView(OperationSupportRepository.EquipmentRecord item) {
-        return OperationSupportServiceSupport.toEquipmentRecordView(item, this::stringify, this::stringifyDate);
-    }
-
-    private OperationSupportModels.WhiteSlideStockView toWhiteSlideStockView(OperationSupportRepository.WhiteSlideStock item) {
-        return OperationSupportServiceSupport.toWhiteSlideStockView(item);
-    }
-
-    private OperationSupportModels.WhiteSlideLoanView toWhiteSlideLoanView(OperationSupportRepository.WhiteSlideLoan item) {
-        return OperationSupportServiceSupport.toWhiteSlideLoanView(item, this::stringify);
-    }
+    private <T> T coalesce(T first, T second, T third) { return first != null ? first : second != null ? second : third; }
 
     private List<String> normalizeIds(List<String> values) {
-        return values == null ? List.of() : values.stream()
-            .map(this::blankToNull)
-            .filter(item -> item != null)
-            .distinct()
-            .toList();
+        return values == null ? List.of() : values.stream().map(this::blankToNull).filter(item -> item != null).distinct().toList();
     }
-
-    private LocalDateTime parseDateTime(String value) {
-        return value == null || value.isBlank() ? null : LocalDateTime.parse(value);
-    }
+    private LocalDateTime parseDateTime(String value) { return value == null || value.isBlank() ? null : LocalDateTime.parse(value); }
 
     private String parseTime(String value) {
         String normalized = blankToNull(value);
-        if (normalized == null) {
-            return null;
-        }
-        return LocalTime.parse(normalized).toString();
+        return normalized == null ? null : LocalTime.parse(normalized).toString();
     }
 
-    private String stringifyDate(LocalDate value) {
-        return value == null ? null : value.toString();
-    }
+    private String stringifyDate(LocalDate value) { return value == null ? null : value.toString(); }
 
-    private String stringify(LocalDateTime value) {
-        return value == null ? null : value.toString();
-    }
+    private String stringify(LocalDateTime value) { return value == null ? null : value.toString(); }
 }
