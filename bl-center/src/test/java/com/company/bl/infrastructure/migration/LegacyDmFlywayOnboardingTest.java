@@ -95,6 +95,10 @@ class LegacyDmFlywayOnboardingTest {
                 FROM flyway_schema_history
                 WHERE version = '70'
                 """));
+            assertEquals("标本登记员", queryString(statement, "SELECT role_name FROM roles WHERE id = 'ROLE_M2_CLINICAL_REGISTER'"));
+            assertEquals("取材员", queryString(statement, "SELECT role_name FROM roles WHERE id = 'ROLE_M3_GROSSING'"));
+            assertEquals("诊断医生", queryString(statement, "SELECT role_name FROM roles WHERE id = 'ROLE_M4_DIAGNOSIS'"));
+            assertEquals("医嘱执行员", queryString(statement, "SELECT role_name FROM roles WHERE id = 'ROLE_M4_MEDICAL_ORDER_EXECUTE'"));
             assertEquals(1, queryInt(statement, "SELECT COUNT(*) FROM roles WHERE role_code = 'SUPER_ADMIN'"));
         }
     }
@@ -165,6 +169,13 @@ class LegacyDmFlywayOnboardingTest {
         try (ResultSet resultSet = statement.executeQuery(sql)) {
             resultSet.next();
             return resultSet.getInt(1);
+        }
+    }
+
+    private String queryString(Statement statement, String sql) throws Exception {
+        try (ResultSet resultSet = statement.executeQuery(sql)) {
+            resultSet.next();
+            return resultSet.getString(1);
         }
     }
 }

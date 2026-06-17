@@ -44,19 +44,19 @@ final class V11LegacyDmSchemaSeedData {
     );
 
     static final List<RoleSeed> WORKFLOW_ROLES = List.of(
-        new RoleSeed("ROLE_M2_CLINICAL_REGISTER", "M2_CLINICAL_REGISTER", "M2 Clinical Register", "BUSINESS", "DEPARTMENT", "M2 clinical register workstation"),
-        new RoleSeed("ROLE_M2_FIXATION_VERIFY", "M2_FIXATION_VERIFY", "M2 Fixation Verify", "BUSINESS", "DEPARTMENT", "M2 fixation workstation"),
-        new RoleSeed("ROLE_M2_TRANSPORT_HANDOVER", "M2_TRANSPORT_HANDOVER", "M2 Transport Handover", "BUSINESS", "DEPARTMENT", "M2 transport workstation"),
-        new RoleSeed("ROLE_M2_SPECIMEN_RECEIVE", "M2_SPECIMEN_RECEIVE", "M2 Specimen Receive", "BUSINESS", "DEPARTMENT", "M2 specimen receipt workstation"),
-        new RoleSeed("ROLE_M2_TRACKING_QUERY", "M2_TRACKING_QUERY", "M2 Tracking Query", "BUSINESS", "DEPARTMENT", "M2 tracking query workstation"),
-        new RoleSeed("ROLE_M2_CLINICAL_IMPORT", "M2_CLINICAL_IMPORT", "M2 Clinical Import", "BUSINESS", "DEPARTMENT", "M2 clinical import workstation"),
-        new RoleSeed("ROLE_M3_GROSSING", "M3_GROSSING", "M3 Grossing", "BUSINESS", "DEPARTMENT", "M3 grossing workstation"),
-        new RoleSeed("ROLE_M3_DEHYDRATION", "M3_DEHYDRATION", "M3 Dehydration", "BUSINESS", "DEPARTMENT", "M3 dehydration workstation"),
-        new RoleSeed("ROLE_M3_EMBEDDING", "M3_EMBEDDING", "M3 Embedding", "BUSINESS", "DEPARTMENT", "M3 embedding workstation"),
-        new RoleSeed("ROLE_M3_SLICING", "M3_SLICING", "M3 SLICING", "BUSINESS", "DEPARTMENT", "M3 slicing workstation"),
-        new RoleSeed("ROLE_M3_STAINING", "M3_STAINING", "M3 Staining", "BUSINESS", "DEPARTMENT", "M3 staining workstation"),
-        new RoleSeed("ROLE_M3_REWORK", "M3_REWORK", "M3 Rework", "BUSINESS", "DEPARTMENT", "M3 rework workstation"),
-        new RoleSeed("ROLE_M3_TRACKING", "M3_TRACKING", "M3 Tracking", "BUSINESS", "DEPARTMENT", "M3 technical tracking workstation")
+        new RoleSeed("ROLE_M2_CLINICAL_REGISTER", "M2_CLINICAL_REGISTER", "标本登记员", "BUSINESS", "DEPARTMENT", "M2 clinical register workstation"),
+        new RoleSeed("ROLE_M2_FIXATION_VERIFY", "M2_FIXATION_VERIFY", "固定核验员", "BUSINESS", "DEPARTMENT", "M2 fixation workstation"),
+        new RoleSeed("ROLE_M2_TRANSPORT_HANDOVER", "M2_TRANSPORT_HANDOVER", "转运交接员", "BUSINESS", "DEPARTMENT", "M2 transport workstation"),
+        new RoleSeed("ROLE_M2_SPECIMEN_RECEIVE", "M2_SPECIMEN_RECEIVE", "标本接收员", "BUSINESS", "DEPARTMENT", "M2 specimen receipt workstation"),
+        new RoleSeed("ROLE_M2_TRACKING_QUERY", "M2_TRACKING_QUERY", "标本追踪员", "BUSINESS", "DEPARTMENT", "M2 tracking query workstation"),
+        new RoleSeed("ROLE_M2_CLINICAL_IMPORT", "M2_CLINICAL_IMPORT", "临床导入员", "BUSINESS", "DEPARTMENT", "M2 clinical import workstation"),
+        new RoleSeed("ROLE_M3_GROSSING", "M3_GROSSING", "取材员", "BUSINESS", "DEPARTMENT", "M3 grossing workstation"),
+        new RoleSeed("ROLE_M3_DEHYDRATION", "M3_DEHYDRATION", "脱水员", "BUSINESS", "DEPARTMENT", "M3 dehydration workstation"),
+        new RoleSeed("ROLE_M3_EMBEDDING", "M3_EMBEDDING", "包埋员", "BUSINESS", "DEPARTMENT", "M3 embedding workstation"),
+        new RoleSeed("ROLE_M3_SLICING", "M3_SLICING", "切片员", "BUSINESS", "DEPARTMENT", "M3 slicing workstation"),
+        new RoleSeed("ROLE_M3_STAINING", "M3_STAINING", "染色员", "BUSINESS", "DEPARTMENT", "M3 staining workstation"),
+        new RoleSeed("ROLE_M3_REWORK", "M3_REWORK", "返工员", "BUSINESS", "DEPARTMENT", "M3 rework workstation"),
+        new RoleSeed("ROLE_M3_TRACKING", "M3_TRACKING", "技术追踪员", "BUSINESS", "DEPARTMENT", "M3 technical tracking workstation")
     );
 
     static final List<RolePermissionSeed> WORKFLOW_ROLE_PERMISSIONS = List.of(

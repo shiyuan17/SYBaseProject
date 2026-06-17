@@ -57,11 +57,11 @@ public class V14__reconcile_m4_authorization_and_numbering extends BaseJavaMigra
         upsertPermission(connection, "PERM_M4_REPORT_TRACKING_QUERY", "PERM_M4_REPORT_TRACKING_QUERY", "Pathology report tracking query",
             "MENU_M4_TRACKING", "QUERY", "GET", "/api/v1/pathology-cases/{id}/report-tracking", "M4", 141);
 
-        upsertRole(connection, "ROLE_M4_ASSIGN", "M4_ASSIGN", "M4 Assign", "BUSINESS", "DEPARTMENT", "M4 diagnosis assignment workstation");
-        upsertRole(connection, "ROLE_M4_DIAGNOSIS", "M4_DIAGNOSIS", "M4 Diagnosis", "BUSINESS", "DEPARTMENT", "M4 diagnosis workstation");
-        upsertRole(connection, "ROLE_M4_REVIEW", "M4_REVIEW", "M4 Review", "BUSINESS", "DEPARTMENT", "M4 review workstation");
-        upsertRole(connection, "ROLE_M4_SIGN", "M4_SIGN", "M4 Sign", "BUSINESS", "DEPARTMENT", "M4 sign workstation");
-        upsertRole(connection, "ROLE_M4_TRACKING", "M4_TRACKING", "M4 Tracking", "BUSINESS", "DEPARTMENT", "M4 report tracking workstation");
+        upsertRole(connection, "ROLE_M4_ASSIGN", "M4_ASSIGN", "诊断分派员", "BUSINESS", "DEPARTMENT", "M4 diagnosis assignment workstation");
+        upsertRole(connection, "ROLE_M4_DIAGNOSIS", "M4_DIAGNOSIS", "诊断医生", "BUSINESS", "DEPARTMENT", "M4 diagnosis workstation");
+        upsertRole(connection, "ROLE_M4_REVIEW", "M4_REVIEW", "审核医生", "BUSINESS", "DEPARTMENT", "M4 review workstation");
+        upsertRole(connection, "ROLE_M4_SIGN", "M4_SIGN", "签发医生", "BUSINESS", "DEPARTMENT", "M4 sign workstation");
+        upsertRole(connection, "ROLE_M4_TRACKING", "M4_TRACKING", "报告追踪员", "BUSINESS", "DEPARTMENT", "M4 report tracking workstation");
 
         ensureRolePermissions(connection, "ROLE_PATHOLOGY_ADMIN", List.of(
             "PERM_M4_DIAG_TASK_QUERY", "PERM_M4_ASSIGN", "PERM_M4_ACCEPT", "PERM_M4_START", "PERM_M4_WORKBENCH_QUERY",

@@ -50,7 +50,7 @@ public class V20__reconcile_m4_batch2_authorization extends BaseJavaMigration {
         upsertPermission(connection, "PERM_M4_CONSULTATION_COMPLETE", "PERM_M4_CONSULTATION_COMPLETE", "Consultation complete",
             "MENU_M4_CONSULTATION", "COMPLETE", "POST", "/api/v1/consultations/{id}/complete", "M4", 151);
 
-        upsertRole(connection, "ROLE_M4_MEDICAL_ORDER_EXECUTE", "M4_MEDICAL_ORDER_EXECUTE", "M4 Medical Order Execute",
+        upsertRole(connection, "ROLE_M4_MEDICAL_ORDER_EXECUTE", "M4_MEDICAL_ORDER_EXECUTE", "医嘱执行员",
             "BUSINESS", "DEPARTMENT", "M4 medical order execution workstation");
 
         ensureRolePermissions(connection, "ROLE_PATHOLOGY_ADMIN", List.of(
