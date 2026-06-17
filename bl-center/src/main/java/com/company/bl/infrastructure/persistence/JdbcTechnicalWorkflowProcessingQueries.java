@@ -93,13 +93,20 @@ final class JdbcTechnicalWorkflowProcessingQueries {
         java.time.LocalDateTime endedFrom,
         java.time.LocalDateTime endedTo
     ) {
-        return jdbcTemplate.query(embeddingWorkstationSelectSql() + """
-            where e.ended_at >= :endedFrom
-              and e.ended_at < :endedTo
-            order by e.ended_at desc, e.created_at desc, e.id desc
-            """, new MapSqlParameterSource()
-            .addValue("endedFrom", endedFrom)
-            .addValue("endedTo", endedTo), rowMappers::mapEmbeddingWorkstationRecord);
+        StringBuilder sql = new StringBuilder(embeddingWorkstationSelectSql() + """
+            where 1 = 1
+            """);
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        if (endedFrom != null) {
+            sql.append(" and e.ended_at >= :endedFrom\n");
+            params.addValue("endedFrom", endedFrom);
+        }
+        if (endedTo != null) {
+            sql.append(" and e.ended_at < :endedTo\n");
+            params.addValue("endedTo", endedTo);
+        }
+        sql.append(" order by e.ended_at desc, e.created_at desc, e.id desc\n");
+        return jdbcTemplate.query(sql.toString(), params, rowMappers::mapEmbeddingWorkstationRecord);
     }
 
     Optional<Slicing> findSlicingById(String slicingId) {
@@ -139,7 +146,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
     List<Slide> findSlidesByCaseId(String caseId) {
         return jdbcTemplate.query("""
             select id, case_id, specimen_id, slicing_id, embedding_box_id, sampling_block_id,
-                   slide_no, combined_slide_flag, quality_status, slide_status, slice_count
+                   slide_no, combined_slide_flag, quality_status, slide_status, slice_count, created_at
             from slides
             where case_id = :caseId
             order by created_at asc, id asc
@@ -149,7 +156,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
     List<Slide> findSlidesBySlicingId(String slicingId) {
         return jdbcTemplate.query("""
             select id, case_id, specimen_id, slicing_id, embedding_box_id, sampling_block_id,
-                   slide_no, combined_slide_flag, quality_status, slide_status, slice_count
+                   slide_no, combined_slide_flag, quality_status, slide_status, slice_count, created_at
             from slides
             where slicing_id = :slicingId
             order by created_at asc, id asc
@@ -159,7 +166,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
     Optional<Slide> findSlideById(String slideId) {
         List<Slide> rows = jdbcTemplate.query("""
             select id, case_id, specimen_id, slicing_id, embedding_box_id, sampling_block_id,
-                   slide_no, combined_slide_flag, quality_status, slide_status, slice_count
+                   slide_no, combined_slide_flag, quality_status, slide_status, slice_count, created_at
             from slides
             where id = :slideId
             """, Map.of("slideId", slideId), rowMappers::mapSlide);
@@ -177,7 +184,8 @@ final class JdbcTechnicalWorkflowProcessingQueries {
 
     Optional<ReworkOrder> findReworkOrderById(String reworkOrderId) {
         List<ReworkOrder> rows = jdbcTemplate.query("""
-            select id, case_id, specimen_id, sampling_block_id, embedding_box_id, slide_id, rework_type, status, reason
+            select id, case_id, specimen_id, sampling_block_id, embedding_box_id, slide_id, rework_type, status, reason,
+                   requested_at, executed_at, created_at
             from rework_orders
             where id = :id
             """, Map.of("id", reworkOrderId), rowMappers::mapReworkOrder);
@@ -186,7 +194,8 @@ final class JdbcTechnicalWorkflowProcessingQueries {
 
     List<ReworkOrder> findReworkOrdersByCaseId(String caseId) {
         return jdbcTemplate.query("""
-            select id, case_id, specimen_id, sampling_block_id, embedding_box_id, slide_id, rework_type, status, reason
+            select id, case_id, specimen_id, sampling_block_id, embedding_box_id, slide_id, rework_type, status, reason,
+                   requested_at, executed_at, created_at
             from rework_orders
             where case_id = :caseId
             order by created_at asc, id asc
@@ -217,9 +226,10 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             left join specimens sp on sp.id = t.specimen_id
             where t.task_type = 'SLICING'
               and t.task_status in ('PENDING', 'IN_PROGRESS')
-              and coalesce(t.expected_completed_at, t.created_at) >= :todayStart
-              and coalesce(t.expected_completed_at, t.created_at) < :tomorrowStart
-              """ + buildWorkbenchKeywordFilter(query.keyword()) + buildWorkbenchApplicationTypeFilter(query.applicationType()) + buildWorkbenchOverdueFilter(query.overdueOnly()), params, Long.class);
+              """ + buildWorkbenchTodayWindowFilter("coalesce(t.expected_completed_at, t.created_at)")
+            + buildWorkbenchKeywordFilter(query.keyword())
+            + buildWorkbenchApplicationTypeFilter(query.applicationType())
+            + buildWorkbenchOverdueFilter(query.overdueOnly()), params, Long.class);
         Long pendingTomorrowCount = jdbcTemplate.queryForObject("""
             select count(1)
             from technical_pending_tasks t
@@ -228,9 +238,9 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             left join specimens sp on sp.id = t.specimen_id
             where t.task_type = 'SLICING'
               and t.task_status in ('PENDING', 'IN_PROGRESS')
-              and coalesce(t.expected_completed_at, t.created_at) >= :tomorrowStart
-              and coalesce(t.expected_completed_at, t.created_at) < :dayAfterTomorrowStart
-              """ + buildWorkbenchKeywordFilter(query.keyword()) + buildWorkbenchApplicationTypeFilter(query.applicationType()), params, Long.class);
+              """ + buildWorkbenchTomorrowWindowFilter("coalesce(t.expected_completed_at, t.created_at)")
+            + buildWorkbenchKeywordFilter(query.keyword())
+            + buildWorkbenchApplicationTypeFilter(query.applicationType()), params, Long.class);
         Long completedDeptTodayCount = jdbcTemplate.queryForObject("""
             select count(distinct t.id)
             from technical_pending_tasks t
@@ -240,9 +250,9 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             left join slicings slc on slc.task_id = t.id
             where t.task_type = 'SLICING'
               and t.task_status = 'COMPLETED'
-              and t.completed_at >= :todayStart
-              and t.completed_at < :tomorrowStart
-              """ + buildWorkbenchKeywordFilter(query.keyword()) + buildWorkbenchApplicationTypeFilter(query.applicationType()), params, Long.class);
+              """ + buildWorkbenchTodayWindowFilter("t.completed_at")
+            + buildWorkbenchKeywordFilter(query.keyword())
+            + buildWorkbenchApplicationTypeFilter(query.applicationType()), params, Long.class);
         Long completedMineTodayCount = jdbcTemplate.queryForObject("""
             select count(distinct t.id)
             from technical_pending_tasks t
@@ -252,8 +262,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             left join slicings slc on slc.task_id = t.id
             where t.task_type = 'SLICING'
               and t.task_status = 'COMPLETED'
-              and t.completed_at >= :todayStart
-              and t.completed_at < :tomorrowStart
+              """ + buildWorkbenchTodayWindowFilter("t.completed_at") + """
               and coalesce(slc.sliced_by_user_id, t.assigned_to_user_id, '') = :currentUserId
               """ + buildWorkbenchKeywordFilter(query.keyword()) + buildWorkbenchApplicationTypeFilter(query.applicationType()), params, Long.class);
         Long overdueCount = jdbcTemplate.queryForObject("""
@@ -283,7 +292,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
                   where mgi.task_id = t.id
                     and mg.group_status = 'PENDING'
               )
-              """ + buildWorkbenchKeywordFilter(query.keyword()) + buildWorkbenchApplicationTypeFilter(query.applicationType()) + buildWorkbenchTodayFilter(query.pendingTodayOnly()) + buildWorkbenchOverdueFilter(query.overdueOnly()), params, Long.class);
+              """ + buildWorkbenchWorkDateFilter() + buildWorkbenchKeywordFilter(query.keyword()) + buildWorkbenchApplicationTypeFilter(query.applicationType()) + buildWorkbenchOverdueFilter(query.overdueOnly()), params, Long.class);
         Long pendingPrintGroupCount = jdbcTemplate.queryForObject("""
             select count(distinct mg.id)
             from slicing_slide_print_merge_groups mg
@@ -295,7 +304,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             left join slicings slc on slc.task_id = t.id
             where mg.group_status = 'PENDING'
               and slc.id is null
-              """ + buildWorkbenchKeywordFilter(query.keyword()) + buildWorkbenchApplicationTypeFilter(query.applicationType()) + buildWorkbenchTodayFilter(query.pendingTodayOnly()) + buildWorkbenchOverdueFilter(query.overdueOnly()), params, Long.class);
+              """ + buildWorkbenchWorkDateFilter() + buildWorkbenchKeywordFilter(query.keyword()) + buildWorkbenchApplicationTypeFilter(query.applicationType()) + buildWorkbenchOverdueFilter(query.overdueOnly()), params, Long.class);
         return new TechnicalWorkflowRecords.SlicingWorkbenchStats(
             pendingTodayCount == null ? 0 : pendingTodayCount,
             pendingTomorrowCount == null ? 0 : pendingTomorrowCount,
@@ -326,7 +335,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
                   where mgi.task_id = t.id
                     and mg.group_status = 'PENDING'
               )
-            """ + buildWorkbenchKeywordFilter(query.keyword()) + buildWorkbenchApplicationTypeFilter(query.applicationType()) + buildWorkbenchTodayFilter(query.pendingTodayOnly()) + buildWorkbenchOverdueFilter(query.overdueOnly());
+            """ + buildWorkbenchWorkDateFilter() + buildWorkbenchKeywordFilter(query.keyword()) + buildWorkbenchApplicationTypeFilter(query.applicationType()) + buildWorkbenchOverdueFilter(query.overdueOnly());
         TechnicalWorkflowRecords.PagedSlicingWorkbenchRows baseRows = findSlicingWorkbenchRows(query, where, 1, 10_000, """
             order by task_status_sort asc,
                      timeout_sort asc,
@@ -362,6 +371,8 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             1,
             20,
             null,
+            null,
+            null,
             LocalDateTime.now().toLocalDate().atStartOfDay(),
             LocalDateTime.now().toLocalDate().plusDays(1).atStartOfDay(),
             LocalDateTime.now().toLocalDate().plusDays(2).atStartOfDay(),
@@ -395,7 +406,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             where t.task_type = 'SLICING'
               and t.task_status in ('PENDING', 'IN_PROGRESS')
               and slc.id is not null
-            """ + buildWorkbenchKeywordFilter(query.keyword()) + buildWorkbenchApplicationTypeFilter(query.applicationType()) + buildWorkbenchTodayFilter(query.pendingTodayOnly()) + buildWorkbenchOverdueFilter(query.overdueOnly());
+            """ + buildWorkbenchWorkDateFilter() + buildWorkbenchKeywordFilter(query.keyword()) + buildWorkbenchApplicationTypeFilter(query.applicationType()) + buildWorkbenchOverdueFilter(query.overdueOnly());
         return findSlicingWorkbenchRows(query, where, query.pendingPage(), query.pendingSize(), """
             order by task_status_sort asc,
                      slicing_created_sort asc,
@@ -410,9 +421,9 @@ final class JdbcTechnicalWorkflowProcessingQueries {
         String where = """
             where t.task_type = 'SLICING'
               and t.task_status = 'COMPLETED'
-              and t.completed_at >= :todayStart
-              and t.completed_at < :tomorrowStart
-            """ + buildWorkbenchKeywordFilter(query.keyword()) + buildWorkbenchApplicationTypeFilter(query.applicationType());
+            """ + buildWorkbenchCompletedDateRangeFilter()
+            + buildWorkbenchKeywordFilter(query.keyword())
+            + buildWorkbenchApplicationTypeFilter(query.applicationType());
         return findSlicingWorkbenchRows(query, where, query.completedPage(), query.completedSize(), """
             order by completed_sort desc,
                      slide_no asc,
@@ -634,7 +645,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             left join slicings slc on slc.task_id = t.id
             where mg.group_status = 'PENDING'
               and slc.id is null
-            """ + buildWorkbenchKeywordFilter(query.keyword()) + buildWorkbenchApplicationTypeFilter(query.applicationType()) + buildWorkbenchTodayFilter(query.pendingTodayOnly()) + buildWorkbenchOverdueFilter(query.overdueOnly()) + """
+              """ + buildWorkbenchWorkDateFilter() + buildWorkbenchKeywordFilter(query.keyword()) + buildWorkbenchApplicationTypeFilter(query.applicationType()) + buildWorkbenchOverdueFilter(query.overdueOnly()) + """
             order by mg.created_at asc, mgi.sequence_no asc
             """, params, (rs, rowNum) -> new TechnicalWorkflowRecords.SlicingWorkbenchRow(
             rs.getString("task_id"),
@@ -813,6 +824,8 @@ final class JdbcTechnicalWorkflowProcessingQueries {
 
     private MapSqlParameterSource buildWorkbenchParams(TechnicalWorkflowRecords.SlicingWorkbenchQuery query) {
         MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("dateFrom", query.dateFrom())
+            .addValue("dateToExclusive", query.dateToExclusive())
             .addValue("todayStart", query.todayStart())
             .addValue("tomorrowStart", query.tomorrowStart())
             .addValue("dayAfterTomorrowStart", query.dayAfterTomorrowStart())
@@ -849,14 +862,33 @@ final class JdbcTechnicalWorkflowProcessingQueries {
         return " and a.application_type = :applicationType\n";
     }
 
-    private String buildWorkbenchTodayFilter(boolean enabled) {
-        if (!enabled) {
-            return "";
-        }
+    private String buildWorkbenchWorkDateFilter() {
+        return buildWorkbenchTaskDateRangeFilter("coalesce(t.expected_completed_at, t.created_at)");
+    }
+
+    private String buildWorkbenchCompletedDateRangeFilter() {
+        return buildWorkbenchTaskDateRangeFilter("t.completed_at");
+    }
+
+    private String buildWorkbenchTaskDateRangeFilter(String expression) {
         return """
-              and coalesce(t.expected_completed_at, t.created_at) >= :todayStart
-              and coalesce(t.expected_completed_at, t.created_at) < :tomorrowStart
-            """;
+              and (:dateFrom is null or %s >= :dateFrom)
+              and (:dateToExclusive is null or %s < :dateToExclusive)
+            """.formatted(expression, expression);
+    }
+
+    private String buildWorkbenchTodayWindowFilter(String expression) {
+        return """
+              and %s >= :todayStart
+              and %s < :tomorrowStart
+            """.formatted(expression, expression);
+    }
+
+    private String buildWorkbenchTomorrowWindowFilter(String expression) {
+        return """
+              and %s >= :tomorrowStart
+              and %s < :dayAfterTomorrowStart
+            """.formatted(expression, expression);
     }
 
     private String buildWorkbenchOverdueFilter(boolean enabled) {

@@ -67,7 +67,8 @@ public final class TechnicalWorkflowProcessingRecords {
         boolean combinedSlideFlag,
         String qualityStatus,
         String slideStatus,
-        Integer sliceCount
+        Integer sliceCount,
+        LocalDateTime createdAt
     ) {
     }
 
@@ -125,7 +126,10 @@ public final class TechnicalWorkflowProcessingRecords {
         String slideId,
         String reworkType,
         String status,
-        String reason
+        String reason,
+        LocalDateTime requestedAt,
+        LocalDateTime executedAt,
+        LocalDateTime createdAt
     ) {
     }
 

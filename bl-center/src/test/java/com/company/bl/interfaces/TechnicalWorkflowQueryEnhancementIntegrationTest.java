@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -366,6 +367,142 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
         JsonNode grossingTasks = listPendingTasks("GROSSING", context.pathologyNo(), USER_M3_GROSSING);
         assertThat(grossingTasks.path("items")).hasSize(1);
         assertThat(grossingTasks.path("items").get(0).path("taskStatus").asText()).isEqualTo("PENDING");
+    }
+
+    @Test
+    void shouldFilterTechnicalTrackingDetailsByWorkDate() throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-TRACK-DATE-001", "BC-M3-TRACK-DATE-001");
+        advanceCaseToCompletedEmbedding(
+            context,
+            "tracking date gross",
+            "tracking date remark",
+            "tracking date evaluation",
+            "tracking date notice");
+
+        String slicingTaskId = listPendingTasks("SLICING", context.pathologyNo(), USER_M3_SLICING)
+            .path("items").get(0).path("id").asText();
+        String embeddingBoxId = namedParameterJdbcTemplate.queryForObject("""
+            select id
+            from embedding_boxes
+            where case_id = :caseId
+            order by created_at desc
+            limit 1
+            """, Map.of("caseId", context.caseId()), String.class);
+        postJson("/api/v1/slicings/start", USER_M3_SLICING, """
+            {
+              "taskId": "%s"
+            }
+            """.formatted(slicingTaskId))
+            .andExpect(status().isOk());
+        printSlides(slicingTaskId, embeddingBoxId);
+        String slideId = responseBody(postJson("/api/v1/slicings/complete", USER_M3_SLICING, """
+            {
+              "taskId": "%s",
+              "embeddingBoxId": "%s",
+              "slideCount": 1
+            }
+            """.formatted(slicingTaskId, embeddingBoxId)), 200).path("slideIds").get(0).asText();
+
+        postJson("/api/v1/slide-qc-evaluations", USER_M3_SLICING, """
+            {
+              "caseId": "%s",
+              "specimenId": "%s",
+              "slideId": "%s",
+              "qcType": "HE",
+              "evaluationResult": "UNQUALIFIED",
+              "issueDescription": "日期过滤",
+              "improvementSuggestion": "返工",
+              "remarks": "日期过滤"
+            }
+            """.formatted(context.caseId(), context.specimenId(), slideId))
+            .andExpect(status().isOk());
+
+        postJson("/api/v1/rework-orders", USER_M3_REWORK, """
+            {
+              "caseId": "%s",
+              "specimenId": "%s",
+              "slideId": "%s",
+              "reworkType": "RESTAIN",
+              "reason": "date-filter"
+            }
+            """.formatted(context.caseId(), context.specimenId(), slideId))
+            .andExpect(status().isOk());
+
+        LocalDate today = LocalDate.now();
+        LocalDate yesterday = today.minusDays(1);
+        LocalDateTime yesterdayTime = yesterday.atTime(11, 0);
+
+        namedParameterJdbcTemplate.update("""
+            update technical_pending_tasks
+            set created_at = :value,
+                started_at = :value,
+                completed_at = :value
+            where case_id = :caseId
+            """, Map.of("value", yesterdayTime, "caseId", context.caseId()));
+        namedParameterJdbcTemplate.update("""
+            update embeddings
+            set started_at = :value,
+                ended_at = :value,
+                created_at = :value
+            where case_id = :caseId
+            """, Map.of("value", yesterdayTime, "caseId", context.caseId()));
+        namedParameterJdbcTemplate.update("""
+            update samplings
+            set sampled_at = :value
+            where case_id = :caseId
+            """, Map.of("value", yesterdayTime, "caseId", context.caseId()));
+        namedParameterJdbcTemplate.update("""
+            update slide_qc_evaluations
+            set evaluated_at = :value,
+                created_at = :value
+            where case_id = :caseId
+            """, Map.of("value", yesterdayTime, "caseId", context.caseId()));
+        namedParameterJdbcTemplate.update("""
+            update slides
+            set created_at = :value,
+                updated_at = :value
+            where case_id = :caseId
+            """, Map.of("value", yesterdayTime, "caseId", context.caseId()));
+        namedParameterJdbcTemplate.update("""
+            update rework_orders
+            set requested_at = :value,
+                created_at = :value,
+                updated_at = :value
+            where case_id = :caseId
+            """, Map.of("value", yesterdayTime, "caseId", context.caseId()));
+        namedParameterJdbcTemplate.update("""
+            update workflow_events
+            set event_time = :value,
+                created_at = :value
+            where case_id = :caseId
+            """, Map.of("value", yesterdayTime, "caseId", context.caseId()));
+
+        namedParameterJdbcTemplate.update("""
+            update slides
+            set created_at = :value,
+                updated_at = :value
+            where id = :slideId
+            """, Map.of("value", today.atTime(9, 0), "slideId", slideId));
+
+        JsonNode todayTracking = technicalTracking(context.caseId(), USER_M3_TRACKING, today.toString());
+        assertThat(todayTracking.path("technicalTasks")).isEmpty();
+        assertThat(todayTracking.path("embeddingRecords")).isEmpty();
+        assertThat(todayTracking.path("embeddingEvaluationRecords")).isEmpty();
+        assertThat(todayTracking.path("slides")).hasSize(1);
+        assertThat(todayTracking.path("slides").get(0).path("slideId").asText()).isEqualTo(slideId);
+        assertThat(todayTracking.path("qcEvaluations")).isEmpty();
+        assertThat(todayTracking.path("reworks")).isEmpty();
+        assertThat(todayTracking.path("events")).isEmpty();
+        assertThat(todayTracking.path("specimens")).hasSize(1);
+        assertThat(todayTracking.path("blocks")).isEmpty();
+        assertThat(todayTracking.path("embeddingBoxes")).hasSize(1);
+
+        JsonNode yesterdayTracking = technicalTracking(context.caseId(), USER_M3_TRACKING, yesterday.toString());
+        assertThat(yesterdayTracking.path("embeddingRecords")).hasSize(1);
+        assertThat(yesterdayTracking.path("slides")).isEmpty();
+        assertThat(yesterdayTracking.path("qcEvaluations")).hasSize(2);
+        assertThat(yesterdayTracking.path("reworks")).hasSize(1);
+        assertThat(yesterdayTracking.path("events")).isNotEmpty();
     }
 
     private void advanceCaseToPendingEmbedding(TechnicalCaseContext context, String grossDescription) throws Exception {

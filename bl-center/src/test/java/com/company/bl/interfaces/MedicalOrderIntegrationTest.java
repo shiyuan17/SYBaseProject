@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -197,6 +198,42 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
             """.formatted(context.caseId()))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message", containsString("operatorUserId")));
+    }
+
+    @Test
+    void shouldFilterPendingMedicalOrdersByWorkDate() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-DATE-001", "BC-M4-ORDER-DATE-001");
+
+        JsonNode todayOrder = createMedicalOrder(context.caseId(), "ODI_CGRS_HE_STAIN", "ROUTINE", "today order");
+        JsonNode yesterdayOrder = createMedicalOrder(context.caseId(), "ODI_TSRS_PAS", "SPECIAL", "yesterday order");
+        LocalDate today = LocalDate.now();
+        LocalDate yesterday = today.minusDays(1);
+
+        namedParameterJdbcTemplate.update("""
+            update medical_orders
+            set order_date = :orderDate,
+                created_at = :orderDate,
+                updated_at = :orderDate
+            where id = :orderId
+            """, Map.of(
+            "orderDate", yesterday.atTime(10, 30),
+            "orderId", yesterdayOrder.path("orderId").asText()));
+
+        JsonNode todayPending = responseBody(mockMvc.perform(authorized(get("/api/v1/medical-orders/pending"), USER_M4_ORDER_EXECUTE)
+            .param("page", "1")
+            .param("size", "20")
+            .param("pathologyNo", context.pathologyNo())
+            .param("workDate", today.toString())), 200);
+        assertThat(todayPending.path("total").asInt()).isEqualTo(1);
+        assertThat(todayPending.path("items").get(0).path("orderId").asText()).isEqualTo(todayOrder.path("orderId").asText());
+
+        JsonNode yesterdayPending = responseBody(mockMvc.perform(authorized(get("/api/v1/medical-orders/pending"), USER_M4_ORDER_EXECUTE)
+            .param("page", "1")
+            .param("size", "20")
+            .param("pathologyNo", context.pathologyNo())
+            .param("workDate", yesterday.toString())), 200);
+        assertThat(yesterdayPending.path("total").asInt()).isEqualTo(1);
+        assertThat(yesterdayPending.path("items").get(0).path("orderId").asText()).isEqualTo(yesterdayOrder.path("orderId").asText());
     }
 
     private JsonNode createMedicalOrder(String caseId, String orderItemId, String orderType, String orderContent) throws Exception {

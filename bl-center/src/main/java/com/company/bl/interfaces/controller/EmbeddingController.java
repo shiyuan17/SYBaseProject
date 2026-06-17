@@ -45,12 +45,18 @@ public class EmbeddingController extends TechnicalControllerSupport {
     @RequirePermission(M3PermissionCodes.EMBEDDING)
     @GetMapping("/workstation-summary")
     public EmbeddingWorkstationSummaryResponse getWorkstationSummary(
+        @Parameter(description = "开始日期，格式 YYYY-MM-DD")
+        @RequestParam(required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+        @Parameter(description = "结束日期，格式 YYYY-MM-DD")
+        @RequestParam(required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
         @Parameter(description = "工作日期，默认服务端当天日期")
         @RequestParam(required = false)
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate workDate
     ) {
         TechnicalWorkflowModels.EmbeddingWorkstationSummary result =
-            technicalWorkflowAppService.getEmbeddingWorkstationSummary(workDate);
+            technicalWorkflowAppService.getEmbeddingWorkstationSummary(dateFrom, dateTo, workDate);
         return new EmbeddingWorkstationSummaryResponse(
             result.workDate() == null ? null : result.workDate().toString(),
             result.pendingCount(),

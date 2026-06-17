@@ -229,7 +229,8 @@ final class JdbcTechnicalWorkflowRowMappers {
             rs.getInt("combined_slide_flag") == 1,
             rs.getString("quality_status"),
             rs.getString("slide_status"),
-            rs.getObject("slice_count") == null ? null : rs.getInt("slice_count"));
+            rs.getObject("slice_count") == null ? null : rs.getInt("slice_count"),
+            toLocalDateTime(rs.getTimestamp("created_at")));
     }
 
     SlideStaining mapSlideStaining(ResultSet rs, int rowNum) throws SQLException {
@@ -255,7 +256,10 @@ final class JdbcTechnicalWorkflowRowMappers {
             rs.getString("slide_id"),
             rs.getString("rework_type"),
             rs.getString("status"),
-            rs.getString("reason"));
+            rs.getString("reason"),
+            toLocalDateTime(rs.getTimestamp("requested_at")),
+            toLocalDateTime(rs.getTimestamp("executed_at")),
+            toLocalDateTime(rs.getTimestamp("created_at")));
     }
 
     SlideQcEvaluation mapSlideQcEvaluation(ResultSet rs, int rowNum) throws SQLException {

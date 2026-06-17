@@ -41,7 +41,7 @@ class TechnicalGrossingWorkflowService {
         TechnicalWorkflowRecords.TechnicalTask task = technicalWorkflowSupport.requireActiveTask(
             taskId, TechnicalWorkflowConstants.NODE_GROSSING, TechnicalWorkflowConstants.OBJECT_CASE);
         TechnicalWorkflowModels.TechnicalTrackingView tracking =
-            technicalWorkflowQueryService.getTechnicalTracking(task.caseId());
+            technicalWorkflowQueryService.getTechnicalTracking(task.caseId(), null, null, null);
         TechnicalWorkflowModels.TechnicalSpecimenRegistrationWorkspace workspace =
             technicalSpecimenRegistrationService.getRegistrationWorkspaceForGrossingContext(task.caseId());
         TechnicalWorkflowModels.TechnicalSpecimenRegistrationDetail detail =

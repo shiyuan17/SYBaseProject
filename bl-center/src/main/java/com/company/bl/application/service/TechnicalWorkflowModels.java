@@ -47,7 +47,16 @@ public final class TechnicalWorkflowModels {
         int pendingSize,
         int completedPage,
         int completedSize,
-        String currentUserId
+        String currentUserId,
+        LocalDate dateFrom,
+        LocalDate dateTo,
+        LocalDate workDate
+    ) {
+    }
+
+    public record LocalDateRange(
+        LocalDate dateFrom,
+        LocalDate dateTo
     ) {
     }
 

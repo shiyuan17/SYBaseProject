@@ -31,7 +31,9 @@ public interface MedicalOrderRepository {
         int size,
         String pathologyNo,
         String status,
-        String orderCategoryCode
+        String orderCategoryCode,
+        LocalDateTime orderDateFrom,
+        LocalDateTime orderDateTo
     ) {
     }
 

@@ -251,6 +251,11 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
         return responseBody(mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/technical-tracking", caseIdentifier), userId)), 200);
     }
 
+    protected JsonNode technicalTracking(String caseIdentifier, String userId, String workDate) throws Exception {
+        return responseBody(mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/technical-tracking", caseIdentifier), userId)
+            .param("workDate", workDate)), 200);
+    }
+
     protected String querySamplingTemplateId(String caseId, String specimenId) {
         return namedParameterJdbcTemplate.queryForObject("""
             select sampling_template_id

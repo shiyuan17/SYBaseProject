@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -299,6 +300,70 @@ class SlicingWorkbenchIntegrationTest extends AbstractTechnicalWorkflowIntegrati
             }
             """.formatted(quotedJsonArray(context.taskIdsByBoxNo().values().stream().toList())))
             .andExpect(status().isConflict());
+    }
+
+    @Test
+    void shouldFilterSlicingWorkbenchBySelectedWorkDate() throws Exception {
+        SlicingReadyContext pendingTodayContext = prepareSlicingReadyContext("APP-M3-SLICE-DATE-001", "BC-M3-SLICE-DATE-001");
+        SlicingReadyContext pendingYesterdayContext = prepareSlicingReadyContext("APP-M3-SLICE-DATE-002", "BC-M3-SLICE-DATE-002");
+        SlicingReadyContext completedYesterdayContext = prepareSlicingReadyContext("APP-M3-SLICE-DATE-003", "BC-M3-SLICE-DATE-003");
+        String completedSlideId = completeSlicingCase(completedYesterdayContext);
+        LocalDate today = LocalDate.now();
+        LocalDate yesterday = today.minusDays(1);
+
+        LocalDateTime yesterdayTime = yesterday.atTime(10, 0);
+        namedParameterJdbcTemplate.update("""
+            update technical_pending_tasks
+            set created_at = :createdAt
+            where id = :taskId
+            """, new MapSqlParameterSource()
+            .addValue("createdAt", yesterdayTime)
+            .addValue("taskId", pendingYesterdayContext.slicingTaskId()));
+        namedParameterJdbcTemplate.update("""
+            update technical_pending_tasks
+            set completed_at = :completedAt
+            where id = :taskId
+            """, new MapSqlParameterSource()
+            .addValue("completedAt", yesterdayTime.plusHours(2))
+            .addValue("taskId", completedYesterdayContext.slicingTaskId()));
+
+        mockMvc.perform(authorized(get("/api/v1/slicings/workbench"), USER_M3_SLICING)
+                .param("keyword", pendingTodayContext.baseContext().pathologyNo())
+                .param("workDate", today.toString())
+                .param("pendingPage", "1")
+                .param("pendingSize", "20")
+                .param("completedPage", "1")
+                .param("completedSize", "20"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.stats.pendingTodayCount").value(1))
+            .andExpect(jsonPath("$.data.pendingPrintTotal").value(1))
+            .andExpect(jsonPath("$.data.pendingPrintList[0].taskId").value(pendingTodayContext.slicingTaskId()))
+            .andExpect(jsonPath("$.data.completedTotal").value(0));
+
+        mockMvc.perform(authorized(get("/api/v1/slicings/workbench"), USER_M3_SLICING)
+                .param("keyword", pendingYesterdayContext.baseContext().pathologyNo())
+                .param("workDate", yesterday.toString())
+                .param("pendingPage", "1")
+                .param("pendingSize", "20")
+                .param("completedPage", "1")
+                .param("completedSize", "20"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.stats.pendingTodayCount").value(1))
+            .andExpect(jsonPath("$.data.pendingPrintTotal").value(1))
+            .andExpect(jsonPath("$.data.pendingPrintList[0].taskId").value(pendingYesterdayContext.slicingTaskId()))
+            .andExpect(jsonPath("$.data.completedTotal").value(0));
+
+        mockMvc.perform(authorized(get("/api/v1/slicings/workbench"), USER_M3_SLICING)
+                .param("keyword", completedYesterdayContext.baseContext().pathologyNo())
+                .param("workDate", yesterday.toString())
+                .param("pendingPage", "1")
+                .param("pendingSize", "20")
+                .param("completedPage", "1")
+                .param("completedSize", "20"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.pendingPrintTotal").value(0))
+            .andExpect(jsonPath("$.data.completedTotal").value(1))
+            .andExpect(jsonPath("$.data.completedTodayList[0].slideId").value(completedSlideId));
     }
 
     private SlicingReadyContext prepareSlicingReadyContext(String applicationNo, String barcode) throws Exception {

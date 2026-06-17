@@ -176,10 +176,10 @@ public interface TechnicalWorkflowRepository {
 
     List<EmbeddingWorkstationRecord> findEmbeddingWorkstationRecordsByCaseId(String caseId);
 
-    Optional<EmbeddingWorkstationRecord> findEmbeddingWorkstationRecordByEmbeddingId(String embeddingId);
-
     List<EmbeddingWorkstationRecord> findEmbeddingWorkstationRecordsByEndedAtRange(LocalDateTime endedFrom,
                                                                                    LocalDateTime endedTo);
+
+    Optional<EmbeddingWorkstationRecord> findEmbeddingWorkstationRecordByEmbeddingId(String embeddingId);
 
     void updateEmbeddingQualityReview(String embeddingId, String evaluationLevel, String samplingEvaluation);
 

@@ -9,8 +9,10 @@ import com.company.bl.interfaces.vo.TechnicalTrackingResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.time.LocalDate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -28,8 +30,12 @@ public class PathologyCaseTechnicalTrackingController {
     @Operation(summary = "查询病例技术追踪", description = "按病例 ID、病理号或技术对象 ID 查询技术任务、蜡块、包埋盒、玻片、质控和返工追踪信息。")
     @RequirePermission(M3PermissionCodes.TECHNICAL_TRACKING_QUERY)
     @GetMapping("/{id}/technical-tracking")
-    public TechnicalTrackingResponse getTracking(@Parameter(description = "病例 ID、病理号或技术对象 ID") @PathVariable("id") String caseIdentifier) {
-        TechnicalWorkflowModels.TechnicalTrackingView result = technicalWorkflowAppService.getTechnicalTracking(caseIdentifier);
+    public TechnicalTrackingResponse getTracking(@Parameter(description = "病例 ID、病理号或技术对象 ID") @PathVariable("id") String caseIdentifier,
+                                                 @Parameter(description = "开始日期，格式 YYYY-MM-DD") @RequestParam(required = false) LocalDate dateFrom,
+                                                 @Parameter(description = "结束日期，格式 YYYY-MM-DD") @RequestParam(required = false) LocalDate dateTo,
+                                                 @Parameter(description = "工作日期，格式 YYYY-MM-DD") @RequestParam(required = false) LocalDate workDate) {
+        TechnicalWorkflowModels.TechnicalTrackingView result =
+            technicalWorkflowAppService.getTechnicalTracking(caseIdentifier, dateFrom, dateTo, workDate);
         return new TechnicalTrackingResponse(
             result.caseId(),
             result.pathologyNo(),

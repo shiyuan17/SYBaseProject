@@ -30,8 +30,12 @@ public class TechnicalWorkflowAppService {
         return technicalWorkflowQueryService.listPendingTasks(query);
     }
 
-    public TechnicalWorkflowModels.EmbeddingWorkstationSummary getEmbeddingWorkstationSummary(java.time.LocalDate workDate) {
-        return technicalWorkflowQueryService.getEmbeddingWorkstationSummary(workDate);
+    public TechnicalWorkflowModels.EmbeddingWorkstationSummary getEmbeddingWorkstationSummary(
+        java.time.LocalDate dateFrom,
+        java.time.LocalDate dateTo,
+        java.time.LocalDate workDate
+    ) {
+        return technicalWorkflowQueryService.getEmbeddingWorkstationSummary(dateFrom, dateTo, workDate);
     }
 
     public TechnicalWorkflowModels.SlicingWorkbenchView getSlicingWorkbench(TechnicalWorkflowModels.SlicingWorkbenchQuery query) {
@@ -225,7 +229,12 @@ public class TechnicalWorkflowAppService {
         return technicalReworkWorkflowService.executeReworkOrder(command);
     }
 
-    public TechnicalWorkflowModels.TechnicalTrackingView getTechnicalTracking(String caseId) {
-        return technicalWorkflowQueryService.getTechnicalTracking(caseId);
+    public TechnicalWorkflowModels.TechnicalTrackingView getTechnicalTracking(
+        String caseId,
+        java.time.LocalDate dateFrom,
+        java.time.LocalDate dateTo,
+        java.time.LocalDate workDate
+    ) {
+        return technicalWorkflowQueryService.getTechnicalTracking(caseId, dateFrom, dateTo, workDate);
     }
 }

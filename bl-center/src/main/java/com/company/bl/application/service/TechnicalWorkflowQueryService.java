@@ -67,29 +67,56 @@ class TechnicalWorkflowQueryService {
     }
 
     @Transactional(readOnly = true)
-    TechnicalWorkflowModels.EmbeddingWorkstationSummary getEmbeddingWorkstationSummary(LocalDate workDate) {
-        LocalDate resolvedDate = workDate == null ? LocalDate.now() : workDate;
-        LocalDateTime dayStart = resolvedDate.atStartOfDay();
-        LocalDateTime nextDayStart = dayStart.plusDays(1);
+    TechnicalWorkflowModels.EmbeddingWorkstationSummary getEmbeddingWorkstationSummary(
+        LocalDate dateFrom,
+        LocalDate dateTo,
+        LocalDate workDate
+    ) {
+        TechnicalWorkflowModels.LocalDateRange effectiveDateRange =
+            resolveEffectiveDateRange(dateFrom, dateTo, workDate);
+        LocalDateTime dayStart =
+            effectiveDateRange.dateFrom() == null ? null : effectiveDateRange.dateFrom().atStartOfDay();
+        LocalDateTime nextDayStart =
+            effectiveDateRange.dateTo() == null ? null : effectiveDateRange.dateTo().plusDays(1).atStartOfDay();
         LocalDateTime now = LocalDateTime.now();
         TechnicalTaskTimeoutPolicy.TimeoutSnapshot timeoutSnapshot = technicalTaskTimeoutPolicy.snapshot(now);
 
-        List<TechnicalWorkflowModels.TaskView> pendingTasks =
-            technicalWorkflowRepository.findActiveTechnicalTasksByTypeAndCreatedRange(
+        List<TechnicalWorkflowModels.TaskView> pendingTasks = technicalWorkflowRepository
+            .findTechnicalTasks(
+                new TechnicalWorkflowRecords.PendingTechnicalTaskQuery(
+                    1,
+                    Integer.MAX_VALUE,
                     TechnicalWorkflowConstants.NODE_EMBEDDING,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
                     dayStart,
-                    nextDayStart)
-                .stream()
-                .map(task -> toTaskView(task, timeoutSnapshot))
-                .toList();
+                    nextDayStart,
+                    false,
+                    false,
+                    timeoutSnapshot.thresholdFor(TechnicalWorkflowConstants.NODE_GROSSING),
+                    timeoutSnapshot.thresholdFor(TechnicalWorkflowConstants.NODE_DEHYDRATION),
+                    timeoutSnapshot.thresholdFor(TechnicalWorkflowConstants.NODE_SLICING),
+                    timeoutSnapshot.thresholdFor(TechnicalWorkflowConstants.NODE_STAINING)))
+            .items()
+            .stream()
+            .map(task -> toTaskView(task, timeoutSnapshot))
+            .toList();
 
-        List<TechnicalWorkflowModels.TechnicalEmbeddingRecord> completedRecords =
-            technicalWorkflowRepository.findEmbeddingWorkstationRecordsByEndedAtRange(dayStart, nextDayStart).stream()
-                .map(this::toTechnicalEmbeddingRecord)
-                .toList();
+        List<TechnicalWorkflowModels.TechnicalEmbeddingRecord> completedRecords = technicalWorkflowRepository
+            .findEmbeddingWorkstationRecordsByEndedAtRange(dayStart, nextDayStart)
+            .stream()
+            .map(this::toTechnicalEmbeddingRecord)
+            .toList();
 
         return new TechnicalWorkflowModels.EmbeddingWorkstationSummary(
-            resolvedDate,
+            effectiveDateRange.dateFrom(),
             pendingTasks.size(),
             completedRecords.size(),
             pendingTasks,
@@ -100,7 +127,16 @@ class TechnicalWorkflowQueryService {
     TechnicalWorkflowModels.SlicingWorkbenchView getSlicingWorkbench(TechnicalWorkflowModels.SlicingWorkbenchQuery query) {
         LocalDateTime now = LocalDateTime.now();
         TechnicalTaskTimeoutPolicy.TimeoutSnapshot timeoutSnapshot = technicalTaskTimeoutPolicy.snapshot(now);
-        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+        TechnicalWorkflowModels.LocalDateRange effectiveDateRange =
+            resolveEffectiveDateRange(query.dateFrom(), query.dateTo(), query.workDate());
+        LocalDateTime dateFrom = effectiveDateRange.dateFrom() == null ? null : effectiveDateRange.dateFrom().atStartOfDay();
+        LocalDateTime dateToExclusive =
+            effectiveDateRange.dateTo() == null ? null : effectiveDateRange.dateTo().plusDays(1).atStartOfDay();
+        LocalDate baseDate =
+            effectiveDateRange.dateFrom() != null
+                ? effectiveDateRange.dateFrom()
+                : (query.workDate() != null ? query.workDate() : LocalDate.now());
+        LocalDateTime todayStart = baseDate.atStartOfDay();
         LocalDateTime tomorrowStart = todayStart.plusDays(1);
         LocalDateTime dayAfterTomorrowStart = tomorrowStart.plusDays(1);
         TechnicalWorkflowRecords.SlicingWorkbenchQuery repositoryQuery =
@@ -114,6 +150,8 @@ class TechnicalWorkflowQueryService {
                 query.completedPage(),
                 query.completedSize(),
                 query.currentUserId(),
+                dateFrom,
+                dateToExclusive,
                 todayStart,
                 tomorrowStart,
                 dayAfterTomorrowStart,
@@ -153,11 +191,22 @@ class TechnicalWorkflowQueryService {
     }
 
     @Transactional(readOnly = true)
-    TechnicalWorkflowModels.TechnicalTrackingView getTechnicalTracking(String caseIdentifier) {
+    TechnicalWorkflowModels.TechnicalTrackingView getTechnicalTracking(
+        String caseIdentifier,
+        LocalDate dateFrom,
+        LocalDate dateTo,
+        LocalDate workDate
+    ) {
         LocalDateTime now = LocalDateTime.now();
         TechnicalTaskTimeoutPolicy.TimeoutSnapshot timeoutSnapshot = technicalTaskTimeoutPolicy.snapshot(now);
         PathologyCase pathologyCase = resolveTrackingCase(caseIdentifier);
         String caseId = pathologyCase.id();
+        TechnicalWorkflowModels.LocalDateRange effectiveDateRange =
+            resolveEffectiveDateRange(dateFrom, dateTo, workDate);
+        LocalDateTime workDateStart =
+            effectiveDateRange.dateFrom() == null ? null : effectiveDateRange.dateFrom().atStartOfDay();
+        LocalDateTime workDateEnd =
+            effectiveDateRange.dateTo() == null ? null : effectiveDateRange.dateTo().plusDays(1).atStartOfDay();
         List<Specimen> specimens = technicalWorkflowRepository.findSpecimensByCaseId(caseId);
         List<TechnicalWorkflowRecords.TechnicalTask> tasks = technicalWorkflowRepository.findActiveTechnicalTasksByCaseId(caseId);
         List<TechnicalWorkflowRecords.SamplingBlock> blocks = technicalWorkflowRepository.findSamplingBlocksByCaseId(caseId);
@@ -169,6 +218,75 @@ class TechnicalWorkflowQueryService {
         List<TrackingEvent> events = technicalWorkflowRepository.findTrackingEventsByCaseId(caseId);
         List<TechnicalWorkflowRecords.EmbeddingWorkstationRecord> embeddingRecords =
             technicalWorkflowRepository.findEmbeddingWorkstationRecordsByCaseId(caseId);
+        if (workDateStart != null || workDateEnd != null) {
+            tasks = tasks.stream()
+                .filter(task -> isWithinDateRange(task.createdAt(), workDateStart, workDateEnd)
+                    || isWithinDateRange(task.startedAt(), workDateStart, workDateEnd)
+                    || isWithinDateRange(task.completedAt(), workDateStart, workDateEnd))
+                .toList();
+            embeddingRecords = embeddingRecords.stream()
+                .filter(item -> isWithinDateRange(item.endedAt(), workDateStart, workDateEnd)
+                    || isWithinDateRange(item.startedAt(), workDateStart, workDateEnd)
+                    || isWithinDateRange(item.sampledAt(), workDateStart, workDateEnd))
+                .toList();
+            slides = slides.stream()
+                .filter(slide -> isWithinDateRange(slide.createdAt(), workDateStart, workDateEnd))
+                .toList();
+            qcEvaluations = qcEvaluations.stream()
+                .filter(item -> isWithinDateRange(item.evaluatedAt(), workDateStart, workDateEnd))
+                .toList();
+            reworkOrders = reworkOrders.stream()
+                .filter(item -> isWithinDateRange(item.requestedAt(), workDateStart, workDateEnd)
+                    || isWithinDateRange(item.executedAt(), workDateStart, workDateEnd)
+                    || isWithinDateRange(item.createdAt(), workDateStart, workDateEnd))
+                .toList();
+            events = events.stream()
+                .filter(item -> isWithinDateRange(item.eventTime(), workDateStart, workDateEnd))
+                .toList();
+        }
+        List<String> referencedSlideIds = java.util.stream.Stream.of(
+                slides.stream().map(TechnicalWorkflowProcessingRecords.Slide::id),
+                qcEvaluations.stream().map(TechnicalWorkflowProcessingRecords.SlideQcEvaluation::slideId),
+                reworkOrders.stream().map(TechnicalWorkflowProcessingRecords.ReworkOrder::slideId))
+            .flatMap(stream -> stream)
+            .filter(id -> id != null && !id.isBlank())
+            .distinct()
+            .toList();
+        List<String> referencedSpecimenIds = java.util.stream.Stream.of(
+                tasks.stream().map(TechnicalWorkflowRecords.TechnicalTask::specimenId),
+                embeddingRecords.stream().map(TechnicalWorkflowRecords.EmbeddingWorkstationRecord::specimenId),
+                slides.stream().map(TechnicalWorkflowProcessingRecords.Slide::specimenId),
+                qcEvaluations.stream().map(TechnicalWorkflowProcessingRecords.SlideQcEvaluation::specimenId),
+                reworkOrders.stream().map(TechnicalWorkflowProcessingRecords.ReworkOrder::specimenId))
+            .flatMap(stream -> stream)
+            .filter(id -> id != null && !id.isBlank())
+            .distinct()
+            .toList();
+        List<String> referencedBlockIds = java.util.stream.Stream.concat(
+                embeddingRecords.stream().map(TechnicalWorkflowRecords.EmbeddingWorkstationRecord::samplingBlockId),
+                reworkOrders.stream().map(TechnicalWorkflowProcessingRecords.ReworkOrder::samplingBlockId))
+            .filter(id -> id != null && !id.isBlank())
+            .distinct()
+            .toList();
+        List<String> referencedEmbeddingBoxIds = java.util.stream.Stream.of(
+                embeddingRecords.stream().map(TechnicalWorkflowRecords.EmbeddingWorkstationRecord::embeddingBoxId),
+                slides.stream().map(TechnicalWorkflowProcessingRecords.Slide::embeddingBoxId),
+                reworkOrders.stream().map(TechnicalWorkflowProcessingRecords.ReworkOrder::embeddingBoxId))
+            .flatMap(stream -> stream)
+            .filter(id -> id != null && !id.isBlank())
+            .distinct()
+            .toList();
+        if (workDateStart != null || workDateEnd != null) {
+            specimens = specimens.stream()
+                .filter(item -> referencedSpecimenIds.contains(item.id()))
+                .toList();
+            blocks = blocks.stream()
+                .filter(item -> referencedBlockIds.contains(item.id()))
+                .toList();
+            boxes = boxes.stream()
+                .filter(item -> referencedEmbeddingBoxIds.contains(item.id()))
+                .toList();
+        }
         Map<String, List<TechnicalWorkflowProcessingRecords.Slide>> slidesByBox = slides.stream()
             .collect(Collectors.groupingBy(TechnicalWorkflowProcessingRecords.Slide::embeddingBoxId));
         return new TechnicalWorkflowModels.TechnicalTrackingView(
@@ -328,5 +446,36 @@ class TechnicalWorkflowQueryService {
 
     private String stringify(LocalDateTime value) {
         return value == null ? null : value.toString();
+    }
+
+    private TechnicalWorkflowModels.LocalDateRange resolveEffectiveDateRange(
+        LocalDate dateFrom,
+        LocalDate dateTo,
+        LocalDate workDate
+    ) {
+        if (dateFrom != null || dateTo != null) {
+            return new TechnicalWorkflowModels.LocalDateRange(dateFrom, dateTo);
+        }
+        if (workDate != null) {
+            return new TechnicalWorkflowModels.LocalDateRange(workDate, workDate);
+        }
+        return new TechnicalWorkflowModels.LocalDateRange(null, null);
+    }
+
+    private boolean isWithinDateRange(
+        LocalDateTime value,
+        LocalDateTime workDateStart,
+        LocalDateTime workDateEnd
+    ) {
+        if (value == null) {
+            return false;
+        }
+        if (workDateStart != null && value.isBefore(workDateStart)) {
+            return false;
+        }
+        if (workDateEnd != null && !value.isBefore(workDateEnd)) {
+            return false;
+        }
+        return true;
     }
 }

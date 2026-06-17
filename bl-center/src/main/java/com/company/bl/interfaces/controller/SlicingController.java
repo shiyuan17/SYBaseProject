@@ -20,6 +20,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -58,6 +59,12 @@ public class SlicingController extends TechnicalControllerSupport {
         @RequestParam(defaultValue = "1") int completedPage,
         @Parameter(description = "已完成分页大小")
         @RequestParam(defaultValue = "20") int completedSize,
+        @Parameter(description = "开始日期，格式 YYYY-MM-DD")
+        @RequestParam(required = false) LocalDate dateFrom,
+        @Parameter(description = "结束日期，格式 YYYY-MM-DD")
+        @RequestParam(required = false) LocalDate dateTo,
+        @Parameter(description = "工作日期，格式 YYYY-MM-DD")
+        @RequestParam(required = false) LocalDate workDate,
         HttpServletRequest httpServletRequest
     ) {
         TechnicalWorkflowModels.SlicingWorkbenchView result =
@@ -71,7 +78,10 @@ public class SlicingController extends TechnicalControllerSupport {
                     pendingSize,
                     completedPage,
                     completedSize,
-                    resolveUserId(httpServletRequest)));
+                    resolveUserId(httpServletRequest),
+                    dateFrom,
+                    dateTo,
+                    workDate));
         return new SlicingWorkbenchResponse(
             new SlicingWorkbenchResponse.Stats(
                 result.stats().pendingTodayCount(),

@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -61,9 +62,20 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
                                                        @Parameter(description = "每页条数") @RequestParam(defaultValue = "20") int size,
                                                        @Parameter(description = "病理号") @RequestParam(required = false) String pathologyNo,
                                                        @Parameter(description = "医嘱状态") @RequestParam(required = false) String status,
-                                                       @Parameter(description = "医嘱分类码，多个分类用英文逗号分隔") @RequestParam(required = false) String orderCategoryCode) {
+                                                       @Parameter(description = "医嘱分类码，多个分类用英文逗号分隔") @RequestParam(required = false) String orderCategoryCode,
+                                                       @Parameter(description = "开始日期，格式 YYYY-MM-DD") @RequestParam(required = false) LocalDate dateFrom,
+                                                       @Parameter(description = "结束日期，格式 YYYY-MM-DD") @RequestParam(required = false) LocalDate dateTo,
+                                                       @Parameter(description = "工作日期，格式 YYYY-MM-DD") @RequestParam(required = false) LocalDate workDate) {
         DiagnosticReportModels.PendingMedicalOrderPage result = diagnosticReportAppService.listPendingMedicalOrders(
-            new DiagnosticReportModels.PendingMedicalOrderQuery(page, size, pathologyNo, status, orderCategoryCode));
+            new DiagnosticReportModels.PendingMedicalOrderQuery(
+                page,
+                size,
+                pathologyNo,
+                status,
+                orderCategoryCode,
+                dateFrom,
+                dateTo,
+                workDate));
         return new PendingMedicalOrderPageResponse(
             result.items().stream().map(this::toResponse).toList(),
             result.page(),

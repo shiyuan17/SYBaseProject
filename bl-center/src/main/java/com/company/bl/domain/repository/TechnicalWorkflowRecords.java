@@ -45,6 +45,8 @@ public final class TechnicalWorkflowRecords {
         int completedPage,
         int completedSize,
         String currentUserId,
+        LocalDateTime dateFrom,
+        LocalDateTime dateToExclusive,
         LocalDateTime todayStart,
         LocalDateTime tomorrowStart,
         LocalDateTime dayAfterTomorrowStart,

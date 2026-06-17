@@ -1,5 +1,6 @@
 package com.company.bl.application.service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public final class DiagnosticReportModels {
@@ -225,7 +226,10 @@ public final class DiagnosticReportModels {
         int size,
         String pathologyNo,
         String status,
-        String orderCategoryCode
+        String orderCategoryCode,
+        LocalDate dateFrom,
+        LocalDate dateTo,
+        LocalDate workDate
     ) {
     }
 

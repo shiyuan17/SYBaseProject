@@ -30,13 +30,17 @@ class MedicalOrderWorkflowService {
 
     @Transactional(readOnly = true)
     DiagnosticReportModels.PendingMedicalOrderPage listPendingMedicalOrders(DiagnosticReportModels.PendingMedicalOrderQuery query) {
+        TechnicalWorkflowModels.LocalDateRange effectiveDateRange =
+            resolveEffectiveDateRange(query.dateFrom(), query.dateTo(), query.workDate());
         MedicalOrderRepository.PagedMedicalOrders paged = medicalOrderRepository.findMedicalOrders(
             new MedicalOrderRepository.PendingMedicalOrderQuery(
                 query.page(),
                 query.size(),
                 query.pathologyNo(),
                 query.status(),
-                query.orderCategoryCode()));
+                query.orderCategoryCode(),
+                effectiveDateRange.dateFrom() == null ? null : effectiveDateRange.dateFrom().atStartOfDay(),
+                effectiveDateRange.dateTo() == null ? null : effectiveDateRange.dateTo().plusDays(1).atStartOfDay()));
         return new DiagnosticReportModels.PendingMedicalOrderPage(
             paged.items().stream().map(this::toView).toList(),
             query.page(),
@@ -289,5 +293,19 @@ class MedicalOrderWorkflowService {
 
     private static String firstPresent(String first, String fallback) {
         return first == null || first.isBlank() ? fallback : first;
+    }
+
+    private TechnicalWorkflowModels.LocalDateRange resolveEffectiveDateRange(
+        java.time.LocalDate dateFrom,
+        java.time.LocalDate dateTo,
+        java.time.LocalDate workDate
+    ) {
+        if (dateFrom != null || dateTo != null) {
+            return new TechnicalWorkflowModels.LocalDateRange(dateFrom, dateTo);
+        }
+        if (workDate != null) {
+            return new TechnicalWorkflowModels.LocalDateRange(workDate, workDate);
+        }
+        return new TechnicalWorkflowModels.LocalDateRange(null, null);
     }
 }

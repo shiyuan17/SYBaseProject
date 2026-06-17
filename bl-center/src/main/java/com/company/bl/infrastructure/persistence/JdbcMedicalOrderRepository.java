@@ -189,21 +189,27 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
     private String buildFilters(PendingMedicalOrderQuery query) {
         StringBuilder builder = new StringBuilder();
         if (query.pathologyNo() != null && !query.pathologyNo().isBlank()) {
-            builder.append(" and pc.pathology_no = :pathologyNo");
+            builder.append(" and pc.pathology_no = :pathologyNo\n");
         }
         if (query.status() != null && !query.status().isBlank()) {
-            builder.append(" and mo.status = :status");
+            builder.append(" and mo.status = :status\n");
         } else {
-            builder.append(" and mo.status in ('PENDING', 'IN_PROGRESS')");
+            builder.append(" and mo.status in ('PENDING', 'IN_PROGRESS')\n");
+        }
+        if (query.orderDateFrom() != null) {
+            builder.append(" and mo.order_date >= :orderDateFrom\n");
+        }
+        if (query.orderDateTo() != null) {
+            builder.append(" and mo.order_date < :orderDateTo\n");
         }
         List<String> categoryCodes = parseOrderCategoryCodes(query.orderCategoryCode());
         if (!categoryCodes.isEmpty()) {
             builder.append(" and (upper(mo.order_category_code) in (:orderCategoryCodes)");
             String fallback = buildLegacyCategoryFallback(categoryCodes);
             if (!fallback.isBlank()) {
-                builder.append(" or (mo.order_category_code is null and (").append(fallback).append("))");
+                builder.append(" or (mo.order_category_code is null and ( ").append(fallback).append(" ))");
             }
-            builder.append(")");
+            builder.append(")\n");
         }
         return builder.toString();
     }
@@ -215,6 +221,12 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
         }
         if (query.status() != null && !query.status().isBlank()) {
             params.addValue("status", query.status());
+        }
+        if (query.orderDateFrom() != null) {
+            params.addValue("orderDateFrom", query.orderDateFrom());
+        }
+        if (query.orderDateTo() != null) {
+            params.addValue("orderDateTo", query.orderDateTo());
         }
         List<String> categoryCodes = parseOrderCategoryCodes(query.orderCategoryCode());
         if (!categoryCodes.isEmpty()) {

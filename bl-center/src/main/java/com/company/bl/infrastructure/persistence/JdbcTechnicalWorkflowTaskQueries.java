@@ -103,17 +103,23 @@ final class JdbcTechnicalWorkflowTaskQueries {
         java.time.LocalDateTime createdFrom,
         java.time.LocalDateTime createdTo
     ) {
-        return jdbcTemplate.query(taskSelectSql() + """
+        StringBuilder sql = new StringBuilder(taskSelectSql() + """
             where t.task_type = :taskType
               and t.task_status in (:statuses)
-              and t.created_at >= :createdFrom
-              and t.created_at < :createdTo
-            order by t.created_at asc, t.id asc
-            """, new MapSqlParameterSource()
+            """);
+        MapSqlParameterSource params = new MapSqlParameterSource()
             .addValue("taskType", taskType)
-            .addValue("statuses", ACTIVE_TASK_STATUSES)
-            .addValue("createdFrom", createdFrom)
-            .addValue("createdTo", createdTo), rowMappers::mapTechnicalTask);
+            .addValue("statuses", ACTIVE_TASK_STATUSES);
+        if (createdFrom != null) {
+            sql.append(" and t.created_at >= :createdFrom\n");
+            params.addValue("createdFrom", createdFrom);
+        }
+        if (createdTo != null) {
+            sql.append(" and t.created_at < :createdTo\n");
+            params.addValue("createdTo", createdTo);
+        }
+        sql.append(" order by t.created_at asc, t.id asc\n");
+        return jdbcTemplate.query(sql.toString(), params, rowMappers::mapTechnicalTask);
     }
 
     PagedTechnicalTasks findTechnicalTasks(PendingTechnicalTaskQuery query) {
