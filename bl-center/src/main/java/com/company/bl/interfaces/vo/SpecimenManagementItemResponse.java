@@ -20,6 +20,10 @@ public record SpecimenManagementItemResponse(
     String patientName,
     @Schema(description = "Patient gender")
     String patientGender,
+    @Schema(description = "Inpatient number")
+    String inpatientNo,
+    @Schema(description = "Ward name")
+    String wardName,
     @Schema(description = "Submitting department id")
     String submittingDepartmentId,
     @Schema(description = "Submitting department name")
@@ -66,6 +70,8 @@ public record SpecimenManagementItemResponse(
     String specimenConfirmedByName,
     @Schema(description = "Specimen removal confirmed at")
     String specimenRemovalAt,
+    @Schema(description = "Specimen removal operator name")
+    String specimenRemovalOperatorName,
     @Schema(description = "Check-in status")
     String checkInStatus,
     @Schema(description = "Checked-in at")

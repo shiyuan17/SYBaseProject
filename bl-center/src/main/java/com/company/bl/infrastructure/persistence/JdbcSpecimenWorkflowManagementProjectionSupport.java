@@ -173,6 +173,8 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
                 a.patient_id,
                 a.patient_name,
                 a.patient_gender,
+                w.inpatient_no,
+                w.ward_name,
                 a.submitting_department_id,
                 a.submitting_department_name,
                 w.building_id,
@@ -200,6 +202,7 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
                 confirm_evt.operator_name as specimen_confirmed_by_name,
             """
                 + specimenRemovalAtSelect("s")
+                + specimenRemovalOperatorNameSelect("s")
                 + checkInStatusSelect("s", "check_in_status")
                 + checkedInAtSelect("s")
                 + checkedInByNameSelect("s")
@@ -401,6 +404,8 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
             JdbcResultSetUtils.getNullableString(rs, "patient_id"),
             rs.getString("patient_name"),
             JdbcResultSetUtils.getNullableString(rs, "patient_gender"),
+            JdbcResultSetUtils.getNullableString(rs, "inpatient_no"),
+            JdbcResultSetUtils.getNullableString(rs, "ward_name"),
             rs.getString("submitting_department_id"),
             rs.getString("submitting_department_name"),
             JdbcResultSetUtils.getNullableString(rs, "building_id"),
@@ -432,6 +437,7 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
             JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_removal_at") == null
                 ? null
                 : JdbcResultSetUtils.getNullableTimestamp(rs, "specimen_removal_at").toLocalDateTime(),
+            JdbcResultSetUtils.getNullableString(rs, "specimen_removal_operator_name"),
             JdbcResultSetUtils.getNullableString(rs, "check_in_status"),
             JdbcResultSetUtils.getNullableTimestamp(rs, "checked_in_at") == null
                 ? null

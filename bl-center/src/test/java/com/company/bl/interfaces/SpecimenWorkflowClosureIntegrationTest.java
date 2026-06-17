@@ -727,6 +727,7 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.items[0].barcode").value(barcode))
             .andExpect(jsonPath("$.data.items[0].specimenRemovalAt").isNotEmpty())
+            .andExpect(jsonPath("$.data.items[0].specimenRemovalOperatorName").value(operatorName))
             .andExpect(jsonPath("$.data.items[0].verificationStatus").value("VERIFIED"));
 
         postJson("/api/v1/specimen-fixations/start", USER_FIXATION, """

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -16,6 +17,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @SpringBootTest(classes = BlCenterApplication.class)
 class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWorkflowIntegrationTest {
+
+    private static final String DICTIONARY_DEPT_GYNE = "DEPT-GYNE";
+    private static final String DICTIONARY_DEPT_GYNE_NAME = "妇科";
+    private static final String DICTIONARY_DEPT_UNMATCHED = "DEPT-NO-DICTIONARY";
+    private static final String DICTIONARY_DEPT_UNMATCHED_NAME = "未关联科室";
 
     @Test
     void shouldLookupByApplicationNoAndSaveWorkbenchForDownstreamFlow() throws Exception {
@@ -55,7 +61,18 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
             mockMvc.perform(authorized(get("/api/v1/specimens/applications/{applicationId}/latest-registration", applicationId), USER_REGISTER)),
             200);
         assertThat(latestRegistration.path("specimens")).hasSize(1);
-        String barcode = latestRegistration.path("specimens").get(0).path("barcode").asText();
+        String specimenId = latestRegistration.path("specimens").get(0).path("id").asText();
+        String specimenNo = latestRegistration.path("specimens").get(0).path("specimenNo").asText();
+        String barcode = "BC-WORKBENCH-001";
+        postJson("/api/v1/specimens/%s/barcode-binding".formatted(specimenId), USER_REGISTER, """
+            {
+              "targetBarcode": "%s",
+              "terminalCode": "TERM-WORKBENCH-001",
+              "remarks": "工作台回归测试绑定"
+            }
+            """.formatted(barcode))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.barcode").value(barcode));
 
         mockMvc.perform(authorized(get("/api/v1/specimens"), USER_REGISTER)
                 .param("page", "1")
@@ -63,7 +80,19 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
                 .param("applicationNo", "APP-WORKBENCH-001"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.total").value(1))
-            .andExpect(jsonPath("$.data.items[0].applicationNo").value("APP-WORKBENCH-001"));
+            .andExpect(jsonPath("$.data.items[0].applicationNo").value("APP-WORKBENCH-001"))
+            .andExpect(jsonPath("$.data.items[0].inpatientNo").value("ZY-WORKBENCH-001"))
+            .andExpect(jsonPath("$.data.items[0].wardName").value("外科病区"));
+
+        mockMvc.perform(authorized(get("/api/v1/specimens"), USER_REGISTER)
+                .param("page", "1")
+                .param("size", "500")
+                .param("keyword", specimenNo))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].specimenNo").value(specimenNo))
+            .andExpect(jsonPath("$.data.items[0].inpatientNo").value("ZY-WORKBENCH-001"))
+            .andExpect(jsonPath("$.data.items[0].wardName").value("外科病区"));
 
         mockMvc.perform(authorized(get("/api/v1/applications/{id}/tracking", applicationId), USER_TRACKING))
             .andExpect(status().isOk())
@@ -351,6 +380,76 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
             .andExpect(jsonPath("$.data.buildings[0].buildingName").value("B001"))
             .andExpect(jsonPath("$.data.buildings[0].operatingRooms[0].roomId").value("OR-101"))
             .andExpect(jsonPath("$.data.buildings[0].operatingRooms[0].roomName").value("OR-101"));
+    }
+
+    @Test
+    void shouldReturnDepartmentFilteredSpecimenDictionaryForMatchedDepartment() throws Exception {
+        updateUserDepartment(USER_REGISTER, DICTIONARY_DEPT_GYNE, DICTIONARY_DEPT_GYNE_NAME);
+
+        mockMvc.perform(authorized(get("/api/v1/application-registration-workbench/specimen-dictionary"), USER_REGISTER))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.departmentFiltered").value(true))
+            .andExpect(jsonPath("$.data.groups.length()").value(1))
+            .andExpect(jsonPath("$.data.groups[0].systemName").value("妇科"))
+            .andExpect(jsonPath("$.data.groups[0].subParts[0].partName").value("宫颈"))
+            .andExpect(jsonPath("$.data.entryOptions.length()").value(7))
+            .andExpect(jsonPath("$.data.entryOptions[0].specimenName").value("宫颈 3 点位组织"))
+            .andExpect(jsonPath("$.data.commonOptions.length()").value(7));
+    }
+
+    @Test
+    void shouldFallbackToFullDictionaryWhenCurrentUserHasNoDepartment() throws Exception {
+        updateUserDepartment(USER_REGISTER, null, null);
+
+        mockMvc.perform(authorized(get("/api/v1/application-registration-workbench/specimen-dictionary"), USER_REGISTER))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.departmentFiltered").value(false))
+            .andExpect(jsonPath("$.data.groups.length()").value(3))
+            .andExpect(jsonPath("$.data.groups[0].systemName").value("骨、关节及软组织"))
+            .andExpect(jsonPath("$.data.groups[2].systemName").value("妇科"))
+            .andExpect(jsonPath("$.data.entryOptions.length()").value(34))
+            .andExpect(jsonPath("$.data.commonOptions.length()").value(8));
+    }
+
+    @Test
+    void shouldFallbackToFullDictionaryWhenDepartmentHasNoAssociatedEntries() throws Exception {
+        updateUserDepartment(USER_REGISTER, DICTIONARY_DEPT_UNMATCHED, DICTIONARY_DEPT_UNMATCHED_NAME);
+
+        mockMvc.perform(authorized(get("/api/v1/application-registration-workbench/specimen-dictionary"), USER_REGISTER))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.departmentFiltered").value(false))
+            .andExpect(jsonPath("$.data.groups.length()").value(3))
+            .andExpect(jsonPath("$.data.entryOptions.length()").value(34))
+            .andExpect(jsonPath("$.data.commonOptions.length()").value(8));
+    }
+
+    @Test
+    void shouldApplyKeywordWithinDepartmentFilteredDictionary() throws Exception {
+        updateUserDepartment(USER_REGISTER, DICTIONARY_DEPT_GYNE, DICTIONARY_DEPT_GYNE_NAME);
+
+        mockMvc.perform(authorized(get("/api/v1/application-registration-workbench/specimen-dictionary"), USER_REGISTER)
+                .param("keyword", "锥切"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.departmentFiltered").value(true))
+            .andExpect(jsonPath("$.data.groups.length()").value(1))
+            .andExpect(jsonPath("$.data.entryOptions.length()").value(1))
+            .andExpect(jsonPath("$.data.entryOptions[0].specimenName").value("宫颈锥切标本"))
+            .andExpect(jsonPath("$.data.commonOptions.length()").value(1))
+            .andExpect(jsonPath("$.data.commonOptions[0].specimenName").value("宫颈锥切标本"));
+    }
+
+    private void updateUserDepartment(String userId, String departmentId, String departmentName) {
+        jdbcTemplate.update(
+            """
+                update users
+                set department_id = :departmentId,
+                    department_name = :departmentName
+                where id = :userId
+                """,
+            new MapSqlParameterSource()
+                .addValue("departmentId", departmentId)
+                .addValue("departmentName", departmentName)
+                .addValue("userId", userId));
     }
 
     private String workbenchSavePayload(String inpatientNo, String specimenName, String specimenSite) {

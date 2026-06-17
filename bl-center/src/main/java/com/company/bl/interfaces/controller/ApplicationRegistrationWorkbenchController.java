@@ -7,6 +7,7 @@ import com.company.bl.interfaces.dto.SaveApplicationRegistrationPatientInfoReque
 import com.company.bl.interfaces.dto.SaveApplicationRegistrationWorkbenchRequest;
 import com.company.bl.interfaces.vo.ApplicationRegistrationWorkbenchResponse;
 import com.company.bl.interfaces.vo.ApplicationRegistrationWorkbenchOperatingOptionsResponse;
+import com.company.bl.interfaces.vo.ApplicationRegistrationSpecimenDictionaryResponse;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -59,6 +60,35 @@ public class ApplicationRegistrationWorkbenchController {
                             room.roomType()))
                         .toList()))
                 .toList());
+    }
+
+    @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
+    @GetMapping("/specimen-dictionary")
+    public ApplicationRegistrationSpecimenDictionaryResponse listSpecimenDictionary(
+        @Parameter(description = "标本关键字") @RequestParam(value = "keyword", required = false) String keyword,
+        HttpServletRequest request
+    ) {
+        ApplicationRegistrationWorkbenchAppService.SpecimenDictionaryResult result =
+            workbenchAppService.listSpecimenDictionary(keyword, RequestOperatorContext.currentUserId(request));
+        return new ApplicationRegistrationSpecimenDictionaryResponse(
+            result.groups().stream()
+                .map(group -> new ApplicationRegistrationSpecimenDictionaryResponse.SpecimenDictionaryGroupResponse(
+                    group.systemId(),
+                    group.systemName(),
+                    group.subParts().stream()
+                        .map(part -> new ApplicationRegistrationSpecimenDictionaryResponse.SpecimenDictionaryPartResponse(
+                            part.partId(),
+                            part.partName(),
+                            part.specimens()))
+                        .toList()))
+                .toList(),
+            result.entryOptions().stream()
+                .map(this::toSpecimenDictionaryEntryOptionResponse)
+                .toList(),
+            result.commonOptions().stream()
+                .map(this::toSpecimenDictionaryEntryOptionResponse)
+                .toList(),
+            result.departmentFiltered());
     }
 
     @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
@@ -184,5 +214,17 @@ public class ApplicationRegistrationWorkbenchController {
 
     private String resolveOperatorName(HttpServletRequest request) {
         return RequestOperatorContext.currentOperatorName(request);
+    }
+
+    private ApplicationRegistrationSpecimenDictionaryResponse.SpecimenDictionaryEntryOptionResponse toSpecimenDictionaryEntryOptionResponse(
+        ApplicationRegistrationWorkbenchAppService.SpecimenDictionaryEntry entry
+    ) {
+        return new ApplicationRegistrationSpecimenDictionaryResponse.SpecimenDictionaryEntryOptionResponse(
+            entry.systemId(),
+            entry.systemName(),
+            entry.partId(),
+            entry.partName(),
+            entry.specimenName(),
+            entry.searchKeywords());
     }
 }
