@@ -16,6 +16,8 @@ public record SpecimenManagementItemResponse(
     String applicationNo,
     @Schema(description = "Patient id")
     String patientId,
+    @Schema(description = "Patient id display value from registration workbench id_no")
+    String patientIdDisplay,
     @Schema(description = "Patient name")
     String patientName,
     @Schema(description = "Patient gender")

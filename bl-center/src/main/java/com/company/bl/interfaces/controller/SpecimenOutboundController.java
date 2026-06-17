@@ -94,6 +94,7 @@ public class SpecimenOutboundController {
             item.patientName(),
             item.patientGender(),
             item.patientId(),
+            item.patientIdDisplay(),
             item.inpatientNo(),
             item.surgeryName(),
             item.specimenName(),

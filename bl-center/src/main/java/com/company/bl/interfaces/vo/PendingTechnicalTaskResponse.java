@@ -14,6 +14,8 @@ public record PendingTechnicalTaskResponse(
     String patientName,
     @Schema(description = "患者 ID")
     String patientId,
+    @Schema(description = "患者展示 ID")
+    String patientIdDisplay,
     @Schema(description = "病例 ID")
     String caseId,
     @Schema(description = "病理号")

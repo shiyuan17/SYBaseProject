@@ -35,6 +35,7 @@ public final class MedicalWasteModels {
     public record SpecimenPreviewLabelView(
         String sourceLabelId,
         String patientId,
+        String patientIdDisplay,
         String patientName,
         String pathologyNo,
         String specimenName

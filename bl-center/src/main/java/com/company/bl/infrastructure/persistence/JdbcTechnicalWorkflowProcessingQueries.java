@@ -223,6 +223,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             from technical_pending_tasks t
             join pathology_cases pc on pc.id = t.case_id
             join applications a on a.id = t.application_id
+            left join application_registration_workbench w on w.application_id = t.application_id
             left join specimens sp on sp.id = t.specimen_id
             where t.task_type = 'SLICING'
               and t.task_status in ('PENDING', 'IN_PROGRESS')
@@ -235,6 +236,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             from technical_pending_tasks t
             join pathology_cases pc on pc.id = t.case_id
             join applications a on a.id = t.application_id
+            left join application_registration_workbench w on w.application_id = t.application_id
             left join specimens sp on sp.id = t.specimen_id
             where t.task_type = 'SLICING'
               and t.task_status in ('PENDING', 'IN_PROGRESS')
@@ -246,6 +248,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             from technical_pending_tasks t
             join pathology_cases pc on pc.id = t.case_id
             join applications a on a.id = t.application_id
+            left join application_registration_workbench w on w.application_id = t.application_id
             left join specimens sp on sp.id = t.specimen_id
             left join slicings slc on slc.task_id = t.id
             where t.task_type = 'SLICING'
@@ -258,6 +261,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             from technical_pending_tasks t
             join pathology_cases pc on pc.id = t.case_id
             join applications a on a.id = t.application_id
+            left join application_registration_workbench w on w.application_id = t.application_id
             left join specimens sp on sp.id = t.specimen_id
             left join slicings slc on slc.task_id = t.id
             where t.task_type = 'SLICING'
@@ -270,6 +274,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             from technical_pending_tasks t
             join pathology_cases pc on pc.id = t.case_id
             join applications a on a.id = t.application_id
+            left join application_registration_workbench w on w.application_id = t.application_id
             left join specimens sp on sp.id = t.specimen_id
             where t.task_type = 'SLICING'
               and t.task_status in ('PENDING', 'IN_PROGRESS')
@@ -280,6 +285,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             from technical_pending_tasks t
             join pathology_cases pc on pc.id = t.case_id
             join applications a on a.id = t.application_id
+            left join application_registration_workbench w on w.application_id = t.application_id
             left join specimens sp on sp.id = t.specimen_id
             left join slicings slc on slc.task_id = t.id
             where t.task_type = 'SLICING'
@@ -300,6 +306,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             join technical_pending_tasks t on t.id = mgi.task_id
             join pathology_cases pc on pc.id = t.case_id
             join applications a on a.id = t.application_id
+            left join application_registration_workbench w on w.application_id = t.application_id
             left join specimens sp on sp.id = t.specimen_id
             left join slicings slc on slc.task_id = t.id
             where mg.group_status = 'PENDING'
@@ -459,6 +466,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             from technical_pending_tasks t
             join pathology_cases pc on pc.id = t.case_id
             join applications a on a.id = t.application_id
+            left join application_registration_workbench w on w.application_id = t.application_id
             left join specimens sp on sp.id = t.specimen_id
             left join embedding_boxes eb on (t.object_type = 'EMBEDDING_BOX' and t.object_id = eb.id)
                 or (t.object_type = 'SAMPLING_BLOCK' and t.object_id = eb.sampling_block_id)
@@ -485,6 +493,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
                 pc.pathology_no,
                 a.patient_name,
                 a.patient_id,
+                w.id_no as patient_id_display,
                 t.specimen_id,
                 sp.specimen_name_standardized as specimen_name,
                 coalesce(eb.id, case when t.object_type = 'EMBEDDING_BOX' then t.object_id else null end) as embedding_box_id,
@@ -519,7 +528,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
                 slc.created_at as slicing_created_sort,
                 coalesce(slc.sliced_at, t.completed_at) as completed_sort
             """ + fromSql + where + """
-            group by t.id, t.case_id, a.application_type, pc.pathology_no, a.patient_name, a.patient_id,
+            group by t.id, t.case_id, a.application_type, pc.pathology_no, a.patient_name, a.patient_id, w.id_no,
                      t.specimen_id, sp.specimen_name_standardized, t.object_type, t.object_id, eb.id, eb.embedding_box_no,
                      sb.embedding_box_no, slc.sliced_by_name,
                      slc.remarks, slc.sliced_at, emb.sampling_evaluation, emb.evaluation_level,
@@ -535,6 +544,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             rs.getString("pathology_no"),
             rs.getString("patient_name"),
             rs.getString("patient_id"),
+            JdbcResultSetUtils.getNullableString(rs, "patient_id_display"),
             rs.getString("specimen_id"),
             JdbcResultSetUtils.getNullableString(rs, "specimen_name"),
             rs.getString("embedding_box_id"),
@@ -573,6 +583,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
                 t.case_id,
                 pc.pathology_no,
                 a.patient_id,
+                w.id_no as patient_id_display,
                 eb.id as embedding_box_id,
                 eb.embedding_box_no,
                 mgi.sequence_no
@@ -581,6 +592,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             join technical_pending_tasks t on t.id = mgi.task_id
             join pathology_cases pc on pc.id = t.case_id
             join applications a on a.id = t.application_id
+            left join application_registration_workbench w on w.application_id = t.application_id
             join embedding_boxes eb on eb.id = mgi.embedding_box_id
             left join slicings slc on slc.task_id = t.id
             where mg.id = :printGroupId
@@ -593,6 +605,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             rs.getString("case_id"),
             JdbcResultSetUtils.getNullableString(rs, "pathology_no"),
             JdbcResultSetUtils.getNullableString(rs, "patient_id"),
+            JdbcResultSetUtils.getNullableString(rs, "patient_id_display"),
             rs.getString("embedding_box_id"),
             rs.getString("embedding_box_no"),
             rs.getInt("sequence_no")));
@@ -612,6 +625,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
                 pc.pathology_no,
                 a.patient_name,
                 a.patient_id,
+                w.id_no as patient_id_display,
                 t.specimen_id,
                 sp.specimen_name_standardized as specimen_name,
                 eb.id as embedding_box_id,
@@ -638,6 +652,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             join technical_pending_tasks t on t.id = mgi.task_id
             join pathology_cases pc on pc.id = t.case_id
             join applications a on a.id = t.application_id
+            left join application_registration_workbench w on w.application_id = t.application_id
             left join specimens sp on sp.id = t.specimen_id
             join embedding_boxes eb on eb.id = mgi.embedding_box_id
             left join sampling_blocks sb on sb.id = eb.sampling_block_id
@@ -654,6 +669,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             JdbcResultSetUtils.getNullableString(rs, "pathology_no"),
             JdbcResultSetUtils.getNullableString(rs, "patient_name"),
             JdbcResultSetUtils.getNullableString(rs, "patient_id"),
+            JdbcResultSetUtils.getNullableString(rs, "patient_id_display"),
             rs.getString("specimen_id"),
             JdbcResultSetUtils.getNullableString(rs, "specimen_name"),
             rs.getString("embedding_box_id"),
@@ -705,6 +721,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             first.pathologyNo(),
             first.patientName(),
             first.patientId(),
+            first.patientIdDisplay(),
             first.specimenId(),
             first.specimenName(),
             String.join("+", embeddingBoxIds),

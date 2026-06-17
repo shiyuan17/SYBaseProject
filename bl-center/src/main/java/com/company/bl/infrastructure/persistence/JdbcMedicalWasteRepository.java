@@ -51,6 +51,7 @@ public class JdbcMedicalWasteRepository implements MedicalWasteRepository {
         return jdbcTemplate.query("""
             select s.id as source_label_id,
                    a.patient_id,
+                   w.id_no as patient_id_display,
                    a.patient_name,
                    pc.pathology_no,
                    coalesce(s.specimen_name_standardized, s.specimen_no) as specimen_name
@@ -58,6 +59,7 @@ public class JdbcMedicalWasteRepository implements MedicalWasteRepository {
             join specimens s on s.id = sm.specimen_id
             join pathology_cases pc on pc.id = sm.case_id
             join applications a on a.id = pc.application_id
+            left join application_registration_workbench w on w.application_id = a.id
             left join technical_pending_tasks t
               on t.case_id = sm.case_id
              and t.task_type = 'GROSSING'
@@ -67,7 +69,7 @@ public class JdbcMedicalWasteRepository implements MedicalWasteRepository {
               and extract(hour from sm.sampled_at) < :endHour
               and sm.sampled_by_name = :grossingOperatorName
               and coalesce(t.station_name, '') = :grossingStationName
-            order by a.patient_id asc, pc.pathology_no asc, s.specimen_no asc, s.id asc
+            order by coalesce(w.id_no, a.patient_id) asc, pc.pathology_no asc, s.specimen_no asc, s.id asc
             """, new MapSqlParameterSource()
             .addValue("grossingDate", grossingDate)
             .addValue("startHour", startHour)
@@ -302,6 +304,7 @@ public class JdbcMedicalWasteRepository implements MedicalWasteRepository {
         return new SpecimenPreviewLabel(
             rs.getString("source_label_id"),
             JdbcResultSetUtils.getNullableString(rs, "patient_id"),
+            JdbcResultSetUtils.getNullableString(rs, "patient_id_display"),
             JdbcResultSetUtils.getNullableString(rs, "patient_name"),
             JdbcResultSetUtils.getNullableString(rs, "pathology_no"),
             JdbcResultSetUtils.getNullableString(rs, "specimen_name"));

@@ -12,6 +12,8 @@ public record ApplicationDetailResponse(
     String applicationNo,
     @Schema(description = "患者 ID")
     String patientId,
+    @Schema(description = "展示用患者 ID，来源于申请登记工作台 ID号")
+    String patientIdDisplay,
     @Schema(description = "患者展示编号")
     String patientIdentifier,
     @Schema(description = "患者核对状态")

@@ -68,6 +68,7 @@ class TechnicalGrossingWorkflowService {
                 tracking.caseStatus(),
                 workspace.basicInfo().patientName(),
                 workspace.basicInfo().patientId(),
+                workspace.basicInfo().patientIdDisplay(),
                 workspace.basicInfo().inpatientNo(),
                 workspace.basicInfo().applicationType(),
                 workspace.basicInfo().submittingDepartmentName()),

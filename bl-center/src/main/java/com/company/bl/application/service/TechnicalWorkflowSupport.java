@@ -45,6 +45,7 @@ class TechnicalWorkflowSupport {
             task.applicationNo(),
             task.patientName(),
             task.patientId(),
+            task.patientIdDisplay(),
             task.caseId(),
             task.pathologyNo(),
             task.specimenId(),

@@ -180,6 +180,7 @@ public final class SpecimenWorkflowQueryModels {
         String applicationId,
         String applicationNo,
         String patientId,
+        String patientIdDisplay,
         String patientName,
         String patientGender,
         String inpatientNo,

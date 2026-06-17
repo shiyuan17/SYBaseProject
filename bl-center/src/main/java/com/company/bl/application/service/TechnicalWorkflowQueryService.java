@@ -358,6 +358,7 @@ class TechnicalWorkflowQueryService {
             row.pathologyNo(),
             row.patientName(),
             row.patientId(),
+            row.patientIdDisplay(),
             row.specimenId(),
             row.specimenName(),
             row.embeddingBoxId(),

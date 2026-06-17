@@ -12,6 +12,8 @@ public record TechnicalSpecimenRegistrationBasicInfoResponse(
     String patientAge,
     @Schema(description = "患者 ID")
     String patientId,
+    @Schema(description = "患者展示 ID")
+    String patientIdDisplay,
     @Schema(description = "住院号")
     String inpatientNo,
     @Schema(description = "申请单号")

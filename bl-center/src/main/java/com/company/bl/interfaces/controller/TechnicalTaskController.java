@@ -168,6 +168,7 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
             item.applicationNo(),
             item.patientName(),
             item.patientId(),
+            item.patientIdDisplay(),
             item.caseId(),
             item.pathologyNo(),
             item.specimenId(),

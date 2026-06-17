@@ -118,6 +118,7 @@ public final class SpecimenWorkflowTransportModels {
         String patientName,
         String patientGender,
         String patientId,
+        String patientIdDisplay,
         String inpatientNo,
         String surgeryName,
         String specimenName,

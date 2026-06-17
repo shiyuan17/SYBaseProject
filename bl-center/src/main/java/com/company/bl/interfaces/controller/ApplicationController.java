@@ -204,6 +204,7 @@ public class ApplicationController {
             tracking.application().getId().value(),
             tracking.application().getApplicationNo(),
             tracking.application().getPatientId(),
+            null,
             patientIdentifier,
             resolvePatientCheckStatus(tracking),
             tracking.application().getPatientName(),

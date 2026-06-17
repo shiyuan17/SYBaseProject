@@ -222,6 +222,7 @@ public class MedicalWasteService {
         return new MedicalWasteModels.SpecimenPreviewLabelView(
             item.sourceLabelId(),
             item.patientId(),
+            item.patientIdDisplay(),
             item.patientName(),
             item.pathologyNo(),
             item.specimenName());

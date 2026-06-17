@@ -845,6 +845,7 @@ public class ArchiveWorkflowService {
             loan.pathologyNo(),
             loan.applicationNo(),
             loan.patientId(),
+            loan.patientIdDisplay(),
             loan.patientName(),
             loan.patientGender(),
             loan.inpatientNo(),

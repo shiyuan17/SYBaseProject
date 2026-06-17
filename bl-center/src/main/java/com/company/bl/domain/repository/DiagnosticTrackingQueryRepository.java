@@ -16,6 +16,7 @@ public interface DiagnosticTrackingQueryRepository {
         String caseStatus,
         String patientName,
         String patientId,
+        String patientIdDisplay,
         String patientGender,
         String patientAge,
         String applicationType,

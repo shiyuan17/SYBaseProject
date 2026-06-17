@@ -41,7 +41,7 @@ public class PathologyCaseTechnicalTrackingController {
             result.pathologyNo(),
             result.caseStatus(),
             result.technicalTasks().stream().map(task -> new PendingTechnicalTaskResponse(
-                task.id(), task.applicationId(), task.applicationNo(), task.patientName(), task.patientId(),
+                task.id(), task.applicationId(), task.applicationNo(), task.patientName(), task.patientId(), task.patientIdDisplay(),
                 task.caseId(), task.pathologyNo(),
                 task.specimenId(), task.taskType(), task.taskStatus(), task.objectType(), task.objectId(),
                 task.objectDisplayNo(), task.samplingBlockCode(), task.samplingBlockDescription(), task.sampledByName(), task.sampledAt(),

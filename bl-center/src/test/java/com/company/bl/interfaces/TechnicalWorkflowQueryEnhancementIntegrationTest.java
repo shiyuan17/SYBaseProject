@@ -154,6 +154,48 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
     }
 
     @Test
+    void shouldStartGrossingAndLoadContextWithoutRegistrationWorkbenchRecord() throws Exception {
+        TechnicalCaseContext registrationContext =
+            receiveCaseAndGetPendingRegistration("APP-M3-GROSSING-LEGACY-001", "BC-M3-GROSSING-LEGACY-001");
+        JsonNode completionResult =
+            completeTechnicalSpecimenRegistration(registrationContext.caseId(), "legacy workbench missing");
+        String pathologyNo = completionResult.path("pathologyNo").asText();
+
+        namedParameterJdbcTemplate.update("""
+            delete from application_registration_workbench
+            where application_id = :applicationId
+            """, Map.of("applicationId", registrationContext.applicationId()));
+
+        JsonNode pendingTasks = listPendingTasks("GROSSING", pathologyNo, USER_M3_GROSSING);
+        assertThat(pendingTasks.path("items")).hasSize(1);
+        JsonNode pendingTask = pendingTasks.path("items").get(0);
+        assertThat(pendingTask.path("pathologyNo").asText()).isEqualTo(pathologyNo);
+        assertThat(pendingTask.path("patientIdDisplay").isMissingNode()
+            || pendingTask.path("patientIdDisplay").isNull()
+            || pendingTask.path("patientIdDisplay").asText().isBlank()).isTrue();
+
+        String grossingTaskId = pendingTask.path("id").asText();
+
+        postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
+            {
+              "taskId": "%s",
+              "terminalCode": "TG-LEGACY-01"
+            }
+            """.formatted(grossingTaskId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.taskId").value(grossingTaskId))
+            .andExpect(jsonPath("$.data.taskStatus").value("IN_PROGRESS"));
+
+        mockMvc.perform(authorized(get("/api/v1/grossings/{taskId}/context", grossingTaskId), USER_M3_GROSSING))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.task.taskId").value(grossingTaskId))
+            .andExpect(jsonPath("$.data.caseSummary.caseId").value(registrationContext.caseId()))
+            .andExpect(jsonPath("$.data.caseSummary.applicationId").value(registrationContext.applicationId()))
+            .andExpect(jsonPath("$.data.caseSummary.pathologyNo").value(pathologyNo))
+            .andExpect(jsonPath("$.data.tracking.caseId").value(registrationContext.caseId()));
+    }
+
+    @Test
     void shouldExposeQcEvaluationsInTechnicalTracking() throws Exception {
         TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-QC-TRACK-001", "BC-M3-QC-TRACK-001");
 

@@ -22,6 +22,8 @@ public record SpecimenOutboundItemResponse(
     String patientGender,
     @Schema(description = "病人 ID")
     String patientId,
+    @Schema(description = "展示用病人 ID，来源于申请登记工作台 ID号")
+    String patientIdDisplay,
     @Schema(description = "住院号")
     String inpatientNo,
     @Schema(description = "手术间")

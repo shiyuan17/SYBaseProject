@@ -6,6 +6,7 @@ import com.company.bl.application.service.SpecimenWorkflowAppService;
 import com.company.bl.application.service.SpecimenWorkflowModels;
 import com.company.bl.domain.model.ApplicationTracking;
 import com.company.bl.domain.model.Specimen;
+import com.company.bl.domain.repository.ApplicationRegistrationWorkbenchRepository;
 import com.company.bl.interfaces.dto.RegisterSpecimensRequest;
 import com.company.bl.interfaces.dto.RetryLabelPrintRequest;
 import com.company.bl.interfaces.dto.SpecimenBarcodeBindingRequest;
@@ -41,6 +42,7 @@ import static com.company.bl.application.service.SpecimenWorkflowQueryModels.*;
 class SpecimenControllerAssembler {
 
     private final ApplicationPatientIdentityResolver patientIdentityResolver;
+    private final ApplicationRegistrationWorkbenchRepository workbenchRepository;
     private final OperatorVerificationService operatorVerificationService;
 
     RegisterSpecimensCommand toRegisterSpecimensCommand(RegisterSpecimensRequest request, HttpServletRequest httpServletRequest) {
@@ -238,10 +240,14 @@ class SpecimenControllerAssembler {
         String patientIdentifier = patientIdentityResolver.lookup(tracking.application().getPatientId())
             .map(ApplicationPatientIdentityResolver.PatientSummary::patientIdentifier)
             .orElse(tracking.application().getPatientId());
+        String patientIdDisplay = workbenchRepository.findExtensionByApplicationId(tracking.application().getId().value())
+            .map(ApplicationRegistrationWorkbenchRepository.WorkbenchExtensionData::idNo)
+            .orElse(null);
         return new ApplicationDetailResponse(
             tracking.application().getId().value(),
             tracking.application().getApplicationNo(),
             tracking.application().getPatientId(),
+            patientIdDisplay,
             patientIdentifier,
             resolvePatientCheckStatus(tracking),
             tracking.application().getPatientName(),
@@ -350,6 +356,7 @@ class SpecimenControllerAssembler {
             item.applicationId(),
             item.applicationNo(),
             item.patientId(),
+            item.patientIdDisplay(),
             item.patientName(),
             item.patientGender(),
             item.inpatientNo(),

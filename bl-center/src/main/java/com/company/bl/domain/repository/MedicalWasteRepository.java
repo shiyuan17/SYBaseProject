@@ -77,6 +77,7 @@ public interface MedicalWasteRepository {
     record SpecimenPreviewLabel(
         String sourceLabelId,
         String patientId,
+        String patientIdDisplay,
         String patientName,
         String pathologyNo,
         String specimenName

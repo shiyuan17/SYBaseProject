@@ -88,6 +88,7 @@ public class JdbcDiagnosticTrackingQueryRepository implements DiagnosticTracking
             pathologyCase.caseStatus(),
             application.getPatientName(),
             application.getPatientId(),
+            registrationExtension.idNo(),
             application.getPatientGender(),
             application.getPatientAge(),
             application.getApplicationType(),
@@ -167,12 +168,13 @@ public class JdbcDiagnosticTrackingQueryRepository implements DiagnosticTracking
 
     private RegistrationPatientExtension findRegistrationPatientExtension(String applicationId) {
         List<RegistrationPatientExtension> rows = jdbcTemplate.query("""
-            select inpatient_no, bed_no, phone
+            select id_no, inpatient_no, bed_no, phone
             from application_registration_workbench
             where application_id = :applicationId
             order by updated_at desc, application_id desc
             fetch first 1 rows only
             """, Map.of("applicationId", applicationId), (rs, rowNum) -> new RegistrationPatientExtension(
+            rs.getString("id_no"),
             rs.getString("inpatient_no"),
             rs.getString("bed_no"),
             rs.getString("phone")));
@@ -219,10 +221,11 @@ public class JdbcDiagnosticTrackingQueryRepository implements DiagnosticTracking
     }
 
     private record RegistrationPatientExtension(
+        String idNo,
         String inpatientNo,
         String bedNo,
         String phone
     ) {
-        private static final RegistrationPatientExtension EMPTY = new RegistrationPatientExtension(null, null, null);
+        private static final RegistrationPatientExtension EMPTY = new RegistrationPatientExtension(null, null, null, null);
     }
 }

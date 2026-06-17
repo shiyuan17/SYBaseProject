@@ -65,6 +65,8 @@ public record SlicingWorkbenchResponse(
         String patientName,
         @Schema(description = "患者 ID")
         String patientId,
+        @Schema(description = "患者展示 ID")
+        String patientIdDisplay,
         @Schema(description = "标本 ID")
         String specimenId,
         @Schema(description = "标本名称")
