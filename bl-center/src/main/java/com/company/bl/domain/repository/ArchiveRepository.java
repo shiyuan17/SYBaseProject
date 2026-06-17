@@ -287,7 +287,11 @@ public interface ArchiveRepository {
         String caseId,
         String pathologyNo,
         String applicationNo,
+        String patientId,
         String patientName,
+        String patientGender,
+        String inpatientNo,
+        String wardName,
         String applicantDoctorName,
         LocalDate applicationDate,
         String objectType,
@@ -349,7 +353,11 @@ public interface ArchiveRepository {
         String objectCode,
         String pathologyNo,
         String applicationNo,
-        String patientName
+        String patientId,
+        String patientName,
+        String patientGender,
+        String inpatientNo,
+        String wardName
     ) {
     }
 

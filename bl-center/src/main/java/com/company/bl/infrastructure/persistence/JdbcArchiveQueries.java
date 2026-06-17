@@ -266,7 +266,11 @@ final class JdbcArchiveQueries {
                 select ssr.case_id,
                        pc.pathology_no,
                        app.application_no,
+                       app.patient_id,
                        app.patient_name,
+                       app.patient_gender,
+                       w.inpatient_no,
+                       w.ward_name,
                        app.submitting_doctor_name as applicant_doctor_name,
                        app.application_date,
                        ssr.object_type,
@@ -299,12 +303,17 @@ final class JdbcArchiveQueries {
                 from specimen_storage_records ssr
                 join pathology_cases pc on pc.id = ssr.case_id
                 join applications app on app.id = pc.application_id
+                left join application_registration_workbench w on w.application_id = app.id
                 where ssr.object_type = 'APPLICATION_FORM'
                 union all
                 select ssr.case_id,
                        pc.pathology_no,
                        app.application_no,
+                       app.patient_id,
                        app.patient_name,
+                       app.patient_gender,
+                       w.inpatient_no,
+                       w.ward_name,
                        app.submitting_doctor_name as applicant_doctor_name,
                        app.application_date,
                        ssr.object_type,
@@ -337,6 +346,7 @@ final class JdbcArchiveQueries {
                 from specimen_storage_records ssr
                 join pathology_cases pc on pc.id = ssr.case_id
                 join applications app on app.id = pc.application_id
+                left join application_registration_workbench w on w.application_id = app.id
                 join embedding_boxes eb on eb.id = ssr.object_id
                 left join sampling_blocks sb on sb.id = eb.sampling_block_id
                 left join samplings sm on sm.id = sb.sampling_id
@@ -345,7 +355,11 @@ final class JdbcArchiveQueries {
                 select ssr.case_id,
                        pc.pathology_no,
                        app.application_no,
+                       app.patient_id,
                        app.patient_name,
+                       app.patient_gender,
+                       w.inpatient_no,
+                       w.ward_name,
                        app.submitting_doctor_name as applicant_doctor_name,
                        app.application_date,
                        ssr.object_type,
@@ -378,6 +392,7 @@ final class JdbcArchiveQueries {
                 from specimen_storage_records ssr
                 join pathology_cases pc on pc.id = ssr.case_id
                 join applications app on app.id = pc.application_id
+                left join application_registration_workbench w on w.application_id = app.id
                 join slides s on s.id = ssr.object_id
                 left join slicings slc on slc.id = s.slicing_id
                 where ssr.object_type = 'SLIDE'
@@ -385,7 +400,11 @@ final class JdbcArchiveQueries {
                 select ssr.case_id,
                        pc.pathology_no,
                        app.application_no,
+                       app.patient_id,
                        app.patient_name,
+                       app.patient_gender,
+                       w.inpatient_no,
+                       w.ward_name,
                        app.submitting_doctor_name as applicant_doctor_name,
                        app.application_date,
                        ssr.object_type,
@@ -424,6 +443,7 @@ final class JdbcArchiveQueries {
                 from specimen_storage_records ssr
                 join pathology_cases pc on pc.id = ssr.case_id
                 join applications app on app.id = pc.application_id
+                left join application_registration_workbench w on w.application_id = app.id
                 join specimens sp on sp.id = ssr.object_id
                 where ssr.object_type = 'SPECIMEN'
             ) records
@@ -586,11 +606,16 @@ final class JdbcArchiveQueries {
                    ml.returned_by_user_id, ml.returned_by_name, ml.returned_at, ml.remarks,
                    pc.pathology_no,
                    app.application_no,
+                   app.patient_id,
                    app.patient_name,
+                    app.patient_gender,
+                   w.inpatient_no,
+                   w.ward_name,
                    coalesce(eb.embedding_box_no, s.slide_no, app.application_no) as object_code
             from material_loans ml
             join pathology_cases pc on pc.id = ml.case_id
             join applications app on app.id = pc.application_id
+            left join application_registration_workbench w on w.application_id = app.id
             left join embedding_boxes eb on ml.material_type = 'EMBEDDING_BOX' and eb.id = ml.material_id
             left join slides s on ml.material_type = 'SLIDE' and s.id = ml.material_id
             """;
@@ -602,7 +627,11 @@ final class JdbcArchiveQueries {
                 select pc.id as case_id,
                        pc.pathology_no,
                        app.application_no,
+                       app.patient_id,
                        app.patient_name,
+                       app.patient_gender,
+                       w.inpatient_no,
+                       w.ward_name,
                        app.submitting_doctor_name as applicant_doctor_name,
                        app.application_date,
                        'APPLICATION_FORM' as object_type,
@@ -625,6 +654,7 @@ final class JdbcArchiveQueries {
                        ssr.archive_reminder_days
                 from applications app
                 join pathology_cases pc on pc.application_id = app.id
+                left join application_registration_workbench w on w.application_id = app.id
                 left join specimen_storage_records ssr
                   on ssr.object_type = 'APPLICATION_FORM'
                  and ssr.object_id = app.id
@@ -636,7 +666,11 @@ final class JdbcArchiveQueries {
                 select eb.case_id,
                        pc.pathology_no,
                        app.application_no,
+                       app.patient_id,
                        app.patient_name,
+                       app.patient_gender,
+                       w.inpatient_no,
+                       w.ward_name,
                        app.submitting_doctor_name as applicant_doctor_name,
                        app.application_date,
                        'EMBEDDING_BOX' as object_type,
@@ -675,6 +709,7 @@ final class JdbcArchiveQueries {
                 from embedding_boxes eb
                 join pathology_cases pc on pc.id = eb.case_id
                 join applications app on app.id = pc.application_id
+                left join application_registration_workbench w on w.application_id = app.id
                 left join specimen_storage_records ssr
                   on ssr.object_type = 'EMBEDDING_BOX'
                  and ssr.object_id = eb.id
@@ -689,7 +724,11 @@ final class JdbcArchiveQueries {
                 select s.case_id,
                        pc.pathology_no,
                        app.application_no,
+                       app.patient_id,
                        app.patient_name,
+                       app.patient_gender,
+                       w.inpatient_no,
+                       w.ward_name,
                        app.submitting_doctor_name as applicant_doctor_name,
                        app.application_date,
                        'SLIDE' as object_type,
@@ -728,6 +767,7 @@ final class JdbcArchiveQueries {
                 from slides s
                 join pathology_cases pc on pc.id = s.case_id
                 join applications app on app.id = pc.application_id
+                left join application_registration_workbench w on w.application_id = app.id
                 left join specimen_storage_records ssr
                   on ssr.object_type = 'SLIDE'
                  and ssr.object_id = s.id
@@ -741,7 +781,11 @@ final class JdbcArchiveQueries {
                 select sp.case_id,
                        pc.pathology_no,
                        app.application_no,
+                       app.patient_id,
                        app.patient_name,
+                       app.patient_gender,
+                       w.inpatient_no,
+                       w.ward_name,
                        app.submitting_doctor_name as applicant_doctor_name,
                        app.application_date,
                        'SPECIMEN' as object_type,
@@ -771,6 +815,7 @@ final class JdbcArchiveQueries {
                 from specimens sp
                 join pathology_cases pc on pc.id = sp.case_id
                 join applications app on app.id = pc.application_id
+                left join application_registration_workbench w on w.application_id = app.id
                 left join specimen_storage_records ssr
                   on ssr.object_type = 'SPECIMEN'
                  and ssr.object_id = sp.id
@@ -853,7 +898,11 @@ final class JdbcArchiveQueries {
             rs.getString("case_id"),
             rs.getString("pathology_no"),
             rs.getString("application_no"),
+            rs.getString("patient_id"),
             rs.getString("patient_name"),
+            rs.getString("patient_gender"),
+            rs.getString("inpatient_no"),
+            rs.getString("ward_name"),
             rs.getString("applicant_doctor_name"),
             toLocalDate(rs.getDate("application_date")),
             rs.getString("object_type"),
@@ -901,7 +950,11 @@ final class JdbcArchiveQueries {
             rs.getString("object_code"),
             rs.getString("pathology_no"),
             rs.getString("application_no"),
-            rs.getString("patient_name"));
+            rs.getString("patient_id"),
+            rs.getString("patient_name"),
+            rs.getString("patient_gender"),
+            rs.getString("inpatient_no"),
+            rs.getString("ward_name"));
     }
 
     private ArchiveRepository.ObjectArchiveSummary mapObjectArchiveSummary(ResultSet rs, int rowNum) throws SQLException {
