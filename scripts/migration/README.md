@@ -22,6 +22,7 @@
 说明
 - `bl-center` 正常启动默认不执行 Flyway。
 - 需要同步数据库时，再单独运行这里的脚本。
+- Windows 脚本的依赖预热阶段不执行 `clean`，避免 IntelliJ/Cursor 的 Java 进程占用 `bl-center/target` 时导致 `maven-clean-plugin` 删除失败。
 - 脚本默认执行 `sync`，也可以显式传 `inspect`。
 - `inspect` 只检查，不改库；会输出连接状态、已安装版本、待执行迁移、校验结果，以及未纳入当前 `bl-center` Flyway 范围的历史/规划表。
 - `sync` 会执行 `inspect -> repair -> migrate -> inspect`，并返回明确退出码，便于本地和 CI 一键接入。
