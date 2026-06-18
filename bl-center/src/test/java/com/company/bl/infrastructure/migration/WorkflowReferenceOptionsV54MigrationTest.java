@@ -81,7 +81,7 @@ class WorkflowReferenceOptionsV54MigrationTest {
                   and parent_id = 'SCC_ROOT'
                   and enabled = 1
                 """));
-            assertEquals(8, queryInt(statement, """
+            assertEquals(9, queryInt(statement, """
                 select count(*)
                 from system_config_categories
                 where parent_id = 'SCC_WORKFLOW_REFERENCE'
@@ -93,11 +93,12 @@ class WorkflowReferenceOptionsV54MigrationTest {
                     'CONTAINER_NAME',
                     'SPECIMEN_IMAGE_SIZE',
                     'CUT_SURFACE_FEATURE',
-                    'MARGIN_MARKING'
+                    'MARGIN_MARKING',
+                    'OPERATING_ROOM'
                   )
                   and enabled = 1
                 """));
-            assertEquals(28, queryInt(statement, """
+            assertEquals(34, queryInt(statement, """
                 select count(*)
                 from system_config_items
                 where config_key like 'WORKFLOW_REFERENCE.%'
