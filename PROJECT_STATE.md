@@ -2,55 +2,37 @@
 
 ## Current State
 
-- Last updated: 2026-06-17
+- Last updated: 2026-06-18
 - Repository: `SYBaseProject` (Maven multi-module, Java 17 / Spring Boot 3)
-- Frontend sibling repo: `../SYBaseProjectWeb`
-- Current phase: M5/M6 full-stack delivery (reagent inventory, specimen/archive workflows, statistics) plus governance guardrail parity
-- AI memory files are the durable repo-local state layer for future agents and must be checked before final delivery.
+- Frontend sibling: `../SYBaseProjectWeb`
+- Phase: Active delivery across `bl-center` specimen/M3/M5/M6 APIs and master data
+- Cross-repo contracts: see `ARCHITECTURE.md` (not duplicated here)
 
 ## Active Work
 
-- M6 dashboard contract corrected on 2026-06-12: sibling frontend `../SYBaseProjectWeb` `/m6/dashboard` no longer calls the nonexistent `POST /api/v1/stat-dashboard/query` (user-reported 404, `traceId=126a212ff088424d96d7d9c8081671b5`). `M6ManagementController` exposes `POST /api/v1/stat-reports/query`; the frontend composes `QUALITY` / `OPERATION` / `WORKLOAD` report queries. See `DEC-20260612-001`.
-- M6 statistics report workbench delivery active on 2026-06-16: sibling frontend `../SYBaseProjectWeb` `/m6/custom-analysis` uses the existing `stat-reports/query/export` plus `stat-reports/details/query/export` contracts as a single-entry multi-tab workbench. Backend `StatisticsService` now accepts `periodMode=month|quarter|year`, returns workload/operation `trendPoints`, and returns quality `trendPoints` / `breakdowns` plus non-sensitive quality detail query/export data. Key quality includes read-only critical-value proxy indicators (`QC_CRITICAL_VALUE_COUNT`, `QC_CRITICAL_VALUE_REPORT_TIMELINESS_RATE`, `QC_CRITICAL_VALUE_REASON_ANALYSIS_COUNT`) sourced from `user_notifications.topic_code=CRITICAL_VALUE`; Goal 6-8 now adds frozen timeliness/timeout, report-change, and unqualified-specimen indicators through `V98__seed_m6_goal6_8_stat_indicators.sql`. See `DEC-20260616-004`, `DEC-20260616-005`, `DEC-20260616-006`, and `DEC-20260616-007`.
-- Governance guardrail parity added on 2026-06-12: `scripts/ci/validate-governance.sh` rejects duplicate `DEC-*` / `BUG-*` / `TD-*` ledger IDs and enforces `PROJECT_STATE.md` required sections plus a 120-line budget, wired into local hooks and a GitLab CI `verify_governance` job. Mirrors frontend `DEC-20260612-008`. See `DEC-20260612-002`.
-- Governance executability parity (Phase E, 2026-06-12): `docs/rules/AI-CODE-HEALTH.md` is now a single consolidated checklist (the three `AI_CODE_HEALTH_*` sub-files were removed; CI checklist scripts cite the new path); `docs/rules/DYNAMIC_WORKFLOW_RULES.md` gained a trigger quick-reference table, Frontend Cross-check modifier naming, and a cross-repo mirror clause; `validate-governance.sh` adds a 200-line ledger soft budget. Mirrors frontend `DEC-20260612-010`. See `DEC-20260612-003`.
-- M5 specimen archive (2026-06-11): `POST /api/v1/archive/specimens` (perm `PERM_M5_SPECIMEN_ARCHIVE`) and `GET /api/v1/archive-objects?objectType=SPECIMEN` serve the sibling frontend `/operation-support/archive`. Specimens are stored in `specimen_storage_records` as `object_type='SPECIMEN'` and do not participate in material loans. See `DEC-20260611-004`.
-- M5 reagent inventory/template (2026-06-11): migration `V86__extend_reagent_inventory_legacy_fields` splits templates (`reagents`), batch stock (`reagent_stocks`), and the action trail (`reagent_stock_events`). `/api/v1/reagents` and `/api/v1/reagent-stocks` plus `/test`, `/consume`, `/start-use`, `/finish-use`, events, and UTF-8 BOM CSV import/export back `/operation-resources/reagents`. Operators resolve from authenticated request context. See `DEC-20260611-002`.
-- M5 archive object pagination (2026-06-11): `GET /api/v1/archive-objects` returns paged application-form / wax-block / slide lists (perm `PERM_M5_ARCHIVE_QUERY`, `objectType=APPLICATION_FORM|EMBEDDING_BOX|SLIDE`). `archive-records/search` stays a storage-record/history query. See `DEC-20260611-003`.
-- M5 archive cabinet batch/delete (2026-06-11): `POST /api/v1/archive-cabinets/batch` and `DELETE /api/v1/archive-cabinets/{id}` (perm `PERM_M5_ARCHIVE_CABINET_DELETE`, empty-only). Migration `V85`. See `DEC-20260611-001`.
-- M5 equipment old-system alignment (2026-06-16): migration `V92__extend_equipment_records_legacy_fields.sql` expands `equipment_records`; `/api/v1/equipment-records` now round-trips the legacy archive fields and keyword search covers management code / model / manufacturer / RFID; `POST /api/v1/equipment-records/batch-status` reuses `PERM_M5_EQUIPMENT_UPDATE` for `ACTIVE` / `DISABLED` batch restore/disable consumed by sibling frontend `../SYBaseProjectWeb` `/operation-resources/equipment`. See `DEC-20260616-001`.
-- M5 medical waste management (2026-06-16): migration `V93__create_medical_waste_tables.sql` adds `medical_waste_specimen_batch`, `medical_waste_specimen_batch_label`, and `medical_waste_reagent_bag`; `bl-center` now serves `/api/v1/medical-waste/specimen-batches`, `/specimen-options`, `/specimen-batches/preview-labels`, `/specimen-batches/print`, `/specimen-batches/{id}/destroy`, `/reagent-bags`, and `/reagent-bags/{id}/handover` for sibling frontend `../SYBaseProjectWeb` `/operation-resources/medical-waste`. The contract reuses existing M5 resource page permission scope instead of adding a new medical-waste permission code. See `DEC-20260616-003`.
-- Built-in workflow role naming is normalized on 2026-06-16: `V100__repair_builtin_workflow_role_names` rewrites existing `roles.role_name` for built-in `ROLE_M2_*`, `ROLE_M3_*`, and `ROLE_M4_*` workflow roles to canonical Chinese岗位名 without `M2/M3/M4` prefixes, while seed/reconciliation migrations (`V11`, `V14`, `V20`) now write the same names for new/legacy databases. Sibling frontend `../SYBaseProjectWeb` consumes these names directly via `/api/v1/roles`. See `DEC-20260616-008`.
-- System log management (2026-06-10): `GET /api/v1/system/logs/login|operations(/{id})` with sanitized/truncated detail, `ApiAuditInterceptor` + `OperationAuditService`, migration `V84`. See `DEC-20260610-001`.
-- Technical workflow (2026-06-08..09): embedding confirmation middle state `EMBEDDING_CONFIRM_PENDING` with `start`/`cancel`/`complete` (`DEC-20260609-003`); slicing print-before-slice flow (`DEC-20260608-004`) and pending slide-print merge groups (`DEC-20260609-005`); specimen workflow `specimenId`-first progression (`DEC-20260609-004`) and nullable barcode binding via `V81` (`DEC-20260609-002`); current-user operator token relaxation (`DEC-20260609-001`); historical-status lookups (`DEC-20260608-005`); application list `pathologyNo` (`DEC-20260608-007`).
-- M3 visible technical-workflow date-range upgrade landed on 2026-06-17: `bl-center` now accepts `dateFrom/dateTo` for technical tracking, embedding summary, slicing workbench, and pending medical orders while keeping `workDate` as backward-compatible fallback. This mirrors sibling frontend `../SYBaseProjectWeb` visible-page `daterange` unification, supersedes the prior single-day-only contract in `DEC-20260617-003`, and centralizes inclusive-date handling in shared query/service logic. See `DEC-20260617-005`.
-- Flyway sync tooling: `scripts/migration/run-bl-center-flyway.*` defaults `BL_CENTER_FLYWAY_OUT_OF_ORDER=true` to backfill repaired gaps such as `V75`. See `DEC-20260608-006`.
+- Specimen workflow: operating-room reference options, specimen dictionary system-config APIs, frozen-reminder-related contracts
+- M6 `stat-reports/*` workbench contracts (stable; no `stat-dashboard/query`)
+- M5 archive / borrow / reagent / medical-waste / equipment APIs (stable)
+- M3 technical-workflow `dateFrom`/`dateTo` query support (stable)
+- Governance P2: green-zone default skip Memory writes; slim `PROJECT_STATE` + archive under `docs/reviews/`
+- Dirty worktree may include in-flight changes — verify with `git status`
 
 ## Validation Baseline
 
-- Latest M5 specimen archive (2026-06-11): `.\mvnw.cmd -pl bl-center "-Dtest=ArchiveWorkflowIntegrationTest,ArchiveRoleAuthorizationIntegrationTest" test` passed (7 tests). Frontend targeted Vitest (4 files, 28 tests), `pnpm lint`, `pnpm check:type` passed.
-- Latest M5 reagent inventory (2026-06-11): `.\mvnw.cmd -pl bl-center -am test "-Dtest=OperationSupportIntegrationTest,M5SingleApiIntegrationTest,ArchiveRoleAuthorizationIntegrationTest" "-Dsurefire.failIfNoSpecifiedTests=false"` passed (10 tests). Frontend targeted Vitest (13 files, 63 tests), `pnpm check:type` passed; full frontend `pnpm lint` blocked by unrelated dirty docs formatting (frontend `TD-20260611-002`).
-- Latest M5 equipment old-system alignment (2026-06-16): `mvnw.cmd -pl bl-center -Dtest=OperationSupportIntegrationTest,M5SingleApiIntegrationTest test` passed after expanding equipment create/update fixtures and aligning batch-status request validation with business-layer `INVALID_ARGUMENT`. Sibling frontend targeted equipment Vitest and ESLint passed; browser verification there was partially blocked by login slider automation, and project-wide frontend lint/typecheck later exposed unrelated pre-existing issues in other medical-waste/reagent dialogs.
-- Latest M5 medical waste management (2026-06-16): `mvnw.cmd -pl bl-center clean -Dtest=MedicalWasteIntegrationTest test` passed, covering specimen options/preview/print/destroy, reagent save/handover, permission reuse, empty-label print rejection, and repeated handover/destroy conflict handling. Sibling frontend targeted Vitest, targeted ESLint, and `pnpm check:type --filter=@vben/web-ele` passed; browser verification could open the route but remained login-slider blocked before authenticated in-page checks.
-- Latest M6 statistics report workbench (2026-06-16): `.\mvnw.cmd -pl bl-center -Dtest=M6StatisticsIntegrationTest test` passed, covering report query/export, workload period trends, quality trend/breakdown rows, and quality detail query/export. Sibling frontend targeted M6/menu Vitest, targeted ESLint, `pnpm check:type`, and `pnpm run check:governance` passed; authenticated browser verification remained limited by the login slider captcha.
-- Latest M3 visible-page date-range upgrade (2026-06-17): `.\mvnw.cmd -pl bl-center "-Dtest=TechnicalWorkflowQueryEnhancementIntegrationTest,MedicalOrderIntegrationTest,SlicingWorkbenchIntegrationTest" test` passed, covering `dateFrom/dateTo`, legacy `workDate`, and precedence semantics for tracking, embedding summary, slicing workbench, and pending medical orders. Sibling frontend targeted Vitest passed, while frontend `pnpm check:type` remained blocked by unrelated pre-existing errors and authenticated browser verification remained blocked by the login slider captcha at the login page.
-- Latest system log management (2026-06-10): `bl-center` log/audit suite (19 tests) and `auth-center` `AuthControllerIntegrationTest` (9 tests) passed. Frontend system-management Vitest (11 files, 43 tests) + `menu.test.ts` (16 tests) passed.
-- Latest technical workflow (2026-06-09): `TechnicalWorkflowExecutionIntegrationTest` (9 tests), `SlicingWorkbenchIntegrationTest` (6 tests), specimen workflow suite (47 tests) passed at various points; some reruns blocked by unrelated dirty-worktree signature drift.
-- Known recurring blocker: dirty-worktree signature drift in specimen/slicing/system-management tests can block `testCompile` before targeted assertions run; isolate via worktree before full verify.
-- Governance check (2026-06-12): `bash scripts/ci/validate-governance.sh` passed locally after trimming this file and de-duplicating `DEC-20260608-004`.
+- After governance/memory edits: `bash scripts/ci/validate-governance.sh`
+- Feature validation: `./mvnw -pl bl-center -Dtest=<RelevantIntegrationTest> test`
+- Full `./mvnw verify` may hit dirty-worktree signature drift — isolate via worktree when needed
 
 ## Cross-Repo Dependencies
 
-- Frontend governance and memory files live in sibling repo `../SYBaseProjectWeb`; governance guardrails are now symmetric (frontend `DEC-20260612-008` ↔ backend `DEC-20260612-002`).
-- Frontend M5/M6 consumers live under `../SYBaseProjectWeb/apps/web-ele/src/modules/{operation-support,operation-resources,specimen-workflow,technical-workflow,system-management}` and consume the archive, reagent, system-log, statistics, and workflow APIs above.
-- Frontend medical waste consumer lives under `../SYBaseProjectWeb/apps/web-ele/src/modules/operation-support` and consumes the `medical-waste` APIs above while reusing M5 resource page authorities and route/menu wiring under `/operation-resources/medical-waste`.
-- Frontend M6 statistics workbench lives under `../SYBaseProjectWeb/apps/web-ele/src/modules/m6-statistics` and consumes `POST /api/v1/stat-reports/query`, `/export`, `/details/query`, and `/details/export`; it must not use `stat-dashboard/query` or old `stat-report-details/*` paths.
-- Frontend visible M3 technical-workflow pages under `../SYBaseProjectWeb/apps/web-ele/src/modules/technical-workflow` now depend on `dateFrom/dateTo` support in `technical-tracking`, `embeddings/workstation-summary`, `slicings/workbench`, and `medical-orders/pending`, while route-layer `workDate` survives only as deep-link compatibility input.
-- Frontend must keep omitting legacy reagent `operatorName` / `operatorUserId` fields and let backend auth resolve operators; it treats null specimen barcodes as `UNBOUND` until barcode binding succeeds.
-- API, permission, patient, report, and menu changes must update memory files in both repos when they change durable context (bi-directional references by memory ID).
+- Durable API and permission contracts live in `ARCHITECTURE.md`
+- Frontend consumers under `../SYBaseProjectWeb/apps/web-ele/src/modules/`
+- Symmetric memory layer with sibling `../SYBaseProjectWeb/docs/memory/`
 
 ## Handoff Notes
 
-- Start future sessions by reading this file, `DECISIONS.md`, and `KNOWN_BUGS.md`, then inspect `git status`.
-- If governance docs and business code are both dirty, split them into separate commits before pushing.
-- Run `bash scripts/ci/validate-governance.sh` before delivering memory/governance changes; CI `verify_governance` is the hard gate.
+- **Entry read**: this file + `ARCHITECTURE.md`
+- **On demand**: `DECISIONS.md`, `KNOWN_BUGS.md`, `TECH_DEBT.md` when task touches contracts, bugs, or debt
+- **Session handoff**: prefer agentmemory `handoff` / `recall` / `session-history` or `agent-transcripts/` for task-local context; do not duplicate in `PROJECT_STATE`
+- **Never** use this file for dirty-worktree truth — run `git status --short`
+- Historical validation and delivery changelog: `docs/reviews/project-state-archive.md`

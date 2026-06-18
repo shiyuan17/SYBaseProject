@@ -42,7 +42,7 @@
 - **始终必读**：`AGENTS.md` 本文件，以及下方「2. 规范映射表」中本次任务场景命中的文档；Linear 任务还须先填写 `rules/LINEAR_TASK.md`。
 - **日常任务（绿区小改动）**：读 `AGENTS.md` + 映射表命中的专项文档即可开工。
 - **首次进入项目 / 中大型改动 / 跨层（领域 + 接口 + 持久化 + 基础设施等）改动**：按以下顺序一次性通读全部规范，建立完整上下文：
-- **续接历史任务 / 接手脏工作区**：先读根目录 `PROJECT_STATE.md`、`DECISIONS.md`、`KNOWN_BUGS.md`，再结合 `git status`、agentmemory 技能与任务相关规范恢复上下文。
+- **续接历史任务 / 接手脏工作区**：先读根目录 `PROJECT_STATE.md`、`ARCHITECTURE.md`，再按需读 `DECISIONS.md`、`KNOWN_BUGS.md`、`TECH_DEBT.md`，并结合 `git status` 与任务相关规范恢复上下文。
 
 1. `AGENTS.md`
 2. 若任务来源于 Linear issue，先阅读并填写 `rules/LINEAR_TASK.md`
@@ -66,7 +66,7 @@
 | 场景 | 必读文档 |
 |---|---|
 | Linear 任务起始信息、验收标准、实施计划与风险回滚 | `rules/LINEAR_TASK.md`（仅 Linear 任务强制） |
-| AI 健康度、代码可维护性、文件健康 | `rules/AI-CODE-HEALTH.md` |
+| AI 健康度、代码可维护性、文件健康 | `rules/CODING_RULES.md` 附录（`rules/AI-CODE-HEALTH.md` 为兼容桩，按需） |
 | 通用编码与测试基线 | `rules/CODING_RULES.md` |
 | 国产化兼容、替代评估、例外审批 | `rules/XINCHUANG_RULES.md` |
 | 监控、指标、告警、可观测性 | `rules/OBSERVABILITY_RULES.md` |
@@ -129,8 +129,11 @@
 - 变更摘要：做了什么、为什么这样做。
 - 影响说明：是否涉及配置、数据、接口、兼容性。
 - 验证结果：已执行的测试、检查或未验证项。
-- AI Memory Update：本次更新了哪些记忆文件、哪些未更新及原因、是否存在跨仓引用。
 - 风险提示：需要人工继续跟进的事项。
+
+**Memory 判定**：仅 durable context 变更时写入交付或 MR；绿区 Fast Path / Lightweight **默认省略**（见 §7）。
+
+**Loop Packet**：仅用户显式要求 loop 时填写（见 `rules/LOOP_ENGINEERING_RULES.md`）。
 
 执行后验证是强制回路，不得只声称完成：
 
@@ -151,34 +154,32 @@
 - 建议下一步:
 ```
 
-- 续接历史任务前，先读取 `PROJECT_STATE.md`、`DECISIONS.md`、`KNOWN_BUGS.md`，再借助会话记忆恢复上下文：查阅 `agent-transcripts/` 历史会话，或使用 `handoff` / `recall` / `session-history` 等 skill，并结合当前 `git status` 还原“上次进行到哪里”，避免重复探索或丢失关键决策。
+- 续接历史任务前，先读取 `PROJECT_STATE.md`、`ARCHITECTURE.md`，再按需读 `DECISIONS.md`、`KNOWN_BUGS.md`、`TECH_DEBT.md`；会话续接优先 agentmemory `handoff` / `recall` / `session-history` 或 `agent-transcripts/`，并结合当前 `git status` 还原“上次进行到哪里”。
 
 ### 7. AI Memory Update
 
 根目录五类记忆文件是仓内长期上下文层，不替代 agentmemory、MR 描述、测试报告或 ADR：
 
-- `PROJECT_STATE.md`：当前阶段、活跃任务、最新验证状态、跨仓依赖、交接重点。
-- `TECH_DEBT.md`：技术债台账，记录 ID、严重度、来源、影响、建议动作、状态。
-- `KNOWN_BUGS.md`：已知问题台账，记录 ID、复现方式、影响范围、临时规避、验证状态。
-- `DECISIONS.md`：决策日志，记录日期、上下文、选项、决策、理由、影响、回看条件。
-- `ARCHITECTURE.md`：稳定架构快照，记录模块边界、核心依赖、跨仓接口、当前约束和禁止事项。
+- `PROJECT_STATE.md`：当前阶段、活跃任务、交接重点（保持短小）。
+- `TECH_DEBT.md`：技术债台账。
+- `KNOWN_BUGS.md`：已知问题台账。
+- `DECISIONS.md`：决策日志。
+- `ARCHITECTURE.md`：稳定架构快照。
 
-交付前 AI 必须检查本次任务是否产生以下变化，并按需更新对应记忆文件：
+**默认不写**：绿区 Fast Path / Lightweight 且无下列触发项时，不更新 memory，交付可省略 Memory 判定。
 
-- 项目阶段、活跃任务、验证基线或交接重点变化：更新 `PROJECT_STATE.md`。
-- 发现或解决持久技术债：追加或更新 `TECH_DEBT.md`。
-- 发现、复现或修复已知 bug：追加或更新 `KNOWN_BUGS.md`。
-- 做出影响后续协作的技术或流程决策：追加 `DECISIONS.md`。
-- 改变稳定模块边界、跨仓接口、共享约束或禁止事项：更新 `ARCHITECTURE.md`。
+**必须更新**（任一命中）：阶段/交接变化 → `PROJECT_STATE`；Open/Resolved 债务 → `TECH_DEBT`；bug → `KNOWN_BUGS`；新决策 → `DECISIONS`；边界/跨仓契约 → `ARCHITECTURE`。
+
+**交接渠道**：durable 事实 → 五类 memory；会话续接 → agentmemory 或 `agent-transcripts/`；模块局部 → 模块 README。
 
 更新规则：
 
-- 按需更新，不写“无变化”流水账；未更新的文件只在交付摘要和 MR Workflow Packet 中说明原因。
-- `PROJECT_STATE.md` 可覆盖当前状态，保持短小、最新。
+- 按需更新，不写“无变化”流水账。
+- `PROJECT_STATE.md` 保持短小；历史验证日志归档到 `docs/reviews/project-state-archive.md`。
 - `TECH_DEBT.md`、`KNOWN_BUGS.md`、`DECISIONS.md` 采用台账式追加或更新状态，不删除历史项。
-- `ARCHITECTURE.md` 只记录稳定架构事实和边界约束，不记录临时实现细节。
-- 跨仓事项必须双向引用：后端记忆文件引用前端路径/验证，前端记忆文件引用后端路径/验证。
-- MR 中必须填写 Memory Update Packet，并引用相关记忆项 ID，例如 `TD-20260608-001`、`BUG-20260608-001`、`DEC-20260608-001`。
+- `ARCHITECTURE.md` 只记录稳定架构事实和边界约束。
+- 跨仓事项双向引用前后端路径与验证。
+- Full MR 在 memory 有变更时填写 Memory Update Packet 并引用 `TD-*` / `BUG-*` / `DEC-*`。
 
 ### 8. 语言与提交约束
 
