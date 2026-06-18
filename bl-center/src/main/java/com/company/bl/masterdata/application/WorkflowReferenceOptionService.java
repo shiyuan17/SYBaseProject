@@ -20,6 +20,8 @@ public class WorkflowReferenceOptionService {
     static final String CATEGORY_CUT_SURFACE_FEATURE = "CUT_SURFACE_FEATURE";
     static final String CATEGORY_MARGIN_MARKING = "MARGIN_MARKING";
     static final String CATEGORY_EMBEDDING_REMARK = "EMBEDDING_REMARK";
+    static final String CATEGORY_OPERATING_ROOM = "OPERATING_ROOM";
+    static final String CATEGORY_OPERATING_LOCATION = "OPERATING_LOCATION";
 
     private final SystemConfigService systemConfigService;
 
@@ -58,6 +60,37 @@ public class WorkflowReferenceOptionService {
             extractOptions(categoriesByCode.get(CATEGORY_MARGIN_MARKING)),
             extractOptions(categoriesByCode.get(CATEGORY_EMBEDDING_REMARK))
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<SystemConfigService.ConfigCategoryNode> listOperatingRoomBuildings() {
+        SystemConfigService.ConfigCategoryNode rootCategory =
+            findCategoryByCode(systemConfigService.listSystemConfigsFresh(), ROOT_CATEGORY_WORKFLOW_REFERENCE);
+        if (rootCategory == null || !rootCategory.enabled()) {
+            return List.of();
+        }
+
+        SystemConfigService.ConfigCategoryNode operatingRoomCategory =
+            findCategoryByCode(rootCategory.children(), CATEGORY_OPERATING_ROOM);
+        if (operatingRoomCategory != null && operatingRoomCategory.enabled()) {
+            List<SystemConfigService.ConfigCategoryNode> buildings = operatingRoomCategory.children().stream()
+                .filter(SystemConfigService.ConfigCategoryNode::enabled)
+                .toList();
+            if (!buildings.isEmpty()) {
+                return buildings;
+            }
+        }
+
+        SystemConfigService.ConfigCategoryNode legacyOperatingLocationCategory =
+            findCategoryByCode(rootCategory.children(), CATEGORY_OPERATING_LOCATION);
+        if (legacyOperatingLocationCategory == null || !legacyOperatingLocationCategory.enabled()) {
+            return List.of();
+        }
+
+        return legacyOperatingLocationCategory.children().stream()
+            .filter(SystemConfigService.ConfigCategoryNode::enabled)
+            .map(this::toLegacyCompatibleOperatingBuilding)
+            .toList();
     }
 
     private SystemConfigService.ConfigCategoryNode findCategoryByCode(
@@ -104,6 +137,33 @@ public class WorkflowReferenceOptionService {
         String label = normalizeText(item.configName());
         String value = normalizeText(item.configValue());
         return new WorkflowReferenceOption(label, value == null ? label : value);
+    }
+
+    private SystemConfigService.ConfigCategoryNode toLegacyCompatibleOperatingBuilding(
+        SystemConfigService.ConfigCategoryNode legacyBuilding
+    ) {
+        return new SystemConfigService.ConfigCategoryNode(
+            legacyBuilding.id(),
+            legacyBuilding.parentId(),
+            normalizeLegacyOperatingBuildingCode(legacyBuilding.categoryCode()),
+            legacyBuilding.categoryName(),
+            legacyBuilding.categoryType(),
+            legacyBuilding.sortOrder(),
+            legacyBuilding.enabled(),
+            List.of(),
+            legacyBuilding.items());
+    }
+
+    private String normalizeLegacyOperatingBuildingCode(String categoryCode) {
+        String normalized = normalizeText(categoryCode);
+        if (normalized == null) {
+            return null;
+        }
+        String legacyPrefix = "OPERATING_BUILDING_";
+        if (normalized.startsWith(legacyPrefix) && normalized.length() > legacyPrefix.length()) {
+            return normalized.substring(legacyPrefix.length());
+        }
+        return normalized;
     }
 
     private String normalizeText(String value) {

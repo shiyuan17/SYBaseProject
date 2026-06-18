@@ -345,9 +345,10 @@ class SpecimenWorkflowClosureIntegrationTest extends AbstractSpecimenWorkflowInt
 
         mockMvc.perform(authorized(get("/api/v1/application-registration-workbench/operating-options"), USER_REGISTER))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.buildings[0].buildingId").value("OR-BUILDING-A"))
-            .andExpect(jsonPath("$.data.buildings[0].operatingRooms[0].buildingId").value("OR-BUILDING-A"))
-            .andExpect(jsonPath("$.data.buildings[0].operatingRooms[0].roomId").value("OR-ROOM-01"));
+            .andExpect(jsonPath("$.data.buildings[0].buildingId").value("B001"))
+            .andExpect(jsonPath("$.data.buildings[0].buildingName").value("惠侨楼"))
+            .andExpect(jsonPath("$.data.buildings[0].operatingRooms[0].buildingId").value("B001"))
+            .andExpect(jsonPath("$.data.buildings[0].operatingRooms[0].roomId").value("OR-101"));
     }
 
     @Test

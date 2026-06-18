@@ -10,6 +10,7 @@ import com.company.bl.domain.repository.ApplicationRepository;
 import com.company.bl.domain.repository.SpecimenWorkflowQueryRepository;
 import com.company.bl.domain.valueobject.ApplicationId;
 import com.company.bl.masterdata.application.SystemConfigService;
+import com.company.bl.masterdata.application.WorkflowReferenceOptionService;
 import com.company.bl.system.infrastructure.SystemJdbcRepository;
 import com.company.bl.system.infrastructure.SystemUserJdbcRepository;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,7 @@ public class ApplicationRegistrationWorkbenchAppService {
     private final SpecimenWorkflowAppService specimenWorkflowAppService;
     private final SystemUserJdbcRepository systemUserJdbcRepository;
     private final SystemConfigService systemConfigService;
+    private final WorkflowReferenceOptionService workflowReferenceOptionService;
 
     @Transactional(readOnly = true)
     public WorkbenchRecord lookup(String keyword) {
@@ -58,12 +60,24 @@ public class ApplicationRegistrationWorkbenchAppService {
 
     @Transactional(readOnly = true)
     public List<ApplicationRegistrationWorkbenchRepository.OperatingBuildingOption> listOperatingBuildingOptions() {
-        return workbenchRepository.listOperatingBuildingOptions();
+        return workflowReferenceOptionService.listOperatingRoomBuildings().stream()
+            .map(this::toOperatingBuildingOption)
+            .toList();
     }
 
     @Transactional(readOnly = true)
     public List<ApplicationRegistrationWorkbenchRepository.OperatingRoomOption> listOperatingRoomOptions(String buildingId) {
-        return workbenchRepository.listOperatingRoomOptions(trim(buildingId));
+        String normalizedBuildingId = trim(buildingId);
+        if (normalizedBuildingId == null) {
+            return listOperatingBuildingOptions().stream()
+                .flatMap(building -> building.operatingRooms().stream())
+                .toList();
+        }
+        return listOperatingBuildingOptions().stream()
+            .filter(building -> normalizedBuildingId.equals(building.buildingId()))
+            .findFirst()
+            .map(ApplicationRegistrationWorkbenchRepository.OperatingBuildingOption::operatingRooms)
+            .orElse(List.of());
     }
 
     @Transactional(readOnly = true)
@@ -139,6 +153,36 @@ public class ApplicationRegistrationWorkbenchAppService {
                 "申请单已进入下游流程，无法在登记工作台重新填写");
         }
         return application;
+    }
+
+    private ApplicationRegistrationWorkbenchRepository.OperatingBuildingOption toOperatingBuildingOption(
+        SystemConfigService.ConfigCategoryNode buildingCategory
+    ) {
+        List<ApplicationRegistrationWorkbenchRepository.OperatingRoomOption> rooms =
+            buildingCategory.items().stream()
+                .filter(SystemConfigService.ConfigItemView::enabled)
+                .map(item -> toOperatingRoomOption(buildingCategory, item))
+                .toList();
+        return new ApplicationRegistrationWorkbenchRepository.OperatingBuildingOption(
+            buildingCategory.categoryCode(),
+            buildingCategory.categoryName(),
+            0,
+            null,
+            rooms);
+    }
+
+    private ApplicationRegistrationWorkbenchRepository.OperatingRoomOption toOperatingRoomOption(
+        SystemConfigService.ConfigCategoryNode buildingCategory,
+        SystemConfigService.ConfigItemView item
+    ) {
+        String roomId = trim(item.configValue()) != null ? trim(item.configValue()) : trim(item.configKey());
+        return new ApplicationRegistrationWorkbenchRepository.OperatingRoomOption(
+            buildingCategory.categoryCode(),
+            null,
+            0,
+            roomId,
+            trim(item.configName()),
+            null);
     }
 
     private Application loadApplication(String applicationId) {

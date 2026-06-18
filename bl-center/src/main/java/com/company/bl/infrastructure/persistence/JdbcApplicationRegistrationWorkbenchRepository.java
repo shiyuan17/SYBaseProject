@@ -155,22 +155,6 @@ public class JdbcApplicationRegistrationWorkbenchRepository implements Applicati
     }
 
     @Override
-    public List<OperatingBuildingOption> listOperatingBuildingOptions() {
-        return withWorkbenchTable(() -> jdbcTemplate.query("""
-            select distinct building_id
-            from application_registration_workbench
-            where building_id is not null
-              and trim(building_id) <> ''
-            order by building_id asc
-            """, (rs, rowNum) -> mapOperatingBuildingOption(rs.getString("building_id"))));
-    }
-
-    @Override
-    public List<OperatingRoomOption> listOperatingRoomOptions(String buildingId) {
-        return withWorkbenchTable(() -> listOperatingRoomOptionsInternal(buildingId));
-    }
-
-    @Override
     public void clearPreDownstreamRegistrationData(String applicationId) {
         jdbcTemplate.update("""
             delete from workflow_events
@@ -201,47 +185,6 @@ public class JdbcApplicationRegistrationWorkbenchRepository implements Applicati
             delete from specimens
             where application_id = :applicationId
             """, Map.of("applicationId", applicationId));
-    }
-
-    private OperatingBuildingOption mapOperatingBuildingOption(String buildingId) {
-        return new OperatingBuildingOption(
-            buildingId,
-            buildingId,
-            0,
-            null,
-            listOperatingRoomOptionsInternal(buildingId));
-    }
-
-    private List<OperatingRoomOption> listOperatingRoomOptionsInternal(String buildingId) {
-        if (buildingId == null || buildingId.isBlank()) {
-            return jdbcTemplate.query("""
-                select distinct building_id, room_id
-                from application_registration_workbench
-                where room_id is not null
-                  and trim(room_id) <> ''
-                order by building_id asc, room_id asc
-                """, this::mapOperatingRoomOption);
-        }
-
-        return jdbcTemplate.query("""
-            select distinct building_id, room_id
-            from application_registration_workbench
-            where room_id is not null
-              and trim(room_id) <> ''
-              and building_id = :buildingId
-            order by building_id asc, room_id asc
-            """, new MapSqlParameterSource()
-            .addValue("buildingId", buildingId), this::mapOperatingRoomOption);
-    }
-
-    private OperatingRoomOption mapOperatingRoomOption(ResultSet rs, int rowNum) throws SQLException {
-        return new OperatingRoomOption(
-            rs.getString("building_id"),
-            null,
-            0,
-            rs.getString("room_id"),
-            rs.getString("room_id"),
-            null);
     }
 
     private <T> T withWorkbenchTable(Supplier<T> action) {

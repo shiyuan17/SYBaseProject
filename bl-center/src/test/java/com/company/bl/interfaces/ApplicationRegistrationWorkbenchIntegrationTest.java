@@ -401,9 +401,22 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
         mockMvc.perform(authorized(get("/api/v1/application-registration-workbench/operating-options"), USER_REGISTER))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.buildings[0].buildingId").value("B001"))
-            .andExpect(jsonPath("$.data.buildings[0].buildingName").value("B001"))
+            .andExpect(jsonPath("$.data.buildings[0].buildingName").value("惠侨楼"))
             .andExpect(jsonPath("$.data.buildings[0].operatingRooms[0].roomId").value("OR-101"))
-            .andExpect(jsonPath("$.data.buildings[0].operatingRooms[0].roomName").value("OR-101"));
+            .andExpect(jsonPath("$.data.buildings[0].operatingRooms[0].roomName").value("手术室 1"))
+            .andExpect(jsonPath("$.data.buildings[0].operatingRooms[1].roomId").value("OR-102"))
+            .andExpect(jsonPath("$.data.buildings[0].operatingRooms[1].roomName").value("手术室 2"))
+            .andExpect(jsonPath("$.data.buildings[0].operatingRooms[2].roomId").value("OR-103"))
+            .andExpect(jsonPath("$.data.buildings[0].operatingRooms[2].roomName").value("手术室 3"));
+    }
+
+    @Test
+    void shouldExposeOperatingOptionsFromSystemConfigWhenWorkbenchHasNoHistoricalRoomData() throws Exception {
+        mockMvc.perform(authorized(get("/api/v1/application-registration-workbench/operating-options"), USER_REGISTER))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.buildings[0].buildingId").value("B001"))
+            .andExpect(jsonPath("$.data.buildings[0].buildingName").value("惠侨楼"))
+            .andExpect(jsonPath("$.data.buildings[0].operatingRooms.length()").value(3));
     }
 
     @Test

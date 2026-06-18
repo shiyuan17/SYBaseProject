@@ -48,6 +48,15 @@ public class SystemConfigService {
     @Cacheable("systemConfigTree")
     @Transactional(readOnly = true)
     public List<ConfigCategoryNode> listSystemConfigs() {
+        return loadSystemConfigs();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ConfigCategoryNode> listSystemConfigsFresh() {
+        return loadSystemConfigs();
+    }
+
+    private List<ConfigCategoryNode> loadSystemConfigs() {
         var categories = repository.findConfigCategories();
         var items = repository.findConfigItems();
         var nodes = categories.stream().map(this::toNode)

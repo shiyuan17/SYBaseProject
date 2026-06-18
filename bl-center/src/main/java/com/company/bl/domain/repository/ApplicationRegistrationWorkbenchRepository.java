@@ -27,10 +27,6 @@ public interface ApplicationRegistrationWorkbenchRepository {
 
     void clearPreDownstreamRegistrationData(String applicationId);
 
-    java.util.List<OperatingBuildingOption> listOperatingBuildingOptions();
-
-    java.util.List<OperatingRoomOption> listOperatingRoomOptions(String buildingId);
-
     record WorkbenchApplicationRow(
         String applicationId,
         String applicationNo,
@@ -172,4 +168,5 @@ public interface ApplicationRegistrationWorkbenchRepository {
         java.util.List<OperatingRoomOption> operatingRooms
     ) {
     }
+
 }
