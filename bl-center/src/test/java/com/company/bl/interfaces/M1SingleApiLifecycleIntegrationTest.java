@@ -8,6 +8,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.ResultActions;
 
+import java.nio.charset.StandardCharsets;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -197,6 +199,100 @@ class M1SingleApiLifecycleIntegrationTest extends AbstractSystemManagementIntegr
     }
 
     @Test
+    void shouldManageSpecimenDictionaryLifecycleThroughSystemConfigApis() throws Exception {
+        String systemCode = "SPECIMEN_SYSTEM_IT_" + System.nanoTime();
+        JsonNode systemCategory = responseData(mockMvc.perform(asAdmin(post("/api/v1/system-configs/specimen-dictionary/categories"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "parentId": "SCC_SPECIMEN_DICTIONARY",
+                      "categoryCode": "%s",
+                      "categoryName": "集成测试标本系统",
+                      "sortOrder": 91,
+                      "enabled": true
+                    }
+                    """.formatted(systemCode))), 200);
+        String systemCategoryId = systemCategory.path("id").asText();
+
+        String partCode = "SPECIMEN_PART_IT_" + System.nanoTime();
+        JsonNode partCategory = responseData(mockMvc.perform(asAdmin(post("/api/v1/system-configs/specimen-dictionary/categories"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "parentId": "%s",
+                      "categoryCode": "%s",
+                      "categoryName": "集成测试标本部位",
+                      "sortOrder": 11,
+                      "enabled": true
+                    }
+                    """.formatted(systemCategoryId, partCode))), 200);
+        String partCategoryId = partCategory.path("id").asText();
+
+        String itemKey = "specimen.dictionary.item.it." + System.nanoTime();
+        JsonNode item = responseData(mockMvc.perform(asAdmin(post("/api/v1/system-configs/specimen-dictionary/items"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "partCategoryId": "%s",
+                      "configKey": "%s",
+                      "specimenName": "集成测试标本项",
+                      "sortOrder": 3,
+                      "enabled": true,
+                      "remarks": "integration test",
+                      "departmentIds": ["DEPT-GYNE", "DEPT-GENERAL"]
+                    }
+                    """.formatted(partCategoryId, itemKey))), 200);
+        String itemId = item.path("id").asText();
+
+        assertThat(item.path("departmentIds"))
+            .extracting(JsonNode::asText)
+            .containsExactly("DEPT-GYNE", "DEPT-GENERAL");
+
+        JsonNode tree = responseData(mockMvc.perform(asAdmin(get("/api/v1/system-configs/specimen-dictionary"))), 200);
+        assertThat(tree.findValuesAsText("id")).contains(systemCategoryId, partCategoryId, itemId);
+        assertThat(tree.findValuesAsText("configKey")).contains(itemKey);
+
+        JsonNode updatedSystem = responseData(mockMvc.perform(asAdmin(patch("/api/v1/system-configs/specimen-dictionary/categories/{id}", systemCategoryId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "parentId": "SCC_SPECIMEN_DICTIONARY",
+                      "categoryCode": null,
+                      "categoryName": "集成测试标本系统-更新",
+                      "sortOrder": 92,
+                      "enabled": true
+                    }
+                    """)), 200);
+        assertThat(updatedSystem.path("categoryName").asText()).isEqualTo("集成测试标本系统-更新");
+
+        JsonNode updatedItem = responseData(mockMvc.perform(asAdmin(patch("/api/v1/system-configs/specimen-dictionary/items/{id}", itemId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "specimenName": "集成测试标本项-更新",
+                      "sortOrder": 4,
+                      "enabled": true,
+                      "remarks": "integration test updated",
+                      "departmentIds": ["DEPT-GYNE"]
+                    }
+                    """)), 200);
+        assertThat(updatedItem.path("specimenName").asText()).isEqualTo("集成测试标本项-更新");
+        assertThat(updatedItem.path("departmentIds"))
+            .extracting(JsonNode::asText)
+            .containsExactly("DEPT-GYNE");
+
+        responseData(mockMvc.perform(asAdmin(delete("/api/v1/system-configs/specimen-dictionary/items/{id}", itemId))), 200);
+        responseData(mockMvc.perform(asAdmin(delete("/api/v1/system-configs/specimen-dictionary/categories/{id}", partCategoryId))), 200);
+        responseData(mockMvc.perform(asAdmin(delete("/api/v1/system-configs/specimen-dictionary/categories/{id}", systemCategoryId))), 200);
+
+        JsonNode deletedTree = responseData(mockMvc.perform(asAdmin(get("/api/v1/system-configs/specimen-dictionary"))), 200);
+        assertThat(deletedTree.findValuesAsText("id"))
+            .doesNotContain(systemCategoryId, partCategoryId, itemId);
+        assertThat(deletedTree.findValuesAsText("configKey"))
+            .doesNotContain(itemKey);
+    }
+
+    @Test
     void shouldManageMedicalOrderDictionaryChargeAndPackageLifecycles() throws Exception {
         JsonNode category = responseData(mockMvc.perform(asAdmin(post("/api/v1/medical-order-dicts/categories"))
                 .contentType(MediaType.APPLICATION_JSON)
@@ -312,7 +408,7 @@ class M1SingleApiLifecycleIntegrationTest extends AbstractSystemManagementIntegr
             .andExpect(status().is(expectedStatus))
             .andReturn()
             .getResponse()
-            .getContentAsString();
+            .getContentAsString(StandardCharsets.UTF_8);
         JsonNode root = objectMapper.readTree(response);
         assertThat(root.path("code").asText()).isEqualTo("SUCCESS");
         return root.path("data");

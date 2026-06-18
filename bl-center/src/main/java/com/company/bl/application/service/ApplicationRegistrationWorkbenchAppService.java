@@ -9,6 +9,7 @@ import com.company.bl.domain.repository.ApplicationRegistrationWorkbenchReposito
 import com.company.bl.domain.repository.ApplicationRepository;
 import com.company.bl.domain.repository.SpecimenWorkflowQueryRepository;
 import com.company.bl.domain.valueobject.ApplicationId;
+import com.company.bl.masterdata.application.SystemConfigService;
 import com.company.bl.system.infrastructure.SystemJdbcRepository;
 import com.company.bl.system.infrastructure.SystemUserJdbcRepository;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ public class ApplicationRegistrationWorkbenchAppService {
     private final SpecimenWorkflowQueryRepository specimenWorkflowRepository;
     private final SpecimenWorkflowAppService specimenWorkflowAppService;
     private final SystemUserJdbcRepository systemUserJdbcRepository;
+    private final SystemConfigService systemConfigService;
 
     @Transactional(readOnly = true)
     public WorkbenchRecord lookup(String keyword) {
@@ -68,11 +70,12 @@ public class ApplicationRegistrationWorkbenchAppService {
     public SpecimenDictionaryResult listSpecimenDictionary(String keyword, String currentUserId) {
         String normalizedKeyword = trim(keyword);
         String currentDepartmentId = resolveCurrentUserDepartmentId(currentUserId);
-        List<SpecimenDictionaryEntry> filteredEntries = filterDictionaryEntriesByDepartment(currentDepartmentId);
+        List<SpecimenDictionaryEntry> allEntries = loadSpecimenDictionaryEntries();
+        List<SpecimenDictionaryEntry> filteredEntries = filterDictionaryEntriesByDepartment(allEntries, currentDepartmentId);
         boolean departmentFiltered = currentDepartmentId != null && !filteredEntries.isEmpty();
         List<SpecimenDictionaryEntry> effectiveEntries = departmentFiltered
             ? filteredEntries
-            : SPECIMEN_DICTIONARY_ENTRIES;
+            : allEntries;
         List<SpecimenDictionaryEntry> searchedEntries = filterDictionaryEntriesByKeyword(effectiveEntries, normalizedKeyword);
         return new SpecimenDictionaryResult(
             buildDictionaryGroups(searchedEntries),
@@ -336,12 +339,52 @@ public class ApplicationRegistrationWorkbenchAppService {
         return user == null ? null : trim(user.departmentId());
     }
 
-    private List<SpecimenDictionaryEntry> filterDictionaryEntriesByDepartment(String departmentId) {
+    private List<SpecimenDictionaryEntry> loadSpecimenDictionaryEntries() {
+        SystemConfigService.SpecimenDictionaryTreeView tree = systemConfigService.getSpecimenDictionaryTree();
+        LinkedHashMap<String, String> systemNames = new LinkedHashMap<>();
+        LinkedHashMap<String, String> partNames = new LinkedHashMap<>();
+        for (SystemConfigService.SpecimenDictionarySystemCategoryView system : tree.systems()) {
+            systemNames.put(system.id(), system.categoryName());
+            for (SystemConfigService.SpecimenDictionaryPartCategoryView part : system.parts()) {
+                partNames.put(part.id(), part.categoryName());
+            }
+        }
+        return tree.items().stream()
+            .map(item -> {
+                SystemConfigService.SpecimenDictionaryPartCategoryView part = tree.systems().stream()
+                    .flatMap(system -> system.parts().stream())
+                    .filter(candidate -> candidate.id().equals(item.partCategoryId()))
+                    .findFirst()
+                    .orElse(null);
+                if (part == null) {
+                    return null;
+                }
+                SystemConfigService.SpecimenDictionarySystemCategoryView system = tree.systems().stream()
+                    .filter(candidate -> Objects.equals(candidate.id(), part.parentId()))
+                    .findFirst()
+                    .orElse(null);
+                if (system == null) {
+                    return null;
+                }
+                return new SpecimenDictionaryEntry(
+                    system.id(),
+                    system.categoryName(),
+                    part.id(),
+                    part.categoryName(),
+                    item.specimenName(),
+                    keywords(system.categoryName(), part.categoryName(), item.specimenName(), part.categoryName() + item.specimenName()),
+                    Set.copyOf(item.departmentIds()));
+            })
+            .filter(Objects::nonNull)
+            .toList();
+    }
+
+    private List<SpecimenDictionaryEntry> filterDictionaryEntriesByDepartment(List<SpecimenDictionaryEntry> entries, String departmentId) {
         String normalizedDepartmentId = trim(departmentId);
         if (normalizedDepartmentId == null) {
             return List.of();
         }
-        return SPECIMEN_DICTIONARY_ENTRIES.stream()
+        return entries.stream()
             .filter(entry -> entry.departmentIds().contains(normalizedDepartmentId))
             .toList();
     }
@@ -404,111 +447,6 @@ public class ApplicationRegistrationWorkbenchAppService {
         }
         return List.copyOf(keywords.keySet());
     }
-
-    private static final List<SpecimenDictionaryEntry> SPECIMEN_DICTIONARY_ENTRIES = List.of(
-        new SpecimenDictionaryEntry("SYS001", "骨、关节及软组织", "P101", "骨髓炎", "右侧胫骨感染病灶",
-            keywords("骨、关节及软组织", "骨髓炎", "右侧胫骨感染病灶", "骨髓炎右侧胫骨感染病灶"),
-            Set.of("DEPT-ORTHO", "DEPT-EMERGENCY")),
-        new SpecimenDictionaryEntry("SYS001", "骨、关节及软组织", "P101", "骨髓炎", "右股骨骨髓炎病灶",
-            keywords("骨、关节及软组织", "骨髓炎", "右股骨骨髓炎病灶", "骨髓炎右股骨骨髓炎病灶"),
-            Set.of("DEPT-ORTHO")),
-        new SpecimenDictionaryEntry("SYS001", "骨、关节及软组织", "P101", "骨髓炎", "右腓骨骨髓炎病灶",
-            keywords("骨、关节及软组织", "骨髓炎", "右腓骨骨髓炎病灶", "骨髓炎右腓骨骨髓炎病灶"),
-            Set.of("DEPT-ORTHO")),
-        new SpecimenDictionaryEntry("SYS001", "骨、关节及软组织", "P101", "骨髓炎", "左侧胫骨感染病灶",
-            keywords("骨、关节及软组织", "骨髓炎", "左侧胫骨感染病灶", "骨髓炎左侧胫骨感染病灶"),
-            Set.of("DEPT-ORTHO")),
-        new SpecimenDictionaryEntry("SYS001", "骨、关节及软组织", "P101", "骨髓炎", "左股骨骨髓炎病灶",
-            keywords("骨、关节及软组织", "骨髓炎", "左股骨骨髓炎病灶", "骨髓炎左股骨骨髓炎病灶"),
-            Set.of("DEPT-ORTHO")),
-        new SpecimenDictionaryEntry("SYS001", "骨、关节及软组织", "P101", "骨髓炎", "左腓骨骨髓炎病灶",
-            keywords("骨、关节及软组织", "骨髓炎", "左腓骨骨髓炎病灶", "骨髓炎左腓骨骨髓炎病灶"),
-            Set.of("DEPT-ORTHO")),
-        new SpecimenDictionaryEntry("SYS001", "骨、关节及软组织", "P102", "关节", "膝关节滑膜组织",
-            keywords("骨、关节及软组织", "关节", "膝关节滑膜组织", "关节膝关节滑膜组织"),
-            Set.of("DEPT-ORTHO")),
-        new SpecimenDictionaryEntry("SYS001", "骨、关节及软组织", "P102", "关节", "髋关节滑膜组织",
-            keywords("骨、关节及软组织", "关节", "髋关节滑膜组织", "关节髋关节滑膜组织"),
-            Set.of("DEPT-ORTHO")),
-        new SpecimenDictionaryEntry("SYS001", "骨、关节及软组织", "P102", "关节", "踝关节病灶组织",
-            keywords("骨、关节及软组织", "关节", "踝关节病灶组织", "关节踝关节病灶组织"),
-            Set.of("DEPT-ORTHO")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P201", "皮肤", "背部黑毛痣",
-            keywords("乳腺及皮肤", "皮肤", "背部黑毛痣", "皮肤背部黑毛痣"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P201", "皮肤", "背部溃疡组织",
-            keywords("乳腺及皮肤", "皮肤", "背部溃疡组织", "皮肤背部溃疡组织"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P201", "皮肤", "背部皮肤肿物",
-            keywords("乳腺及皮肤", "皮肤", "背部皮肤肿物", "皮肤背部皮肤肿物"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P201", "皮肤", "额部黑毛痣",
-            keywords("乳腺及皮肤", "皮肤", "额部黑毛痣", "皮肤额部黑毛痣"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P201", "皮肤", "额部皮肤肿物",
-            keywords("乳腺及皮肤", "皮肤", "额部皮肤肿物", "皮肤额部皮肤肿物"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P201", "皮肤", "腹部皮肤活检",
-            keywords("乳腺及皮肤", "皮肤", "腹部皮肤活检", "皮肤腹部皮肤活检"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P201", "皮肤", "颈部皮肤肿物",
-            keywords("乳腺及皮肤", "皮肤", "颈部皮肤肿物", "皮肤颈部皮肤肿物"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P201", "皮肤", "皮肤溃疡组织",
-            keywords("乳腺及皮肤", "皮肤", "皮肤溃疡组织", "皮肤皮肤溃疡组织"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P201", "皮肤", "头部皮肤肿物",
-            keywords("乳腺及皮肤", "皮肤", "头部皮肤肿物", "皮肤头部皮肤肿物"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P201", "皮肤", "头皮肿物",
-            keywords("乳腺及皮肤", "皮肤", "头皮肿物", "皮肤头皮肿物"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P201", "皮肤", "右面部黑毛痣",
-            keywords("乳腺及皮肤", "皮肤", "右面部黑毛痣", "皮肤右面部黑毛痣"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P201", "皮肤", "右前臂皮肤",
-            keywords("乳腺及皮肤", "皮肤", "右前臂皮肤", "皮肤右前臂皮肤"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P201", "皮肤", "左手背",
-            keywords("乳腺及皮肤", "皮肤", "左手背", "皮肤左手背"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P201", "皮肤", "左前臂黑毛痣",
-            keywords("乳腺及皮肤", "皮肤", "左前臂黑毛痣", "皮肤左前臂黑毛痣"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P202", "乳腺", "右乳外上象限结节",
-            keywords("乳腺及皮肤", "乳腺", "右乳外上象限结节", "乳腺右乳外上象限结节"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P202", "乳腺", "左乳腺肿物",
-            keywords("乳腺及皮肤", "乳腺", "左乳腺肿物", "乳腺左乳腺肿物"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P202", "乳腺", "乳头乳晕区组织",
-            keywords("乳腺及皮肤", "乳腺", "乳头乳晕区组织", "乳腺乳头乳晕区组织"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS002", "乳腺及皮肤", "P202", "乳腺", "乳腺钙化灶",
-            keywords("乳腺及皮肤", "乳腺", "乳腺钙化灶", "乳腺乳腺钙化灶"),
-            Set.of("DEPT-GENERAL")),
-        new SpecimenDictionaryEntry("SYS003", "妇科", "P301", "宫颈", "宫颈 3 点位组织",
-            keywords("妇科", "宫颈", "宫颈 3 点位组织", "宫颈宫颈 3 点位组织"),
-            Set.of("DEPT-GYNE")),
-        new SpecimenDictionaryEntry("SYS003", "妇科", "P301", "宫颈", "宫颈 6 点位组织",
-            keywords("妇科", "宫颈", "宫颈 6 点位组织", "宫颈宫颈 6 点位组织"),
-            Set.of("DEPT-GYNE")),
-        new SpecimenDictionaryEntry("SYS003", "妇科", "P301", "宫颈", "宫颈锥切标本",
-            keywords("妇科", "宫颈", "宫颈锥切标本", "宫颈宫颈锥切标本"),
-            Set.of("DEPT-GYNE")),
-        new SpecimenDictionaryEntry("SYS003", "妇科", "P301", "宫颈", "宫颈活检组织",
-            keywords("妇科", "宫颈", "宫颈活检组织", "宫颈宫颈活检组织"),
-            Set.of("DEPT-GYNE")),
-        new SpecimenDictionaryEntry("SYS003", "妇科", "P302", "子宫", "宫腔内容物",
-            keywords("妇科", "子宫", "宫腔内容物", "子宫宫腔内容物"),
-            Set.of("DEPT-GYNE")),
-        new SpecimenDictionaryEntry("SYS003", "妇科", "P302", "子宫", "子宫内膜组织",
-            keywords("妇科", "子宫", "子宫内膜组织", "子宫子宫内膜组织"),
-            Set.of("DEPT-GYNE")),
-        new SpecimenDictionaryEntry("SYS003", "妇科", "P302", "子宫", "子宫肌瘤组织",
-            keywords("妇科", "子宫", "子宫肌瘤组织", "子宫子宫肌瘤组织"),
-            Set.of("DEPT-GYNE"))
-    );
 
     public record SpecimenDictionaryResult(
         List<SpecimenDictionaryGroup> groups,

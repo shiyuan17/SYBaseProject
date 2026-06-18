@@ -7,7 +7,10 @@ import org.springframework.stereotype.Repository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 public class SystemConfigJdbcRepository {
@@ -32,6 +35,19 @@ public class SystemConfigJdbcRepository {
             from system_config_items
             order by sort_order, config_key
             """, this::mapItem);
+    }
+
+    public List<SpecimenDictionaryDepartmentRelationRow> findSpecimenDictionaryDepartmentRelations() {
+        return jdbcTemplate.query("""
+            select rel.config_item_id, rel.department_id
+            from system_config_item_departments rel
+            join system_config_items item on item.id = rel.config_item_id
+            join system_config_categories category on category.id = item.category_id
+            where category.category_type = 'SPECIMEN_DICTIONARY'
+            order by rel.config_item_id, rel.department_id
+            """, (rs, rowNum) -> new SpecimenDictionaryDepartmentRelationRow(
+            rs.getString("config_item_id"),
+            rs.getString("department_id")));
     }
 
     public ConfigCategoryRow insertConfigCategory(CreateConfigCategoryRow row) {
@@ -74,6 +90,40 @@ public class SystemConfigJdbcRepository {
             .addValue("createdAt", row.createdAt())
             .addValue("updatedAt", row.updatedAt()));
         return findConfigItemById(row.id());
+    }
+
+    public void replaceSpecimenDictionaryItemDepartments(String configItemId, List<String> departmentIds) {
+        jdbcTemplate.update("""
+            delete from system_config_item_departments
+            where config_item_id = :configItemId
+            """, new MapSqlParameterSource().addValue("configItemId", configItemId));
+
+        if (departmentIds == null || departmentIds.isEmpty()) {
+            return;
+        }
+
+        List<Map<String, Object>> batchValues = new ArrayList<>();
+        int index = 0;
+        for (String departmentId : departmentIds) {
+            if (departmentId == null || departmentId.isBlank()) {
+                continue;
+            }
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", configItemId + "_" + (++index) + "_" + departmentId.trim());
+            row.put("configItemId", configItemId);
+            row.put("departmentId", departmentId.trim());
+            row.put("createdAt", LocalDateTime.now());
+            batchValues.add(row);
+        }
+        if (batchValues.isEmpty()) {
+            return;
+        }
+        jdbcTemplate.batchUpdate("""
+            insert into system_config_item_departments
+                (id, config_item_id, department_id, created_at)
+            values
+                (:id, :configItemId, :departmentId, :createdAt)
+            """, batchValues.toArray(Map[]::new));
     }
 
     public ConfigCategoryRow findConfigCategoryById(String id) {
@@ -131,6 +181,24 @@ public class SystemConfigJdbcRepository {
             """, new MapSqlParameterSource()
             .addValue("id", id)
             .addValue("configValue", row.configValue())
+            .addValue("enabled", row.enabled() ? 1 : 0)
+            .addValue("remarks", row.remarks())
+            .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    public void updateSpecimenDictionaryItem(String id, UpdateSpecimenDictionaryItemRow row) {
+        jdbcTemplate.update("""
+            update system_config_items
+            set config_name = :configName,
+                sort_order = :sortOrder,
+                enabled = :enabled,
+                remarks = :remarks,
+                updated_at = :updatedAt
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", id)
+            .addValue("configName", row.configName())
+            .addValue("sortOrder", row.sortOrder())
             .addValue("enabled", row.enabled() ? 1 : 0)
             .addValue("remarks", row.remarks())
             .addValue("updatedAt", LocalDateTime.now()));
@@ -197,5 +265,16 @@ public class SystemConfigJdbcRepository {
     }
 
     public record UpdateConfigItemRow(String configValue, boolean enabled, String remarks) {
+    }
+
+    public record UpdateSpecimenDictionaryItemRow(
+        String configName,
+        int sortOrder,
+        boolean enabled,
+        String remarks
+    ) {
+    }
+
+    public record SpecimenDictionaryDepartmentRelationRow(String configItemId, String departmentId) {
     }
 }

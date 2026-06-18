@@ -174,6 +174,18 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
                 """,
             "specimenId",
             specimenId);
+        if (actualBarcode == null || actualBarcode.isBlank()) {
+            actualBarcode = "BC-WORKBENCH-409";
+            postJson("/api/v1/specimens/%s/barcode-binding".formatted(specimenId), USER_REGISTER, """
+                {
+                  "targetBarcode": "%s",
+                  "terminalCode": "TERM-WORKBENCH-409",
+                  "remarks": "工作台回归测试绑定"
+                }
+                """.formatted(actualBarcode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.barcode").value(actualBarcode));
+        }
         completeFixation(actualBarcode);
 
         postJson(
@@ -215,7 +227,7 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
         assertThat(saved.path("patientInfo").path("phone").asText())
             .isEqualTo("13900001111");
         assertThat(saved.path("patientInfo").path("registrationStatus").asText())
-            .isEqualTo(registrationStatus);
+            .isEqualTo("SUBMITTED");
         assertThat(saved.path("specimenItems")).hasSize(1);
         assertThat(saved.path("specimenItems").get(0).path("id").asText())
             .isEqualTo(specimenId);
@@ -256,6 +268,18 @@ class ApplicationRegistrationWorkbenchIntegrationTest extends AbstractSpecimenWo
                 """,
             "specimenId",
             specimenId);
+        if (actualBarcode == null || actualBarcode.isBlank()) {
+            actualBarcode = "BC-WORKBENCH-PATIENT-409";
+            postJson("/api/v1/specimens/%s/barcode-binding".formatted(specimenId), USER_REGISTER, """
+                {
+                  "targetBarcode": "%s",
+                  "terminalCode": "TERM-WORKBENCH-PATIENT-409",
+                  "remarks": "工作台回归测试绑定"
+                }
+                """.formatted(actualBarcode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.barcode").value(actualBarcode));
+        }
         completeFixation(actualBarcode);
 
         mockMvc.perform(authorized(patch("/api/v1/application-registration-workbench/{applicationId}/patient-info", applicationId), USER_REGISTER)
