@@ -101,6 +101,7 @@ public class SystemLogQueryService {
         return new SystemManagementService.UserLoginLogView(
             row.id(),
             row.userId(),
+            row.userCode(),
             row.loginName(),
             row.loginResult(),
             row.clientIp(),

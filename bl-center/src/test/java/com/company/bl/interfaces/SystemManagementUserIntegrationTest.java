@@ -117,7 +117,8 @@ class SystemManagementUserIntegrationTest extends AbstractSystemManagementIntegr
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.total", is(1)))
             .andExpect(jsonPath("$.data.items[0].loginResult", is("SUCCESS")))
-            .andExpect(jsonPath("$.data.items[0].clientIp", is("10.0.0.1")));
+            .andExpect(jsonPath("$.data.items[0].clientIp", is("10.0.0.1")))
+            .andExpect(jsonPath("$.data.items[0].userCode", startsWith("USER-")));
 
         mockMvc.perform(asAdmin(get("/api/v1/system/logs/login"))
                 .param("page", "0")

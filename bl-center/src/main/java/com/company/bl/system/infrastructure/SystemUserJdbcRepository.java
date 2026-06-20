@@ -197,10 +197,12 @@ public class SystemUserJdbcRepository {
     public SystemJdbcRepository.PagedUserLoginLogs findUserLoginLogs(String userId, int page, int size) {
         int offset = Math.max(0, (page - 1) * size);
         List<SystemJdbcRepository.UserLoginLogRow> logs = jdbcTemplate.query("""
-            select id, user_id, login_name, login_result, client_ip, client_device, login_at, logout_at, failure_reason, remarks
-            from user_login_logs
-            where user_id = :userId
-            order by login_at desc, id desc
+            select l.id, l.user_id, u.user_code, l.login_name, l.login_result, l.client_ip, l.client_device,
+                   l.login_at, l.logout_at, l.failure_reason, l.remarks
+            from user_login_logs l
+            left join users u on u.id = l.user_id
+            where l.user_id = :userId
+            order by l.login_at desc, l.id desc
             offset :offset rows fetch next :size rows only
             """, new MapSqlParameterSource()
             .addValue("userId", userId)
@@ -222,16 +224,19 @@ public class SystemUserJdbcRepository {
             .addValue("size", criteria.size());
         appendLoginLogFilters(conditions, params, criteria);
         List<SystemJdbcRepository.UserLoginLogRow> logs = jdbcTemplate.query("""
-            select id, user_id, login_name, login_result, client_ip, client_device, login_at, logout_at, failure_reason, remarks
-            from user_login_logs
+            select l.id, l.user_id, u.user_code, l.login_name, l.login_result, l.client_ip, l.client_device,
+                   l.login_at, l.logout_at, l.failure_reason, l.remarks
+            from user_login_logs l
+            left join users u on u.id = l.user_id
             where 1 = 1
             """ + conditions + """
-            order by login_at desc, id desc
+            order by l.login_at desc, l.id desc
             offset :offset rows fetch next :size rows only
             """, params, this::mapUserLoginLog);
         Long total = jdbcTemplate.queryForObject("""
             select count(*)
-            from user_login_logs
+            from user_login_logs l
+            left join users u on u.id = l.user_id
             where 1 = 1
             """ + conditions, params, Long.class);
         return new SystemJdbcRepository.PagedUserLoginLogs(logs, total == null ? 0L : total);
@@ -239,9 +244,11 @@ public class SystemUserJdbcRepository {
 
     public SystemJdbcRepository.UserLoginLogRow findLoginLogById(String id) {
         List<SystemJdbcRepository.UserLoginLogRow> rows = jdbcTemplate.query("""
-            select id, user_id, login_name, login_result, client_ip, client_device, login_at, logout_at, failure_reason, remarks
-            from user_login_logs
-            where id = :id
+            select l.id, l.user_id, u.user_code, l.login_name, l.login_result, l.client_ip, l.client_device,
+                   l.login_at, l.logout_at, l.failure_reason, l.remarks
+            from user_login_logs l
+            left join users u on u.id = l.user_id
+            where l.id = :id
             """, Map.of("id", id), this::mapUserLoginLog);
         return rows.isEmpty() ? null : rows.get(0);
     }
@@ -321,41 +328,48 @@ public class SystemUserJdbcRepository {
                                        MapSqlParameterSource params,
                                        SystemJdbcRepository.LoginLogSearchCriteria criteria) {
         if (criteria.startAt() != null) {
-            conditions.append(" and login_at >= :startAt\n");
+            conditions.append(" and l.login_at >= :startAt\n");
             params.addValue("startAt", criteria.startAt());
         }
         if (criteria.endAt() != null) {
-            conditions.append(" and login_at <= :endAt\n");
+            conditions.append(" and l.login_at <= :endAt\n");
             params.addValue("endAt", criteria.endAt());
         }
         if (criteria.result() != null && !criteria.result().isBlank()) {
-            conditions.append(" and login_result = :result\n");
+            conditions.append(" and l.login_result = :result\n");
             params.addValue("result", criteria.result().trim());
         }
         if (criteria.ip() != null && !criteria.ip().isBlank()) {
-            conditions.append(" and client_ip like :ip\n");
+            conditions.append(" and l.client_ip like :ip\n");
             params.addValue("ip", "%" + criteria.ip().trim() + "%");
         }
         if (criteria.loginName() != null && !criteria.loginName().isBlank()) {
-            conditions.append(" and login_name like :loginName\n");
+            conditions.append(" and l.login_name like :loginName\n");
             params.addValue("loginName", "%" + criteria.loginName().trim() + "%");
         }
         if (criteria.userId() != null && !criteria.userId().isBlank()) {
-            conditions.append(" and user_id = :userId\n");
-            params.addValue("userId", criteria.userId().trim());
+            conditions.append("""
+                 and (
+                    l.user_id = :userId
+                    or u.user_code like :userCodeKeyword
+                 )
+                """);
+            String userKeyword = criteria.userId().trim();
+            params.addValue("userId", userKeyword);
+            params.addValue("userCodeKeyword", "%" + userKeyword + "%");
         }
         if (criteria.clientDevice() != null && !criteria.clientDevice().isBlank()) {
-            conditions.append(" and client_device like :clientDevice\n");
+            conditions.append(" and l.client_device like :clientDevice\n");
             params.addValue("clientDevice", "%" + criteria.clientDevice().trim() + "%");
         }
         if (criteria.keyword() != null && !criteria.keyword().isBlank()) {
             conditions.append("""
                  and (
-                    login_name like :logKeyword
-                    or client_ip like :logKeyword
-                    or client_device like :logKeyword
-                    or failure_reason like :logKeyword
-                    or remarks like :logKeyword
+                    l.login_name like :logKeyword
+                    or l.client_ip like :logKeyword
+                    or l.client_device like :logKeyword
+                    or l.failure_reason like :logKeyword
+                    or l.remarks like :logKeyword
                  )
                 """);
             params.addValue("logKeyword", "%" + criteria.keyword().trim() + "%");
@@ -399,6 +413,7 @@ public class SystemUserJdbcRepository {
         return new SystemJdbcRepository.UserLoginLogRow(
             rs.getString("id"),
             rs.getString("user_id"),
+            rs.getString("user_code"),
             rs.getString("login_name"),
             rs.getString("login_result"),
             rs.getString("client_ip"),

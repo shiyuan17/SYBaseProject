@@ -180,6 +180,7 @@ public class SystemManagementService {
     public record UserLoginLogView(
         String id,
         String userId,
+        String userCode,
         String loginName,
         String loginResult,
         String clientIp,
