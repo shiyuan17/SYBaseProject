@@ -19,6 +19,7 @@ final class TechnicalWorkflowConstants {
     static final String NODE_STAINING = "STAINING";
     static final String NODE_REWORK = "REWORK";
     static final String NODE_QC = "QC";
+    static final String WORKSTATION_CLEAR_STATUS_CLEARED = "CLEARED";
 
     private TechnicalWorkflowConstants() {
     }

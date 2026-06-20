@@ -63,7 +63,9 @@ public record TechnicalTrackingResponse(
         @Schema(description = "标本名称")
         String specimenName,
         @Schema(description = "大体所见")
-        String grossDescription
+        String grossDescription,
+        @Schema(description = "包埋备注")
+        String embeddingRemarks
     ) {
     }
 

@@ -83,6 +83,12 @@ public class JdbcSpecimenWorkflowQueryRepository
                     from specimens s
                     where s.application_id = a.id
                 ) as registered_specimen_count,
+                  (
+                        select cast(wm_concat(s.specimen_no) as varchar(2000))
+                        from specimens s
+                        where s.application_id = a.id
+                    ) as specimen_nos,
+                  
                 (
                     select case
                         when sum(case when sb.label_print_status = 'FAILED' then 1 else 0 end) > 0 then 'FAILED'
@@ -352,6 +358,8 @@ public class JdbcSpecimenWorkflowQueryRepository
             rs.getString("current_node"),
             rs.getInt("abnormal_flag") == 1,
             rs.getInt("registered_specimen_count"),
+            JdbcResultSetUtils.getNullableString(rs, "specimen_nos"),
+            
             rs.getString("latest_label_print_status"),
             rs.getInt("editable") == 1,
             rs.getInt("deletable") == 1,
@@ -363,3 +371,8 @@ public class JdbcSpecimenWorkflowQueryRepository
             rs.getTimestamp("updated_at") == null ? null : rs.getTimestamp("updated_at").toLocalDateTime());
     }
 }
+
+
+
+
+

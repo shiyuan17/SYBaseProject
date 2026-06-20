@@ -59,7 +59,7 @@ class SpecimenBarcodeBindingService {
             command.operatorUserId(),
             command.operatorName(),
             command.terminalCode(),
-            "Specimen barcode bound to " + targetBarcode));
+            "Specimen barcode bound to " + targetBarcode, null));
         return specimenWorkflowSupport.getSpecimenById(specimen.id());
     }
 
@@ -97,7 +97,7 @@ class SpecimenBarcodeBindingService {
             command.operatorUserId(),
             command.operatorName(),
             command.terminalCode(),
-            "Specimen barcode rebound from " + previousBarcode + " to " + targetBarcode));
+            "Specimen barcode rebound from " + previousBarcode + " to " + targetBarcode, null));
         return specimenWorkflowSupport.getSpecimenById(specimen.id());
     }
 
@@ -130,7 +130,7 @@ class SpecimenBarcodeBindingService {
             command.operatorUserId(),
             command.operatorName(),
             command.terminalCode(),
-            "Specimen barcode unbound from " + previousBarcode));
+            "Specimen barcode unbound from " + previousBarcode, null));
         return specimenWorkflowSupport.getSpecimenById(specimen.id());
     }
 

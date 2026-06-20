@@ -95,6 +95,8 @@ class SpecimenWorkflowModelAssembler {
             tracking.currentNode(),
             tracking.abnormal(),
             tracking.specimens().size(),
+            tracking.specimens().stream().map(Specimen::specimenNo).toList(),
+            
             latestLabelPrintStatus,
             operationState.editable(),
             operationState.deletable(),
@@ -157,3 +159,4 @@ class SpecimenWorkflowModelAssembler {
             specimen.remarks());
     }
 }
+

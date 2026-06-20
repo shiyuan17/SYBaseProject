@@ -36,6 +36,12 @@ public record PendingTechnicalTaskResponse(
     String samplingBlockCode,
     @Schema(description = "蜡块名称")
     String samplingBlockDescription,
+    @Schema(description = "包埋备注")
+    String embeddingRemarks,
+    @Schema(description = "标本名称")
+    String specimenName,
+    @Schema(description = "大体所见")
+    String grossDescription,
     @Schema(description = "取材操作人")
     String sampledByName,
     @Schema(description = "取材时间")

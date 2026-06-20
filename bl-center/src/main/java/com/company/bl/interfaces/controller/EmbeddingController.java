@@ -13,6 +13,7 @@ import com.company.bl.interfaces.vo.EmbeddingResponse;
 import com.company.bl.interfaces.vo.PendingTechnicalTaskResponse;
 import com.company.bl.interfaces.vo.TechnicalTrackingResponse;
 import com.company.bl.interfaces.vo.TaskOperationResponse;
+import com.company.bl.interfaces.vo.WorkstationDailyClearResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -65,7 +66,7 @@ public class EmbeddingController extends TechnicalControllerSupport {
                 task.id(), task.applicationId(), task.applicationNo(), task.patientName(), task.patientId(), task.patientIdDisplay(),
                 task.caseId(), task.pathologyNo(),
                 task.specimenId(), task.taskType(), task.taskStatus(), task.objectType(), task.objectId(),
-                task.objectDisplayNo(), task.samplingBlockCode(), task.samplingBlockDescription(), task.sampledByName(), task.sampledAt(),
+                task.objectDisplayNo(), task.samplingBlockCode(), task.samplingBlockDescription(), task.embeddingRemarks(), task.specimenName(), task.grossDescription(), task.sampledByName(), task.sampledAt(),
                 task.payload(), task.priority(), task.currentNode(), task.stationCode(), task.stationName(),
                 task.assignedToUserId(), task.assignedToName(), task.expectedCompletedAt(), task.productionRemarks(),
                 task.receivedAt(), task.remarks(), task.createdAt(), task.startedAt(), task.completedAt(),
@@ -77,7 +78,22 @@ public class EmbeddingController extends TechnicalControllerSupport {
                 item.embeddingId(), item.embeddingBoxId(), item.embeddingBoxNo(), item.sliceNotice(),
                 item.evaluationLevel(), item.samplingEvaluation(), item.embeddingRemarks(), item.sampledByName(),
                 item.sampledAt(), item.embeddedByName(), item.startedAt(), item.endedAt(), item.taskStatus()))
-                .toList());
+                .toList(),
+            toWorkstationDailyClearResponse(result.dailyClear()));
+    }
+
+    @Operation(summary = "确认包埋工作站日结清零", description = "记录当日包埋工作站日结清零，科室级每天仅可确认一次。")
+    @RequirePermission(M3PermissionCodes.EMBEDDING)
+    @PostMapping("/workstation-clear")
+    public WorkstationDailyClearResponse confirmWorkstationClear(HttpServletRequest httpServletRequest) {
+        TechnicalWorkflowModels.WorkstationDailyClearView result =
+            technicalWorkflowAppService.confirmEmbeddingWorkstationClear(
+                new TechnicalWorkflowModels.WorkstationClearCommand(
+                    resolveUserId(httpServletRequest),
+                    resolveOperatorName(httpServletRequest),
+                    null,
+                    null));
+        return toWorkstationDailyClearResponse(result);
     }
 
     @Operation(summary = "开始包埋", description = "将技术任务推进到包埋中状态。")
@@ -172,5 +188,17 @@ public class EmbeddingController extends TechnicalControllerSupport {
             item.embeddingId(), item.embeddingBoxId(), item.embeddingBoxNo(), item.sliceNotice(),
             item.evaluationLevel(), item.samplingEvaluation(), item.embeddingRemarks(), item.sampledByName(),
             item.sampledAt(), item.embeddedByName(), item.startedAt(), item.endedAt(), item.taskStatus());
+    }
+
+    private WorkstationDailyClearResponse toWorkstationDailyClearResponse(
+        TechnicalWorkflowModels.WorkstationDailyClearView dailyClear
+    ) {
+        return new WorkstationDailyClearResponse(
+            dailyClear.workDate() == null ? null : dailyClear.workDate().toString(),
+            dailyClear.cleared(),
+            dailyClear.operatorUserId(),
+            dailyClear.operatorName(),
+            dailyClear.clearedAt() == null ? null : dailyClear.clearedAt().toString(),
+            dailyClear.clearStatus());
     }
 }

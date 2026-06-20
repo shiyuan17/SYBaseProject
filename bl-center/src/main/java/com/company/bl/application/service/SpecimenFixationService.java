@@ -72,7 +72,7 @@ class SpecimenFixationService {
             command.operatorUserId(),
             command.operatorName(),
             command.terminalCode(),
-            "Fixation started"));
+            "Fixation started", null));
         return new FixationResult(
             specimen.id(),
             specimen.barcode(),
@@ -133,7 +133,7 @@ class SpecimenFixationService {
             command.operatorUserId(),
             command.operatorName(),
             command.terminalCode(),
-            "Fixation completed"));
+            "Fixation completed", null));
         return new FixationResult(
             specimen.id(),
             specimen.barcode(),

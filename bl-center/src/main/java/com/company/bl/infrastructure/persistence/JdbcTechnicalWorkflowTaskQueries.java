@@ -146,6 +146,7 @@ final class JdbcTechnicalWorkflowTaskQueries {
         return jdbcTemplate.query("""
             select sb.id, sb.case_id, sb.specimen_id, sb.sampling_id, sb.sequence_no, sb.block_code,
                    sb.block_site, sb.block_description, sb.embedding_box_no, sb.special_requirement,
+                   sb.embedding_remarks,
                    s.specimen_name_standardized as specimen_name, sm.gross_description
             from sampling_blocks sb
             left join specimens s on s.id = sb.specimen_id
@@ -159,6 +160,7 @@ final class JdbcTechnicalWorkflowTaskQueries {
         List<SamplingBlock> rows = jdbcTemplate.query("""
             select sb.id, sb.case_id, sb.specimen_id, sb.sampling_id, sb.sequence_no, sb.block_code,
                    sb.block_site, sb.block_description, sb.embedding_box_no, sb.special_requirement,
+                   sb.embedding_remarks,
                    s.specimen_name_standardized as specimen_name, sm.gross_description
             from sampling_blocks sb
             left join specimens s on s.id = sb.specimen_id
@@ -172,6 +174,7 @@ final class JdbcTechnicalWorkflowTaskQueries {
         return jdbcTemplate.query("""
             select sb.id, sb.case_id, sb.specimen_id, sb.sampling_id, sb.sequence_no, sb.block_code,
                    sb.block_site, sb.block_description, sb.embedding_box_no, sb.special_requirement,
+                   sb.embedding_remarks,
                    s.specimen_name_standardized as specimen_name, sm.gross_description
             from sampling_blocks sb
             left join specimens s on s.id = sb.specimen_id
@@ -218,6 +221,9 @@ final class JdbcTechnicalWorkflowTaskQueries {
                 coalesce(slide_box.embedding_box_no, slide_block.embedding_box_no, slide_block.block_code, slide.slide_no, sb.embedding_box_no, sb.block_code, t.object_id) as object_display_no,
                 sb.block_code as sampling_block_code,
                 sb.block_description as sampling_block_description,
+                sb.embedding_remarks as embedding_remarks,
+                s.specimen_name_standardized as specimen_name,
+                sm.gross_description as gross_description,
                 sm.sampled_by_name,
                 sm.sampled_at,
                 t.parent_task_id,
@@ -242,6 +248,7 @@ final class JdbcTechnicalWorkflowTaskQueries {
             left join sampling_blocks sb
               on t.object_type = 'SAMPLING_BLOCK'
              and t.object_id = sb.id
+            left join specimens s on s.id = coalesce(sb.specimen_id, t.specimen_id)
             left join slides slide
               on t.object_type = 'SLIDE'
              and t.object_id = slide.id
@@ -310,6 +317,8 @@ final class JdbcTechnicalWorkflowTaskQueries {
                  and (
                     upper(coalesce(pc.pathology_no, '')) like :keywordLike
                     or upper(coalesce(a.patient_id, '')) like :keywordLike
+                    or upper(coalesce(a.patient_name, '')) like :keywordLike
+                    or upper(coalesce(a.application_no, '')) like :keywordLike
                  )
                 """);
         }

@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -936,6 +937,22 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             """, new MapSqlParameterSource()
             .addValue("caseId", caseId)
             .addValue("limit", limit), rowMappers::mapTrackingEvent);
+    }
+
+    Optional<TechnicalWorkflowRecords.WorkstationDailyClearRecord> findWorkstationDailyClear(
+        String workstationType,
+        LocalDate workDate
+    ) {
+        List<TechnicalWorkflowRecords.WorkstationDailyClearRecord> rows = jdbcTemplate.query("""
+            select id, workstation_type, work_date, operator_user_id, operator_name,
+                   cleared_at, clear_status, operator_ip
+            from workstation_daily_clears
+            where workstation_type = :workstationType
+              and work_date = :workDate
+            """, new MapSqlParameterSource()
+            .addValue("workstationType", workstationType)
+            .addValue("workDate", workDate), rowMappers::mapWorkstationDailyClearRecord);
+        return rows.stream().findFirst();
     }
 
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {

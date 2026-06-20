@@ -56,6 +56,9 @@ class TechnicalWorkflowSupport {
             task.objectDisplayNo(),
             task.samplingBlockCode(),
             task.samplingBlockDescription(),
+            task.embeddingRemarks(),
+            task.specimenName(),
+            task.grossDescription(),
             task.sampledByName(),
             stringify(task.sampledAt()),
             task.payload(),
@@ -140,6 +143,15 @@ class TechnicalWorkflowSupport {
             && !TechnicalWorkflowConstants.TASK_IN_PROGRESS.equals(task.taskStatus())
             && !TechnicalWorkflowConstants.TASK_EMBEDDING_CONFIRM_PENDING.equals(task.taskStatus())) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Technical task is not active");
+        }
+        return task;
+    }
+
+    TechnicalWorkflowRecords.TechnicalTask requireTaskForRead(String taskId, String taskType, String objectType) {
+        TechnicalWorkflowRecords.TechnicalTask task = technicalWorkflowRepository.findTechnicalTaskById(taskId)
+            .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Technical task not found"));
+        if (!taskType.equals(task.taskType()) || !objectType.equals(task.objectType())) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Technical task type mismatch");
         }
         return task;
     }
@@ -331,7 +343,7 @@ class TechnicalWorkflowSupport {
             operatorUserId,
             operatorName,
             terminalCode,
-            content));
+            content, null));
     }
 
     String generateBlockNo(String caseId) {

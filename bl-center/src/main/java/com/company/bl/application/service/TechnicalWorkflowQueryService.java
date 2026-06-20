@@ -115,12 +115,20 @@ class TechnicalWorkflowQueryService {
             .map(this::toTechnicalEmbeddingRecord)
             .toList();
 
+        LocalDate today = LocalDate.now();
+        TechnicalWorkflowModels.WorkstationDailyClearView dailyClear =
+            toWorkstationDailyClearView(
+                technicalWorkflowRepository.findWorkstationDailyClear(
+                    TechnicalWorkflowConstants.NODE_EMBEDDING,
+                    today));
+
         return new TechnicalWorkflowModels.EmbeddingWorkstationSummary(
             effectiveDateRange.dateFrom(),
             pendingTasks.size(),
             completedRecords.size(),
             pendingTasks,
-            completedRecords);
+            completedRecords,
+            dailyClear);
     }
 
     @Transactional(readOnly = true)
@@ -303,7 +311,8 @@ class TechnicalWorkflowQueryService {
                 block.embeddingBoxNo(),
                 block.blockDescription(),
                 block.specimenName(),
-                block.grossDescription())).toList(),
+                block.grossDescription(),
+                block.embeddingRemarks())).toList(),
             boxes.stream().map(box -> new TechnicalWorkflowModels.TechnicalEmbeddingBoxSummary(
                 box.id(), box.specimenId(), box.embeddingBoxNo(), box.sliceNotice(), slidesByBox.getOrDefault(box.id(), List.of()).size())).toList(),
             embeddingRecords.stream().map(this::toTechnicalEmbeddingRecord).toList(),
@@ -447,6 +456,27 @@ class TechnicalWorkflowQueryService {
 
     private String stringify(LocalDateTime value) {
         return value == null ? null : value.toString();
+    }
+
+    private TechnicalWorkflowModels.WorkstationDailyClearView toWorkstationDailyClearView(
+        java.util.Optional<TechnicalWorkflowRecords.WorkstationDailyClearRecord> record
+    ) {
+        LocalDate today = LocalDate.now();
+        return record
+            .map(item -> new TechnicalWorkflowModels.WorkstationDailyClearView(
+                item.workDate(),
+                true,
+                item.operatorUserId(),
+                item.operatorName(),
+                item.clearedAt(),
+                item.clearStatus()))
+            .orElseGet(() -> new TechnicalWorkflowModels.WorkstationDailyClearView(
+                today,
+                false,
+                null,
+                null,
+                null,
+                null));
     }
 
     private TechnicalWorkflowModels.LocalDateRange resolveEffectiveDateRange(

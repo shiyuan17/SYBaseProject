@@ -2,11 +2,13 @@ package com.company.bl.infrastructure.persistence;
 
 import com.company.bl.domain.model.TrackingEvent;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.CreateCaseMediaAssetCommand;
+import com.company.bl.support.application.WorkflowRequestContext;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.CreateReworkOrderCommand;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.CreateSlicingCommand;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.CreateSlideCommand;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.CreateSlideQcEvaluationCommand;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.CreateSlideStainingCommand;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
@@ -353,13 +355,16 @@ final class JdbcTechnicalWorkflowProcessingMutations {
     }
 
     void insertWorkflowEvent(TrackingEvent event) {
+        String operatorIp = event.operatorIp() != null ? event.operatorIp() : WorkflowRequestContext.resolveClientIp();
         jdbcTemplate.update("""
             insert into workflow_events
                 (id, application_id, specimen_id, case_id, transport_order_id, node_code, event_type,
-                 event_status, event_time, operator_user_id, operator_name, source_terminal, event_content, created_at)
+                 event_status, event_time, operator_user_id, operator_name, source_terminal, event_content,
+                 operator_ip, created_at)
             values
                 (:id, :applicationId, :specimenId, :caseId, :transportOrderId, :nodeCode, :eventType,
-                 :eventStatus, :eventTime, :operatorUserId, :operatorName, :sourceTerminal, :eventContent, :createdAt)
+                 :eventStatus, :eventTime, :operatorUserId, :operatorName, :sourceTerminal, :eventContent,
+                 :operatorIp, :createdAt)
             """, new MapSqlParameterSource()
             .addValue("id", event.id())
             .addValue("applicationId", event.applicationId())
@@ -374,6 +379,28 @@ final class JdbcTechnicalWorkflowProcessingMutations {
             .addValue("operatorName", event.operatorName())
             .addValue("sourceTerminal", event.sourceTerminal())
             .addValue("eventContent", event.eventContent())
+            .addValue("operatorIp", operatorIp)
             .addValue("createdAt", LocalDateTime.now()));
+    }
+
+    void insertWorkstationDailyClear(TechnicalWorkflowRecords.CreateWorkstationDailyClearCommand command) {
+        String operatorIp = command.operatorIp() != null ? command.operatorIp() : WorkflowRequestContext.resolveClientIp();
+        jdbcTemplate.update("""
+            insert into workstation_daily_clears
+                (id, workstation_type, work_date, operator_user_id, operator_name,
+                 cleared_at, clear_status, operator_ip, created_at)
+            values
+                (:id, :workstationType, :workDate, :operatorUserId, :operatorName,
+                 :clearedAt, :clearStatus, :operatorIp, :createdAt)
+            """, new MapSqlParameterSource()
+            .addValue("id", command.id())
+            .addValue("workstationType", command.workstationType())
+            .addValue("workDate", command.workDate())
+            .addValue("operatorUserId", command.operatorUserId())
+            .addValue("operatorName", command.operatorName())
+            .addValue("clearedAt", command.clearedAt())
+            .addValue("clearStatus", command.clearStatus())
+            .addValue("operatorIp", operatorIp)
+            .addValue("createdAt", command.clearedAt()));
     }
 }

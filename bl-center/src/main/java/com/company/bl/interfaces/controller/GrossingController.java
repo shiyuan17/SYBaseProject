@@ -147,7 +147,7 @@ public class GrossingController extends TechnicalControllerSupport {
                 task.id(), task.applicationId(), task.applicationNo(), task.patientName(), task.patientId(), task.patientIdDisplay(),
                 task.caseId(), task.pathologyNo(),
                 task.specimenId(), task.taskType(), task.taskStatus(), task.objectType(), task.objectId(),
-                task.objectDisplayNo(), task.samplingBlockCode(), task.samplingBlockDescription(), task.sampledByName(), task.sampledAt(),
+                task.objectDisplayNo(), task.samplingBlockCode(), task.samplingBlockDescription(), task.embeddingRemarks(), task.specimenName(), task.grossDescription(), task.sampledByName(), task.sampledAt(),
                 task.payload(), task.priority(), task.currentNode(), task.stationCode(), task.stationName(),
                 task.assignedToUserId(), task.assignedToName(), task.expectedCompletedAt(), task.productionRemarks(),
                 task.receivedAt(), task.remarks(), task.createdAt(), task.startedAt(), task.completedAt(),
@@ -158,7 +158,7 @@ public class GrossingController extends TechnicalControllerSupport {
                 .toList(),
             result.blocks().stream().map(item -> new TechnicalTrackingResponse.BlockSummary(
                 item.blockId(), item.specimenId(), item.blockCode(), item.embeddingBoxNo(), item.description(),
-                item.specimenName(), item.grossDescription()))
+                item.specimenName(), item.grossDescription(), item.embeddingRemarks()))
                 .toList(),
             result.embeddingBoxes().stream().map(item -> new TechnicalTrackingResponse.EmbeddingBoxSummary(
                 item.embeddingBoxId(), item.specimenId(), item.embeddingBoxNo(), item.sliceNotice(), item.slideCount()))

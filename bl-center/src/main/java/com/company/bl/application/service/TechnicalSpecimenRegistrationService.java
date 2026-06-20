@@ -324,7 +324,7 @@ class TechnicalSpecimenRegistrationService {
             command.operatorUserId(),
             command.operatorName(),
             command.terminalCode(),
-            "Verified specimen during technical specimen registration"));
+            "Verified specimen during technical specimen registration", null));
         return getRegistrationWorkspace(command.caseId());
     }
 
@@ -352,7 +352,7 @@ class TechnicalSpecimenRegistrationService {
             command.operatorUserId(),
             command.operatorName(),
             command.terminalCode(),
-            "Canceled specimen verification during technical specimen registration"));
+            "Canceled specimen verification during technical specimen registration", null));
         return getRegistrationWorkspace(command.caseId());
     }
 
@@ -889,7 +889,7 @@ class TechnicalSpecimenRegistrationService {
             command.operatorUserId(),
             command.operatorName(),
             command.terminalCode(),
-            "Created specimen during technical specimen registration"));
+            "Created specimen during technical specimen registration", null));
         return specimen;
     }
 
@@ -918,7 +918,7 @@ class TechnicalSpecimenRegistrationService {
             command.operatorUserId(),
             command.operatorName(),
             command.terminalCode(),
-            "Removed specimen during technical specimen registration"));
+            "Removed specimen during technical specimen registration", null));
     }
 
     private Specimen requireMaterialSpecimen(WorkspaceContext context, String specimenId) {

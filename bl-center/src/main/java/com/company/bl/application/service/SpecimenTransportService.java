@@ -102,7 +102,7 @@ class SpecimenTransportService {
                 command.handoverUserId(),
                 command.handoverUserName(),
                 command.terminalCode(),
-                "Transport order " + order.transportOrderNo() + " created"));
+                "Transport order " + order.transportOrderNo() + " created", null));
         }
         return order;
     }
@@ -138,7 +138,7 @@ class SpecimenTransportService {
             command.operatorUserId(),
             command.operatorName(),
             command.terminalCode(),
-            "Transport order printed"));
+            "Transport order printed", null));
         return updated;
     }
 
@@ -185,7 +185,7 @@ class SpecimenTransportService {
                 command.receiverUserId(),
                 command.receiverUserName(),
                 command.terminalCode(),
-                "Transport handover completed"));
+                "Transport handover completed", null));
         }
         specimenWorkflowRepository.updateApplicationStatus(order.applicationId(), "IN_TRANSIT");
         return updated;
@@ -237,7 +237,7 @@ class SpecimenTransportService {
                 command.outboundUserId(),
                 command.outboundUserName(),
                 command.terminalCode(),
-                "Transport outbound completed"));
+                "Transport outbound completed", null));
         }
         specimenWorkflowRepository.updateApplicationStatus(order.applicationId(), "IN_TRANSIT");
         return updated;

@@ -158,6 +158,7 @@ abstract class AbstractJdbcSpecimenWorkflowRowMapperSupport extends AbstractJdbc
             rs.getString("operator_user_id"),
             rs.getString("operator_name"),
             rs.getString("source_terminal"),
-            rs.getString("event_content"));
+            rs.getString("event_content"),
+            rs.getString("operator_ip"));
     }
 }

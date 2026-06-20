@@ -1,5 +1,7 @@
 package com.company.bl.application.service;
 
+import java.util.List;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -127,6 +129,7 @@ public final class SpecimenWorkflowQueryModels {
         String currentNode,
         boolean abnormalFlag,
         int registeredSpecimenCount,
+          List<String> specimenNos,
         String latestLabelPrintStatus,
         boolean editable,
         boolean deletable,
@@ -290,3 +293,4 @@ public final class SpecimenWorkflowQueryModels {
     ) {
     }
 }
+

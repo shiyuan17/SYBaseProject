@@ -471,6 +471,10 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
         assertThat(samplingBlock.get("embedding_box_name")).isEqualTo("包埋盒 1");
         assertThat(samplingBlock.get("embedding_box_status")).isEqualTo("CONFIRMED");
         assertThat(samplingBlock.get("embedding_remarks")).isEqualTo("皮肤组织");
+
+        JsonNode dehydrationTasks = listPendingTasks("DEHYDRATION", context.pathologyNo(), USER_M3_DEHYDRATION);
+        assertThat(dehydrationTasks.path("items").get(0).path("objectDisplayNo").asText()).isEqualTo("A1");
+        assertThat(dehydrationTasks.path("items").get(0).path("embeddingRemarks").asText()).isEqualTo("皮肤组织");
     }
 
     @Test

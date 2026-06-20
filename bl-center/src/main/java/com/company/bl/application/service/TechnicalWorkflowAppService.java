@@ -173,6 +173,12 @@ public class TechnicalWorkflowAppService {
         return technicalProcessingWorkflowService.cancelEmbedding(command);
     }
 
+    public TechnicalWorkflowModels.WorkstationDailyClearView confirmEmbeddingWorkstationClear(
+        TechnicalWorkflowModels.WorkstationClearCommand command
+    ) {
+        return technicalProcessingWorkflowService.confirmEmbeddingWorkstationClear(command);
+    }
+
     public TechnicalWorkflowModels.EmbeddingQualityReviewResult updateEmbeddingQualityReview(
         TechnicalWorkflowModels.EmbeddingQualityReviewCommand command
     ) {

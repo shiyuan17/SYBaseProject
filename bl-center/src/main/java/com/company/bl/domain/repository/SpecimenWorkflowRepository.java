@@ -165,6 +165,7 @@ public interface SpecimenWorkflowRepository extends SpecimenWorkflowQueryReposit
         String currentNode,
         boolean abnormalFlag,
         int registeredSpecimenCount,
+          String specimenNos,
         String latestLabelPrintStatus,
         boolean editable,
         boolean deletable,
@@ -352,3 +353,4 @@ public interface SpecimenWorkflowRepository extends SpecimenWorkflowQueryReposit
     ) {
     }
 }
+

@@ -17,6 +17,7 @@ import com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingBox;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.SamplingBlock;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.CaseMediaAsset;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingWorkstationRecord;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.WorkstationDailyClearRecord;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.TechnicalTask;
 
 import java.sql.Date;
@@ -112,6 +113,9 @@ final class JdbcTechnicalWorkflowRowMappers {
             JdbcResultSetUtils.getNullableString(rs, "object_display_no"),
             rs.getString("sampling_block_code"),
             rs.getString("sampling_block_description"),
+            JdbcResultSetUtils.getNullableString(rs, "embedding_remarks"),
+            JdbcResultSetUtils.getNullableString(rs, "specimen_name"),
+            JdbcResultSetUtils.getNullableString(rs, "gross_description"),
             rs.getString("sampled_by_name"),
             toLocalDateTime(rs.getTimestamp("sampled_at")),
             rs.getString("parent_task_id"),
@@ -143,6 +147,7 @@ final class JdbcTechnicalWorkflowRowMappers {
             rs.getString("block_description"),
             rs.getString("embedding_box_no"),
             rs.getString("special_requirement"),
+            rs.getString("embedding_remarks"),
             rs.getString("specimen_name"),
             rs.getString("gross_description"));
     }
@@ -296,6 +301,18 @@ final class JdbcTechnicalWorkflowRowMappers {
             rs.getString("remarks"));
     }
 
+    WorkstationDailyClearRecord mapWorkstationDailyClearRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new WorkstationDailyClearRecord(
+            rs.getString("id"),
+            rs.getString("workstation_type"),
+            toLocalDate(rs.getDate("work_date")),
+            rs.getString("operator_user_id"),
+            rs.getString("operator_name"),
+            toLocalDateTime(rs.getTimestamp("cleared_at")),
+            rs.getString("clear_status"),
+            rs.getString("operator_ip"));
+    }
+
     EmbeddingWorkstationRecord mapEmbeddingWorkstationRecord(ResultSet rs, int rowNum) throws SQLException {
         return new EmbeddingWorkstationRecord(
             rs.getString("task_id"),
@@ -336,7 +353,8 @@ final class JdbcTechnicalWorkflowRowMappers {
             rs.getString("operator_user_id"),
             rs.getString("operator_name"),
             rs.getString("source_terminal"),
-            rs.getString("event_content"));
+            rs.getString("event_content"),
+            rs.getString("operator_ip"));
     }
 
     private LocalDate toLocalDate(Date value) {

@@ -7,6 +7,7 @@ import com.company.bl.domain.model.PathologyCase;
 import com.company.bl.domain.model.TrackingEvent;
 import com.company.bl.domain.model.TransportOrder;
 import com.company.bl.domain.model.TransportOrderItem;
+import com.company.bl.support.application.WorkflowRequestContext;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
@@ -235,13 +236,16 @@ abstract class JdbcSpecimenWorkflowTransportMutationSupport extends JdbcSpecimen
     }
 
     public void insertWorkflowEvent(TrackingEvent event) {
+        String operatorIp = event.operatorIp() != null ? event.operatorIp() : WorkflowRequestContext.resolveClientIp();
         jdbcTemplate.update("""
             insert into workflow_events
                 (id, application_id, specimen_id, case_id, transport_order_id, node_code, event_type,
-                 event_status, event_time, operator_user_id, operator_name, source_terminal, event_content, created_at)
+                 event_status, event_time, operator_user_id, operator_name, source_terminal, event_content,
+                 operator_ip, created_at)
             values
                 (:id, :applicationId, :specimenId, :caseId, :transportOrderId, :nodeCode, :eventType,
-                 :eventStatus, :eventTime, :operatorUserId, :operatorName, :sourceTerminal, :eventContent, :createdAt)
+                 :eventStatus, :eventTime, :operatorUserId, :operatorName, :sourceTerminal, :eventContent,
+                 :operatorIp, :createdAt)
             """, new MapSqlParameterSource()
             .addValue("id", event.id())
             .addValue("applicationId", event.applicationId())
@@ -256,6 +260,7 @@ abstract class JdbcSpecimenWorkflowTransportMutationSupport extends JdbcSpecimen
             .addValue("operatorName", event.operatorName())
             .addValue("sourceTerminal", event.sourceTerminal())
             .addValue("eventContent", event.eventContent())
+            .addValue("operatorIp", operatorIp)
             .addValue("createdAt", LocalDateTime.now()));
     }
 

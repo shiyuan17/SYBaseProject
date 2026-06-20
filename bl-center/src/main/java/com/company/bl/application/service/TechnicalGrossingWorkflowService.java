@@ -38,7 +38,7 @@ class TechnicalGrossingWorkflowService {
 
     @Transactional(readOnly = true)
     TechnicalWorkflowModels.GrossingWorkbenchContext getGrossingWorkbenchContext(String taskId) {
-        TechnicalWorkflowRecords.TechnicalTask task = technicalWorkflowSupport.requireActiveTask(
+        TechnicalWorkflowRecords.TechnicalTask task = technicalWorkflowSupport.requireTaskForRead(
             taskId, TechnicalWorkflowConstants.NODE_GROSSING, TechnicalWorkflowConstants.OBJECT_CASE);
         TechnicalWorkflowModels.TechnicalTrackingView tracking =
             technicalWorkflowQueryService.getTechnicalTracking(task.caseId(), null, null, null);

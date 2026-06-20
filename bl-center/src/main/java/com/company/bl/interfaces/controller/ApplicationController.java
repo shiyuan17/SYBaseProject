@@ -261,7 +261,8 @@ public class ApplicationController {
             event.specimenId(),
             specimen == null ? null : specimen.specimenNo(),
             specimen == null ? null : specimen.barcode(),
-            event.eventContent());
+            event.eventContent(),
+            event.operatorIp());
     }
 
     private SpecimenSummaryResponse toSpecimenSummary(Specimen specimen) {
@@ -311,6 +312,8 @@ public class ApplicationController {
             item.currentNode(),
             item.abnormalFlag(),
             item.registeredSpecimenCount(),
+            item.specimenNos(),
+            
             item.latestLabelPrintStatus(),
             item.editable(),
             item.deletable(),
@@ -405,3 +408,4 @@ public class ApplicationController {
         return null;
     }
 }
+

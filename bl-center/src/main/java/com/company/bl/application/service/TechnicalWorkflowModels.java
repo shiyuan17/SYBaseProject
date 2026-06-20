@@ -284,6 +284,9 @@ public final class TechnicalWorkflowModels {
         String objectDisplayNo,
         String samplingBlockCode,
         String samplingBlockDescription,
+        String embeddingRemarks,
+        String specimenName,
+        String grossDescription,
         String sampledByName,
         String sampledAt,
         String payload,
@@ -659,8 +662,27 @@ public final class TechnicalWorkflowModels {
         int pendingCount,
         int completedCount,
         List<TaskView> pendingTasks,
-        List<TechnicalEmbeddingRecord> completedRecords
+        List<TechnicalEmbeddingRecord> completedRecords,
+        WorkstationDailyClearView dailyClear
     ) {
+    }
+
+    public record WorkstationDailyClearView(
+        LocalDate workDate,
+        boolean cleared,
+        String operatorUserId,
+        String operatorName,
+        LocalDateTime clearedAt,
+        String clearStatus
+    ) {
+    }
+
+    public record WorkstationClearCommand(
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) implements OperatorCarrier {
     }
 
     public record SlicingCompleteCommand(
@@ -833,7 +855,8 @@ public final class TechnicalWorkflowModels {
         String embeddingBoxNo,
         String description,
         String specimenName,
-        String grossDescription
+        String grossDescription,
+        String embeddingRemarks
     ) {
     }
 

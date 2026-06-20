@@ -63,7 +63,7 @@ class SpecimenVerificationService {
             command.operatorUserId(),
             command.operatorName(),
             command.terminalCode(),
-            "Specimen verification started"));
+            "Specimen verification started", null));
         return specimenWorkflowSupport.buildSpecimenVerificationResult(specimenWorkflowSupport.getSpecimen(command.specimenBarcode()));
     }
 
@@ -99,7 +99,7 @@ class SpecimenVerificationService {
             command.operatorUserId(),
             command.operatorName(),
             command.terminalCode(),
-            "Specimen verification completed"));
+            "Specimen verification completed", null));
         return specimenWorkflowSupport.buildSpecimenVerificationResult(specimenWorkflowSupport.getSpecimen(command.specimenBarcode()));
     }
 
@@ -138,7 +138,7 @@ class SpecimenVerificationService {
             command.operatorUserId(),
             command.operatorName(),
             command.terminalCode(),
-            "Specimen confirmation completed"));
+            "Specimen confirmation completed", null));
         return specimenWorkflowSupport.getSpecimenById(specimen.id());
     }
 
@@ -191,7 +191,7 @@ class SpecimenVerificationService {
             command.operatorUserId(),
             command.operatorName(),
             command.terminalCode(),
-            "Specimen check-in completed"));
+            "Specimen check-in completed", null));
         return specimenWorkflowSupport.getSpecimenById(specimen.id());
     }
 }

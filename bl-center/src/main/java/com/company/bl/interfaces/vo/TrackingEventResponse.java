@@ -23,6 +23,8 @@ public record TrackingEventResponse(
     @Schema(description = "标本条码")
     String specimenBarcode,
     @Schema(description = "事件内容")
-    String eventContent
+    String eventContent,
+    @Schema(description = "操作人 IP")
+    String operatorIp
 ) {
 }

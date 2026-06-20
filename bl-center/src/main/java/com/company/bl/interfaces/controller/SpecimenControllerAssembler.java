@@ -211,6 +211,8 @@ class SpecimenControllerAssembler {
             item.currentNode(),
             item.abnormalFlag(),
             item.registeredSpecimenCount(),
+            item.specimenNos(),
+            
             item.latestLabelPrintStatus(),
             item.editable(),
             item.deletable(),
@@ -412,7 +414,8 @@ class SpecimenControllerAssembler {
             event.specimenId(),
             specimen == null ? null : specimen.specimenNo(),
             specimen == null ? null : specimen.barcode(),
-            event.eventContent());
+            event.eventContent(),
+            event.operatorIp());
     }
 
     private String stringify(Object value) {
@@ -546,3 +549,4 @@ class SpecimenControllerAssembler {
             .toList();
     }
 }
+

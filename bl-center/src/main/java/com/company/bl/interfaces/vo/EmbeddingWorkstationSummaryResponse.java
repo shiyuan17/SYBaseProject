@@ -15,6 +15,8 @@ public record EmbeddingWorkstationSummaryResponse(
     @Schema(description = "当日待处理任务")
     List<PendingTechnicalTaskResponse> pendingTasks,
     @Schema(description = "当日已包埋记录")
-    List<TechnicalTrackingResponse.EmbeddingRecordSummary> completedRecords
+    List<TechnicalTrackingResponse.EmbeddingRecordSummary> completedRecords,
+    @Schema(description = "当日日结清零状态")
+    WorkstationDailyClearResponse dailyClear
 ) {
 }

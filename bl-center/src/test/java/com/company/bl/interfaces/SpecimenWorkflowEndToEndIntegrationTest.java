@@ -81,6 +81,7 @@ class SpecimenWorkflowEndToEndIntegrationTest extends AbstractSpecimenWorkflowIn
         String caseId = receiptResult.path("caseId").asText();
         postJson("/api/v1/technical-specimen-registrations/%s/complete".formatted(caseId), USER_RECEIVE, """
             {
+              "applicationType": "ROUTINE",
               "terminalCode": "T-M3-REG-E2E",
               "remarks": "完成标本登记"
             }
@@ -97,6 +98,7 @@ class SpecimenWorkflowEndToEndIntegrationTest extends AbstractSpecimenWorkflowIn
             .andExpect(jsonPath("$.data.recentEvents[0].specimenId").isNotEmpty())
             .andExpect(jsonPath("$.data.recentEvents[0].specimenNo").isNotEmpty())
             .andExpect(jsonPath("$.data.recentEvents[0].specimenBarcode").isNotEmpty())
+            .andExpect(jsonPath("$.data.recentEvents[0].operatorIp").isNotEmpty())
             .andExpect(jsonPath("$.data.specimens[0].specimenStatus").value("RECEIVED"))
             .andExpect(jsonPath("$.data.specimens[1].specimenStatus").value("RECEIVED"));
 

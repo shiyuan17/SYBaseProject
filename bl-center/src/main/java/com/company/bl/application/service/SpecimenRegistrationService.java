@@ -136,7 +136,7 @@ class SpecimenRegistrationService {
                 command.operatorUserId(),
                 command.operatorName(),
                 command.terminalCode(),
-                "Registered specimen " + specimen.barcode()));
+                "Registered specimen " + specimen.barcode(), null));
             specimens.add(specimen);
         }
 
@@ -169,7 +169,7 @@ class SpecimenRegistrationService {
                     command.operatorUserId(),
                     command.operatorName(),
                     command.terminalCode(),
-                    printResult.message()));
+                    printResult.message(), null));
             }
             updatedSpecimens.add(specimenWorkflowSupport.copyWithLabelPrintStatus(specimen, labelPrintStatus));
         }
@@ -216,7 +216,7 @@ class SpecimenRegistrationService {
                 command.operatorUserId(),
                 command.operatorName(),
                 command.terminalCode(),
-                printResult.message()));
+                printResult.message(), null));
         }
         int total = failedSpecimens.size();
         return new LabelPrintRetryResult(

@@ -62,6 +62,8 @@ class SpecimenWorkflowApplicationQuerySupport extends AbstractSpecimenWorkflowQu
                 item.currentNode(),
                 item.abnormalFlag(),
                 item.registeredSpecimenCount(),
+                item.specimenNos() == null || item.specimenNos().isBlank() ? List.of() : List.of(item.specimenNos().split(",")),
+                
                 item.latestLabelPrintStatus(),
                 item.editable(),
                 item.deletable(),
@@ -143,3 +145,4 @@ class SpecimenWorkflowApplicationQuerySupport extends AbstractSpecimenWorkflowQu
         return List.copyOf(matchedBy);
     }
 }
+

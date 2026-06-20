@@ -1,5 +1,6 @@
 package com.company.bl.domain.repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -193,6 +194,9 @@ public final class TechnicalWorkflowRecords {
         String objectDisplayNo,
         String samplingBlockCode,
         String samplingBlockDescription,
+        String embeddingRemarks,
+        String specimenName,
+        String grossDescription,
         String sampledByName,
         LocalDateTime sampledAt,
         String parentTaskId,
@@ -285,6 +289,7 @@ public final class TechnicalWorkflowRecords {
         String blockDescription,
         String embeddingBoxNo,
         String specialRequirement,
+        String embeddingRemarks,
         String specimenName,
         String grossDescription
     ) {
@@ -402,6 +407,30 @@ public final class TechnicalWorkflowRecords {
         boolean reEmbeddingFlag,
         String sliceNotice,
         String storageStatus
+    ) {
+    }
+
+    public record WorkstationDailyClearRecord(
+        String id,
+        String workstationType,
+        LocalDate workDate,
+        String operatorUserId,
+        String operatorName,
+        LocalDateTime clearedAt,
+        String clearStatus,
+        String operatorIp
+    ) {
+    }
+
+    public record CreateWorkstationDailyClearCommand(
+        String id,
+        String workstationType,
+        LocalDate workDate,
+        String operatorUserId,
+        String operatorName,
+        LocalDateTime clearedAt,
+        String clearStatus,
+        String operatorIp
     ) {
     }
 

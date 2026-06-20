@@ -7,9 +7,12 @@ import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRepository;
+import com.company.bl.support.application.WorkflowRequestContext;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -144,6 +147,46 @@ class TechnicalProcessingWorkflowService {
             task.caseId(),
             "EMBEDDING",
             TechnicalWorkflowConstants.TASK_PENDING);
+    }
+
+    @Transactional
+    TechnicalWorkflowModels.WorkstationDailyClearView confirmEmbeddingWorkstationClear(
+        TechnicalWorkflowModels.WorkstationClearCommand command
+    ) {
+        LocalDate today = LocalDate.now();
+        if (technicalWorkflowRepository.findWorkstationDailyClear(
+            TechnicalWorkflowConstants.NODE_EMBEDDING, today).isPresent()) {
+            throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "今日已完成清零");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        try {
+            TechnicalWorkflowRecords.WorkstationDailyClearRecord record =
+                technicalWorkflowRepository.insertWorkstationDailyClear(
+                    new TechnicalWorkflowRecords.CreateWorkstationDailyClearCommand(
+                        technicalWorkflowSupport.nextId("WDC"),
+                        TechnicalWorkflowConstants.NODE_EMBEDDING,
+                        today,
+                        command.operatorUserId(),
+                        command.operatorName(),
+                        now,
+                        TechnicalWorkflowConstants.WORKSTATION_CLEAR_STATUS_CLEARED,
+                        WorkflowRequestContext.resolveClientIp()));
+            return toWorkstationDailyClearView(record);
+        } catch (DuplicateKeyException exception) {
+            throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "今日已完成清零");
+        }
+    }
+
+    private TechnicalWorkflowModels.WorkstationDailyClearView toWorkstationDailyClearView(
+        TechnicalWorkflowRecords.WorkstationDailyClearRecord record
+    ) {
+        return new TechnicalWorkflowModels.WorkstationDailyClearView(
+            record.workDate(),
+            true,
+            record.operatorUserId(),
+            record.operatorName(),
+            record.clearedAt(),
+            record.clearStatus());
     }
 
     private String resolveEmbeddingBoxNo(TechnicalWorkflowModels.EmbeddingCompleteCommand command,

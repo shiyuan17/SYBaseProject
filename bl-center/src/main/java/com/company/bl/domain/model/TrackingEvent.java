@@ -15,6 +15,7 @@ public record TrackingEvent(
     String operatorUserId,
     String operatorName,
     String sourceTerminal,
-    String eventContent
+    String eventContent,
+    String operatorIp
 ) {
 }

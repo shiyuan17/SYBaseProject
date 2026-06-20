@@ -16,6 +16,7 @@ import com.company.bl.domain.repository.TechnicalWorkflowRecords.DehydrationBatc
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.Embedding;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingBox;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingWorkstationRecord;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.WorkstationDailyClearRecord;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedTechnicalSpecimenRegistrations;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedTechnicalTasks;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PendingTechnicalSpecimenRegistrationQuery;
@@ -35,6 +36,7 @@ import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.Slide
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.SlideStaining;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.Slicing;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -275,4 +277,13 @@ public interface TechnicalWorkflowRepository {
     List<TrackingEvent> findRecentTrackingEventsByCaseId(String caseId, int limit);
 
     void insertWorkflowEvent(TrackingEvent event);
+
+    Optional<WorkstationDailyClearRecord> findWorkstationDailyClear(
+        String workstationType,
+        LocalDate workDate
+    );
+
+    WorkstationDailyClearRecord insertWorkstationDailyClear(
+        TechnicalWorkflowRecords.CreateWorkstationDailyClearCommand command
+    );
 }

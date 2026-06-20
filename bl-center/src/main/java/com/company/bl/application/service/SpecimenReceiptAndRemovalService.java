@@ -136,7 +136,7 @@ class SpecimenReceiptAndRemovalService {
             command.operatorUserId(),
             command.operatorName(),
             command.terminalCode(),
-            "Specimen removal time confirmed"));
+            "Specimen removal time confirmed", null));
         return new SpecimenRemovalResult(
             specimen.id(),
             specimen.barcode(),
@@ -253,7 +253,7 @@ class SpecimenReceiptAndRemovalService {
                 receivedByUserId,
                 receivedByName,
                 terminalCode,
-                item.reason() == null ? (directReceive ? "Specimen directly received" : "Specimen received") : item.reason()));
+                item.reason() == null ? (directReceive ? "Specimen directly received" : "Specimen received") : item.reason(), null));
         }
 
         List<Specimen> allSpecimens = specimenWorkflowSupport.getSpecimensByApplicationId(application.getId().value());

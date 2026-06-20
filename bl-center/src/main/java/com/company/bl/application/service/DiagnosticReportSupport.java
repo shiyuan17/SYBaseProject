@@ -152,7 +152,7 @@ class DiagnosticReportSupport {
             operatorUserId,
             operatorName,
             terminalCode,
-            content));
+            content, null));
     }
 
     String nextId(String prefix) {

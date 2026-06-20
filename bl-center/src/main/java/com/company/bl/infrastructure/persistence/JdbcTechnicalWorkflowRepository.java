@@ -14,6 +14,7 @@ import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.Slide
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.SlideQcEvaluation;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.SlideStaining;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords.Slicing;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateDehydrationBatchCommand;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateDehydrationBatchItemCommand;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateEmbeddingBoxCommand;
@@ -38,6 +39,7 @@ import com.company.bl.domain.repository.TechnicalWorkflowRepository;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -571,5 +573,22 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     @Override
     public void insertWorkflowEvent(TrackingEvent event) {
         processingMutations.insertWorkflowEvent(event);
+    }
+
+    @Override
+    public Optional<TechnicalWorkflowRecords.WorkstationDailyClearRecord> findWorkstationDailyClear(
+        String workstationType,
+        LocalDate workDate
+    ) {
+        return processingQueries.findWorkstationDailyClear(workstationType, workDate);
+    }
+
+    @Override
+    public TechnicalWorkflowRecords.WorkstationDailyClearRecord insertWorkstationDailyClear(
+        TechnicalWorkflowRecords.CreateWorkstationDailyClearCommand command
+    ) {
+        processingMutations.insertWorkstationDailyClear(command);
+        return processingQueries.findWorkstationDailyClear(command.workstationType(), command.workDate())
+            .orElseThrow();
     }
 }

@@ -15,6 +15,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -55,6 +56,26 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
                 .param("size", "20")
                 .param("taskType", "GROSSING")
                 .param("pathologyNo", context.pathologyNo()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].pathologyNo").value(context.pathologyNo()));
+    }
+
+    @Test
+    void shouldFilterPendingTasksByKeywordForPatientName() throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-KEYWORD-NAME-001", "BC-M3-KEYWORD-NAME-001");
+        String patientName = "取材关键字患者-" + uniqueSuffix();
+        namedParameterJdbcTemplate.update("""
+            update applications
+            set patient_name = :patientName
+            where id = :applicationId
+            """, Map.of("patientName", patientName, "applicationId", context.applicationId()));
+
+        mockMvc.perform(authorized(get("/api/v1/technical-tasks/pending"), USER_M3_GROSSING)
+                .param("page", "1")
+                .param("size", "20")
+                .param("taskType", "GROSSING")
+                .param("keyword", patientName))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.total").value(1))
             .andExpect(jsonPath("$.data.items[0].pathologyNo").value(context.pathologyNo()));
@@ -151,6 +172,57 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
             .andExpect(jsonPath("$.data.total").value(1))
             .andExpect(jsonPath("$.data.items[0].id").value(context.grossingTaskId()))
             .andExpect(jsonPath("$.data.items[0].taskStatus").value("COMPLETED"));
+    }
+
+    @Test
+    void shouldLoadGrossingWorkbenchContextForCompletedTask() throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-GROSSING-READ-001", "BC-M3-GROSSING-READ-001");
+        String grossDescription = "completed grossing description";
+
+        postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
+            {
+              "taskId": "%s"}
+            """.formatted(context.grossingTaskId()))
+            .andExpect(status().isOk());
+
+        postJson("/api/v1/grossings/complete", USER_M3_GROSSING, """
+            {
+              "taskId": "%s",
+              "caseId": "%s",
+              "specimens": [
+                {
+                  "specimenId": "%s",
+                  "specimenType": "ROUTINE",
+                  "grossDescription": "%s",
+                  "blocks": [
+                    {"blockSite": "A", "blockDescription": "block-read-1"}
+                  ],
+                  "embeddingBoxes": [
+                    {
+                      "sequenceNo": 1,
+                      "embeddingBoxNo": "A1",
+                      "boxName": "box-read-1",
+                      "status": "CONFIRMED",
+                      "embeddingRemarks": "read-only remark"
+                    }
+                  ]
+                }
+              ]
+            }
+            """.formatted(
+                context.grossingTaskId(),
+                context.caseId(),
+                context.specimenId(),
+                grossDescription))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(get("/api/v1/grossings/{taskId}/context", context.grossingTaskId()), USER_M3_GROSSING))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.task.taskStatus").value("COMPLETED"))
+            .andExpect(jsonPath("$.data.tracking.blocks[0].grossDescription").value(grossDescription))
+            .andExpect(jsonPath("$.data.tracking.blocks[0].embeddingBoxNo").value("A1"))
+            .andExpect(jsonPath("$.data.tracking.blocks[0].description").value("block-read-1"))
+            .andExpect(jsonPath("$.data.tracking.blocks[0].embeddingRemarks").value("read-only remark"));
     }
 
     @Test
@@ -335,12 +407,49 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
         assertThat(summary.path("pendingTasks").toString()).contains(pendingContext.pathologyNo());
         assertThat(summary.path("pendingTasks").toString()).contains(confirmedContext.pathologyNo());
         assertThat(summary.path("pendingTasks").toString()).contains("EMBEDDING_CONFIRM_PENDING");
+        JsonNode pendingTask = findSummaryRecord(summary.path("pendingTasks"), pendingContext.pathologyNo());
+        assertThat(pendingTask).isNotNull();
+        assertThat(pendingTask.path("specimenName").asText()).isEqualTo("Thyroid Tissue");
+        assertThat(pendingTask.path("grossDescription").asText()).isEqualTo("pending summary gross");
+        JsonNode confirmedTask = findSummaryRecord(summary.path("pendingTasks"), confirmedContext.pathologyNo());
+        assertThat(confirmedTask).isNotNull();
+        assertThat(confirmedTask.path("samplingBlockDescription").asText()).isNotBlank();
+        assertThat(confirmedTask.path("specimenName").asText()).isEqualTo("Thyroid Tissue");
+        assertThat(confirmedTask.path("grossDescription").asText()).isEqualTo("confirm pending summary gross");
         JsonNode completedRecord = findSummaryRecord(summary.path("completedRecords"), completedContext.pathologyNo());
         assertThat(completedRecord).isNotNull();
         assertThat(completedRecord.path("samplingEvaluation").asText()).isEqualTo("取材评价-汇总");
         assertThat(completedRecord.path("embeddingRemarks").asText()).isEqualTo("包埋备注-汇总");
         assertThat(completedRecord.path("grossDescription").asText()).isEqualTo("summary gross description");
         assertThat(completedRecord.path("embeddingBoxId").asText()).isEqualTo(completedFixture.embeddingBoxId());
+    }
+
+    @Test
+    void shouldConfirmEmbeddingWorkstationClearOncePerDayEvenWithPendingTasks() throws Exception {
+        TechnicalCaseContext pendingContext = receiveCaseAndGetGrossingTask("APP-M3-EMB-CLEAR-001", "BC-M3-EMB-CLEAR-001");
+        advanceCaseToPendingEmbedding(pendingContext, "clear pending gross");
+
+        JsonNode summaryBefore = responseBody(mockMvc.perform(authorized(
+            get("/api/v1/embeddings/workstation-summary"),
+            USER_M3_EMBEDDING)), 200);
+        assertThat(summaryBefore.path("dailyClear").path("cleared").asBoolean()).isFalse();
+        assertThat(summaryBefore.path("pendingCount").asInt()).isGreaterThan(0);
+
+        JsonNode clearResult = responseBody(postJson("/api/v1/embeddings/workstation-clear", USER_M3_EMBEDDING, "{}"), 200);
+        assertThat(clearResult.path("cleared").asBoolean()).isTrue();
+        assertThat(clearResult.path("operatorUserId").asText()).isEqualTo(USER_M3_EMBEDDING);
+        assertThat(clearResult.path("clearStatus").asText()).isEqualTo("CLEARED");
+        assertThat(clearResult.path("clearedAt").asText()).isNotBlank();
+
+        JsonNode summaryAfter = responseBody(mockMvc.perform(authorized(
+            get("/api/v1/embeddings/workstation-summary"),
+            USER_M3_EMBEDDING)), 200);
+        assertThat(summaryAfter.path("dailyClear").path("cleared").asBoolean()).isTrue();
+        assertThat(summaryAfter.path("dailyClear").path("operatorUserId").asText()).isEqualTo(USER_M3_EMBEDDING);
+        assertThat(summaryAfter.path("pendingCount").asInt()).isGreaterThan(0);
+
+        postJson("/api/v1/embeddings/workstation-clear", USER_M3_EMBEDDING, "{}")
+            .andExpect(status().isConflict());
     }
 
     @Test

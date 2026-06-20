@@ -1,5 +1,7 @@
 package com.company.bl.interfaces.vo;
 
+import java.util.List;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(name = "ApplicationListItemResponse", description = "病理申请单列表项")
@@ -32,6 +34,8 @@ public record ApplicationListItemResponse(
     boolean abnormalFlag,
     @Schema(description = "已登记标本数")
     int registeredSpecimenCount,
+    @Schema(description = "标本号列表")
+    List<String> specimenNos,
     @Schema(description = "最近一次标签状态")
     String latestLabelPrintStatus,
     @Schema(description = "是否可编辑")
@@ -52,3 +56,5 @@ public record ApplicationListItemResponse(
     String updatedAt
 ) {
 }
+
+
