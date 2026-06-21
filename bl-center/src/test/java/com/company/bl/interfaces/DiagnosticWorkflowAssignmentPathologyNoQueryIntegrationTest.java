@@ -28,21 +28,30 @@ class DiagnosticWorkflowAssignmentPathologyNoQueryIntegrationTest extends Abstra
     void shouldListPendingDiagnosticTaskByNormalizedPathologyNo() throws Exception {
         PendingDiagnosticContext context = preparePendingDiagnosticCase("APP-M4-PATH-NORM-001", "BC-M4-PATH-NORM-001");
         String standardPathologyNo = "BL202606030001";
+        String formattedPathologyNo = " BL-202606030001 ";
 
         namedParameterJdbcTemplate.update("""
             update diagnostic_tasks
             set pathology_no = :pathologyNo
             where id = :taskId
             """, Map.of(
-            "pathologyNo", " BL-202606030001 ",
+            "pathologyNo", formattedPathologyNo,
             "taskId", context.diagnosticTaskId()));
+
+        namedParameterJdbcTemplate.update("""
+            update pathology_cases
+            set pathology_no = :pathologyNo
+            where id = :caseId
+            """, Map.of(
+            "pathologyNo", formattedPathologyNo,
+            "caseId", context.caseId()));
 
         JsonNode pendingTasks = listPendingDiagnosticTasks(standardPathologyNo, USER_M4_ASSIGN);
 
         assertThat(pendingTasks.path("items"))
             .anyMatch(item ->
                 context.diagnosticTaskId().equals(item.path("id").asText())
-                    && " BL-202606030001 ".equals(item.path("pathologyNo").asText()));
+                    && formattedPathologyNo.equals(item.path("pathologyNo").asText()));
     }
 
     @Test
@@ -121,5 +130,32 @@ class DiagnosticWorkflowAssignmentPathologyNoQueryIntegrationTest extends Abstra
             where id = :taskId
             """, Map.of("taskId", context.diagnosticTaskId()), String.class);
         assertThat(persistedTaskPathologyNo).isEqualTo(updatedPathologyNo);
+    }
+
+    @Test
+    void shouldQueryAndDisplayCurrentCasePathologyNoWhenTaskSnapshotStillUsesLegacyValue() throws Exception {
+        PendingDiagnosticContext context = preparePendingDiagnosticCase("APP-M4-PATH-CASE-001", "BC-M4-PATH-CASE-001");
+        String currentPathologyNo = context.pathologyNo();
+        String legacyTaskPathologyNo = "BL-LEGACY-SNAPSHOT-001";
+
+        namedParameterJdbcTemplate.update("""
+            update diagnostic_tasks
+            set pathology_no = :legacyTaskPathologyNo
+            where id = :taskId
+            """, Map.of(
+            "legacyTaskPathologyNo", legacyTaskPathologyNo,
+            "taskId", context.diagnosticTaskId()));
+
+        JsonNode pendingTasks = listPendingDiagnosticTasks(currentPathologyNo, USER_M4_ASSIGN);
+
+        assertThat(pendingTasks.path("items"))
+            .anyMatch(item ->
+                context.diagnosticTaskId().equals(item.path("id").asText())
+                    && currentPathologyNo.equals(item.path("pathologyNo").asText()));
+
+        JsonNode legacyPendingTasks = listPendingDiagnosticTasks(legacyTaskPathologyNo, USER_M4_ASSIGN);
+
+        assertThat(legacyPendingTasks.path("items"))
+            .noneMatch(item -> context.diagnosticTaskId().equals(item.path("id").asText()));
     }
 }

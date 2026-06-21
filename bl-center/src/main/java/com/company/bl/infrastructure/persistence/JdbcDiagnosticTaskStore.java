@@ -16,7 +16,8 @@ final class JdbcDiagnosticTaskStore {
 
     private static final List<String> ACTIVE_STATUSES = List.of("PENDING", "ASSIGNED", "ACCEPTED", "IN_PROGRESS");
     private static final String ROLE_M4_DIAGNOSIS = "M4_DIAGNOSIS";
-    private static final String PATHOLOGY_NO_NORMALIZE_SQL = "replace(trim(dt.pathology_no), '-', '')";
+    private static final String CASE_PATHOLOGY_NO_NORMALIZE_SQL = "replace(trim(pc.pathology_no), '-', '')";
+    private static final String TASK_PATHOLOGY_NO_NORMALIZE_SQL = "replace(trim(dt.pathology_no), '-', '')";
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -225,7 +226,7 @@ final class JdbcDiagnosticTaskStore {
                     fetch first 1 rows only
                 ) as patient_id_display,
                 dt.case_id,
-                dt.pathology_no,
+                coalesce(pc.pathology_no, dt.pathology_no) as pathology_no,
                 dt.specimen_id,
                 a.application_type,
                 (
@@ -283,7 +284,13 @@ final class JdbcDiagnosticTaskStore {
             builder.append(" and dt.status = :taskStatus");
         }
         if (hasText(query.pathologyNo())) {
-            builder.append(" and ").append(PATHOLOGY_NO_NORMALIZE_SQL).append(" = :normalizedPathologyNo");
+            builder.append(" and ((")
+                .append("trim(coalesce(pc.pathology_no, '')) <> '' and ")
+                .append(CASE_PATHOLOGY_NO_NORMALIZE_SQL)
+                .append(" = :normalizedPathologyNo) or (")
+                .append("trim(coalesce(pc.pathology_no, '')) = '' and ")
+                .append(TASK_PATHOLOGY_NO_NORMALIZE_SQL)
+                .append(" = :normalizedPathologyNo))");
         }
         if (ROLE_M4_DIAGNOSIS.equals(query.currentRoleCode()) && hasText(query.currentUserId())) {
             builder.append(" and (dt.diagnosis_doctor_user_id = :currentUserId or dt.primary_doctor_user_id = :currentUserId)");
