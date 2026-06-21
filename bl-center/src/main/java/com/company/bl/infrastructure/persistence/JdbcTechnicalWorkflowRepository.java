@@ -114,6 +114,13 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     }
 
     @Override
+    public TechnicalWorkflowRecords.PagedTechnicalTrackingCases findTechnicalTrackingCases(
+        TechnicalWorkflowRecords.TechnicalTrackingCaseListQuery query
+    ) {
+        return taskQueries.findTechnicalTrackingCases(query);
+    }
+
+    @Override
     public SlicingWorkbenchStats summarizeSlicingWorkbench(SlicingWorkbenchQuery query) {
         return processingQueries.summarizeSlicingWorkbench(query);
     }

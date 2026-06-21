@@ -42,6 +42,12 @@ public class TechnicalWorkflowAppService {
         return technicalWorkflowQueryService.getSlicingWorkbench(query);
     }
 
+    public TechnicalWorkflowModels.TechnicalTrackingCaseListPage listTechnicalTrackingCases(
+        TechnicalWorkflowModels.TechnicalTrackingCaseListQuery query
+    ) {
+        return technicalWorkflowQueryService.listTechnicalTrackingCases(query);
+    }
+
     public TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationPage listPendingTechnicalSpecimenRegistrations(
         TechnicalWorkflowModels.PendingTechnicalSpecimenRegistrationQuery query) {
         return technicalSpecimenRegistrationService.listPendingRegistrations(query);

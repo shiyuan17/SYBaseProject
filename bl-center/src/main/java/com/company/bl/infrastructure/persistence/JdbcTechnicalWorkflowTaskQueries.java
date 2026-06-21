@@ -8,6 +8,7 @@ import com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedTechnicalT
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PendingTechnicalTaskQuery;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.SamplingBlock;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.TechnicalTask;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
@@ -137,6 +138,136 @@ final class JdbcTechnicalWorkflowTaskQueries {
             offset :offset rows fetch next :limit rows only
             """, taskPageParams(query), rowMappers::mapTechnicalTask);
         return new PagedTechnicalTasks(items, total == null ? 0 : total);
+    }
+
+    TechnicalWorkflowRecords.PagedTechnicalTrackingCases findTechnicalTrackingCases(
+        TechnicalWorkflowRecords.TechnicalTrackingCaseListQuery query
+    ) {
+        String activityUnionSql = """
+            select
+                t.case_id,
+                t.created_at as activity_at,
+                'TASK' as activity_type
+            from technical_pending_tasks t
+            where (:dateFrom is null or t.created_at >= :dateFrom)
+              and (:dateToExclusive is null or t.created_at < :dateToExclusive)
+            union all
+            select
+                e.case_id,
+                coalesce(e.ended_at, e.started_at, e.created_at) as activity_at,
+                'EMBEDDING' as activity_type
+            from embeddings e
+            where (:dateFrom is null or coalesce(e.ended_at, e.started_at, e.created_at) >= :dateFrom)
+              and (:dateToExclusive is null or coalesce(e.ended_at, e.started_at, e.created_at) < :dateToExclusive)
+            union all
+            select
+                s.case_id,
+                s.created_at as activity_at,
+                'SLIDE' as activity_type
+            from slides s
+            where (:dateFrom is null or s.created_at >= :dateFrom)
+              and (:dateToExclusive is null or s.created_at < :dateToExclusive)
+            union all
+            select
+                sq.case_id,
+                sq.evaluated_at as activity_at,
+                'QC' as activity_type
+            from slide_qc_evaluations sq
+            where (:dateFrom is null or sq.evaluated_at >= :dateFrom)
+              and (:dateToExclusive is null or sq.evaluated_at < :dateToExclusive)
+            union all
+            select
+                ro.case_id,
+                coalesce(ro.executed_at, ro.requested_at, ro.created_at) as activity_at,
+                'REWORK' as activity_type
+            from rework_orders ro
+            where (:dateFrom is null or coalesce(ro.executed_at, ro.requested_at, ro.created_at) >= :dateFrom)
+              and (:dateToExclusive is null or coalesce(ro.executed_at, ro.requested_at, ro.created_at) < :dateToExclusive)
+            union all
+            select
+                we.case_id,
+                we.event_time as activity_at,
+                'EVENT' as activity_type
+            from workflow_events we
+            where (:dateFrom is null or we.event_time >= :dateFrom)
+              and (:dateToExclusive is null or we.event_time < :dateToExclusive)
+            """;
+        String baseSql = """
+            with tracking_activities as (
+            """ + activityUnionSql + """
+            ),
+            matched_cases as (
+                select
+                    ta.case_id,
+                    max(ta.activity_at) as latest_activity_at
+                from tracking_activities ta
+                where ta.activity_at is not null
+                group by ta.case_id
+            ),
+            matched_activity_types as (
+                select
+                    ta.case_id,
+                    listagg(distinct ta.activity_type, ',') within group (order by ta.activity_type) as matched_activity_types
+                from tracking_activities ta
+                where ta.activity_at is not null
+                group by ta.case_id
+            )
+            """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("dateFrom", query.dateFrom())
+            .addValue("dateToExclusive", query.dateToExclusive());
+
+        Long total = jdbcTemplate.queryForObject(baseSql + """
+            select count(1)
+            from matched_cases mc
+            """, params, Long.class);
+
+        List<TechnicalWorkflowRecords.TechnicalTrackingCaseListItem> items =
+            jdbcTemplate.query(baseSql + """
+                select
+                    pc.id as case_id,
+                    pc.pathology_no,
+                    a.patient_name,
+                    w.id_no as patient_id_display,
+                    a.application_no,
+                    a.application_type,
+                    a.submitting_department_name,
+                    pc.case_status,
+                    mc.latest_activity_at,
+                    mat.matched_activity_types
+                from matched_cases mc
+                join pathology_cases pc on pc.id = mc.case_id
+                join applications a on a.id = pc.application_id
+                left join application_registration_workbench w on w.application_id = a.id
+                join matched_activity_types mat on mat.case_id = mc.case_id
+                order by mc.latest_activity_at desc, pc.id desc
+                offset :offset rows fetch next :limit rows only
+                """,
+                params
+                    .addValue("offset", Math.max(query.page() - 1, 0) * query.size())
+                    .addValue("limit", query.size()),
+                (rs, rowNum) -> new TechnicalWorkflowRecords.TechnicalTrackingCaseListItem(
+                    rs.getString("case_id"),
+                    JdbcResultSetUtils.getNullableString(rs, "pathology_no"),
+                    JdbcResultSetUtils.getNullableString(rs, "patient_name"),
+                    JdbcResultSetUtils.getNullableString(rs, "patient_id_display"),
+                    JdbcResultSetUtils.getNullableString(rs, "application_no"),
+                    JdbcResultSetUtils.getNullableString(rs, "application_type"),
+                    JdbcResultSetUtils.getNullableString(rs, "submitting_department_name"),
+                    JdbcResultSetUtils.getNullableString(rs, "case_status"),
+                    toLocalDateTime(rs.getTimestamp("latest_activity_at")),
+                    splitMatchedActivityTypes(
+                        JdbcResultSetUtils.getNullableString(
+                            rs,
+                            "matched_activity_types"
+                        )
+                    )
+                ));
+        return new TechnicalWorkflowRecords.PagedTechnicalTrackingCases(
+            items,
+            total == null ? 0 : total
+        );
     }
 
     List<SamplingBlock> findSamplingBlocksByIds(List<String> samplingBlockIds) {
@@ -400,6 +531,20 @@ final class JdbcTechnicalWorkflowTaskQueries {
         return taskFilterParams(query)
             .addValue("limit", query.size())
             .addValue("offset", Math.max(query.page() - 1, 0) * query.size());
+    }
+
+    private List<String> splitMatchedActivityTypes(String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(rawValue.split(","))
+            .map(String::trim)
+            .filter(value -> !value.isBlank())
+            .toList();
+    }
+
+    private java.time.LocalDateTime toLocalDateTime(java.sql.Timestamp timestamp) {
+        return timestamp == null ? null : timestamp.toLocalDateTime();
     }
 
     private boolean hasText(String value) {

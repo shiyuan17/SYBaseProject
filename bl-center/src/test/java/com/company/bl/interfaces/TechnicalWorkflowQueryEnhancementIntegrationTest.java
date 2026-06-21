@@ -656,6 +656,156 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
         assertThat(yesterdayTracking.path("events")).isNotEmpty();
     }
 
+    @Test
+    void shouldListTechnicalTrackingCasesByWorkDate() throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-TRACK-LIST-001", "BC-M3-TRACK-LIST-001");
+
+        JsonNode result = technicalTrackingCases(USER_M3_TRACKING, null, null, LocalDate.now().toString());
+
+        assertThat(result.path("items")).isNotEmpty();
+        JsonNode row = result.path("items").get(0);
+        assertThat(result.path("items").toString()).contains(context.caseId());
+        assertThat(row.path("matchedActivityTypes").isArray()).isTrue();
+        assertThat(row.path("latestActivityAt").asText()).isNotBlank();
+    }
+
+    @Test
+    void shouldIncludeCasesMatchedOnlyByQcReworkOrEventInTechnicalTrackingCaseList() throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-TRACK-LIST-002", "BC-M3-TRACK-LIST-002");
+        advanceCaseToCompletedEmbedding(
+            context,
+            "tracking list gross",
+            "tracking list remark",
+            "tracking list evaluation",
+            "tracking list notice");
+
+        String slicingTaskId = listPendingTasks("SLICING", context.pathologyNo(), USER_M3_SLICING)
+            .path("items").get(0).path("id").asText();
+        String embeddingBoxId = namedParameterJdbcTemplate.queryForObject("""
+            select id
+            from embedding_boxes
+            where case_id = :caseId
+            order by created_at desc
+            limit 1
+            """, Map.of("caseId", context.caseId()), String.class);
+        postJson("/api/v1/slicings/start", USER_M3_SLICING, """
+            {
+              "taskId": "%s"
+            }
+            """.formatted(slicingTaskId))
+            .andExpect(status().isOk());
+        printSlides(slicingTaskId, embeddingBoxId);
+        String slideId = responseBody(postJson("/api/v1/slicings/complete", USER_M3_SLICING, """
+            {
+              "taskId": "%s",
+              "embeddingBoxId": "%s",
+              "slideCount": 1
+            }
+            """.formatted(slicingTaskId, embeddingBoxId)), 200).path("slideIds").get(0).asText();
+
+        postJson("/api/v1/slide-qc-evaluations", USER_M3_SLICING, """
+            {
+              "caseId": "%s",
+              "specimenId": "%s",
+              "slideId": "%s",
+              "qcType": "HE",
+              "evaluationResult": "UNQUALIFIED",
+              "issueDescription": "case-list-only-qc",
+              "improvementSuggestion": "返工"
+            }
+            """.formatted(context.caseId(), context.specimenId(), slideId))
+            .andExpect(status().isOk());
+
+        postJson("/api/v1/rework-orders", USER_M3_REWORK, """
+            {
+              "caseId": "%s",
+              "specimenId": "%s",
+              "slideId": "%s",
+              "reworkType": "RESTAIN",
+              "reason": "case-list-only-rework"
+            }
+            """.formatted(context.caseId(), context.specimenId(), slideId))
+            .andExpect(status().isOk());
+
+        LocalDate today = LocalDate.now();
+        LocalDate yesterday = today.minusDays(1);
+        LocalDateTime yesterdayTime = yesterday.atTime(11, 0);
+
+        namedParameterJdbcTemplate.update("""
+            update technical_pending_tasks
+            set created_at = :value,
+                started_at = :value,
+                completed_at = :value
+            where case_id = :caseId
+            """, Map.of("value", yesterdayTime, "caseId", context.caseId()));
+        namedParameterJdbcTemplate.update("""
+            update embeddings
+            set started_at = :value,
+                ended_at = :value,
+                created_at = :value
+            where case_id = :caseId
+            """, Map.of("value", yesterdayTime, "caseId", context.caseId()));
+        namedParameterJdbcTemplate.update("""
+            update workflow_events
+            set event_time = :value,
+                created_at = :value
+            where case_id = :caseId
+            """, Map.of("value", today.atTime(10, 0), "caseId", context.caseId()));
+
+        JsonNode result = technicalTrackingCases(USER_M3_TRACKING, null, null, today.toString());
+
+        JsonNode matched = null;
+        for (JsonNode item : result.path("items")) {
+            if (context.caseId().equals(item.path("caseId").asText())) {
+                matched = item;
+                break;
+            }
+        }
+        assertThat(matched).isNotNull();
+        assertThat(matched.path("matchedActivityTypes").toString()).contains("EVENT", "QC", "REWORK");
+    }
+
+    @Test
+    void shouldSortTechnicalTrackingCaseListByLatestActivityAtDesc() throws Exception {
+        TechnicalCaseContext older = receiveCaseAndGetGrossingTask("APP-M3-TRACK-LIST-003", "BC-M3-TRACK-LIST-003");
+        TechnicalCaseContext newer = receiveCaseAndGetGrossingTask("APP-M3-TRACK-LIST-004", "BC-M3-TRACK-LIST-004");
+        LocalDate today = LocalDate.now();
+
+        namedParameterJdbcTemplate.update("""
+            update technical_pending_tasks
+            set created_at = :value
+            where case_id = :caseId
+            """, Map.of("value", today.atTime(9, 0), "caseId", older.caseId()));
+        namedParameterJdbcTemplate.update("""
+            update technical_pending_tasks
+            set created_at = :value
+            where case_id = :caseId
+            """, Map.of("value", today.atTime(14, 0), "caseId", newer.caseId()));
+
+        JsonNode result = technicalTrackingCases(USER_M3_TRACKING, null, null, today.toString());
+
+        int olderIndex = Integer.MAX_VALUE;
+        int newerIndex = Integer.MAX_VALUE;
+        for (int index = 0; index < result.path("items").size(); index++) {
+            JsonNode item = result.path("items").get(index);
+            if (older.caseId().equals(item.path("caseId").asText())) {
+                olderIndex = index;
+            }
+            if (newer.caseId().equals(item.path("caseId").asText())) {
+                newerIndex = index;
+            }
+        }
+        assertThat(newerIndex).isLessThan(olderIndex);
+    }
+
+    @Test
+    void shouldRejectTechnicalTrackingCaseListWithoutDateFilters() throws Exception {
+        mockMvc.perform(authorized(get("/api/v1/technical-tracking/cases"), USER_M3_TRACKING)
+                .param("page", "1")
+                .param("size", "20"))
+            .andExpect(status().isBadRequest());
+    }
+
     private void advanceCaseToPendingEmbedding(TechnicalCaseContext context, String grossDescription) throws Exception {
         advanceCaseToDehydrationCompleted(context, grossDescription);
     }

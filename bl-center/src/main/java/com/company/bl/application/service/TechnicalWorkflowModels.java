@@ -60,6 +60,37 @@ public final class TechnicalWorkflowModels {
     ) {
     }
 
+    public record TechnicalTrackingCaseListQuery(
+        int page,
+        int size,
+        LocalDate dateFrom,
+        LocalDate dateTo,
+        LocalDate workDate
+    ) {
+    }
+
+    public record TechnicalTrackingCaseListPage(
+        List<TechnicalTrackingCaseListItem> items,
+        int page,
+        int size,
+        long total
+    ) {
+    }
+
+    public record TechnicalTrackingCaseListItem(
+        String caseId,
+        String pathologyNo,
+        String patientName,
+        String patientIdDisplay,
+        String applicationNo,
+        String applicationType,
+        String submittingDepartmentName,
+        String caseStatus,
+        String latestActivityAt,
+        List<String> matchedActivityTypes
+    ) {
+    }
+
     public record SlicingWorkbenchView(
         SlicingWorkbenchStats stats,
         List<SlicingWorkbenchRow> pendingList,

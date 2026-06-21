@@ -199,6 +199,42 @@ class TechnicalWorkflowQueryService {
     }
 
     @Transactional(readOnly = true)
+    TechnicalWorkflowModels.TechnicalTrackingCaseListPage listTechnicalTrackingCases(
+        TechnicalWorkflowModels.TechnicalTrackingCaseListQuery query
+    ) {
+        TechnicalWorkflowModels.LocalDateRange effectiveDateRange =
+            resolveEffectiveDateRange(query.dateFrom(), query.dateTo(), query.workDate());
+        if (effectiveDateRange.dateFrom() == null && effectiveDateRange.dateTo() == null) {
+            throw new BlBusinessException(
+                BlErrorCode.INVALID_ARGUMENT,
+                400,
+                "Technical tracking case list requires at least one date filter");
+        }
+        TechnicalWorkflowRecords.PagedTechnicalTrackingCases paged =
+            technicalWorkflowRepository.findTechnicalTrackingCases(
+                new TechnicalWorkflowRecords.TechnicalTrackingCaseListQuery(
+                    query.page(),
+                    query.size(),
+                    effectiveDateRange.dateFrom() == null ? null : effectiveDateRange.dateFrom().atStartOfDay(),
+                    effectiveDateRange.dateTo() == null ? null : effectiveDateRange.dateTo().plusDays(1).atStartOfDay()));
+        return new TechnicalWorkflowModels.TechnicalTrackingCaseListPage(
+            paged.items().stream().map(item -> new TechnicalWorkflowModels.TechnicalTrackingCaseListItem(
+                item.caseId(),
+                item.pathologyNo(),
+                item.patientName(),
+                item.patientIdDisplay(),
+                item.applicationNo(),
+                item.applicationType(),
+                item.submittingDepartmentName(),
+                item.caseStatus(),
+                stringify(item.latestActivityAt()),
+                item.matchedActivityTypes())).toList(),
+            query.page(),
+            query.size(),
+            paged.total());
+    }
+
+    @Transactional(readOnly = true)
     TechnicalWorkflowModels.TechnicalTrackingView getTechnicalTracking(
         String caseIdentifier,
         LocalDate dateFrom,

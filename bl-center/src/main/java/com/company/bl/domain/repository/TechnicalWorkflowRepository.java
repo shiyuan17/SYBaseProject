@@ -63,6 +63,10 @@ public interface TechnicalWorkflowRepository {
 
     PagedTechnicalTasks findTechnicalTasks(PendingTechnicalTaskQuery query);
 
+    TechnicalWorkflowRecords.PagedTechnicalTrackingCases findTechnicalTrackingCases(
+        TechnicalWorkflowRecords.TechnicalTrackingCaseListQuery query
+    );
+
     TechnicalWorkflowRecords.SlicingWorkbenchStats summarizeSlicingWorkbench(TechnicalWorkflowRecords.SlicingWorkbenchQuery query);
 
     TechnicalWorkflowRecords.PagedSlicingWorkbenchRows findPendingSlicingWorkbenchRows(TechnicalWorkflowRecords.SlicingWorkbenchQuery query);

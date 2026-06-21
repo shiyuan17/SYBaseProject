@@ -256,6 +256,27 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
             .param("workDate", workDate)), 200);
     }
 
+    protected JsonNode technicalTrackingCases(
+        String userId,
+        String dateFrom,
+        String dateTo,
+        String workDate
+    ) throws Exception {
+        var requestBuilder = authorized(get("/api/v1/technical-tracking/cases"), userId)
+            .param("page", "1")
+            .param("size", "20");
+        if (dateFrom != null) {
+            requestBuilder.param("dateFrom", dateFrom);
+        }
+        if (dateTo != null) {
+            requestBuilder.param("dateTo", dateTo);
+        }
+        if (workDate != null) {
+            requestBuilder.param("workDate", workDate);
+        }
+        return responseBody(mockMvc.perform(requestBuilder), 200);
+    }
+
     protected String querySamplingTemplateId(String caseId, String specimenId) {
         return namedParameterJdbcTemplate.queryForObject("""
             select sampling_template_id

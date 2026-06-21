@@ -36,6 +36,34 @@ public final class TechnicalWorkflowRecords {
     public record PagedTechnicalTasks(List<TechnicalTask> items, long total) {
     }
 
+    public record TechnicalTrackingCaseListQuery(
+        int page,
+        int size,
+        LocalDateTime dateFrom,
+        LocalDateTime dateToExclusive
+    ) {
+    }
+
+    public record PagedTechnicalTrackingCases(
+        List<TechnicalTrackingCaseListItem> items,
+        long total
+    ) {
+    }
+
+    public record TechnicalTrackingCaseListItem(
+        String caseId,
+        String pathologyNo,
+        String patientName,
+        String patientIdDisplay,
+        String applicationNo,
+        String applicationType,
+        String submittingDepartmentName,
+        String caseStatus,
+        LocalDateTime latestActivityAt,
+        List<String> matchedActivityTypes
+    ) {
+    }
+
     public record SlicingWorkbenchQuery(
         String keyword,
         String applicationType,
