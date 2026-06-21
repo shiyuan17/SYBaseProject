@@ -237,15 +237,16 @@ abstract class JdbcSpecimenWorkflowTransportMutationSupport extends JdbcSpecimen
 
     public void insertWorkflowEvent(TrackingEvent event) {
         String operatorIp = event.operatorIp() != null ? event.operatorIp() : WorkflowRequestContext.resolveClientIp();
+        String operatorDevice = event.operatorDevice() != null ? event.operatorDevice() : WorkflowRequestContext.resolveUserAgent();
         jdbcTemplate.update("""
             insert into workflow_events
                 (id, application_id, specimen_id, case_id, transport_order_id, node_code, event_type,
                  event_status, event_time, operator_user_id, operator_name, source_terminal, event_content,
-                 operator_ip, created_at)
+                 operator_ip, operator_device, created_at)
             values
                 (:id, :applicationId, :specimenId, :caseId, :transportOrderId, :nodeCode, :eventType,
                  :eventStatus, :eventTime, :operatorUserId, :operatorName, :sourceTerminal, :eventContent,
-                 :operatorIp, :createdAt)
+                 :operatorIp, :operatorDevice, :createdAt)
             """, new MapSqlParameterSource()
             .addValue("id", event.id())
             .addValue("applicationId", event.applicationId())
@@ -261,6 +262,7 @@ abstract class JdbcSpecimenWorkflowTransportMutationSupport extends JdbcSpecimen
             .addValue("sourceTerminal", event.sourceTerminal())
             .addValue("eventContent", event.eventContent())
             .addValue("operatorIp", operatorIp)
+            .addValue("operatorDevice", operatorDevice)
             .addValue("createdAt", LocalDateTime.now()));
     }
 

@@ -58,6 +58,8 @@ public record CaseLifecycleTrackingResponse(
         String status,
         String occurredAt,
         String operatorName,
+        String operatorIp,
+        String operatorDevice,
         List<KeyFact> keyFacts,
         String eventContent
     ) {

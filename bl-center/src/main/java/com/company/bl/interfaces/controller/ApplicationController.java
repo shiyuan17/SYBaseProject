@@ -262,7 +262,8 @@ public class ApplicationController {
             specimen == null ? null : specimen.specimenNo(),
             specimen == null ? null : specimen.barcode(),
             event.eventContent(),
-            event.operatorIp());
+            event.operatorIp(),
+            event.operatorDevice());
     }
 
     private SpecimenSummaryResponse toSpecimenSummary(Specimen specimen) {
@@ -276,6 +277,8 @@ public class ApplicationController {
             specimen.collectionMode(),
             specimen.clinicalSymptom(),
             specimen.specimenCount(),
+            specimen.specimenSize(),
+            specimen.registrationEvaluationItems(),
             specimen.containerName(),
             specimen.containerCount(),
             specimen.specimenStatus().name(),
@@ -283,8 +286,11 @@ public class ApplicationController {
             resolveVerificationStatus(specimen),
             stringify(specimen.verificationStartedAt()),
             stringify(specimen.verificationCompletedAt()),
+            specimen.verifiedByName(),
             resolveBarcodeBindingStatus(specimen),
             specimen.labelPrintStatus(),
+            stringify(specimen.specimenRemovalAt()),
+            specimen.specimenRemovalOperatorName(),
             stringify(specimen.specimenConfirmedAt()),
             resolveCheckInStatus(specimen),
             stringify(specimen.checkedInAt()),
@@ -292,6 +298,10 @@ public class ApplicationController {
             specimen.receiptStatus(),
             specimen.qualityCheckResult(),
             splitCommaSeparated(specimen.qualityIssueCodes()),
+            specimen.registeredByName(),
+            stringify(specimen.registeredAt()),
+            specimen.terminalCode(),
+            specimen.remarks(),
             resolveAbnormalType(specimen),
             specimen.unqualifiedReason());
     }
@@ -408,4 +418,3 @@ public class ApplicationController {
         return null;
     }
 }
-

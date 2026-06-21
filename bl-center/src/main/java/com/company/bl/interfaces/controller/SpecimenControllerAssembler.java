@@ -317,6 +317,8 @@ class SpecimenControllerAssembler {
             specimen.collectionMode(),
             specimen.clinicalSymptom(),
             specimen.specimenCount(),
+            specimen.specimenSize(),
+            specimen.registrationEvaluationItems(),
             specimen.containerName(),
             specimen.containerCount(),
             specimen.specimenStatus().name(),
@@ -324,8 +326,11 @@ class SpecimenControllerAssembler {
             resolveVerificationStatus(specimen),
             stringify(specimen.verificationStartedAt()),
             stringify(specimen.verificationCompletedAt()),
+            specimen.verifiedByName(),
             resolveBarcodeBindingStatus(specimen),
             specimen.labelPrintStatus(),
+            stringify(specimen.specimenRemovalAt()),
+            specimen.specimenRemovalOperatorName(),
             stringify(specimen.specimenConfirmedAt()),
             resolveCheckInStatus(specimen),
             stringify(specimen.checkedInAt()),
@@ -333,6 +338,10 @@ class SpecimenControllerAssembler {
             specimen.receiptStatus(),
             specimen.qualityCheckResult(),
             splitCommaSeparated(specimen.qualityIssueCodes()),
+            specimen.registeredByName(),
+            stringify(specimen.registeredAt()),
+            specimen.terminalCode(),
+            specimen.remarks(),
             resolveAbnormalType(specimen),
             specimen.unqualifiedReason());
     }
@@ -415,7 +424,8 @@ class SpecimenControllerAssembler {
             specimen == null ? null : specimen.specimenNo(),
             specimen == null ? null : specimen.barcode(),
             event.eventContent(),
-            event.operatorIp());
+            event.operatorIp(),
+            event.operatorDevice());
     }
 
     private String stringify(Object value) {
@@ -549,4 +559,3 @@ class SpecimenControllerAssembler {
             .toList();
     }
 }
-

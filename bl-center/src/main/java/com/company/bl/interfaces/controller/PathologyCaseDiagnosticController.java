@@ -396,6 +396,8 @@ public class PathologyCaseDiagnosticController {
             item.status(),
             item.occurredAt(),
             item.operatorName(),
+            item.operatorIp(),
+            item.operatorDevice(),
             item.keyFacts().stream()
                 .map(fact -> new CaseLifecycleTrackingResponse.KeyFact(fact.label(), fact.value()))
                 .toList(),

@@ -310,6 +310,8 @@ public final class DiagnosticReportViews {
         String status,
         String occurredAt,
         String operatorName,
+        String operatorIp,
+        String operatorDevice,
         List<KeyFactView> keyFacts,
         String eventContent
     ) {

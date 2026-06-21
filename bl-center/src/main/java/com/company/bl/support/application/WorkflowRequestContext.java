@@ -16,6 +16,18 @@ public final class WorkflowRequestContext {
         return resolveRemoteAddress(servletRequestAttributes.getRequest());
     }
 
+    public static String resolveUserAgent() {
+        if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes servletRequestAttributes)) {
+            return null;
+        }
+        String userAgent = servletRequestAttributes.getRequest().getHeader("User-Agent");
+        if (userAgent == null || userAgent.isBlank()) {
+            return null;
+        }
+        String normalized = userAgent.trim();
+        return normalized.length() > 512 ? normalized.substring(0, 512) : normalized;
+    }
+
     private static String resolveRemoteAddress(HttpServletRequest request) {
         String forwardedFor = request.getHeader("X-Forwarded-For");
         if (forwardedFor != null && !forwardedFor.isBlank()) {

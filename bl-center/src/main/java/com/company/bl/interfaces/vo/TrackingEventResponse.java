@@ -25,6 +25,8 @@ public record TrackingEventResponse(
     @Schema(description = "事件内容")
     String eventContent,
     @Schema(description = "操作人 IP")
-    String operatorIp
+    String operatorIp,
+    @Schema(description = "操作设备浏览器信息")
+    String operatorDevice
 ) {
 }

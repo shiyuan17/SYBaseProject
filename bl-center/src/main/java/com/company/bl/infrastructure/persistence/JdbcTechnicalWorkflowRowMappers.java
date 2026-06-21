@@ -354,7 +354,8 @@ final class JdbcTechnicalWorkflowRowMappers {
             rs.getString("operator_name"),
             rs.getString("source_terminal"),
             rs.getString("event_content"),
-            rs.getString("operator_ip"));
+            rs.getString("operator_ip"),
+            JdbcResultSetUtils.getNullableString(rs, "operator_device"));
     }
 
     private LocalDate toLocalDate(Date value) {
