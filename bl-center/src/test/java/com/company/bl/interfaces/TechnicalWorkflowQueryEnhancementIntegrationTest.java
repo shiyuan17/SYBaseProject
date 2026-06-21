@@ -863,18 +863,6 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
         return null;
     }
 
-    private void printSlides(String slicingTaskId, String embeddingBoxId) throws Exception {
-        postJson("/api/v1/slicings/slide-print", USER_M3_SLICING, """
-            {
-              "taskId": "%s",
-              "embeddingBoxId": "%s",
-              "sourceSlideCount": 1,
-              "requestedSlideCount": 1
-            }
-            """.formatted(slicingTaskId, embeddingBoxId))
-            .andExpect(status().isOk());
-    }
-
     private String advanceCaseToDehydrationCompleted(TechnicalCaseContext context, String grossDescription) throws Exception {
         postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
             {

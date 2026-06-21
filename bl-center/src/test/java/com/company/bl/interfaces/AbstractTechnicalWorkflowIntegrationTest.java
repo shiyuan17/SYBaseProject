@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimenWorkflowIntegrationTest {
 
@@ -254,6 +255,18 @@ abstract class AbstractTechnicalWorkflowIntegrationTest extends AbstractSpecimen
     protected JsonNode technicalTracking(String caseIdentifier, String userId, String workDate) throws Exception {
         return responseBody(mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/technical-tracking", caseIdentifier), userId)
             .param("workDate", workDate)), 200);
+    }
+
+    protected void printSlides(String slicingTaskId, String embeddingBoxId) throws Exception {
+        postJson("/api/v1/slicings/slide-print", USER_M3_SLICING, """
+            {
+              "taskId": "%s",
+              "embeddingBoxId": "%s",
+              "sourceSlideCount": 1,
+              "requestedSlideCount": 1
+            }
+            """.formatted(slicingTaskId, embeddingBoxId))
+            .andExpect(status().isOk());
     }
 
     protected JsonNode technicalTrackingCases(
