@@ -49,6 +49,15 @@ final class JdbcTechnicalWorkflowTaskQueries {
         return rows.stream().findFirst();
     }
 
+    void lockPathologyCase(String caseId) {
+        jdbcTemplate.queryForObject("""
+            select id
+            from pathology_cases
+            where id = :caseId
+            for update
+            """, Map.of("caseId", caseId), String.class);
+    }
+
     List<Specimen> findSpecimensByCaseId(String caseId) {
         return jdbcTemplate.query(specimenSelectSql() + """
             from specimens

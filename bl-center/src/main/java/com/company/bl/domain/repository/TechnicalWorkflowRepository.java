@@ -47,6 +47,8 @@ public interface TechnicalWorkflowRepository {
 
     Optional<PathologyCase> findPathologyCaseByPathologyNo(String pathologyNo);
 
+    void lockPathologyCase(String caseId);
+
     List<Specimen> findSpecimensByCaseId(String caseId);
 
     Optional<Specimen> findSpecimenById(String specimenId);

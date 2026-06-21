@@ -75,6 +75,11 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     }
 
     @Override
+    public void lockPathologyCase(String caseId) {
+        taskQueries.lockPathologyCase(caseId);
+    }
+
+    @Override
     public List<Specimen> findSpecimensByCaseId(String caseId) {
         return taskQueries.findSpecimensByCaseId(caseId);
     }

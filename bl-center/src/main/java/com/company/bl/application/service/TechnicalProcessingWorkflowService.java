@@ -812,21 +812,26 @@ class TechnicalProcessingWorkflowService {
             command.remarks()));
         technicalWorkflowRepository.updateSlideStatus(
             slide.id(), "STAINED", command.qualityIssue() == null ? "QUALIFIED" : "UNQUALIFIED");
+        technicalWorkflowRepository.lockPathologyCase(task.caseId());
         technicalWorkflowRepository.completeTechnicalTask(task.id(), TechnicalWorkflowConstants.TASK_COMPLETED, command.remarks(), now);
-        boolean hasRemainingStainingTasks = technicalWorkflowRepository.findActiveTechnicalTasksByCaseId(task.caseId()).stream()
-            .anyMatch(activeTask -> TechnicalWorkflowConstants.NODE_STAINING.equals(activeTask.taskType()));
         String caseStatus = "STAINING";
-        if (!hasRemainingStainingTasks) {
-            technicalWorkflowRepository.updatePathologyCaseStatus(task.caseId(), "DIAGNOSIS_PENDING");
-            diagnosticReportAppService.createPrimaryDiagnosticTaskIfAbsent(task.caseId(), "Auto created after staining completed");
+        if (allStainingTasksCompleted(task.caseId())) {
+            caseStatus = "DIAGNOSIS_PENDING";
+            technicalWorkflowRepository.updatePathologyCaseStatus(task.caseId(), caseStatus);
+            diagnosticReportAppService.createPrimaryDiagnosticTaskIfAbsent(
+                task.caseId(), "Auto created after staining completed");
             technicalWorkflowSupport.insertWorkflowEvent(task.applicationId(), slide.specimenId(), task.caseId(),
                 "DIAGNOSIS_ASSIGN", "CREATE", "SUCCESS", command.operatorUserId(), command.operatorName(),
                 command.terminalCode(), "Technical workflow handed off to diagnosis");
-            caseStatus = "DIAGNOSIS_PENDING";
         }
         technicalWorkflowSupport.insertWorkflowEvent(task.applicationId(), slide.specimenId(), task.caseId(),
             TechnicalWorkflowConstants.NODE_STAINING, "COMPLETE", "SUCCESS", command.operatorUserId(),
             command.operatorName(), command.terminalCode(), "Staining completed");
         return new TechnicalWorkflowModels.SlideStainingResult(task.id(), slide.id(), caseStatus);
+    }
+
+    private boolean allStainingTasksCompleted(String caseId) {
+        return technicalWorkflowRepository.findActiveTechnicalTasksByCaseId(caseId).stream()
+            .noneMatch(activeTask -> TechnicalWorkflowConstants.NODE_STAINING.equals(activeTask.taskType()));
     }
 }
