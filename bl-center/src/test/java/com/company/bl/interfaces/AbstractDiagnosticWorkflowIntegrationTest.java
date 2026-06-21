@@ -28,6 +28,14 @@ abstract class AbstractDiagnosticWorkflowIntegrationTest extends AbstractTechnic
         return responseBody(action, 200);
     }
 
+    protected JsonNode listAssignableDiagnosticTasks(String pathologyNo, String userId) throws Exception {
+        ResultActions action = mockMvc.perform(authorized(get("/api/v1/diagnostic-tasks/assignment"), userId)
+            .param("page", "1")
+            .param("size", "20")
+            .param("pathologyNo", pathologyNo));
+        return responseBody(action, 200);
+    }
+
     protected JsonNode diagnosticWorkbench(String caseId, String userId) throws Exception {
         return responseBody(mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/diagnostic-workbench", caseId), userId)), 200);
     }

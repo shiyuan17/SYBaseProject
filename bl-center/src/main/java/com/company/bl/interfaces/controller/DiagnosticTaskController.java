@@ -58,6 +58,31 @@ public class DiagnosticTaskController extends TechnicalControllerSupport {
             result.total());
     }
 
+    @Operation(summary = "查询可分派诊断任务", description = "分页查询诊断分派列表，不按当前诊断医生过滤本人任务。")
+    @RequirePermission(M4PermissionCodes.DIAG_TASK_QUERY)
+    @GetMapping("/assignment")
+    public PendingDiagnosticTaskPageResponse listAssignment(@Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
+                                                            @Parameter(description = "每页条数，默认 20") @RequestParam(defaultValue = "20") int size,
+                                                            @Parameter(description = "任务类型") @RequestParam(required = false) String taskType,
+                                                            @Parameter(description = "任务状态") @RequestParam(required = false) String taskStatus,
+                                                            @Parameter(description = "病理号") @RequestParam(required = false) String pathologyNo,
+                                                            HttpServletRequest httpServletRequest) {
+        DiagnosticReportModels.PendingDiagnosticTaskPage result = diagnosticReportAppService.listPendingTasks(
+            new DiagnosticReportModels.PendingDiagnosticTaskQuery(
+                page,
+                size,
+                taskType,
+                taskStatus,
+                pathologyNo,
+                resolveUserId(httpServletRequest),
+                null));
+        return new PendingDiagnosticTaskPageResponse(
+            result.items().stream().map(this::toResponse).toList(),
+            result.page(),
+            result.size(),
+            result.total());
+    }
+
     @Operation(summary = "分派诊断任务", description = "将病例级诊断任务分派给责任医生、初诊医生和审核医生。")
     @RequirePermission(M4PermissionCodes.ASSIGN)
     @PostMapping("/{id}/assign")
