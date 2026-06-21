@@ -1,4 +1,4 @@
-CREATE TABLE workstation_daily_clears (
+CREATE TABLE IF NOT EXISTS workstation_daily_clears (
     id VARCHAR(64) NOT NULL,
     workstation_type VARCHAR(32) NOT NULL,
     work_date DATE NOT NULL,
