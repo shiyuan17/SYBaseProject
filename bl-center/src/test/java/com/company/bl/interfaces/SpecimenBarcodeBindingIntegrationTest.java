@@ -24,7 +24,7 @@ class SpecimenBarcodeBindingIntegrationTest extends AbstractSpecimenWorkflowInte
     @Test
     void shouldBindRebindUnbindAndFilterSpecimenManagementList() throws Exception {
         String applicationId = createApplication("APP-BIND-001");
-        String expectedRegistrationOperatorName = userLoginName(USER_REGISTER);
+        String expectedRegistrationOperatorName = userDisplayName(USER_REGISTER);
         JsonNode saved = responseBody(
             postJson(
                 "/api/v1/application-registration-workbench/%s/save".formatted(applicationId),

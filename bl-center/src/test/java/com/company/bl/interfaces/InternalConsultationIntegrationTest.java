@@ -61,7 +61,9 @@ class InternalConsultationIntegrationTest extends AbstractDiagnosticWorkflowInte
 
         JsonNode workbench = diagnosticWorkbench(context.caseId(), USER_M4_DIAGNOSIS);
         assertThat(workbench.path("consultations").get(0).path("status").asText()).isEqualTo("COMPLETED");
-        JsonNode workbenchParticipant = workbench.path("consultations").get(0).path("participants").get(0);
+        JsonNode workbenchParticipant = findParticipantByUserId(
+            workbench.path("consultations").get(0).path("participants"),
+            USER_M4_SIGN);
         assertThat(workbenchParticipant.path("participantId").asText()).isEqualTo(signParticipantId);
         assertThat(workbenchParticipant.path("participantUserId").asText()).isEqualTo(USER_M4_SIGN);
         assertThat(workbenchParticipant.path("participantName").asText()).isEqualTo("M4 Sign");
@@ -73,7 +75,9 @@ class InternalConsultationIntegrationTest extends AbstractDiagnosticWorkflowInte
         JsonNode tracking = reportTracking(context.caseId(), USER_M4_TRACKING);
         assertThat(tracking.toString()).contains("CONSULTATION_COMMENT");
         assertThat(tracking.toString()).contains("CONSULTATION_COMPLETE");
-        JsonNode trackingParticipant = tracking.path("consultations").get(0).path("participants").get(0);
+        JsonNode trackingParticipant = findParticipantByUserId(
+            tracking.path("consultations").get(0).path("participants"),
+            USER_M4_SIGN);
         assertThat(trackingParticipant.path("participantId").asText()).isEqualTo(signParticipantId);
         assertThat(trackingParticipant.path("participantUserId").asText()).isEqualTo(USER_M4_SIGN);
         assertThat(trackingParticipant.path("participantName").asText()).isEqualTo("M4 Sign");
@@ -112,5 +116,14 @@ class InternalConsultationIntegrationTest extends AbstractDiagnosticWorkflowInte
             """)
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+    }
+
+    private JsonNode findParticipantByUserId(JsonNode participants, String participantUserId) {
+        for (JsonNode participant : participants) {
+            if (participantUserId.equals(participant.path("participantUserId").asText())) {
+                return participant;
+            }
+        }
+        throw new AssertionError("Participant not found for userId: " + participantUserId);
     }
 }

@@ -7,6 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,13 +57,16 @@ class MedicalWasteIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
             order by sampled_at desc
             limit 1
             """, Map.of("caseId", context.caseId()), String.class);
-        LocalDate grossingDate = namedParameterJdbcTemplate.queryForObject("""
-            select cast(sampled_at as date)
+        LocalDateTime sampledAt = namedParameterJdbcTemplate.queryForObject("""
+            select sampled_at
             from samplings
             where case_id = :caseId
             order by sampled_at desc
             limit 1
-            """, Map.of("caseId", context.caseId()), LocalDate.class);
+            """, Map.of("caseId", context.caseId()), LocalDateTime.class);
+        assertThat(sampledAt).isNotNull();
+        LocalDate grossingDate = sampledAt.toLocalDate();
+        String grossingPeriod = sampledAt.getHour() >= 12 ? "PM" : "AM";
         String grossingStationName = "取材台A";
 
         JsonNode options = responseBody(mockMvc.perform(authorized(
@@ -78,9 +82,9 @@ class MedicalWasteIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
               "grossingOperatorName":"%s",
               "grossingStationName":"%s",
               "grossingDate":"%s",
-              "grossingPeriod":"AM"
+              "grossingPeriod":"%s"
             }
-            """.formatted(uniqueSuffix(), sampledByName, grossingStationName, grossingDate)), 200);
+            """.formatted(uniqueSuffix(), sampledByName, grossingStationName, grossingDate, grossingPeriod)), 200);
         assertThat(preview).isNotEmpty();
 
         JsonNode printed = responseBody(postJson("/api/v1/medical-waste/specimen-batches/print", USER_M1_REAGENT, """
@@ -89,10 +93,10 @@ class MedicalWasteIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
               "grossingOperatorName":"%s",
               "grossingStationName":"%s",
               "grossingDate":"%s",
-              "grossingPeriod":"AM",
+              "grossingPeriod":"%s",
               "weightKg":1.35
             }
-            """.formatted(uniqueSuffix(), sampledByName, grossingStationName, grossingDate)), 200);
+            """.formatted(uniqueSuffix(), sampledByName, grossingStationName, grossingDate, grossingPeriod)), 200);
         String batchId = printed.path("batch").path("id").asText();
         assertThat(printed.path("labels")).isNotEmpty();
         assertThat(printed.path("batch").path("labelCount").asInt()).isGreaterThan(0);
