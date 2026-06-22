@@ -42,6 +42,11 @@ final class JdbcTechnicalWorkflowSpecimenRegistrationQueries {
             from technical_specimen_registrations tsr
             join pathology_cases pc on pc.id = tsr.case_id
             join applications a on a.id = tsr.application_id
+            left join patients p
+                on p.id = a.patient_id
+                or p.patient_no = a.patient_id
+                or p.inpatient_no = a.patient_id
+                or p.outpatient_no = a.patient_id
             left join application_registration_workbench w on w.application_id = tsr.application_id
             """ + where, buildFilterParams(query), Long.class);
         List<TechnicalWorkflowRecords.TechnicalSpecimenRegistration> items = jdbcTemplate.query("""
@@ -53,7 +58,7 @@ final class JdbcTechnicalWorkflowSpecimenRegistrationQueries {
                 a.patient_name,
                 a.patient_gender,
                 a.patient_age,
-                a.patient_id,
+                coalesce(p.patient_no, p.inpatient_no, p.outpatient_no, a.patient_id) as patient_id,
                 w.id_no as patient_id_display,
                 w.inpatient_no,
                 a.application_type,
@@ -70,6 +75,11 @@ final class JdbcTechnicalWorkflowSpecimenRegistrationQueries {
             from technical_specimen_registrations tsr
             join pathology_cases pc on pc.id = tsr.case_id
             join applications a on a.id = tsr.application_id
+            left join patients p
+                on p.id = a.patient_id
+                or p.patient_no = a.patient_id
+                or p.inpatient_no = a.patient_id
+                or p.outpatient_no = a.patient_id
             left join application_registration_workbench w on w.application_id = tsr.application_id
             """ + where + """
 
@@ -113,7 +123,7 @@ final class JdbcTechnicalWorkflowSpecimenRegistrationQueries {
                 a.patient_name,
                 a.patient_gender,
                 a.patient_age,
-                a.patient_id,
+                coalesce(p.patient_no, p.inpatient_no, p.outpatient_no, a.patient_id) as patient_id,
                 w.id_no as patient_id_display,
                 w.inpatient_no,
                 a.application_type,
@@ -130,6 +140,11 @@ final class JdbcTechnicalWorkflowSpecimenRegistrationQueries {
             from technical_specimen_registrations tsr
             join pathology_cases pc on pc.id = tsr.case_id
             join applications a on a.id = tsr.application_id
+            left join patients p
+                on p.id = a.patient_id
+                or p.patient_no = a.patient_id
+                or p.inpatient_no = a.patient_id
+                or p.outpatient_no = a.patient_id
             left join application_registration_workbench w on w.application_id = tsr.application_id
             where tsr.case_id = :caseId
             """, Map.of("caseId", caseId), (rs, rowNum) -> new TechnicalWorkflowRecords.TechnicalSpecimenRegistration(
@@ -165,7 +180,7 @@ final class JdbcTechnicalWorkflowSpecimenRegistrationQueries {
              and (
                     upper(coalesce(pc.pathology_no, '')) like :keyword
                  or upper(coalesce(a.patient_name, '')) like :keyword
-                 or upper(coalesce(a.patient_id, '')) like :keyword
+                 or upper(coalesce(p.patient_no, p.inpatient_no, p.outpatient_no, a.patient_id, '')) like :keyword
                  or upper(coalesce(a.application_no, '')) like :keyword
                  or upper(coalesce(w.inpatient_no, '')) like :keyword
              )

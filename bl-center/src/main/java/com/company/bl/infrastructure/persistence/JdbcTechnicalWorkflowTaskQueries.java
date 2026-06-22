@@ -139,6 +139,11 @@ final class JdbcTechnicalWorkflowTaskQueries {
             from technical_pending_tasks t
             join pathology_cases pc on pc.id = t.case_id
             join applications a on a.id = t.application_id
+            left join patients p
+                on p.id = a.patient_id
+                or p.patient_no = a.patient_id
+                or p.inpatient_no = a.patient_id
+                or p.outpatient_no = a.patient_id
             left join application_registration_workbench w on w.application_id = t.application_id
             """ + where, taskFilterParams(query), Long.class);
         List<TechnicalTask> items = jdbcTemplate.query(taskSelectSql() + where + """
@@ -349,7 +354,7 @@ final class JdbcTechnicalWorkflowTaskQueries {
                 t.application_id,
                 a.application_no,
                 a.patient_name,
-                a.patient_id,
+                coalesce(p.patient_no, p.inpatient_no, p.outpatient_no, a.patient_id) as patient_id,
                 w.id_no as patient_id_display,
                 t.case_id,
                 pc.pathology_no,
@@ -384,6 +389,11 @@ final class JdbcTechnicalWorkflowTaskQueries {
             from technical_pending_tasks t
             join pathology_cases pc on pc.id = t.case_id
             join applications a on a.id = t.application_id
+            left join patients p
+              on p.id = a.patient_id
+              or p.patient_no = a.patient_id
+              or p.inpatient_no = a.patient_id
+              or p.outpatient_no = a.patient_id
             left join application_registration_workbench w on w.application_id = t.application_id
             left join sampling_blocks sb
               on t.object_type = 'SAMPLING_BLOCK'
@@ -456,7 +466,7 @@ final class JdbcTechnicalWorkflowTaskQueries {
             builder.append("""
                  and (
                     upper(coalesce(pc.pathology_no, '')) like :keywordLike
-                    or upper(coalesce(a.patient_id, '')) like :keywordLike
+                    or upper(coalesce(p.patient_no, p.inpatient_no, p.outpatient_no, a.patient_id, '')) like :keywordLike
                     or upper(coalesce(a.patient_name, '')) like :keywordLike
                     or upper(coalesce(a.application_no, '')) like :keywordLike
                  )

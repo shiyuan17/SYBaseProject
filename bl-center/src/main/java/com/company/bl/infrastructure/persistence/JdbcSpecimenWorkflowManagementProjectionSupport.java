@@ -131,6 +131,11 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
         String whereClause = """
             from specimens s
             join applications a on a.id = s.application_id
+            left join patients p
+                on p.id = a.patient_id
+                or p.patient_no = a.patient_id
+                or p.inpatient_no = a.patient_id
+                or p.outpatient_no = a.patient_id
             left join specimen_fixation_records sfr on sfr.specimen_id = s.id
             left join application_registration_workbench w on w.application_id = a.id
             left join (
@@ -170,7 +175,7 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
                 s.barcode,
                 a.id as application_id,
                 a.application_no,
-                a.patient_id,
+                coalesce(p.patient_no, p.inpatient_no, p.outpatient_no, a.patient_id) as patient_id,
                 w.id_no as patient_id_display,
                 a.patient_name,
                 a.patient_gender,

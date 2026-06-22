@@ -83,11 +83,13 @@ public class JdbcSpecimenWorkflowQueryRepository
                     from specimens s
                     where s.application_id = a.id
                 ) as registered_specimen_count,
-                  (
-                        select cast(wm_concat(s.specimen_no) as varchar(2000))
-                        from specimens s
-                        where s.application_id = a.id
-                    ) as specimen_nos,
+                (
+                    select listagg(trim(s.specimen_no), ',') within group (
+                        order by coalesce(s.registered_at, s.created_at), s.id
+                    )
+                    from specimens s
+                    where s.application_id = a.id
+                ) as specimen_nos,
                   
                 (
                     select case
@@ -371,7 +373,6 @@ public class JdbcSpecimenWorkflowQueryRepository
             rs.getTimestamp("updated_at") == null ? null : rs.getTimestamp("updated_at").toLocalDateTime());
     }
 }
-
 
 
 
