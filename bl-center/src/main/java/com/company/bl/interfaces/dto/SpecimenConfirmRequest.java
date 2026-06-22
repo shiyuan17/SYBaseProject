@@ -1,7 +1,6 @@
 package com.company.bl.interfaces.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -23,8 +22,7 @@ public class SpecimenConfirmRequest {
     @Size(max = 64)
     private String specimenNo;
 
-    @Schema(description = "核对操作人登录确认 token", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotBlank
+    @Schema(description = "核对操作人登录确认 token；非当前登录人操作时传入")
     private String operatorVerificationToken;
 
     @Schema(description = "确认人用户 ID")

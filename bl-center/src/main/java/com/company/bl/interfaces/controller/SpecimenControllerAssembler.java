@@ -130,8 +130,10 @@ class SpecimenControllerAssembler {
     }
 
     ConfirmSpecimenCommand toConfirmSpecimenCommand(String barcode, SpecimenConfirmRequest request, HttpServletRequest httpServletRequest) {
-        OperatorVerificationService.VerifiedOperator operator = resolveVerifiedOperator(
+        OperatorVerificationService.VerifiedOperator operator = resolveVerifiedOrCurrentOperator(
             request.getOperatorVerificationToken(),
+            request.getOperatorUserId(),
+            request.getOperatorName(),
             httpServletRequest);
         return new ConfirmSpecimenCommand(
             request.getSpecimenId(),

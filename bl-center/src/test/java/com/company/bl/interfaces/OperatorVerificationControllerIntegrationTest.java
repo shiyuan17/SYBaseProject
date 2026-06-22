@@ -82,26 +82,35 @@ class OperatorVerificationControllerIntegrationTest extends AbstractSpecimenWork
     }
 
     @Test
-    void shouldRequireValidOperatorTokenBeforeSpecimenStateMutation() throws Exception {
-        String applicationId = createApplication("APP-M2-OPVERIFY-" + uniqueSuffix());
-        JsonNode registration = registerSpecimens(
-            applicationId,
-            USER_REGISTER,
-            "P-01",
-            "/api/v1/specimens/register",
-            "BC-OPVERIFY-" + uniqueSuffix());
-        String barcode = registration.path("specimens").get(0).path("barcode").asText();
+    void shouldAllowCurrentLoginUserWithoutTokenAndStillRejectInvalidOperatorToken() throws Exception {
+        String fallbackBarcode = prepareFixedSpecimenBarcode("APP-M2-OPVERIFY-FALLBACK-" + uniqueSuffix());
 
-        completeFixation(barcode);
-
-        postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(barcode), USER_FIXATION, """
+        postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(fallbackBarcode), USER_FIXATION, """
             {
               "terminalCode": "T-CONFIRM"
             }
             """)
-            .andExpect(status().isBadRequest());
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.specimenConfirmedAt").isNotEmpty());
 
-        postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(barcode), USER_FIXATION, """
+        Map<String, Object> fallbackConfirmEvent = jdbcTemplate.queryForMap("""
+            select operator_user_id, operator_name
+            from workflow_events
+            where specimen_id = (
+                select id
+                from specimens
+                where barcode = :barcode
+            )
+              and node_code = 'CONFIRMATION'
+            order by event_time desc, created_at desc
+            limit 1
+            """, Map.of("barcode", fallbackBarcode));
+        assertThat(fallbackConfirmEvent.get("operator_user_id")).isEqualTo(USER_FIXATION);
+        assertThat(fallbackConfirmEvent.get("operator_name")).isEqualTo(userDisplayName(USER_FIXATION));
+
+        String verifiedBarcode = prepareFixedSpecimenBarcode("APP-M2-OPVERIFY-VERIFIED-" + uniqueSuffix());
+
+        postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(verifiedBarcode), USER_FIXATION, """
             {
               "operatorVerificationToken": "invalid-token",
               "terminalCode": "T-CONFIRM"
@@ -111,7 +120,7 @@ class OperatorVerificationControllerIntegrationTest extends AbstractSpecimenWork
             .andExpect(jsonPath("$.message", containsString("核对人登录确认已失效")));
 
         String operatorVerificationToken = operatorVerificationToken(USER_FIXATION, USER_TRANSPORT);
-        postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(barcode), USER_FIXATION, """
+        postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(verifiedBarcode), USER_FIXATION, """
             {
               "operatorVerificationToken": "%s",
               "terminalCode": "T-CONFIRM"
@@ -131,8 +140,22 @@ class OperatorVerificationControllerIntegrationTest extends AbstractSpecimenWork
               and node_code = 'CONFIRMATION'
             order by event_time desc, created_at desc
             limit 1
-            """, Map.of("barcode", barcode));
+            """, Map.of("barcode", verifiedBarcode));
         assertThat(confirmEvent.get("operator_user_id")).isEqualTo(USER_TRANSPORT);
         assertThat(confirmEvent.get("operator_name")).isEqualTo(userDisplayName(USER_TRANSPORT));
+    }
+
+    private String prepareFixedSpecimenBarcode(String applicationNo) throws Exception {
+        String barcode = "BC-OPVERIFY-" + uniqueSuffix();
+        String applicationId = createApplication(applicationNo);
+        JsonNode registration = registerSpecimens(
+            applicationId,
+            USER_REGISTER,
+            "P-01",
+            "/api/v1/specimens/register",
+            barcode);
+        String specimenBarcode = registration.path("specimens").get(0).path("barcode").asText();
+        completeFixation(specimenBarcode);
+        return specimenBarcode;
     }
 }

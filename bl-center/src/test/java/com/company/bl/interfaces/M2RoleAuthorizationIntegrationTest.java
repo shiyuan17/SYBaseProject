@@ -168,6 +168,8 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
     }
 
     private void completeFixationAsAdmin(String barcode) throws Exception {
+        String operatorVerificationToken = operatorVerificationToken(USER_ADMIN, USER_TRANSPORT);
+
         postJson("/api/v1/specimen-verifications/start", USER_ADMIN, """
             {
               "specimenBarcode": "%s"}
@@ -196,10 +198,10 @@ class M2RoleAuthorizationIntegrationTest extends AbstractSpecimenWorkflowIntegra
 
         postJson("/api/v1/specimens/barcodes/%s/confirm".formatted(barcode), USER_ADMIN, """
             {
-              
+              "operatorVerificationToken": "%s",
               "terminalCode": "ADMIN-04"
             }
-            """)
+            """.formatted(operatorVerificationToken))
             .andExpect(status().isOk());
 
         postJson("/api/v1/specimens/barcodes/%s/check-in".formatted(barcode), USER_ADMIN, """
