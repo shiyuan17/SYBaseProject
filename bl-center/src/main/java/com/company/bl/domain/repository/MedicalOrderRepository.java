@@ -1,5 +1,7 @@
 package com.company.bl.domain.repository;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -22,9 +24,27 @@ public interface MedicalOrderRepository {
                             String remarks,
                             LocalDateTime acceptedAt);
 
+    void markMedicalOrderPrinted(String orderId,
+                                 String printedByUserId,
+                                 String printedByName,
+                                 String remarks,
+                                 LocalDateTime printedAt);
+
     void completeMedicalOrder(String orderId, String remarks, LocalDateTime completedAt);
 
+    void terminateMedicalOrder(String orderId,
+                               String terminatedByUserId,
+                               String terminatedByName,
+                               String terminationReasonCode,
+                               String terminationReasonLabel,
+                               String remarks,
+                               LocalDateTime terminatedAt);
+
     void cancelMedicalOrder(String orderId, String remarks, LocalDateTime cancelledAt);
+
+    void insertMedicalOrderQcEvaluation(CreateMedicalOrderQcEvaluationCommand command);
+
+    Optional<MedicalOrderQcEvaluation> findLatestMedicalOrderQcEvaluation(String orderId);
 
     record PendingMedicalOrderQuery(
         int page,
@@ -57,8 +77,53 @@ public interface MedicalOrderRepository {
         String status,
         String doctorUserId,
         String doctorName,
+        String targetType,
+        String targetSpecimenId,
+        String targetSpecimenNo,
+        String targetBlockId,
+        String targetBlockNo,
+        String targetSlideId,
+        String targetSlideNo,
         LocalDateTime orderDate,
         String remarks
+    ) {
+    }
+
+    record CreateMedicalOrderQcEvaluationCommand(
+        String id,
+        String orderId,
+        String caseId,
+        String qcAspect,
+        Integer totalScore,
+        String grade,
+        String evaluationReason,
+        String processingAction,
+        String reworkType,
+        String reworkOrderId,
+        String remarks,
+        String evaluatorUserId,
+        String evaluatorName,
+        LocalDateTime evaluatedAt,
+        JsonNode detailPayload
+    ) {
+    }
+
+    record MedicalOrderQcEvaluation(
+        String id,
+        String orderId,
+        String caseId,
+        String qcAspect,
+        Integer totalScore,
+        String grade,
+        String evaluationReason,
+        String processingAction,
+        String reworkType,
+        String reworkOrderId,
+        String remarks,
+        String evaluatorUserId,
+        String evaluatorName,
+        LocalDateTime evaluatedAt,
+        JsonNode detailPayload
     ) {
     }
 
@@ -81,6 +146,8 @@ public interface MedicalOrderRepository {
         String pathologyNo,
         String applicationNo,
         String patientName,
+        String patientId,
+        String patientIdDisplay,
         String orderNumber,
         String orderContent,
         String orderType,
@@ -99,8 +166,26 @@ public interface MedicalOrderRepository {
         String executorName,
         LocalDateTime orderDate,
         LocalDateTime acceptedAt,
+        String printedByUserId,
+        String printedByName,
+        LocalDateTime printedAt,
+        String releasedByUserId,
+        String releasedByName,
+        LocalDateTime releasedAt,
         LocalDateTime completedAt,
         LocalDateTime cancelledAt,
+        String terminatedByUserId,
+        String terminatedByName,
+        LocalDateTime terminatedAt,
+        String terminationReasonCode,
+        String terminationReasonLabel,
+        String targetType,
+        String targetSpecimenId,
+        String targetSpecimenNo,
+        String targetBlockId,
+        String targetBlockNo,
+        String targetSlideId,
+        String targetSlideNo,
         String remarks,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

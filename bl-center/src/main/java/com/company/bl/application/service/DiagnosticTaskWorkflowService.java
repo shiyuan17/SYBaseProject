@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,8 +60,9 @@ class DiagnosticTaskWorkflowService {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Diagnostic task is not assignable");
         }
 
+        EffectiveAssignment effectiveAssignment = mergeAssignment(task, command);
         boolean reassignment = DiagnosticReportConstants.TASK_ASSIGNED.equals(task.status());
-        if (reassignment && isSameAssignment(task, command)) {
+        if (reassignment && isSameAssignment(task, effectiveAssignment, command.remarks())) {
             return new DiagnosticReportModels.DiagnosticTaskResult(task.id(), task.caseId(), "DIAGNOSIS_PENDING", task.status());
         }
 
@@ -69,12 +71,12 @@ class DiagnosticTaskWorkflowService {
             command.taskId(),
             command.operatorUserId(),
             command.operatorName(),
-            command.diagnosisDoctorUserId(),
-            command.diagnosisDoctorName(),
-            command.primaryDoctorUserId(),
-            command.primaryDoctorName(),
-            command.reviewerUserId(),
-            command.reviewerName(),
+            effectiveAssignment.diagnosisDoctorUserId(),
+            effectiveAssignment.diagnosisDoctorName(),
+            effectiveAssignment.primaryDoctorUserId(),
+            effectiveAssignment.primaryDoctorName(),
+            effectiveAssignment.reviewerUserId(),
+            effectiveAssignment.reviewerName(),
             command.remarks(),
             now));
 
@@ -103,11 +105,7 @@ class DiagnosticTaskWorkflowService {
             "View task",
             command.operatorUserId(),
             false,
-            List.of(
-                new WorkflowNotificationService.Recipient(updated.diagnosisDoctorUserId(), updated.diagnosisDoctorName()),
-                new WorkflowNotificationService.Recipient(updated.primaryDoctorUserId(), updated.primaryDoctorName()),
-                new WorkflowNotificationService.Recipient(updated.reviewerUserId(), updated.reviewerName())
-            )
+            buildAssignmentRecipients(updated)
         ));
         return new DiagnosticReportModels.DiagnosticTaskResult(updated.id(), updated.caseId(), "DIAGNOSIS_PENDING", updated.status());
     }
@@ -151,14 +149,53 @@ class DiagnosticTaskWorkflowService {
     }
 
     private boolean isSameAssignment(DiagnosticReportRepository.DiagnosticTask task,
-                                     DiagnosticReportModels.AssignDiagnosticTaskCommand command) {
-        return Objects.equals(task.diagnosisDoctorUserId(), command.diagnosisDoctorUserId())
-            && Objects.equals(task.diagnosisDoctorName(), command.diagnosisDoctorName())
-            && Objects.equals(task.primaryDoctorUserId(), command.primaryDoctorUserId())
-            && Objects.equals(task.primaryDoctorName(), command.primaryDoctorName())
-            && Objects.equals(task.reviewerUserId(), command.reviewerUserId())
-            && Objects.equals(task.reviewerName(), command.reviewerName())
-            && Objects.equals(task.remarks(), command.remarks());
+                                     EffectiveAssignment assignment,
+                                     String remarks) {
+        return Objects.equals(task.diagnosisDoctorUserId(), assignment.diagnosisDoctorUserId())
+            && Objects.equals(task.diagnosisDoctorName(), assignment.diagnosisDoctorName())
+            && Objects.equals(task.primaryDoctorUserId(), assignment.primaryDoctorUserId())
+            && Objects.equals(task.primaryDoctorName(), assignment.primaryDoctorName())
+            && Objects.equals(task.reviewerUserId(), assignment.reviewerUserId())
+            && Objects.equals(task.reviewerName(), assignment.reviewerName())
+            && Objects.equals(task.remarks(), remarks);
+    }
+
+    private EffectiveAssignment mergeAssignment(DiagnosticReportRepository.DiagnosticTask task,
+                                                DiagnosticReportModels.AssignDiagnosticTaskCommand command) {
+        return new EffectiveAssignment(
+            pickField(command.diagnosisDoctorUserId(), task.diagnosisDoctorUserId()),
+            pickField(command.diagnosisDoctorName(), task.diagnosisDoctorName()),
+            pickField(command.primaryDoctorUserId(), task.primaryDoctorUserId()),
+            pickField(command.primaryDoctorName(), task.primaryDoctorName()),
+            pickField(command.reviewerUserId(), task.reviewerUserId()),
+            pickField(command.reviewerName(), task.reviewerName())
+        );
+    }
+
+    private List<WorkflowNotificationService.Recipient> buildAssignmentRecipients(
+        DiagnosticReportRepository.DiagnosticTask task
+    ) {
+        List<WorkflowNotificationService.Recipient> recipients = new ArrayList<>();
+        addRecipient(recipients, task.diagnosisDoctorUserId(), task.diagnosisDoctorName());
+        addRecipient(recipients, task.primaryDoctorUserId(), task.primaryDoctorName());
+        addRecipient(recipients, task.reviewerUserId(), task.reviewerName());
+        return recipients;
+    }
+
+    private void addRecipient(List<WorkflowNotificationService.Recipient> recipients,
+                              String userId,
+                              String name) {
+        if (hasText(userId) && hasText(name)) {
+            recipients.add(new WorkflowNotificationService.Recipient(userId, name));
+        }
+    }
+
+    private String pickField(String incomingValue, String currentValue) {
+        return hasText(incomingValue) ? incomingValue.trim() : currentValue;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private String assignmentNotificationBody(String pathologyNo, boolean reassignment) {
@@ -188,5 +225,15 @@ class DiagnosticTaskWorkflowService {
         if (value != null && !value.isBlank()) {
             query.put(key, value);
         }
+    }
+
+    private record EffectiveAssignment(
+        String diagnosisDoctorUserId,
+        String diagnosisDoctorName,
+        String primaryDoctorUserId,
+        String primaryDoctorName,
+        String reviewerUserId,
+        String reviewerName
+    ) {
     }
 }

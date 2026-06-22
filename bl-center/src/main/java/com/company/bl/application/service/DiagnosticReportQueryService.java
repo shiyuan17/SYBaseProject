@@ -46,6 +46,8 @@ class DiagnosticReportQueryService {
                 query.taskType(),
                 query.taskStatus(),
                 query.pathologyNo(),
+                query.dateFrom(),
+                query.dateTo(),
                 query.currentUserId(),
                 query.currentRoleCode()));
         return new DiagnosticReportModels.PendingDiagnosticTaskPage(
@@ -359,6 +361,8 @@ class DiagnosticReportQueryService {
             order.pathologyNo(),
             order.applicationNo(),
             order.patientName(),
+            order.patientId(),
+            order.patientIdDisplay(),
             order.orderNumber(),
             order.orderType(),
             order.orderContent(),
@@ -375,9 +379,33 @@ class DiagnosticReportQueryService {
             order.executorName(),
             stringify(order.orderDate()),
             stringify(order.acceptedAt()),
+            stringify(order.printedAt()),
+            order.printedByName(),
+            stringify(order.releasedAt()),
+            order.releasedByName(),
             stringify(order.completedAt()),
             stringify(order.cancelledAt()),
-            order.remarks());
+            stringify(order.terminatedAt()),
+            order.terminatedByName(),
+            order.terminationReasonCode(),
+            order.terminationReasonLabel(),
+            "TERMINATED".equalsIgnoreCase(order.status()) ? order.remarks() : null,
+            order.remarks(),
+            order.targetType(),
+            order.targetSpecimenId(),
+            order.targetSpecimenNo(),
+            order.targetBlockId(),
+            order.targetBlockNo(),
+            order.targetSlideId(),
+            order.targetSlideNo(),
+            order.targetSpecimenNo(),
+            order.targetBlockNo(),
+            order.targetSlideNo(),
+            "PENDING".equalsIgnoreCase(order.status()),
+            "IN_PROGRESS".equalsIgnoreCase(order.status()) && order.printedAt() == null && order.targetSlideId() != null,
+            "IN_PROGRESS".equalsIgnoreCase(order.status()) && order.printedAt() != null && order.terminatedAt() == null,
+            "IN_PROGRESS".equalsIgnoreCase(order.status()) && order.completedAt() == null && order.terminatedAt() == null,
+            "IN_PROGRESS".equalsIgnoreCase(order.status()) && order.printedAt() != null && order.terminatedAt() == null && order.targetSlideId() != null);
     }
 
     private DiagnosticReportViews.ConsultationView toConsultationView(DiagnosticTrackingQueryRepository.ConsultationView consultation) {

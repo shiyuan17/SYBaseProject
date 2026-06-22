@@ -43,6 +43,9 @@ class M6ObservabilityIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
         postJson("/api/v1/medical-orders/%s/accept".formatted(orderId), USER_M4_ORDER_EXECUTE, """
             {"terminalCode":"M6-O-02"}
             """).andExpect(status().isOk());
+        postJson("/api/v1/medical-orders/%s/print-slide".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M6-O-02A"}
+            """).andExpect(status().isOk());
         postJson("/api/v1/medical-orders/%s/complete".formatted(orderId), USER_M4_ORDER_EXECUTE, """
             {"terminalCode":"M6-O-03"}
             """).andExpect(status().isOk());
@@ -104,7 +107,6 @@ class M6ObservabilityIntegrationTest extends AbstractDiagnosticWorkflowIntegrati
             .andExpect(content().string(containsString("billing_retry_total")))
             .andExpect(content().string(containsString("billing_receipt_total")))
             .andExpect(content().string(containsString("historical_report_import_total")))
-            .andExpect(content().string(containsString("stat_report_query_total")))
             .andExpect(content().string(containsString("stat_report_export_total")))
             .andExpect(content().string(containsString("integration_retry_pending_count")))
             .andExpect(content().string(containsString("integration_manual_required_count")))

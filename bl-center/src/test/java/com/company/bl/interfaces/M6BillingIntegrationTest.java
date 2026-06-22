@@ -35,6 +35,9 @@ class M6BillingIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTest
         postJson("/api/v1/medical-orders/%s/accept".formatted(orderId), USER_M4_ORDER_EXECUTE, """
             {"terminalCode":"M6-B-02"}
             """).andExpect(status().isOk());
+        postJson("/api/v1/medical-orders/%s/print-slide".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M6-B-02A"}
+            """).andExpect(status().isOk());
         postJson("/api/v1/medical-orders/%s/complete".formatted(orderId), USER_M4_ORDER_EXECUTE, """
             {"terminalCode":"M6-B-03"}
             """).andExpect(status().isOk());
@@ -169,6 +172,9 @@ class M6BillingIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTest
 
         postJson("/api/v1/medical-orders/%s/accept".formatted(orderId), USER_M4_ORDER_EXECUTE, """
             {"terminalCode":"M6-B-12"}
+            """).andExpect(status().isOk());
+        postJson("/api/v1/medical-orders/%s/print-slide".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M6-B-12A"}
             """).andExpect(status().isOk());
         postJson("/api/v1/medical-orders/%s/complete".formatted(orderId), USER_M4_ORDER_EXECUTE, """
             {"terminalCode":"M6-B-13"}

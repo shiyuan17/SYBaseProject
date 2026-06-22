@@ -1,5 +1,7 @@
 package com.company.bl.application.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -14,6 +16,8 @@ public final class DiagnosticReportModels {
         String taskType,
         String taskStatus,
         String pathologyNo,
+        LocalDate dateFrom,
+        LocalDate dateTo,
         String currentUserId,
         String currentRoleCode
     ) {
@@ -248,6 +252,13 @@ public final class DiagnosticReportModels {
         String orderType,
         String orderContent,
         String orderItemId,
+        String targetType,
+        String targetSpecimenId,
+        String targetSpecimenNo,
+        String targetBlockId,
+        String targetBlockNo,
+        String targetSlideId,
+        String targetSlideNo,
         String operatorUserId,
         String operatorName,
         String terminalCode,
@@ -269,6 +280,71 @@ public final class DiagnosticReportModels {
         String caseId,
         String orderNumber,
         String status
+    ) {
+    }
+
+    public record MedicalOrderSlidePrintLabel(
+        String slideId,
+        String slideNo,
+        String pathologyNo,
+        String patientName,
+        String patientId,
+        String specimenNo,
+        String blockNo
+    ) {
+    }
+
+    public record MedicalOrderSlidePrintResult(
+        String orderId,
+        String caseId,
+        String orderNumber,
+        String status,
+        String printedAt,
+        String printedByName,
+        List<MedicalOrderSlidePrintLabel> labels
+    ) {
+    }
+
+    public record TerminateMedicalOrderCommand(
+        String orderId,
+        String terminationReasonCode,
+        String terminationReasonLabel,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
+    public record MedicalOrderQcEvaluationCommand(
+        String orderId,
+        String qcAspect,
+        Integer totalScore,
+        String grade,
+        String evaluationReason,
+        String processingAction,
+        JsonNode detailPayload,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
+    public record MedicalOrderQcEvaluationResult(
+        String orderId,
+        String caseId,
+        String qcAspect,
+        Integer totalScore,
+        String grade,
+        String evaluationReason,
+        String processingAction,
+        String reworkType,
+        String reworkOrderId,
+        String remarks,
+        String evaluatorName,
+        String evaluatedAt,
+        JsonNode detailPayload
     ) {
     }
 

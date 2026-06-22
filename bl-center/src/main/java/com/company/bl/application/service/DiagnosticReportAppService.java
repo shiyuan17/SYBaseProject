@@ -138,8 +138,26 @@ public class DiagnosticReportAppService {
         return medicalOrderWorkflowService.acceptMedicalOrder(command);
     }
 
+    public DiagnosticReportModels.MedicalOrderSlidePrintResult printMedicalOrderSlide(DiagnosticReportModels.MedicalOrderActionCommand command) {
+        return medicalOrderWorkflowService.printMedicalOrderSlide(command);
+    }
+
     public DiagnosticReportModels.MedicalOrderResult completeMedicalOrder(DiagnosticReportModels.MedicalOrderActionCommand command) {
         return medicalOrderWorkflowService.completeMedicalOrder(command);
+    }
+
+    public DiagnosticReportModels.MedicalOrderResult terminateMedicalOrder(DiagnosticReportModels.TerminateMedicalOrderCommand command) {
+        return medicalOrderWorkflowService.terminateMedicalOrder(command);
+    }
+
+    public DiagnosticReportModels.MedicalOrderQcEvaluationResult createMedicalOrderQcEvaluation(
+        DiagnosticReportModels.MedicalOrderQcEvaluationCommand command
+    ) {
+        return medicalOrderWorkflowService.createMedicalOrderQcEvaluation(command);
+    }
+
+    public DiagnosticReportModels.MedicalOrderQcEvaluationResult getLatestMedicalOrderQcEvaluation(String orderId) {
+        return medicalOrderWorkflowService.getLatestMedicalOrderQcEvaluation(orderId);
     }
 
     public DiagnosticReportModels.MedicalOrderResult cancelMedicalOrder(DiagnosticReportModels.MedicalOrderActionCommand command) {

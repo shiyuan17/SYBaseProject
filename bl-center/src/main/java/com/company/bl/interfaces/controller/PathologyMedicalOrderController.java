@@ -6,10 +6,14 @@ import com.company.bl.application.service.DiagnosticReportViews;
 import com.company.bl.interfaces.auth.M4PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.CreateMedicalOrderRequest;
+import com.company.bl.interfaces.dto.CreateMedicalOrderQcEvaluationRequest;
 import com.company.bl.interfaces.dto.MedicalOrderActionRequest;
 import com.company.bl.interfaces.dto.MedicalOrderBillingRequest;
+import com.company.bl.interfaces.dto.TerminateMedicalOrderRequest;
 import com.company.bl.interfaces.vo.MedicalOrderBillingResponse;
 import com.company.bl.interfaces.vo.MedicalOrderOperationResponse;
+import com.company.bl.interfaces.vo.MedicalOrderQcEvaluationResponse;
+import com.company.bl.interfaces.vo.MedicalOrderSlidePrintResponse;
 import com.company.bl.interfaces.vo.PendingMedicalOrderPageResponse;
 import com.company.bl.interfaces.vo.PendingMedicalOrderResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -48,6 +52,13 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
                 request.getOrderType(),
                 request.getOrderContent(),
                 request.getOrderItemId(),
+                request.getTargetType(),
+                request.getTargetSpecimenId(),
+                request.getTargetSpecimenNo(),
+                request.getTargetBlockId(),
+                request.getTargetBlockNo(),
+                request.getTargetSlideId(),
+                request.getTargetSlideNo(),
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest),
                 request.getTerminalCode(),
@@ -131,6 +142,38 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
         return new MedicalOrderOperationResponse(result.orderId(), result.caseId(), result.orderNumber(), result.status());
     }
 
+    @Operation(summary = "打印玻片标签", description = "由技术执行角色打印病理医嘱关联玻片标签。")
+    @RequirePermission(M4PermissionCodes.MEDICAL_ORDER_PRINT)
+    @PostMapping("/{id}/print-slide")
+    public MedicalOrderSlidePrintResponse printSlide(@PathVariable("id") String orderId,
+                                                     @Valid @RequestBody MedicalOrderActionRequest request,
+                                                     HttpServletRequest httpServletRequest) {
+        DiagnosticReportModels.MedicalOrderSlidePrintResult result = diagnosticReportAppService.printMedicalOrderSlide(
+            new DiagnosticReportModels.MedicalOrderActionCommand(
+                orderId,
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode(),
+                request.getRemarks()));
+        return new MedicalOrderSlidePrintResponse(
+            result.orderId(),
+            result.caseId(),
+            result.orderNumber(),
+            result.status(),
+            result.printedAt(),
+            result.printedByName(),
+            result.labels().stream()
+                .map(label -> new MedicalOrderSlidePrintResponse.MedicalOrderSlidePrintLabelResponse(
+                    label.slideId(),
+                    label.slideNo(),
+                    label.pathologyNo(),
+                    label.patientName(),
+                    label.patientId(),
+                    label.specimenNo(),
+                    label.blockNo()))
+                .toList());
+    }
+
     @Operation(summary = "完成病理医嘱", description = "由技术执行角色完成进行中的病理医嘱。")
     @RequirePermission(M4PermissionCodes.MEDICAL_ORDER_COMPLETE)
     @PostMapping("/{id}/complete")
@@ -145,6 +188,53 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new MedicalOrderOperationResponse(result.orderId(), result.caseId(), result.orderNumber(), result.status());
+    }
+
+    @Operation(summary = "终止病理医嘱", description = "由技术执行角色终止进行中的病理医嘱。")
+    @RequirePermission(M4PermissionCodes.MEDICAL_ORDER_TERMINATE)
+    @PostMapping("/{id}/terminate")
+    public MedicalOrderOperationResponse terminate(@PathVariable("id") String orderId,
+                                                   @Valid @RequestBody TerminateMedicalOrderRequest request,
+                                                   HttpServletRequest httpServletRequest) {
+        DiagnosticReportModels.MedicalOrderResult result = diagnosticReportAppService.terminateMedicalOrder(
+            new DiagnosticReportModels.TerminateMedicalOrderCommand(
+                orderId,
+                request.getTerminationReasonCode(),
+                request.getTerminationReasonLabel(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode(),
+                request.getRemarks()));
+        return new MedicalOrderOperationResponse(result.orderId(), result.caseId(), result.orderNumber(), result.status());
+    }
+
+    @Operation(summary = "创建医嘱质控评价", description = "记录病理医嘱质控评价并按需生成返工单。")
+    @RequirePermission(M4PermissionCodes.MEDICAL_ORDER_QC)
+    @PostMapping("/{id}/qc-evaluations")
+    public MedicalOrderQcEvaluationResponse createQcEvaluation(@PathVariable("id") String orderId,
+                                                               @Valid @RequestBody CreateMedicalOrderQcEvaluationRequest request,
+                                                               HttpServletRequest httpServletRequest) {
+        DiagnosticReportModels.MedicalOrderQcEvaluationResult result = diagnosticReportAppService.createMedicalOrderQcEvaluation(
+            new DiagnosticReportModels.MedicalOrderQcEvaluationCommand(
+                orderId,
+                request.getQcAspect(),
+                request.getTotalScore(),
+                request.getGrade(),
+                request.getEvaluationReason(),
+                request.getProcessingAction(),
+                request.getDetailPayload(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode(),
+                request.getRemarks()));
+        return toQcEvaluationResponse(result);
+    }
+
+    @Operation(summary = "查询最新医嘱质控评价", description = "返回病理医嘱最新一次质控评价。")
+    @RequirePermission(M4PermissionCodes.MEDICAL_ORDER_QC)
+    @GetMapping("/{id}/qc-evaluations/latest")
+    public MedicalOrderQcEvaluationResponse getLatestQcEvaluation(@PathVariable("id") String orderId) {
+        return toQcEvaluationResponse(diagnosticReportAppService.getLatestMedicalOrderQcEvaluation(orderId));
     }
 
     @Operation(summary = "取消病理医嘱", description = "由诊断医生取消待处理病理医嘱。")
@@ -170,6 +260,8 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
             item.pathologyNo(),
             item.applicationNo(),
             item.patientName(),
+            item.patientId(),
+            item.patientIdDisplay(),
             item.orderNumber(),
             item.orderType(),
             item.orderContent(),
@@ -186,9 +278,33 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
             item.executorName(),
             item.orderDate(),
             item.acceptedAt(),
+            item.printedAt(),
+            item.printedByName(),
+            item.releasedAt(),
+            item.releasedByName(),
             item.completedAt(),
             item.cancelledAt(),
-            item.remarks());
+            item.terminatedAt(),
+            item.terminatedByName(),
+            item.terminationReasonCode(),
+            item.terminationReasonLabel(),
+            item.terminationRemarks(),
+            item.remarks(),
+            item.targetType(),
+            item.targetSpecimenId(),
+            item.targetSpecimenNo(),
+            item.targetBlockId(),
+            item.targetBlockNo(),
+            item.targetSlideId(),
+            item.targetSlideNo(),
+            item.specimenNo(),
+            item.blockNo(),
+            item.slideNo(),
+            item.canConfirm(),
+            item.canPrint(),
+            item.canRelease(),
+            item.canTerminate(),
+            item.canQc());
     }
 
     private MedicalOrderBillingResponse toBillingResponse(DiagnosticReportModels.MedicalOrderBillingResult result) {
@@ -203,5 +319,22 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
                     item.billingRecordId(),
                     item.message()))
                 .toList());
+    }
+
+    private MedicalOrderQcEvaluationResponse toQcEvaluationResponse(DiagnosticReportModels.MedicalOrderQcEvaluationResult result) {
+        return new MedicalOrderQcEvaluationResponse(
+            result.orderId(),
+            result.caseId(),
+            result.qcAspect(),
+            result.totalScore(),
+            result.grade(),
+            result.evaluationReason(),
+            result.processingAction(),
+            result.reworkType(),
+            result.reworkOrderId(),
+            result.remarks(),
+            result.evaluatorName(),
+            result.evaluatedAt(),
+            result.detailPayload());
     }
 }

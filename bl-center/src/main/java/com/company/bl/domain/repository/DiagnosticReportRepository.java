@@ -1,5 +1,6 @@
 package com.company.bl.domain.repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -91,6 +92,8 @@ public interface DiagnosticReportRepository {
         String taskType,
         String taskStatus,
         String pathologyNo,
+        LocalDate dateFrom,
+        LocalDate dateTo,
         String currentUserId,
         String currentRoleCode
     ) {

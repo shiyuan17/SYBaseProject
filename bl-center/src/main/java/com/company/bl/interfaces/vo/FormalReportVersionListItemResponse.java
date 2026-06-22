@@ -26,6 +26,8 @@ public record FormalReportVersionListItemResponse(
     String printedAt,
     @Schema(description = "发放状态")
     String deliveryStatus,
+    @Schema(description = "计划发放时间")
+    String plannedIssueAt,
     @Schema(description = "发放时间")
     String issuedAt,
     @Schema(description = "回收时间")

@@ -292,6 +292,12 @@ final class JdbcDiagnosticTaskStore {
                 .append(TASK_PATHOLOGY_NO_NORMALIZE_SQL)
                 .append(" = :normalizedPathologyNo))");
         }
+        if (query.dateFrom() != null) {
+            builder.append(" and dt.created_at >= :dateFrom");
+        }
+        if (query.dateTo() != null) {
+            builder.append(" and dt.created_at < :dateToExclusive");
+        }
         if (ROLE_M4_DIAGNOSIS.equals(query.currentRoleCode()) && hasText(query.currentUserId())) {
             builder.append(" and (dt.diagnosis_doctor_user_id = :currentUserId or dt.primary_doctor_user_id = :currentUserId)");
         }
@@ -308,6 +314,12 @@ final class JdbcDiagnosticTaskStore {
         }
         if (hasText(query.pathologyNo())) {
             params.addValue("normalizedPathologyNo", normalizePathologyNo(query.pathologyNo()));
+        }
+        if (query.dateFrom() != null) {
+            params.addValue("dateFrom", query.dateFrom().atStartOfDay());
+        }
+        if (query.dateTo() != null) {
+            params.addValue("dateToExclusive", query.dateTo().plusDays(1).atStartOfDay());
         }
         if (ROLE_M4_DIAGNOSIS.equals(query.currentRoleCode()) && hasText(query.currentUserId())) {
             params.addValue("currentUserId", query.currentUserId());

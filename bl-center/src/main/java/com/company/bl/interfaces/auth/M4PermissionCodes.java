@@ -19,7 +19,10 @@ public final class M4PermissionCodes {
     public static final String MEDICAL_ORDER_CANCEL = "PERM_M4_MEDICAL_ORDER_CANCEL";
     public static final String MEDICAL_ORDER_QUERY = "PERM_M4_MEDICAL_ORDER_QUERY";
     public static final String MEDICAL_ORDER_ACCEPT = "PERM_M4_MEDICAL_ORDER_ACCEPT";
+    public static final String MEDICAL_ORDER_PRINT = "PERM_M4_MEDICAL_ORDER_PRINT";
     public static final String MEDICAL_ORDER_COMPLETE = "PERM_M4_MEDICAL_ORDER_COMPLETE";
+    public static final String MEDICAL_ORDER_TERMINATE = "PERM_M4_MEDICAL_ORDER_TERMINATE";
+    public static final String MEDICAL_ORDER_QC = "PERM_M4_MEDICAL_ORDER_QC";
     public static final String CONSULTATION_CREATE = "PERM_M4_CONSULTATION_CREATE";
     public static final String CONSULTATION_COMMENT = "PERM_M4_CONSULTATION_COMMENT";
     public static final String CONSULTATION_COMPLETE = "PERM_M4_CONSULTATION_COMPLETE";

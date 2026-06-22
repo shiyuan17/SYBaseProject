@@ -278,6 +278,8 @@ class RepositoryQueryRegressionIntegrationTest extends AbstractDiagnosticWorkflo
                     null,
                     null,
                     context.pathologyNo(),
+                    null,
+                    null,
                     USER_M4_DIAGNOSIS,
                     "M4_DIAGNOSIS"
                 )

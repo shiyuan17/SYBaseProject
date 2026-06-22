@@ -389,8 +389,24 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
     void shouldScheduleFormalReportIssueForTwoHoursLater() throws Exception {
         PublishedReportContext context = preparePublishedReportContext("APP-M4-ISSUE-SCHEDULE-001", "BC-M4-ISSUE-SCHEDULE-001");
 
-        JsonNode versions = caseReportVersions(context.caseId(), USER_M4_SIGN);
-        String versionId = versions.get(versions.size() - 1).path("versionId").asText();
+        JsonNode versions = formalReportVersions(context.caseId(), USER_M4_SIGN);
+        JsonNode targetVersion = null;
+        for (JsonNode item : versions) {
+            if ("PUBLISHED".equals(item.path("versionStatus").asText())) {
+                targetVersion = item;
+                break;
+            }
+        }
+        assertThat(targetVersion).isNotNull();
+        String versionId = targetVersion.path("versionId").asText();
+
+        postJson("/api/v1/pathology-reports/formal-versions/print", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"]
+            }
+            """.formatted(versionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount").value(1));
 
         postJson("/api/v1/pathology-reports/formal-versions/issue", USER_M4_SIGN, """
             {
@@ -401,8 +417,15 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.successCount").value(1));
 
-        JsonNode refreshed = caseReportVersions(context.caseId(), USER_M4_SIGN);
-        JsonNode scheduled = refreshed.get(refreshed.size() - 1);
+        JsonNode refreshed = caseReportVersions(context.caseId(), USER_M4_REVIEW);
+        JsonNode scheduled = null;
+        for (JsonNode item : refreshed) {
+            if (versionId.equals(item.path("versionId").asText())) {
+                scheduled = item;
+                break;
+            }
+        }
+        assertThat(scheduled).isNotNull();
         assertThat(scheduled.path("deliveryStatus").asText()).isEqualTo("PENDING");
         assertThat(scheduled.path("plannedIssueAt").asText()).isNotBlank();
     }
@@ -466,7 +489,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
 
     @Test
     void shouldListCaseReportVersionsAcrossLifecycleStates() throws Exception {
-        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-LIST-001", "BC-M4-LIST-001");
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-REPORT-LIST-001", "BC-M4-REPORT-LIST-001");
 
         String reportId = responseBody(postJson("/api/v1/pathology-reports", USER_M4_DIAGNOSIS, """
             {

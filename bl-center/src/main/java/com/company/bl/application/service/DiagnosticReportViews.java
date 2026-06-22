@@ -1,5 +1,7 @@
 package com.company.bl.application.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import java.util.List;
 
 public final class DiagnosticReportViews {
@@ -13,6 +15,8 @@ public final class DiagnosticReportViews {
         String pathologyNo,
         String applicationNo,
         String patientName,
+        String patientId,
+        String patientIdDisplay,
         String orderNumber,
         String orderType,
         String orderContent,
@@ -29,9 +33,50 @@ public final class DiagnosticReportViews {
         String executorName,
         String orderDate,
         String acceptedAt,
+        String printedAt,
+        String printedByName,
+        String releasedAt,
+        String releasedByName,
         String completedAt,
         String cancelledAt,
-        String remarks
+        String terminatedAt,
+        String terminatedByName,
+        String terminationReasonCode,
+        String terminationReasonLabel,
+        String terminationRemarks,
+        String remarks,
+        String targetType,
+        String targetSpecimenId,
+        String targetSpecimenNo,
+        String targetBlockId,
+        String targetBlockNo,
+        String targetSlideId,
+        String targetSlideNo,
+        String specimenNo,
+        String blockNo,
+        String slideNo,
+        boolean canConfirm,
+        boolean canPrint,
+        boolean canRelease,
+        boolean canTerminate,
+        boolean canQc
+    ) {
+    }
+
+    public record MedicalOrderQcEvaluationView(
+        String orderId,
+        String caseId,
+        String qcAspect,
+        Integer totalScore,
+        String grade,
+        String evaluationReason,
+        String processingAction,
+        String reworkType,
+        String reworkOrderId,
+        String remarks,
+        String evaluatorName,
+        String evaluatedAt,
+        JsonNode detailPayload
     ) {
     }
 

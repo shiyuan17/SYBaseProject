@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/v1/diagnostic-tasks")
@@ -41,6 +44,8 @@ public class DiagnosticTaskController extends TechnicalControllerSupport {
                                                          @Parameter(description = "任务类型") @RequestParam(required = false) String taskType,
                                                          @Parameter(description = "任务状态") @RequestParam(required = false) String taskStatus,
                                                          @Parameter(description = "病理号") @RequestParam(required = false) String pathologyNo,
+                                                         @Parameter(description = "创建开始日期，格式 YYYY-MM-DD") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+                                                         @Parameter(description = "创建结束日期，格式 YYYY-MM-DD") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
                                                          HttpServletRequest httpServletRequest) {
         DiagnosticReportModels.PendingDiagnosticTaskPage result = diagnosticReportAppService.listPendingTasks(
             new DiagnosticReportModels.PendingDiagnosticTaskQuery(
@@ -49,6 +54,8 @@ public class DiagnosticTaskController extends TechnicalControllerSupport {
                 taskType,
                 taskStatus,
                 pathologyNo,
+                dateFrom,
+                dateTo,
                 resolveUserId(httpServletRequest),
                 resolveRoleCode(httpServletRequest)));
         return new PendingDiagnosticTaskPageResponse(
@@ -66,6 +73,8 @@ public class DiagnosticTaskController extends TechnicalControllerSupport {
                                                             @Parameter(description = "任务类型") @RequestParam(required = false) String taskType,
                                                             @Parameter(description = "任务状态") @RequestParam(required = false) String taskStatus,
                                                             @Parameter(description = "病理号") @RequestParam(required = false) String pathologyNo,
+                                                            @Parameter(description = "创建开始日期，格式 YYYY-MM-DD") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+                                                            @Parameter(description = "创建结束日期，格式 YYYY-MM-DD") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
                                                             HttpServletRequest httpServletRequest) {
         DiagnosticReportModels.PendingDiagnosticTaskPage result = diagnosticReportAppService.listPendingTasks(
             new DiagnosticReportModels.PendingDiagnosticTaskQuery(
@@ -74,6 +83,8 @@ public class DiagnosticTaskController extends TechnicalControllerSupport {
                 taskType,
                 taskStatus,
                 pathologyNo,
+                dateFrom,
+                dateTo,
                 resolveUserId(httpServletRequest),
                 null));
         return new PendingDiagnosticTaskPageResponse(

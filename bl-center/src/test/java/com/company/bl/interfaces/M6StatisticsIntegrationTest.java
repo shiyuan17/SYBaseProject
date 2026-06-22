@@ -633,6 +633,9 @@ class M6StatisticsIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
         postJson("/api/v1/medical-orders/%s/accept".formatted(orderId), executorUserId, """
             {"terminalCode":"M6-S-02"}
             """).andExpect(status().isOk());
+        postJson("/api/v1/medical-orders/%s/print-slide".formatted(orderId), executorUserId, """
+            {"terminalCode":"M6-S-02A"}
+            """).andExpect(status().isOk());
         postJson("/api/v1/medical-orders/%s/complete".formatted(orderId), executorUserId, """
             {"terminalCode":"M6-S-03"}
             """).andExpect(status().isOk());

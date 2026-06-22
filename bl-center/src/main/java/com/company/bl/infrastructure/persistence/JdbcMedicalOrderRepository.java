@@ -1,6 +1,8 @@
 package com.company.bl.infrastructure.persistence;
 
 import com.company.bl.domain.repository.MedicalOrderRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -19,9 +21,11 @@ import java.util.Optional;
 public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final ObjectMapper objectMapper;
 
-    public JdbcMedicalOrderRepository(NamedParameterJdbcTemplate jdbcTemplate) {
+    public JdbcMedicalOrderRepository(NamedParameterJdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -32,13 +36,17 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
                  order_item_id, order_item_code, order_item_name,
                  order_category_id, order_category_code, order_category_name,
                  execution_scope, billing_status, status,
-                 doctor_user_id, doctor_name, order_date, remarks, created_at, updated_at)
+                 doctor_user_id, doctor_name,
+                 target_type, target_specimen_id, target_specimen_no, target_block_id, target_block_no, target_slide_id, target_slide_no,
+                 order_date, remarks, created_at, updated_at)
             values
                 (:id, :caseId, :orderNumber, :orderContent, :orderType,
                  :orderItemId, :orderItemCode, :orderItemName,
                  :orderCategoryId, :orderCategoryCode, :orderCategoryName,
                  :executionScope, :billingStatus, :status,
-                 :doctorUserId, :doctorName, :orderDate, :remarks, :createdAt, :updatedAt)
+                 :doctorUserId, :doctorName,
+                 :targetType, :targetSpecimenId, :targetSpecimenNo, :targetBlockId, :targetBlockNo, :targetSlideId, :targetSlideNo,
+                 :orderDate, :remarks, :createdAt, :updatedAt)
             """, new MapSqlParameterSource()
             .addValue("id", command.id())
             .addValue("caseId", command.caseId())
@@ -56,6 +64,13 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
             .addValue("status", command.status())
             .addValue("doctorUserId", command.doctorUserId())
             .addValue("doctorName", command.doctorName())
+            .addValue("targetType", command.targetType())
+            .addValue("targetSpecimenId", command.targetSpecimenId())
+            .addValue("targetSpecimenNo", command.targetSpecimenNo())
+            .addValue("targetBlockId", command.targetBlockId())
+            .addValue("targetBlockNo", command.targetBlockNo())
+            .addValue("targetSlideId", command.targetSlideId())
+            .addValue("targetSlideNo", command.targetSlideNo())
             .addValue("orderDate", command.orderDate())
             .addValue("remarks", command.remarks())
             .addValue("createdAt", command.orderDate())
@@ -146,6 +161,9 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
         jdbcTemplate.update("""
             update medical_orders
             set status = 'COMPLETED',
+                released_by_user_id = executor_user_id,
+                released_by_name = executor_name,
+                released_at = :completedAt,
                 completed_at = :completedAt,
                 remarks = :remarks,
                 updated_at = :updatedAt
@@ -155,6 +173,59 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
             .addValue("completedAt", completedAt)
             .addValue("remarks", remarks)
             .addValue("updatedAt", completedAt));
+    }
+
+    @Override
+    public void markMedicalOrderPrinted(String orderId,
+                                        String printedByUserId,
+                                        String printedByName,
+                                        String remarks,
+                                        LocalDateTime printedAt) {
+        jdbcTemplate.update("""
+            update medical_orders
+            set printed_by_user_id = :printedByUserId,
+                printed_by_name = :printedByName,
+                printed_at = :printedAt,
+                remarks = :remarks,
+                updated_at = :updatedAt
+            where id = :orderId
+            """, new MapSqlParameterSource()
+            .addValue("orderId", orderId)
+            .addValue("printedByUserId", printedByUserId)
+            .addValue("printedByName", printedByName)
+            .addValue("printedAt", printedAt)
+            .addValue("remarks", remarks)
+            .addValue("updatedAt", printedAt));
+    }
+
+    @Override
+    public void terminateMedicalOrder(String orderId,
+                                      String terminatedByUserId,
+                                      String terminatedByName,
+                                      String terminationReasonCode,
+                                      String terminationReasonLabel,
+                                      String remarks,
+                                      LocalDateTime terminatedAt) {
+        jdbcTemplate.update("""
+            update medical_orders
+            set status = 'TERMINATED',
+                terminated_by_user_id = :terminatedByUserId,
+                terminated_by_name = :terminatedByName,
+                terminated_at = :terminatedAt,
+                termination_reason_code = :terminationReasonCode,
+                termination_reason_label = :terminationReasonLabel,
+                remarks = :remarks,
+                updated_at = :updatedAt
+            where id = :orderId
+            """, new MapSqlParameterSource()
+            .addValue("orderId", orderId)
+            .addValue("terminatedByUserId", terminatedByUserId)
+            .addValue("terminatedByName", terminatedByName)
+            .addValue("terminatedAt", terminatedAt)
+            .addValue("terminationReasonCode", terminationReasonCode)
+            .addValue("terminationReasonLabel", terminationReasonLabel)
+            .addValue("remarks", remarks)
+            .addValue("updatedAt", terminatedAt));
     }
 
     @Override
@@ -173,13 +244,58 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
             .addValue("updatedAt", cancelledAt));
     }
 
+    @Override
+    public void insertMedicalOrderQcEvaluation(CreateMedicalOrderQcEvaluationCommand command) {
+        jdbcTemplate.update("""
+            insert into medical_order_qc_evaluations
+                (id, order_id, case_id, qc_aspect, total_score, grade, evaluation_reason, processing_action,
+                 rework_type, rework_order_id, remarks, evaluator_user_id, evaluator_name, evaluated_at,
+                 detail_payload_json, created_at, updated_at)
+            values
+                (:id, :orderId, :caseId, :qcAspect, :totalScore, :grade, :evaluationReason, :processingAction,
+                 :reworkType, :reworkOrderId, :remarks, :evaluatorUserId, :evaluatorName, :evaluatedAt,
+                 :detailPayloadJson, :createdAt, :updatedAt)
+            """, new MapSqlParameterSource()
+            .addValue("id", command.id())
+            .addValue("orderId", command.orderId())
+            .addValue("caseId", command.caseId())
+            .addValue("qcAspect", command.qcAspect())
+            .addValue("totalScore", command.totalScore())
+            .addValue("grade", command.grade())
+            .addValue("evaluationReason", command.evaluationReason())
+            .addValue("processingAction", command.processingAction())
+            .addValue("reworkType", command.reworkType())
+            .addValue("reworkOrderId", command.reworkOrderId())
+            .addValue("remarks", command.remarks())
+            .addValue("evaluatorUserId", command.evaluatorUserId())
+            .addValue("evaluatorName", command.evaluatorName())
+            .addValue("evaluatedAt", command.evaluatedAt())
+            .addValue("detailPayloadJson", toJson(command.detailPayload()))
+            .addValue("createdAt", command.evaluatedAt())
+            .addValue("updatedAt", command.evaluatedAt()));
+    }
+
+    @Override
+    public Optional<MedicalOrderQcEvaluation> findLatestMedicalOrderQcEvaluation(String orderId) {
+        List<MedicalOrderQcEvaluation> rows = jdbcTemplate.query("""
+            select *
+            from medical_order_qc_evaluations
+            where order_id = :orderId
+            order by evaluated_at desc, created_at desc
+            limit 1
+            """, Map.of("orderId", orderId), this::mapMedicalOrderQcEvaluation);
+        return rows.stream().findFirst();
+    }
+
     private String selectSql() {
         return """
             select
                 mo.*,
                 pc.pathology_no,
                 a.application_no,
-                a.patient_name
+                a.patient_name,
+                a.patient_id,
+                a.patient_id as patient_id_display
             from medical_orders mo
             join pathology_cases pc on pc.id = mo.case_id
             join applications a on a.id = pc.application_id
@@ -194,7 +310,7 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
         if (query.status() != null && !query.status().isBlank()) {
             builder.append(" and mo.status = :status\n");
         } else {
-            builder.append(" and mo.status in ('PENDING', 'IN_PROGRESS')\n");
+            builder.append(" and mo.status in ('PENDING', 'IN_PROGRESS', 'TERMINATED')\n");
         }
         if (query.orderDateFrom() != null) {
             builder.append(" and mo.order_date >= :orderDateFrom\n");
@@ -248,6 +364,8 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
             rs.getString("pathology_no"),
             rs.getString("application_no"),
             rs.getString("patient_name"),
+            rs.getString("patient_id"),
+            rs.getString("patient_id_display"),
             rs.getString("order_number"),
             rs.getString("order_content"),
             rs.getString("order_type"),
@@ -266,11 +384,48 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
             rs.getString("executor_name"),
             toLocalDateTime(rs.getTimestamp("order_date")),
             toLocalDateTime(rs.getTimestamp("accepted_at")),
+            rs.getString("printed_by_user_id"),
+            rs.getString("printed_by_name"),
+            toLocalDateTime(rs.getTimestamp("printed_at")),
+            rs.getString("released_by_user_id"),
+            rs.getString("released_by_name"),
+            toLocalDateTime(rs.getTimestamp("released_at")),
             toLocalDateTime(rs.getTimestamp("completed_at")),
             toLocalDateTime(rs.getTimestamp("cancelled_at")),
+            rs.getString("terminated_by_user_id"),
+            rs.getString("terminated_by_name"),
+            toLocalDateTime(rs.getTimestamp("terminated_at")),
+            rs.getString("termination_reason_code"),
+            rs.getString("termination_reason_label"),
+            rs.getString("target_type"),
+            rs.getString("target_specimen_id"),
+            rs.getString("target_specimen_no"),
+            rs.getString("target_block_id"),
+            rs.getString("target_block_no"),
+            rs.getString("target_slide_id"),
+            rs.getString("target_slide_no"),
             rs.getString("remarks"),
             toLocalDateTime(rs.getTimestamp("created_at")),
             toLocalDateTime(rs.getTimestamp("updated_at")));
+    }
+
+    private MedicalOrderQcEvaluation mapMedicalOrderQcEvaluation(ResultSet rs, int rowNum) throws SQLException {
+        return new MedicalOrderQcEvaluation(
+            rs.getString("id"),
+            rs.getString("order_id"),
+            rs.getString("case_id"),
+            rs.getString("qc_aspect"),
+            rs.getObject("total_score", Integer.class),
+            rs.getString("grade"),
+            rs.getString("evaluation_reason"),
+            rs.getString("processing_action"),
+            rs.getString("rework_type"),
+            rs.getString("rework_order_id"),
+            rs.getString("remarks"),
+            rs.getString("evaluator_user_id"),
+            rs.getString("evaluator_name"),
+            toLocalDateTime(rs.getTimestamp("evaluated_at")),
+            toJsonNode(rs.getString("detail_payload_json")));
     }
 
     private MedicalOrderItemSnapshot mapMedicalOrderItemSnapshot(ResultSet rs, int rowNum) throws SQLException {
@@ -331,5 +486,20 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
 
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {
         return timestamp == null ? null : timestamp.toLocalDateTime();
+    }
+
+    private String toJson(JsonNode node) {
+        return node == null ? null : node.toString();
+    }
+
+    private JsonNode toJsonNode(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readTree(value);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to parse JSON payload", ex);
+        }
     }
 }

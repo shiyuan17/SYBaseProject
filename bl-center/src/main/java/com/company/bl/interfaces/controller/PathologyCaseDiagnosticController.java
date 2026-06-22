@@ -177,6 +177,7 @@ public class PathologyCaseDiagnosticController {
                 item.printStatus(),
                 item.printedAt(),
                 item.deliveryStatus(),
+                item.plannedIssueAt(),
                 item.issuedAt(),
                 item.recalledAt()))
             .toList();
@@ -203,6 +204,7 @@ public class PathologyCaseDiagnosticController {
                 item.printStatus(),
                 item.printedAt(),
                 item.deliveryStatus(),
+                item.plannedIssueAt(),
                 item.issuedAt(),
                 item.recalledAt()))
             .toList();
@@ -281,6 +283,8 @@ public class PathologyCaseDiagnosticController {
             item.pathologyNo(),
             item.applicationNo(),
             item.patientName(),
+            item.patientId(),
+            item.patientIdDisplay(),
             item.orderNumber(),
             item.orderType(),
             item.orderContent(),
@@ -297,9 +301,28 @@ public class PathologyCaseDiagnosticController {
             item.executorName(),
             item.orderDate(),
             item.acceptedAt(),
+            item.printedAt(),
+            item.printedByName(),
+            item.releasedAt(),
+            item.releasedByName(),
             item.completedAt(),
             item.cancelledAt(),
-            item.remarks());
+            item.terminatedAt(),
+            item.terminatedByName(),
+            item.terminationReasonCode(),
+            item.terminationReasonLabel(),
+            item.terminationRemarks(),
+            item.remarks(),
+            item.targetType(),
+            item.targetSpecimenId(),
+            item.targetSpecimenNo(),
+            item.targetBlockId(),
+            item.targetBlockNo(),
+            item.targetSlideId(),
+            item.targetSlideNo(),
+            item.specimenNo(),
+            item.blockNo(),
+            item.slideNo());
     }
 
     private DiagnosticWorkbenchResponse.ConsultationSummary toConsultationSummary(DiagnosticReportViews.ConsultationView item) {

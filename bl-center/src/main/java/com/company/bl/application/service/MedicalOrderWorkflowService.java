@@ -2,7 +2,11 @@ package com.company.bl.application.service;
 
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
+import com.company.bl.domain.model.Specimen;
 import com.company.bl.domain.repository.MedicalOrderRepository;
+import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords;
+import com.company.bl.domain.repository.TechnicalWorkflowRepository;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords;
 import com.company.bl.integration.application.BillingManagementService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,13 +23,16 @@ class MedicalOrderWorkflowService {
     private final MedicalOrderRepository medicalOrderRepository;
     private final DiagnosticReportSupport diagnosticReportSupport;
     private final BillingManagementService billingManagementService;
+    private final TechnicalWorkflowRepository technicalWorkflowRepository;
 
     MedicalOrderWorkflowService(MedicalOrderRepository medicalOrderRepository,
                                 DiagnosticReportSupport diagnosticReportSupport,
-                                BillingManagementService billingManagementService) {
+                                BillingManagementService billingManagementService,
+                                TechnicalWorkflowRepository technicalWorkflowRepository) {
         this.medicalOrderRepository = medicalOrderRepository;
         this.diagnosticReportSupport = diagnosticReportSupport;
         this.billingManagementService = billingManagementService;
+        this.technicalWorkflowRepository = technicalWorkflowRepository;
     }
 
     @Transactional(readOnly = true)
@@ -73,6 +80,13 @@ class MedicalOrderWorkflowService {
             DiagnosticReportConstants.ORDER_PENDING,
             command.operatorUserId(),
             command.operatorName(),
+            command.targetType(),
+            command.targetSpecimenId(),
+            command.targetSpecimenNo(),
+            command.targetBlockId(),
+            command.targetBlockNo(),
+            command.targetSlideId(),
+            command.targetSlideNo(),
             now,
             command.remarks()));
         diagnosticReportSupport.insertWorkflowEvent(command.caseId(), "MEDICAL_ORDER_CREATE", "CREATE", "SUCCESS",
@@ -96,10 +110,37 @@ class MedicalOrderWorkflowService {
     }
 
     @Transactional
+    DiagnosticReportModels.MedicalOrderSlidePrintResult printMedicalOrderSlide(DiagnosticReportModels.MedicalOrderActionCommand command) {
+        MedicalOrderRepository.MedicalOrder order = getOrder(command.orderId());
+        if (!canPrint(order)) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Medical order cannot be printed");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        medicalOrderRepository.markMedicalOrderPrinted(order.id(), command.operatorUserId(), command.operatorName(), command.remarks(), now);
+        diagnosticReportSupport.insertWorkflowEvent(order.caseId(), "MEDICAL_ORDER_PRINT", "PRINT_SLIDE", "SUCCESS",
+            command.operatorUserId(), command.operatorName(), command.terminalCode(), order.orderNumber());
+        MedicalOrderRepository.MedicalOrder updated = getOrder(order.id());
+        return new DiagnosticReportModels.MedicalOrderSlidePrintResult(
+            updated.id(),
+            updated.caseId(),
+            updated.orderNumber(),
+            updated.status(),
+            stringify(updated.printedAt()),
+            updated.printedByName(),
+            List.of(toPrintLabel(updated)));
+    }
+
+    @Transactional
     DiagnosticReportModels.MedicalOrderResult completeMedicalOrder(DiagnosticReportModels.MedicalOrderActionCommand command) {
         MedicalOrderRepository.MedicalOrder order = getOrder(command.orderId());
         if (!DiagnosticReportConstants.ORDER_IN_PROGRESS.equals(order.status())) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Medical order is not in progress");
+        }
+        if (order.printedAt() == null) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Medical order must be printed before completed");
+        }
+        if (isTerminated(order)) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Medical order has been terminated");
         }
         if (order.executorUserId() != null && !order.executorUserId().equals(command.operatorUserId())) {
             throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403, "Medical order is assigned to another executor");
@@ -118,6 +159,101 @@ class MedicalOrderWorkflowService {
             command.operatorUserId(),
             command.operatorName());
         return new DiagnosticReportModels.MedicalOrderResult(updated.id(), updated.caseId(), updated.orderNumber(), updated.status());
+    }
+
+    @Transactional
+    DiagnosticReportModels.MedicalOrderResult terminateMedicalOrder(DiagnosticReportModels.TerminateMedicalOrderCommand command) {
+        MedicalOrderRepository.MedicalOrder order = getOrder(command.orderId());
+        if (!DiagnosticReportConstants.ORDER_IN_PROGRESS.equals(order.status())) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Medical order cannot be terminated");
+        }
+        if (order.completedAt() != null || order.releasedAt() != null) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Medical order has been released");
+        }
+        if (command.terminationReasonCode() == null || command.terminationReasonCode().isBlank()) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Termination reason code is required");
+        }
+        if (command.terminationReasonLabel() == null || command.terminationReasonLabel().isBlank()) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Termination reason label is required");
+        }
+        if ("OTHER".equalsIgnoreCase(command.terminationReasonCode())
+            && (command.remarks() == null || command.remarks().isBlank())) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Termination remarks are required for OTHER");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        medicalOrderRepository.terminateMedicalOrder(
+            order.id(),
+            command.operatorUserId(),
+            command.operatorName(),
+            command.terminationReasonCode(),
+            command.terminationReasonLabel(),
+            command.remarks(),
+            now);
+        diagnosticReportSupport.insertWorkflowEvent(order.caseId(), "MEDICAL_ORDER_TERMINATE", "TERMINATE", "SUCCESS",
+            command.operatorUserId(), command.operatorName(), command.terminalCode(), order.orderNumber());
+        MedicalOrderRepository.MedicalOrder updated = getOrder(order.id());
+        return new DiagnosticReportModels.MedicalOrderResult(updated.id(), updated.caseId(), updated.orderNumber(), updated.status());
+    }
+
+    @Transactional
+    DiagnosticReportModels.MedicalOrderQcEvaluationResult createMedicalOrderQcEvaluation(
+        DiagnosticReportModels.MedicalOrderQcEvaluationCommand command
+    ) {
+        MedicalOrderRepository.MedicalOrder order = getOrder(command.orderId());
+        if (!canQc(order)) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Medical order cannot be QC evaluated");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        String normalizedAction = normalizeProcessingAction(command.processingAction());
+        String reworkType = resolveReworkType(command.qcAspect(), normalizedAction);
+        String reworkOrderId = null;
+        String qcRemarks = command.remarks();
+        if (reworkType != null) {
+            reworkOrderId = diagnosticReportSupport.nextId("RWO");
+            String reworkRemarks = "REWORK_URGENT".equals(normalizedAction) ? appendUrgentFlag(command.remarks()) : command.remarks();
+            technicalWorkflowRepository.insertReworkOrder(new TechnicalWorkflowProcessingRecords.CreateReworkOrderCommand(
+                reworkOrderId,
+                order.caseId(),
+                order.targetSpecimenId(),
+                order.targetBlockId(),
+                null,
+                order.targetSlideId(),
+                reworkType,
+                "PENDING",
+                firstPresent(command.evaluationReason(), "Medical order QC rework"),
+                command.operatorUserId(),
+                command.operatorName(),
+                now,
+                reworkRemarks));
+            qcRemarks = reworkRemarks;
+        }
+        medicalOrderRepository.insertMedicalOrderQcEvaluation(new MedicalOrderRepository.CreateMedicalOrderQcEvaluationCommand(
+            diagnosticReportSupport.nextId("MOQ"),
+            order.id(),
+            order.caseId(),
+            command.qcAspect(),
+            command.totalScore(),
+            command.grade(),
+            command.evaluationReason(),
+            normalizedAction,
+            reworkType,
+            reworkOrderId,
+            qcRemarks,
+            command.operatorUserId(),
+            command.operatorName(),
+            now,
+            command.detailPayload()));
+        diagnosticReportSupport.insertWorkflowEvent(order.caseId(), "MEDICAL_ORDER_QC", "QC_EVALUATE", "SUCCESS",
+            command.operatorUserId(), command.operatorName(), command.terminalCode(), order.orderNumber());
+        return toQcEvaluationResult(medicalOrderRepository.findLatestMedicalOrderQcEvaluation(order.id()).orElseThrow());
+    }
+
+    @Transactional(readOnly = true)
+    DiagnosticReportModels.MedicalOrderQcEvaluationResult getLatestMedicalOrderQcEvaluation(String orderId) {
+        getOrder(orderId);
+        return medicalOrderRepository.findLatestMedicalOrderQcEvaluation(orderId)
+            .map(this::toQcEvaluationResult)
+            .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Medical order QC evaluation not found"));
     }
 
     @Transactional
@@ -266,6 +402,8 @@ class MedicalOrderWorkflowService {
             order.pathologyNo(),
             order.applicationNo(),
             order.patientName(),
+            order.patientId(),
+            order.patientIdDisplay(),
             order.orderNumber(),
             order.orderType(),
             order.orderContent(),
@@ -282,9 +420,33 @@ class MedicalOrderWorkflowService {
             order.executorName(),
             stringify(order.orderDate()),
             stringify(order.acceptedAt()),
+            stringify(order.printedAt()),
+            order.printedByName(),
+            stringify(order.releasedAt()),
+            order.releasedByName(),
             stringify(order.completedAt()),
             stringify(order.cancelledAt()),
-            order.remarks());
+            stringify(order.terminatedAt()),
+            order.terminatedByName(),
+            order.terminationReasonCode(),
+            order.terminationReasonLabel(),
+            isTerminated(order) ? order.remarks() : null,
+            order.remarks(),
+            order.targetType(),
+            order.targetSpecimenId(),
+            order.targetSpecimenNo(),
+            order.targetBlockId(),
+            order.targetBlockNo(),
+            order.targetSlideId(),
+            order.targetSlideNo(),
+            order.targetSpecimenNo(),
+            order.targetBlockNo(),
+            order.targetSlideNo(),
+            canConfirm(order),
+            canPrint(order),
+            canRelease(order),
+            canTerminate(order),
+            canQc(order));
     }
 
     private String stringify(LocalDateTime time) {
@@ -293,6 +455,129 @@ class MedicalOrderWorkflowService {
 
     private static String firstPresent(String first, String fallback) {
         return first == null || first.isBlank() ? fallback : first;
+    }
+
+    private boolean canConfirm(MedicalOrderRepository.MedicalOrder order) {
+        return DiagnosticReportConstants.ORDER_PENDING.equals(order.status());
+    }
+
+    private boolean canPrint(MedicalOrderRepository.MedicalOrder order) {
+        return DiagnosticReportConstants.ORDER_IN_PROGRESS.equals(order.status())
+            && order.printedAt() == null
+            && !isTerminated(order);
+    }
+
+    private boolean canRelease(MedicalOrderRepository.MedicalOrder order) {
+        return DiagnosticReportConstants.ORDER_IN_PROGRESS.equals(order.status())
+            && order.printedAt() != null
+            && !isTerminated(order);
+    }
+
+    private boolean canTerminate(MedicalOrderRepository.MedicalOrder order) {
+        return DiagnosticReportConstants.ORDER_IN_PROGRESS.equals(order.status())
+            && order.completedAt() == null
+            && !isTerminated(order);
+    }
+
+    private boolean canQc(MedicalOrderRepository.MedicalOrder order) {
+        return DiagnosticReportConstants.ORDER_IN_PROGRESS.equals(order.status())
+            && order.printedAt() != null
+            && !isTerminated(order)
+            && hasTargetSnapshot(order);
+    }
+
+    private boolean hasTargetSnapshot(MedicalOrderRepository.MedicalOrder order) {
+        return order.targetType() != null && !order.targetType().isBlank()
+            && order.targetSlideId() != null && !order.targetSlideId().isBlank();
+    }
+
+    private boolean isTerminated(MedicalOrderRepository.MedicalOrder order) {
+        return "TERMINATED".equalsIgnoreCase(order.status()) || order.terminatedAt() != null;
+    }
+
+    private DiagnosticReportModels.MedicalOrderSlidePrintLabel toPrintLabel(MedicalOrderRepository.MedicalOrder order) {
+        TechnicalWorkflowProcessingRecords.Slide slide = resolveTargetSlide(order);
+        TechnicalWorkflowRecords.SamplingBlock block = resolveTargetBlock(order, slide);
+        Specimen specimen = resolveTargetSpecimen(order, slide, block);
+        return new DiagnosticReportModels.MedicalOrderSlidePrintLabel(
+            order.targetSlideId(),
+            firstPresent(order.targetSlideNo(), slide == null ? null : slide.slideNo()),
+            order.pathologyNo(),
+            order.patientName(),
+            order.patientId(),
+            firstPresent(order.targetSpecimenNo(), specimen == null ? null : specimen.specimenNo()),
+            firstPresent(order.targetBlockNo(), block == null ? null : block.blockCode()));
+    }
+
+    private TechnicalWorkflowProcessingRecords.Slide resolveTargetSlide(MedicalOrderRepository.MedicalOrder order) {
+        if (order.targetSlideId() == null || order.targetSlideId().isBlank()) {
+            return null;
+        }
+        return technicalWorkflowRepository.findSlideById(order.targetSlideId()).orElse(null);
+    }
+
+    private TechnicalWorkflowRecords.SamplingBlock resolveTargetBlock(MedicalOrderRepository.MedicalOrder order,
+                                                                      TechnicalWorkflowProcessingRecords.Slide slide) {
+        String blockId = firstPresent(order.targetBlockId(), slide == null ? null : slide.samplingBlockId());
+        if (blockId == null || blockId.isBlank()) {
+            return null;
+        }
+        return technicalWorkflowRepository.findSamplingBlockById(blockId).orElse(null);
+    }
+
+    private Specimen resolveTargetSpecimen(MedicalOrderRepository.MedicalOrder order,
+                                           TechnicalWorkflowProcessingRecords.Slide slide,
+                                           TechnicalWorkflowRecords.SamplingBlock block) {
+        String specimenId = firstPresent(order.targetSpecimenId(), slide == null ? null : slide.specimenId());
+        if (specimenId == null || specimenId.isBlank()) {
+            specimenId = block == null ? null : block.specimenId();
+        }
+        if (specimenId == null || specimenId.isBlank()) {
+            return null;
+        }
+        return technicalWorkflowRepository.findSpecimenById(specimenId).orElse(null);
+    }
+
+    private String normalizeProcessingAction(String processingAction) {
+        if (processingAction == null || processingAction.isBlank()) {
+            return "NO_ACTION";
+        }
+        String normalized = processingAction.trim().toUpperCase();
+        if (Set.of("NONE", "NO_NEED", "NO_ACTION", "NO").contains(normalized)) {
+            return "NO_ACTION";
+        }
+        return normalized;
+    }
+
+    private String resolveReworkType(String qcAspect, String processingAction) {
+        if (processingAction == null || processingAction.isBlank() || "NO_ACTION".equals(processingAction)) {
+            return null;
+        }
+        return "GROSSING".equalsIgnoreCase(qcAspect) ? "REGROSSING" : "RESLICE";
+    }
+
+    private String appendUrgentFlag(String remarks) {
+        if (remarks == null || remarks.isBlank()) {
+            return "URGENT";
+        }
+        return remarks.contains("URGENT") ? remarks : remarks + " URGENT";
+    }
+
+    private DiagnosticReportModels.MedicalOrderQcEvaluationResult toQcEvaluationResult(MedicalOrderRepository.MedicalOrderQcEvaluation evaluation) {
+        return new DiagnosticReportModels.MedicalOrderQcEvaluationResult(
+            evaluation.orderId(),
+            evaluation.caseId(),
+            evaluation.qcAspect(),
+            evaluation.totalScore(),
+            evaluation.grade(),
+            evaluation.evaluationReason(),
+            evaluation.processingAction(),
+            evaluation.reworkType(),
+            evaluation.reworkOrderId(),
+            evaluation.remarks(),
+            evaluation.evaluatorName(),
+            stringify(evaluation.evaluatedAt()),
+            evaluation.detailPayload());
     }
 
     private TechnicalWorkflowModels.LocalDateRange resolveEffectiveDateRange(
