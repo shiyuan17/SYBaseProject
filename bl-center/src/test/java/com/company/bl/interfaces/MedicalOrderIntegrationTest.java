@@ -1,24 +1,34 @@
 package com.company.bl.interfaces;
 
 import com.company.bl.BlCenterApplication;
+import com.company.bl.application.service.DiagnosticReportAppService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ActiveProfiles("test")
 @SpringBootTest(classes = BlCenterApplication.class)
 class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTest {
+
+    @Autowired
+    private DiagnosticReportAppService diagnosticReportAppService;
 
     @Test
     void shouldCompleteTechnicalMedicalOrderAndExposeStatusInWorkbenchAndTracking() throws Exception {
@@ -118,6 +128,34 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
         assertThat(tracking.path("medicalOrders").get(0).path("status").asText()).isEqualTo("COMPLETED");
         assertThat(tracking.path("medicalOrders").get(0).path("releasedAt").asText()).isNotBlank();
         assertThat(tracking.toString()).contains("MEDICAL_ORDER_COMPLETE");
+    }
+
+    @Test
+    void shouldIncludeCompletedMedicalOrdersInDefaultPendingQuery() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-DEFAULT-ALL-001", "BC-M4-ORDER-DEFAULT-ALL-001");
+        JsonNode created = createMedicalOrderWithTarget(context.caseId());
+        String orderId = created.path("orderId").asText();
+
+        postJson("/api/v1/medical-orders/%s/accept".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M4-ORD-DEFAULT-ALL-A"}
+            """).andExpect(status().isOk());
+        postJson("/api/v1/medical-orders/%s/print-slide".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M4-ORD-DEFAULT-ALL-P"}
+            """).andExpect(status().isOk());
+        postJson("/api/v1/medical-orders/%s/complete".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M4-ORD-DEFAULT-ALL-C","remarks":"completed by default query"}
+            """).andExpect(status().isOk());
+
+        JsonNode pending = responseBody(mockMvc.perform(authorized(get("/api/v1/medical-orders/pending"), USER_M4_ORDER_EXECUTE)
+            .param("page", "1")
+            .param("size", "20")
+            .param("pathologyNo", context.pathologyNo())), 200);
+
+        assertThat(pending.path("total").asInt()).isEqualTo(1);
+        JsonNode item = pending.path("items").get(0);
+        assertThat(item.path("orderId").asText()).isEqualTo(orderId);
+        assertThat(item.path("status").asText()).isEqualTo("COMPLETED");
+        assertThat(item.path("releasedAt").asText()).isNotBlank();
     }
 
     @Test
@@ -472,8 +510,10 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
             .param("size", "20")
             .param("pathologyNo", context.pathologyNo())
             .param("orderCategoryCode", "EXAM,CGRS,BLOCK,QP")), 200);
-        assertThat(routinePending.path("total").asInt()).isEqualTo(1);
-        assertThat(routinePending.path("items").get(0).path("orderCategoryCode").asText()).isEqualTo("CGRS");
+        assertThat(routinePending.path("total").asInt()).isEqualTo(2);
+        JsonNode routineItems = routinePending.path("items");
+        assertThat(routineItems.findValuesAsText("status")).contains("COMPLETED");
+        assertThat(routineItems.findValuesAsText("orderCategoryCode")).contains("EXAM", "CGRS");
 
         JsonNode specialPending = responseBody(mockMvc.perform(authorized(get("/api/v1/medical-orders/pending"), USER_M4_ORDER_EXECUTE)
             .param("page", "1")
@@ -579,6 +619,197 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
         assertThat(yesterdayPending.path("items").get(0).path("orderId").asText()).isEqualTo(yesterdayOrder.path("orderId").asText());
     }
 
+    @Test
+    void shouldReturnInpatientNoInPendingMedicalOrders() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-INPATIENT-001", "BC-M4-ORDER-INPATIENT-001");
+        upsertApplicationRegistrationWorkbenchInpatientNo(context.caseId(), "ZY-20260623-001");
+
+        createMedicalOrderWithTarget(context.caseId());
+
+        JsonNode pending = responseBody(mockMvc.perform(authorized(get("/api/v1/medical-orders/pending"), USER_M4_ORDER_EXECUTE)
+            .param("page", "1")
+            .param("size", "20")
+            .param("pathologyNo", context.pathologyNo())), 200);
+
+        assertThat(pending.path("total").asInt()).isEqualTo(1);
+        assertThat(pending.path("items").get(0).path("inpatientNo").asText()).isEqualTo("ZY-20260623-001");
+    }
+
+    @Test
+    void shouldReturnRoutinePendingMedicalOrdersWithSlicingLinkFields() throws Exception {
+        MergeReadyMedicalOrderContext context = prepareRoutineMergeReadyMedicalOrders("APP-M4-ORDER-PENDING-LINK", "BC-M4-ORDER-PENDING-LINK");
+
+        JsonNode pending = responseBody(mockMvc.perform(authorized(get("/api/v1/medical-orders/pending"), USER_M4_ORDER_EXECUTE)
+            .param("page", "1")
+            .param("size", "20")
+            .param("pathologyNo", context.pathologyNo())), 200);
+
+        assertThat(pending.path("total").asInt()).isEqualTo(2);
+        JsonNode firstItem = pending.path("items").get(0);
+        assertThat(firstItem.path("slicingTaskId").asText()).isNotBlank();
+        assertThat(firstItem.path("slicingPrintGroupId").isNull()).isTrue();
+        assertThat(firstItem.path("slicingMergedPrintGroup").asBoolean()).isFalse();
+        assertThat(firstItem.path("slicingTaskIds")).hasSize(1);
+    }
+
+    @Test
+    void shouldMergeRoutineMedicalOrdersAndExposePendingMergeGroupFields() throws Exception {
+        MergeReadyMedicalOrderContext context = prepareRoutineMergeReadyMedicalOrders("APP-M4-ORDER-MERGE-001", "BC-M4-ORDER-MERGE-001");
+
+        JsonNode merged = responseBody(postJson("/api/v1/medical-orders/merge-slides", USER_M4_ORDER_EXECUTE, """
+            {
+              "orderIds": [%s],
+              "terminalCode": "M4-ORD-MERGE-01",
+              "remarks": "常规医嘱合片"
+            }
+            """.formatted(quotedJsonArray(context.orderIds()))), 200);
+        assertThat(merged.path("printGroupIds")).hasSize(1);
+
+        String printGroupId = merged.path("printGroupIds").get(0).asText();
+        JsonNode pending = responseBody(mockMvc.perform(authorized(get("/api/v1/medical-orders/pending"), USER_M4_ORDER_EXECUTE)
+            .param("page", "1")
+            .param("size", "20")
+            .param("pathologyNo", context.pathologyNo())), 200);
+        assertThat(pending.path("total").asInt()).isEqualTo(2);
+        assertThat(pending.path("items").get(0).path("slicingMergedPrintGroup").asBoolean()).isTrue();
+        assertThat(pending.path("items").get(0).path("slicingPrintGroupId").asText()).isEqualTo(printGroupId);
+        assertThat(pending.path("items").get(0).path("slicingTaskIds")).hasSize(2);
+    }
+
+    @Test
+    void shouldRejectMergeRoutineMedicalOrdersWhenCheckItemsDiffer() throws Exception {
+        MergeReadyMedicalOrderContext context = prepareRoutineMergeReadyMedicalOrders("APP-M4-ORDER-MERGE-FAIL-001", "BC-M4-ORDER-MERGE-FAIL-001");
+        String differentCheckItemOrderId = responseBody(postJson("/api/v1/medical-orders", USER_M4_DIAGNOSIS, """
+            {
+              "caseId":"%s",
+              "orderType":"ROUTINE",
+              "orderContent":"脱钙",
+              "orderItemId":"ODI_EXAM_DECALCIFICATION",
+              "targetType":"BLOCK",
+              "targetSpecimenId":"%s",
+              "targetBlockId":"%s",
+              "targetBlockNo":"%s",
+              "terminalCode":"M4-ORD-MERGE-FAIL-CREATE"
+            }
+            """.formatted(
+            context.caseId(),
+            context.specimenId(),
+            context.blockIds().get(1),
+            context.blockNos().get(1))), 200)
+            .path("orderId").asText();
+        postJson("/api/v1/medical-orders/%s/accept".formatted(differentCheckItemOrderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M4-ORD-MERGE-FAIL-ACCEPT"}
+            """).andExpect(status().isOk());
+
+        postJson("/api/v1/medical-orders/merge-slides", USER_M4_ORDER_EXECUTE, """
+            {
+              "orderIds": [%s],
+              "terminalCode": "M4-ORD-MERGE-FAIL"
+            }
+            """.formatted(quotedJsonArray(List.of(
+            context.orderIds().get(0),
+            differentCheckItemOrderId
+        ))))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message", containsString("same check item")));
+    }
+
+    @Test
+    void shouldUnmergeRoutineMedicalOrdersWhenPendingMergeGroupSelected() throws Exception {
+        MergeReadyMedicalOrderContext context = prepareRoutineMergeReadyMedicalOrders("APP-M4-ORDER-UNMERGE-001", "BC-M4-ORDER-UNMERGE-001");
+
+        JsonNode merged = responseBody(postJson("/api/v1/medical-orders/merge-slides", USER_M4_ORDER_EXECUTE, """
+            {
+              "orderIds": [%s],
+              "terminalCode": "M4-ORD-UNMERGE-M"
+            }
+            """.formatted(quotedJsonArray(context.orderIds()))), 200);
+        String printGroupId = merged.path("printGroupIds").get(0).asText();
+
+        JsonNode unmerged = responseBody(postJson("/api/v1/medical-orders/unmerge-slides", USER_M4_ORDER_EXECUTE, """
+            {
+              "printGroupIds": ["%s"],
+              "terminalCode": "M4-ORD-UNMERGE-U",
+              "remarks": "取消合片"
+            }
+            """.formatted(printGroupId)), 200);
+        assertThat(unmerged.path("printGroupIds")).hasSize(1);
+        assertThat(unmerged.path("printGroupIds").get(0).asText()).isEqualTo(printGroupId);
+
+        JsonNode pending = responseBody(mockMvc.perform(authorized(get("/api/v1/medical-orders/pending"), USER_M4_ORDER_EXECUTE)
+            .param("page", "1")
+            .param("size", "20")
+            .param("pathologyNo", context.pathologyNo())), 200);
+        assertThat(pending.path("items").get(0).path("slicingMergedPrintGroup").asBoolean()).isFalse();
+        assertThat(pending.path("items").get(0).path("slicingPrintGroupId").isNull()).isTrue();
+    }
+
+    @Test
+    void shouldRejectUnmergeRoutineMedicalOrdersWhenPrintedMergeGroupSelected() throws Exception {
+        MergeReadyMedicalOrderContext context = prepareRoutineMergeReadyMedicalOrders("APP-M4-ORDER-UNMERGE-FAIL-001", "BC-M4-ORDER-UNMERGE-FAIL-001");
+
+        String printGroupId = responseBody(postJson("/api/v1/medical-orders/merge-slides", USER_M4_ORDER_EXECUTE, """
+            {
+              "orderIds": [%s],
+              "terminalCode": "M4-ORD-UNMERGE-FAIL-M"
+            }
+            """.formatted(quotedJsonArray(context.orderIds()))), 200).path("printGroupIds").get(0).asText();
+
+        postJson("/api/v1/slicings/slide-print-merge-groups/print", USER_M3_SLICING, """
+            {
+              "printGroupId": "%s",
+              "terminalCode": "M3-PRINT-GROUP-01"
+            }
+            """.formatted(printGroupId)).andExpect(status().isOk());
+
+        postJson("/api/v1/medical-orders/unmerge-slides", USER_M4_ORDER_EXECUTE, """
+            {
+              "printGroupIds": ["%s"],
+              "terminalCode": "M4-ORD-UNMERGE-FAIL-U"
+            }
+            """.formatted(printGroupId))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message", containsString("unprinted merge group")));
+    }
+
+    @Test
+    void shouldExportRoutineMedicalOrdersAsUtf8Csv() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-EXPORT-001", "BC-M4-ORDER-EXPORT-001");
+        upsertApplicationRegistrationWorkbenchInpatientNo(context.caseId(), "ZY-EXPORT-001");
+        JsonNode created = createMedicalOrderWithTarget(context.caseId(), "ODI_CGRS_HE_STAIN", "ROUTINE", "HE补片");
+        String orderId = created.path("orderId").asText();
+
+        postJson("/api/v1/medical-orders/%s/accept".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M4-ORD-EXPORT-A"}
+            """).andExpect(status().isOk());
+        postJson("/api/v1/medical-orders/%s/print-slide".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M4-ORD-EXPORT-P"}
+            """).andExpect(status().isOk());
+        postJson("/api/v1/medical-orders/%s/complete".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M4-ORD-EXPORT-C","remarks":"export completed row"}
+            """).andExpect(status().isOk());
+
+        byte[] content = mockMvc.perform(authorized(get("/api/v1/medical-orders/export"), USER_M4_ORDER_EXECUTE)
+                .param("page", "1")
+                .param("size", "20")
+                .param("pathologyNo", context.pathologyNo()))
+            .andExpect(status().isOk())
+            .andExpect(result -> assertThat(result.getResponse().getContentType()).isEqualTo("text/csv;charset=UTF-8"))
+            .andExpect(result -> assertThat(result.getResponse().getHeader(HttpHeaders.CONTENT_DISPOSITION))
+                .contains("medical-orders"))
+            .andReturn()
+            .getResponse()
+            .getContentAsByteArray();
+
+        String csv = new String(content, java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(csv).startsWith("\uFEFF");
+        assertThat(csv).contains("医嘱号");
+        assertThat(csv).contains(context.pathologyNo());
+        assertThat(csv).contains("ZY-EXPORT-001");
+        assertThat(csv).contains("HE染色");
+        assertThat(csv).contains("COMPLETED");
+    }
+
     private JsonNode createMedicalOrder(String caseId, String orderItemId, String orderType, String orderContent) throws Exception {
         return responseBody(postJson("/api/v1/medical-orders", USER_M4_DIAGNOSIS, """
             {
@@ -650,6 +881,216 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
             (String) row.get("slide_no"));
     }
 
+    private void upsertApplicationRegistrationWorkbenchInpatientNo(String caseId, String inpatientNo) {
+        Map<String, Object> caseRow = namedParameterJdbcTemplate.queryForMap("""
+            select application_id
+            from pathology_cases
+            where id = :caseId
+            """, Map.of("caseId", caseId));
+        String applicationId = (String) caseRow.get("application_id");
+
+        Integer workbenchCount = namedParameterJdbcTemplate.queryForObject("""
+            select count(1)
+            from application_registration_workbench
+            where application_id = :applicationId
+            """, Map.of("applicationId", applicationId), Integer.class);
+
+        if (workbenchCount != null && workbenchCount > 0) {
+            namedParameterJdbcTemplate.update("""
+                update application_registration_workbench
+                set inpatient_no = :inpatientNo,
+                    updated_at = current_timestamp
+                where application_id = :applicationId
+                """, Map.of(
+                "applicationId", applicationId,
+                "inpatientNo", inpatientNo));
+            return;
+        }
+
+        namedParameterJdbcTemplate.update("""
+            insert into application_registration_workbench (
+                application_id,
+                inpatient_no,
+                created_at,
+                updated_at
+            ) values (
+                :applicationId,
+                :inpatientNo,
+                current_timestamp,
+                current_timestamp
+            )
+            """, Map.of(
+            "applicationId", applicationId,
+            "inpatientNo", inpatientNo));
+    }
+
+    private MergeReadyMedicalOrderContext prepareRoutineMergeReadyMedicalOrders(String applicationNo, String barcode) throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask(applicationNo, barcode);
+
+        postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
+            {"taskId":"%s","terminalCode":"M4-ORD-M-G-01"}
+            """.formatted(context.grossingTaskId()))
+            .andExpect(status().isOk());
+        postJson("/api/v1/grossings/complete", USER_M3_GROSSING, """
+            {
+              "taskId":"%s",
+              "caseId":"%s",
+              "terminalCode":"M4-ORD-M-G-02",
+              "specimens":[{
+                "specimenId":"%s",
+                "specimenType":"ROUTINE",
+                "grossDescription":"merge ready",
+                "blocks":[
+                  {"blockSite":"A","blockDescription":"A1"},
+                  {"blockSite":"A","blockDescription":"A2"}
+                ]
+              }]
+            }
+            """.formatted(context.grossingTaskId(), context.caseId(), context.specimenId()))
+            .andExpect(status().isOk());
+
+        List<Map<String, Object>> blockRows = namedParameterJdbcTemplate.queryForList("""
+            select id, block_code
+            from sampling_blocks
+            where case_id = :caseId
+            order by sequence_no asc, created_at asc
+            """, Map.of("caseId", context.caseId()));
+        assertThat(blockRows).hasSizeGreaterThanOrEqualTo(2);
+        List<String> blockIds = blockRows.stream()
+            .limit(2)
+            .map(row -> (String) row.get("id"))
+            .toList();
+
+        String batchId = responseBody(postJson("/api/v1/dehydration-batches", USER_M3_DEHYDRATION, """
+            {
+              "caseId":"%s",
+              "basketNo":"B1",
+              "deviceNo":"D1",
+              "terminalCode":"M4-ORD-M-D-01",
+              "samplingBlockIds":[%s]
+            }
+            """.formatted(context.caseId(), quotedJsonArray(blockIds))), 201).path("batchId").asText();
+        postJson("/api/v1/dehydration-batches/%s/start".formatted(batchId), USER_M3_DEHYDRATION, """
+            {"terminalCode":"M4-ORD-M-D-02"}
+            """).andExpect(status().isOk());
+        postJson("/api/v1/dehydration-batches/%s/complete".formatted(batchId), USER_M3_DEHYDRATION, """
+            {"terminalCode":"M4-ORD-M-D-03"}
+            """).andExpect(status().isOk());
+
+        Map<String, String> embeddingTaskIdsByBlockId = new LinkedHashMap<>();
+        namedParameterJdbcTemplate.query("""
+            select object_id, id
+            from technical_pending_tasks
+            where case_id = :caseId
+              and task_type = 'EMBEDDING'
+            order by created_at asc
+            """, Map.of("caseId", context.caseId()), (org.springframework.jdbc.core.RowCallbackHandler) rs ->
+            embeddingTaskIdsByBlockId.put(rs.getString("object_id"), rs.getString("id")));
+
+        Map<String, String> embeddingBoxIdsByBlockId = new LinkedHashMap<>();
+        int sequence = 1;
+        for (String blockId : blockIds) {
+            String embeddingTaskId = embeddingTaskIdsByBlockId.get(blockId);
+            postJson("/api/v1/embeddings/start", USER_M3_EMBEDDING, """
+                {"taskId":"%s","terminalCode":"M4-ORD-M-E-S"}
+                """.formatted(embeddingTaskId)).andExpect(status().isOk());
+            JsonNode embedding = responseBody(postJson("/api/v1/embeddings/complete", USER_M3_EMBEDDING, """
+                {
+                  "taskId":"%s",
+                  "samplingBlockId":"%s",
+                  "embeddingBoxNo":"A%s",
+                  "blockCount":1,
+                  "sliceNotice":"merge",
+                  "terminalCode":"M4-ORD-M-E-C"
+                }
+                """.formatted(embeddingTaskId, blockId, sequence++)), 200);
+            embeddingBoxIdsByBlockId.put(blockId, embedding.path("embeddingBoxId").asText());
+        }
+
+        Map<String, String> slicingTaskIdsByBlockId = new LinkedHashMap<>();
+        namedParameterJdbcTemplate.query("""
+            select t.id as task_id, eb.sampling_block_id
+            from technical_pending_tasks t
+            join embedding_boxes eb on eb.id = t.object_id
+            where t.case_id = :caseId
+              and t.task_type = 'SLICING'
+            order by eb.embedding_box_no asc
+            """, Map.of("caseId", context.caseId()), (org.springframework.jdbc.core.RowCallbackHandler) rs ->
+            slicingTaskIdsByBlockId.put(rs.getString("sampling_block_id"), rs.getString("task_id")));
+
+        diagnosticReportAppService.createPrimaryDiagnosticTaskIfAbsent(context.caseId(), "Prepare routine medical orders for merge test");
+        List<String> diagnosticTaskIds = namedParameterJdbcTemplate.queryForList("""
+            select id
+            from diagnostic_tasks
+            where case_id = :caseId
+              and task_type = 'PRIMARY'
+              and status = 'PENDING'
+            order by created_at asc
+            """, Map.of("caseId", context.caseId()), String.class);
+        assertThat(diagnosticTaskIds).hasSize(1);
+        String diagnosticTaskId = diagnosticTaskIds.get(0);
+        postJson("/api/v1/diagnostic-tasks/%s/assign".formatted(diagnosticTaskId), USER_M4_ASSIGN, """
+            {
+              "diagnosisDoctorUserId":"USER_M4_DIAGNOSIS",
+              "diagnosisDoctorName":"M4 Diagnosis",
+              "primaryDoctorUserId":"USER_M4_DIAGNOSIS",
+              "primaryDoctorName":"M4 Diagnosis",
+              "reviewerUserId":"USER_M4_REVIEW",
+              "reviewerName":"M4 Review",
+              "terminalCode":"M4-ORD-M-A-01"
+            }
+            """).andExpect(status().isOk());
+        postJson("/api/v1/diagnostic-tasks/%s/accept".formatted(diagnosticTaskId), USER_M4_DIAGNOSIS, """
+            {"terminalCode":"M4-ORD-M-A-02"}
+            """).andExpect(status().isOk());
+        postJson("/api/v1/diagnostic-tasks/%s/start".formatted(diagnosticTaskId), USER_M4_DIAGNOSIS, """
+            {"terminalCode":"M4-ORD-M-A-03"}
+            """).andExpect(status().isOk());
+
+        List<String> orderIds = new java.util.ArrayList<>();
+        List<String> blockNos = new java.util.ArrayList<>();
+        for (int index = 0; index < blockIds.size(); index++) {
+            String blockId = blockIds.get(index);
+            String blockNo = (String) blockRows.get(index).get("block_code");
+            blockNos.add(blockNo);
+            String orderId = responseBody(postJson("/api/v1/medical-orders", USER_M4_DIAGNOSIS, """
+                {
+                  "caseId":"%s",
+                  "orderType":"ROUTINE",
+                  "orderContent":"HE补片",
+                  "orderItemId":"ODI_CGRS_HE_STAIN",
+                  "targetType":"BLOCK",
+                  "targetSpecimenId":"%s",
+                  "targetBlockId":"%s",
+                  "targetBlockNo":"%s",
+                  "terminalCode":"M4-ORD-M-CREATE"
+                }
+                """.formatted(context.caseId(), context.specimenId(), blockId, blockNo)), 200)
+                .path("orderId").asText();
+            postJson("/api/v1/medical-orders/%s/accept".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+                {"terminalCode":"M4-ORD-M-ACCEPT"}
+                """).andExpect(status().isOk());
+            orderIds.add(orderId);
+        }
+
+        return new MergeReadyMedicalOrderContext(
+            context.caseId(),
+            context.pathologyNo(),
+            context.specimenId(),
+            orderIds,
+            blockIds,
+            blockNos,
+            embeddingBoxIdsByBlockId,
+            slicingTaskIdsByBlockId);
+    }
+
+    private String quotedJsonArray(List<String> values) {
+        return values.stream()
+            .map(value -> "\"" + value + "\"")
+            .reduce((left, right) -> left + "," + right)
+            .orElse("");
+    }
+
     private record MedicalOrderTargetSnapshot(
         String specimenId,
         String specimenNo,
@@ -657,6 +1098,18 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
         String blockNo,
         String slideId,
         String slideNo
+    ) {
+    }
+
+    private record MergeReadyMedicalOrderContext(
+        String caseId,
+        String pathologyNo,
+        String specimenId,
+        List<String> orderIds,
+        List<String> blockIds,
+        List<String> blockNos,
+        Map<String, String> embeddingBoxIdsByBlockId,
+        Map<String, String> slicingTaskIdsByBlockId
     ) {
     }
 }
