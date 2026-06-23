@@ -16,7 +16,15 @@ public interface MedicalOrderRepository {
 
     List<MedicalOrder> findMedicalOrdersByCaseId(String caseId);
 
+    List<MedicalOrder> findMedicalOrdersByIds(List<String> orderIds);
+
     PagedMedicalOrders findMedicalOrders(PendingMedicalOrderQuery query);
+
+    List<MedicalOrder> findMedicalOrdersForExport(PendingMedicalOrderQuery query);
+
+    List<MedicalOrderSlicingLink> findPendingSlicingLinksByOrderIds(List<String> orderIds);
+
+    List<SlicingMergeGroup> findSlicingMergeGroupsByIds(List<String> printGroupIds);
 
     void acceptMedicalOrder(String orderId,
                             String executorUserId,
@@ -145,6 +153,11 @@ public interface MedicalOrderRepository {
         String caseId,
         String pathologyNo,
         String applicationNo,
+        String inpatientNo,
+        String slicingTaskId,
+        String slicingPrintGroupId,
+        boolean slicingMergedPrintGroup,
+        List<String> slicingTaskIds,
         String patientName,
         String patientId,
         String patientIdDisplay,
@@ -189,6 +202,23 @@ public interface MedicalOrderRepository {
         String remarks,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
+    ) {
+    }
+
+    record MedicalOrderSlicingLink(
+        String orderId,
+        String slicingTaskId,
+        String slicingPrintGroupId,
+        boolean slicingMergedPrintGroup,
+        List<String> slicingTaskIds
+    ) {
+    }
+
+    record SlicingMergeGroup(
+        String printGroupId,
+        String caseId,
+        String groupStatus,
+        String slicingId
     ) {
     }
 }

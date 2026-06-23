@@ -3,12 +3,15 @@ package com.company.bl.interfaces.controller;
 import com.company.bl.application.service.DiagnosticReportAppService;
 import com.company.bl.application.service.DiagnosticReportModels;
 import com.company.bl.application.service.DiagnosticReportViews;
+import com.company.bl.application.service.MedicalOrderWorkflowService;
 import com.company.bl.interfaces.auth.M4PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.CreateMedicalOrderRequest;
 import com.company.bl.interfaces.dto.CreateMedicalOrderQcEvaluationRequest;
 import com.company.bl.interfaces.dto.MedicalOrderActionRequest;
 import com.company.bl.interfaces.dto.MedicalOrderBillingRequest;
+import com.company.bl.interfaces.dto.RoutineMedicalOrderMergeRequest;
+import com.company.bl.interfaces.dto.RoutineMedicalOrderUnmergeRequest;
 import com.company.bl.interfaces.dto.TerminateMedicalOrderRequest;
 import com.company.bl.interfaces.vo.MedicalOrderBillingResponse;
 import com.company.bl.interfaces.vo.MedicalOrderOperationResponse;
@@ -16,12 +19,14 @@ import com.company.bl.interfaces.vo.MedicalOrderQcEvaluationResponse;
 import com.company.bl.interfaces.vo.MedicalOrderSlidePrintResponse;
 import com.company.bl.interfaces.vo.PendingMedicalOrderPageResponse;
 import com.company.bl.interfaces.vo.PendingMedicalOrderResponse;
+import com.company.bl.interfaces.vo.RoutineMedicalOrderMergeResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,9 +41,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class PathologyMedicalOrderController extends TechnicalControllerSupport {
 
     private final DiagnosticReportAppService diagnosticReportAppService;
+    private final MedicalOrderWorkflowService medicalOrderWorkflowService;
 
-    public PathologyMedicalOrderController(DiagnosticReportAppService diagnosticReportAppService) {
+    public PathologyMedicalOrderController(DiagnosticReportAppService diagnosticReportAppService,
+                                           MedicalOrderWorkflowService medicalOrderWorkflowService) {
         this.diagnosticReportAppService = diagnosticReportAppService;
+        this.medicalOrderWorkflowService = medicalOrderWorkflowService;
     }
 
     @Operation(summary = "创建病理医嘱", description = "由诊断医生创建技术域病理医嘱。")
@@ -92,6 +100,57 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
             result.page(),
             result.size(),
             result.total());
+    }
+
+    @Operation(summary = "常规医嘱相同项目合片", description = "代理切片待打印合片能力，按所选常规医嘱创建未打印合片组。")
+    @RequirePermission(M4PermissionCodes.MEDICAL_ORDER_PRINT)
+    @PostMapping("/merge-slides")
+    public RoutineMedicalOrderMergeResponse mergeSlides(@Valid @RequestBody RoutineMedicalOrderMergeRequest request,
+                                                        HttpServletRequest httpServletRequest) {
+        return new RoutineMedicalOrderMergeResponse(
+            medicalOrderWorkflowService.mergeRoutineMedicalOrderSlides(
+                request.getOrderIds(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode(),
+                request.getRemarks()));
+    }
+
+    @Operation(summary = "常规医嘱取消合片", description = "代理切片未打印合片组取消能力，仅允许取消未打印合片组。")
+    @RequirePermission(M4PermissionCodes.MEDICAL_ORDER_PRINT)
+    @PostMapping("/unmerge-slides")
+    public RoutineMedicalOrderMergeResponse unmergeSlides(@Valid @RequestBody RoutineMedicalOrderUnmergeRequest request,
+                                                          HttpServletRequest httpServletRequest) {
+        return new RoutineMedicalOrderMergeResponse(
+            medicalOrderWorkflowService.unmergeRoutineMedicalOrderSlides(
+                request.getPrintGroupIds(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode(),
+                request.getRemarks()));
+    }
+
+    @Operation(summary = "导出待处理病理医嘱", description = "按当前待处理病理医嘱查询条件导出 UTF-8 CSV。")
+    @RequirePermission(M4PermissionCodes.MEDICAL_ORDER_QUERY)
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> exportPendingMedicalOrders(@Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
+                                                             @Parameter(description = "每页条数") @RequestParam(defaultValue = "20") int size,
+                                                             @Parameter(description = "病理号") @RequestParam(required = false) String pathologyNo,
+                                                             @Parameter(description = "医嘱状态") @RequestParam(required = false) String status,
+                                                             @Parameter(description = "医嘱分类码，多个分类用英文逗号分隔") @RequestParam(required = false) String orderCategoryCode,
+                                                             @Parameter(description = "开始日期，格式 YYYY-MM-DD") @RequestParam(required = false) LocalDate dateFrom,
+                                                             @Parameter(description = "结束日期，格式 YYYY-MM-DD") @RequestParam(required = false) LocalDate dateTo,
+                                                             @Parameter(description = "工作日期，格式 YYYY-MM-DD") @RequestParam(required = false) LocalDate workDate) {
+        return medicalOrderWorkflowService.exportPendingMedicalOrders(
+            new DiagnosticReportModels.PendingMedicalOrderQuery(
+                page,
+                size,
+                pathologyNo,
+                status,
+                orderCategoryCode,
+                dateFrom,
+                dateTo,
+                workDate));
     }
 
     @Operation(summary = "执行医嘱收费", description = "为诊断工作站医嘱触发真实收费；未指定医嘱时处理当前病例全部未收费医嘱。")
@@ -259,6 +318,11 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
             item.caseId(),
             item.pathologyNo(),
             item.applicationNo(),
+            item.inpatientNo(),
+            item.slicingTaskId(),
+            item.slicingPrintGroupId(),
+            item.slicingMergedPrintGroup(),
+            item.slicingTaskIds(),
             item.patientName(),
             item.patientId(),
             item.patientIdDisplay(),

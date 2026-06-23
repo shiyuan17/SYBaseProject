@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 
 @Schema(name = "PendingMedicalOrderResponse", description = "Pending medical order item")
 public record PendingMedicalOrderResponse(
@@ -12,6 +13,16 @@ public record PendingMedicalOrderResponse(
     String pathologyNo,
     @Schema(description = "Application number")
     String applicationNo,
+    @Schema(description = "Inpatient number")
+    String inpatientNo,
+    @Schema(description = "Pending slicing task ID")
+    String slicingTaskId,
+    @Schema(description = "Pending slicing print merge group ID")
+    String slicingPrintGroupId,
+    @Schema(description = "Whether the routine medical order belongs to an unprinted merge group")
+    boolean slicingMergedPrintGroup,
+    @Schema(description = "Pending slicing task IDs in current merge group")
+    java.util.List<String> slicingTaskIds,
     @Schema(description = "Patient name")
     String patientName,
     @Schema(description = "Patient ID")

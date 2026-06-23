@@ -8,9 +8,13 @@ import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRepository;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords;
 import com.company.bl.integration.application.BillingManagementService;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -18,7 +22,7 @@ import java.util.List;
 import java.util.Set;
 
 @Service
-class MedicalOrderWorkflowService {
+public class MedicalOrderWorkflowService {
 
     private final MedicalOrderRepository medicalOrderRepository;
     private final DiagnosticReportSupport diagnosticReportSupport;
@@ -53,6 +57,112 @@ class MedicalOrderWorkflowService {
             query.page(),
             query.size(),
             paged.total());
+    }
+
+    @Transactional
+    public List<String> mergeRoutineMedicalOrderSlides(List<String> orderIds,
+                                                       String operatorUserId,
+                                                       String operatorName,
+                                                       String terminalCode,
+                                                       String remarks) {
+        List<MedicalOrderRepository.MedicalOrder> orders = resolveMergeableRoutineOrders(orderIds);
+        List<TechnicalWorkflowRecords.SlicingWorkbenchRow> rows = technicalWorkflowRepository.findPendingSlicingPrintRowsByTaskIds(
+            orders.stream().map(MedicalOrderRepository.MedicalOrder::slicingTaskId).distinct().toList());
+        if (rows.size() != orders.size()) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Only unprinted slicing tasks can be merged");
+        }
+        String printGroupId = diagnosticReportSupport.nextId("SPG");
+        TechnicalWorkflowRecords.SlicingWorkbenchRow first = rows.get(0);
+        LocalDateTime now = LocalDateTime.now();
+        String mergedEmbeddingBoxNo = rows.stream()
+            .map(TechnicalWorkflowRecords.SlicingWorkbenchRow::embeddingBoxNo)
+            .distinct()
+            .sorted()
+            .reduce((left, right) -> left + "+" + right)
+            .orElseThrow(() -> new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Embedding box number is required for merging"));
+        technicalWorkflowRepository.insertSlicingSlidePrintMergeGroup(
+            printGroupId,
+            first.caseId(),
+            first.pathologyNo(),
+            first.patientId(),
+            mergedEmbeddingBoxNo,
+            operatorUserId,
+            operatorName,
+            remarks,
+            now);
+        for (int index = 0; index < rows.size(); index++) {
+            TechnicalWorkflowRecords.SlicingWorkbenchRow row = rows.get(index);
+            technicalWorkflowRepository.insertSlicingSlidePrintMergeGroupItem(
+                diagnosticReportSupport.nextId("SPGI"),
+                printGroupId,
+                row.taskId(),
+                row.embeddingBoxId(),
+                row.embeddingBoxNo(),
+                index + 1);
+        }
+        diagnosticReportSupport.insertWorkflowEvent(first.caseId(), "MEDICAL_ORDER", "MERGE_SLIDES", "SUCCESS",
+            operatorUserId, operatorName, terminalCode, "Merged routine medical order slides");
+        return List.of(printGroupId);
+    }
+
+    @Transactional
+    public List<String> unmergeRoutineMedicalOrderSlides(List<String> printGroupIds,
+                                                         String operatorUserId,
+                                                         String operatorName,
+                                                         String terminalCode,
+                                                         String remarks) {
+        List<String> normalized = normalizeOrderIds(printGroupIds);
+        if (normalized.isEmpty()) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "At least one merge group is required");
+        }
+        List<MedicalOrderRepository.SlicingMergeGroup> groups = medicalOrderRepository.findSlicingMergeGroupsByIds(normalized);
+        if (groups.size() != normalized.size()) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Only unprinted merge groups can be unmerged");
+        }
+        for (MedicalOrderRepository.SlicingMergeGroup group : groups) {
+            if (!"PENDING".equalsIgnoreCase(group.groupStatus()) || group.slicingId() != null) {
+                throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Only unprinted merge groups can be unmerged");
+            }
+        }
+        technicalWorkflowRepository.cancelSlicingSlidePrintMergeGroups(normalized, LocalDateTime.now());
+        diagnosticReportSupport.insertWorkflowEvent(groups.get(0).caseId(), "MEDICAL_ORDER", "UNMERGE_SLIDES", "SUCCESS",
+            operatorUserId, operatorName, terminalCode, firstPresent(remarks, "Unmerged routine medical order slides"));
+        return normalized;
+    }
+
+    @Transactional(readOnly = true)
+    public ResponseEntity<byte[]> exportPendingMedicalOrders(DiagnosticReportModels.PendingMedicalOrderQuery query) {
+        TechnicalWorkflowModels.LocalDateRange effectiveDateRange =
+            resolveEffectiveDateRange(query.dateFrom(), query.dateTo(), query.workDate());
+        List<MedicalOrderRepository.MedicalOrder> orders = medicalOrderRepository.findMedicalOrdersForExport(
+            new MedicalOrderRepository.PendingMedicalOrderQuery(
+                query.page(),
+                query.size(),
+                query.pathologyNo(),
+                query.status(),
+                query.orderCategoryCode(),
+                effectiveDateRange.dateFrom() == null ? null : effectiveDateRange.dateFrom().atStartOfDay(),
+                effectiveDateRange.dateTo() == null ? null : effectiveDateRange.dateTo().plusDays(1).atStartOfDay()));
+
+        StringBuilder csv = new StringBuilder("\uFEFF");
+        csv.append("医嘱号,病理号,申请单号,住院号,患者姓名,检查项目,医嘱类型,状态,开嘱时间,执行人\n");
+        for (MedicalOrderRepository.MedicalOrder order : orders) {
+            csv.append(csvCell(order.orderNumber())).append(',')
+                .append(csvCell(order.pathologyNo())).append(',')
+                .append(csvCell(order.applicationNo())).append(',')
+                .append(csvCell(order.inpatientNo())).append(',')
+                .append(csvCell(order.patientName())).append(',')
+                .append(csvCell(firstPresent(order.orderItemName(), order.orderContent()))).append(',')
+                .append(csvCell(order.orderType())).append(',')
+                .append(csvCell(order.status())).append(',')
+                .append(csvCell(stringify(order.orderDate()))).append(',')
+                .append(csvCell(order.executorName()))
+                .append('\n');
+        }
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=medical-orders.csv")
+            .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
+            .body(csv.toString().getBytes(StandardCharsets.UTF_8));
     }
 
     @Transactional
@@ -401,6 +511,11 @@ class MedicalOrderWorkflowService {
             order.caseId(),
             order.pathologyNo(),
             order.applicationNo(),
+            order.inpatientNo(),
+            order.slicingTaskId(),
+            order.slicingPrintGroupId(),
+            order.slicingMergedPrintGroup(),
+            order.slicingTaskIds(),
             order.patientName(),
             order.patientId(),
             order.patientIdDisplay(),
@@ -457,6 +572,54 @@ class MedicalOrderWorkflowService {
         return first == null || first.isBlank() ? fallback : first;
     }
 
+    private List<MedicalOrderRepository.MedicalOrder> resolveMergeableRoutineOrders(List<String> orderIds) {
+        List<String> normalized = normalizeOrderIds(orderIds);
+        if (normalized.isEmpty()) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "At least one medical order is required");
+        }
+        if (normalized.size() < 2) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "At least two routine medical orders are required for merging");
+        }
+        List<MedicalOrderRepository.MedicalOrder> orders = medicalOrderRepository.findMedicalOrdersByIds(normalized);
+        if (orders.size() != normalized.size()) {
+            throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Medical order not found");
+        }
+        String expectedCheckItem = null;
+        for (MedicalOrderRepository.MedicalOrder order : orders) {
+            String currentCheckItem = firstPresent(order.orderItemName(), order.orderContent());
+            if (expectedCheckItem == null) {
+                expectedCheckItem = currentCheckItem;
+            } else if (currentCheckItem == null || !expectedCheckItem.equalsIgnoreCase(currentCheckItem)) {
+                throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Routine medical orders must have the same check item to merge");
+            }
+        }
+        for (MedicalOrderRepository.MedicalOrder order : orders) {
+            if (!"ROUTINE".equalsIgnoreCase(order.orderType())) {
+                throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Only routine medical orders can be merged");
+            }
+            if (isTerminated(order)) {
+                throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Terminated medical order cannot be merged");
+            }
+            if (!canMergeRoutineOrder(order)) {
+                throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Only unprinted routine medical orders can be merged");
+            }
+            if (order.targetBlockId() == null || order.targetBlockId().isBlank()) {
+                throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Medical order target block is required for merging");
+            }
+            if (order.slicingTaskId() == null || order.slicingTaskId().isBlank()) {
+                throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Medical order slicing task mapping is required for merging");
+            }
+        }
+        return orders;
+    }
+
+    private String csvCell(String value) {
+        if (value == null) {
+            return "";
+        }
+        return "\"" + value.replace("\"", "\"\"") + "\"";
+    }
+
     private boolean canConfirm(MedicalOrderRepository.MedicalOrder order) {
         return DiagnosticReportConstants.ORDER_PENDING.equals(order.status());
     }
@@ -484,6 +647,19 @@ class MedicalOrderWorkflowService {
             && order.printedAt() != null
             && !isTerminated(order)
             && hasTargetSnapshot(order);
+    }
+
+    private boolean canMergeRoutineOrder(MedicalOrderRepository.MedicalOrder order) {
+        if (order == null) {
+            return false;
+        }
+        String normalizedStatus = order.status() == null ? null : order.status().trim().toUpperCase();
+        return Set.of(DiagnosticReportConstants.ORDER_PENDING, DiagnosticReportConstants.ORDER_IN_PROGRESS).contains(normalizedStatus)
+            && order.printedAt() == null
+            && order.releasedAt() == null
+            && order.completedAt() == null
+            && order.cancelledAt() == null
+            && !isTerminated(order);
     }
 
     private boolean hasTargetSnapshot(MedicalOrderRepository.MedicalOrder order) {

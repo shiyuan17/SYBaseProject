@@ -13,9 +13,11 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Repository
 public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
@@ -110,10 +112,23 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
 
     @Override
     public List<MedicalOrder> findMedicalOrdersByCaseId(String caseId) {
-        return jdbcTemplate.query(selectSql() + """
+        List<MedicalOrder> rows = jdbcTemplate.query(selectSql() + """
             where mo.case_id = :caseId
             order by mo.created_at desc, mo.id desc
             """, Map.of("caseId", caseId), this::mapMedicalOrder);
+        return attachSlicingLinks(rows);
+    }
+
+    @Override
+    public List<MedicalOrder> findMedicalOrdersByIds(List<String> orderIds) {
+        if (orderIds == null || orderIds.isEmpty()) {
+            return List.of();
+        }
+        List<MedicalOrder> rows = jdbcTemplate.query(selectSql() + """
+            where mo.id in (:orderIds)
+            order by mo.created_at desc, mo.id desc
+            """, new MapSqlParameterSource().addValue("orderIds", orderIds), this::mapMedicalOrder);
+        return attachSlicingLinks(rows);
     }
 
     @Override
@@ -129,7 +144,81 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
             order by mo.created_at desc, mo.id desc
             offset :offset rows fetch next :limit rows only
             """, pageParams(query), this::mapMedicalOrder);
-        return new PagedMedicalOrders(items, total == null ? 0 : total);
+        return new PagedMedicalOrders(attachSlicingLinks(items), total == null ? 0 : total);
+    }
+
+    @Override
+    public List<MedicalOrder> findMedicalOrdersForExport(PendingMedicalOrderQuery query) {
+        String where = " where 1 = 1 " + buildFilters(query);
+        List<MedicalOrder> items = jdbcTemplate.query(selectSql() + where + """
+            order by mo.created_at desc, mo.id desc
+            """, filterParams(query), this::mapMedicalOrder);
+        return attachSlicingLinks(items);
+    }
+
+    @Override
+    public List<MedicalOrderSlicingLink> findPendingSlicingLinksByOrderIds(List<String> orderIds) {
+        if (orderIds == null || orderIds.isEmpty()) {
+            return List.of();
+        }
+        List<MedicalOrderSlicingLink> links = jdbcTemplate.query("""
+            select
+                mo.id as order_id,
+                t.id as slicing_task_id,
+                mg.id as print_group_id,
+                case when mg.id is not null then 1 else 0 end as merged_print_group
+            from medical_orders mo
+            join embedding_boxes eb on eb.sampling_block_id = mo.target_block_id
+            join technical_pending_tasks t
+              on t.object_id = eb.id
+             and t.task_type = 'SLICING'
+             and t.task_status in ('PENDING', 'IN_PROGRESS')
+            left join slicing_slide_print_merge_group_items mgi on mgi.task_id = t.id
+            left join slicing_slide_print_merge_groups mg
+              on mg.id = mgi.group_id
+             and mg.group_status = 'PENDING'
+             and mg.printed_slicing_id is null
+            where mo.id in (:orderIds)
+            order by mo.created_at desc, mo.id desc
+            """, new MapSqlParameterSource().addValue("orderIds", orderIds), (rs, rowNum) -> new MedicalOrderSlicingLink(
+            rs.getString("order_id"),
+            rs.getString("slicing_task_id"),
+            rs.getString("print_group_id"),
+            rs.getInt("merged_print_group") != 0,
+            List.of()));
+        if (links.isEmpty()) {
+            return links;
+        }
+        List<String> printGroupIds = links.stream()
+            .map(MedicalOrderSlicingLink::slicingPrintGroupId)
+            .filter(value -> value != null && !value.isBlank())
+            .distinct()
+            .toList();
+        Map<String, List<String>> taskIdsByGroupId = findPendingMergeGroupTaskIds(printGroupIds);
+        return links.stream()
+            .map(link -> new MedicalOrderSlicingLink(
+                link.orderId(),
+                link.slicingTaskId(),
+                link.slicingPrintGroupId(),
+                link.slicingMergedPrintGroup(),
+                resolveSlicingTaskIds(link, taskIdsByGroupId)))
+            .toList();
+    }
+
+    @Override
+    public List<SlicingMergeGroup> findSlicingMergeGroupsByIds(List<String> printGroupIds) {
+        if (printGroupIds == null || printGroupIds.isEmpty()) {
+            return List.of();
+        }
+        return jdbcTemplate.query("""
+            select id, case_id, group_status, printed_slicing_id
+            from slicing_slide_print_merge_groups
+            where id in (:printGroupIds)
+            """, new MapSqlParameterSource().addValue("printGroupIds", printGroupIds), (rs, rowNum) -> new SlicingMergeGroup(
+            rs.getString("id"),
+            rs.getString("case_id"),
+            rs.getString("group_status"),
+            rs.getString("printed_slicing_id")));
     }
 
     @Override
@@ -293,12 +382,14 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
                 mo.*,
                 pc.pathology_no,
                 a.application_no,
+                w.inpatient_no,
                 a.patient_name,
                 a.patient_id,
                 a.patient_id as patient_id_display
             from medical_orders mo
             join pathology_cases pc on pc.id = mo.case_id
             join applications a on a.id = pc.application_id
+            left join application_registration_workbench w on w.application_id = a.id
             """;
     }
 
@@ -309,8 +400,6 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
         }
         if (query.status() != null && !query.status().isBlank()) {
             builder.append(" and mo.status = :status\n");
-        } else {
-            builder.append(" and mo.status in ('PENDING', 'IN_PROGRESS', 'TERMINATED')\n");
         }
         if (query.orderDateFrom() != null) {
             builder.append(" and mo.order_date >= :orderDateFrom\n");
@@ -363,6 +452,11 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
             rs.getString("case_id"),
             rs.getString("pathology_no"),
             rs.getString("application_no"),
+            rs.getString("inpatient_no"),
+            null,
+            null,
+            false,
+            List.of(),
             rs.getString("patient_name"),
             rs.getString("patient_id"),
             rs.getString("patient_id_display"),
@@ -407,6 +501,137 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
             rs.getString("remarks"),
             toLocalDateTime(rs.getTimestamp("created_at")),
             toLocalDateTime(rs.getTimestamp("updated_at")));
+    }
+
+    private List<MedicalOrder> attachSlicingLinks(List<MedicalOrder> orders) {
+        if (orders == null || orders.isEmpty()) {
+            return List.of();
+        }
+        List<String> routineOrderIds = orders.stream()
+            .filter(this::isRoutineOrder)
+            .map(MedicalOrder::id)
+            .toList();
+        if (routineOrderIds.isEmpty()) {
+            return orders;
+        }
+        Map<String, MedicalOrderSlicingLink> linksByOrderId = findPendingSlicingLinksByOrderIds(routineOrderIds).stream()
+            .collect(Collectors.toMap(MedicalOrderSlicingLink::orderId, link -> link, (left, right) -> left, HashMap::new));
+        return orders.stream()
+            .map(order -> withSlicingLink(order, linksByOrderId.get(order.id())))
+            .toList();
+    }
+
+    private MedicalOrder withSlicingLink(MedicalOrder order, MedicalOrderSlicingLink link) {
+        if (link == null) {
+            return order;
+        }
+        return new MedicalOrder(
+            order.id(),
+            order.caseId(),
+            order.pathologyNo(),
+            order.applicationNo(),
+            order.inpatientNo(),
+            link.slicingTaskId(),
+            link.slicingPrintGroupId(),
+            link.slicingMergedPrintGroup(),
+            link.slicingTaskIds(),
+            order.patientName(),
+            order.patientId(),
+            order.patientIdDisplay(),
+            order.orderNumber(),
+            order.orderContent(),
+            order.orderType(),
+            order.orderItemId(),
+            order.orderItemCode(),
+            order.orderItemName(),
+            order.orderCategoryId(),
+            order.orderCategoryCode(),
+            order.orderCategoryName(),
+            order.executionScope(),
+            order.billingStatus(),
+            order.status(),
+            order.doctorUserId(),
+            order.doctorName(),
+            order.executorUserId(),
+            order.executorName(),
+            order.orderDate(),
+            order.acceptedAt(),
+            order.printedByUserId(),
+            order.printedByName(),
+            order.printedAt(),
+            order.releasedByUserId(),
+            order.releasedByName(),
+            order.releasedAt(),
+            order.completedAt(),
+            order.cancelledAt(),
+            order.terminatedByUserId(),
+            order.terminatedByName(),
+            order.terminatedAt(),
+            order.terminationReasonCode(),
+            order.terminationReasonLabel(),
+            order.targetType(),
+            order.targetSpecimenId(),
+            order.targetSpecimenNo(),
+            order.targetBlockId(),
+            order.targetBlockNo(),
+            order.targetSlideId(),
+            order.targetSlideNo(),
+            order.remarks(),
+            order.createdAt(),
+            order.updatedAt());
+    }
+
+    private boolean isRoutineOrder(MedicalOrder order) {
+        if (order == null) {
+            return false;
+        }
+        return "ROUTINE".equalsIgnoreCase(order.orderType())
+            || "CGRS".equalsIgnoreCase(order.orderCategoryCode())
+            || "EXAM".equalsIgnoreCase(order.orderCategoryCode())
+            || "BLOCK".equalsIgnoreCase(order.orderCategoryCode())
+            || "QP".equalsIgnoreCase(order.orderCategoryCode());
+    }
+
+    private Map<String, List<String>> findPendingMergeGroupTaskIds(List<String> printGroupIds) {
+        if (printGroupIds == null || printGroupIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, List<String>> taskIdsByGroupId = new HashMap<>();
+        jdbcTemplate.query("""
+            select group_id, task_id
+            from slicing_slide_print_merge_group_items
+            where group_id in (:printGroupIds)
+            order by group_id asc, sequence_no asc, created_at asc
+            """, new MapSqlParameterSource().addValue("printGroupIds", printGroupIds), (rs, rowNum) -> {
+            taskIdsByGroupId.computeIfAbsent(rs.getString("group_id"), ignored -> new ArrayList<>())
+                .add(rs.getString("task_id"));
+            return null;
+        });
+        return taskIdsByGroupId;
+    }
+
+    private List<String> resolveSlicingTaskIds(MedicalOrderSlicingLink link, Map<String, List<String>> taskIdsByGroupId) {
+        if (link.slicingPrintGroupId() != null && !link.slicingPrintGroupId().isBlank()) {
+            List<String> grouped = taskIdsByGroupId.get(link.slicingPrintGroupId());
+            if (grouped != null && !grouped.isEmpty()) {
+                return grouped.stream()
+                    .filter(value -> value != null && !value.isBlank())
+                    .distinct()
+                    .toList();
+            }
+        }
+        return splitTaskIds(null, link.slicingTaskId());
+    }
+
+    private List<String> splitTaskIds(String aggregatedTaskIds, String fallbackTaskId) {
+        if (aggregatedTaskIds == null || aggregatedTaskIds.isBlank()) {
+            return fallbackTaskId == null || fallbackTaskId.isBlank() ? List.of() : List.of(fallbackTaskId);
+        }
+        return Arrays.stream(aggregatedTaskIds.split(","))
+            .map(String::trim)
+            .filter(value -> !value.isBlank())
+            .distinct()
+            .toList();
     }
 
     private MedicalOrderQcEvaluation mapMedicalOrderQcEvaluation(ResultSet rs, int rowNum) throws SQLException {
