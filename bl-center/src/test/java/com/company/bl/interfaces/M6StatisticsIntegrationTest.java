@@ -7,6 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,6 +26,28 @@ class M6StatisticsIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
     private static final String ROLE_M4_MEDICAL_ORDER_EXECUTE = "ROLE_M4_MEDICAL_ORDER_EXECUTE";
     private static final String DEPARTMENT_STAT_OR = "DEPT-M6-STAT-OR";
     private static final String DEPARTMENT_STAT_ICU = "DEPT-M6-STAT-ICU";
+
+    @Test
+    void shouldQueryPathologyScreenDashboardSummary() throws Exception {
+        PublishedReportContext context =
+            preparePublishedReportContext("APP-M6-SCREEN-001", "BC-M6-SCREEN-001", DEPARTMENT_STAT_OR, "M6 Stat OR");
+        addReportChangeFixtures(context);
+        markSpecimenUnqualified(context, "固定不足");
+        completeMedicalOrder(context.caseId(), "dashboard technical order", USER_M4_ORDER_EXECUTE);
+
+        JsonNode dashboard = responseBody(mockMvc.perform(authorized(get("/api/v1/dashboard/pathology-screen"), USER_M1_QUALITY)), 200);
+
+        assertThat(dashboard.path("summaryCards").path("annualCaseTotal").path("label").asText()).isEqualTo("全年病例总数（例）");
+        assertThat(dashboard.path("summaryCards").path("lastMonthReportTimelinessRate").path("status").asText()).isNotBlank();
+        assertThat(dashboard.path("reportRevisionRateTrend").path("items").size()).isEqualTo(12);
+        assertThat(dashboard.path("reportRevisionRateTrend").path("items").toString()).contains(String.valueOf(LocalDate.now().getYear()));
+        assertThat(dashboard.path("technicalQualificationRates").path("items").toString()).contains("规范化固定率");
+        assertThat(dashboard.path("diagnosisWorkloadRows").path("items").toString()).contains("特殊染色");
+        assertThat(dashboard.path("structuredReportSummary").path("topTemplates")).isNotNull();
+        assertThat(dashboard.path("lastMonthWorkload").path("items").toString()).contains("切片");
+        assertThat(dashboard.path("threeYearReportQualityRates").path("items").toString()).contains("冰冻快速病理诊断及时率");
+        assertThat(dashboard.path("overallComplianceRates").path("items").toString()).contains("危急值上报及时率");
+    }
 
     @Test
     void shouldQueryAndExportStatReports() throws Exception {

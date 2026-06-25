@@ -636,6 +636,97 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
     }
 
     @Test
+    void shouldReturnPatientIdDisplayAndSubmittingDepartmentInPendingMedicalOrders() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase(
+            "APP-M4-ORDER-DISPLAY-001",
+            "BC-M4-ORDER-DISPLAY-001",
+            "DEPT-M4-ORDER-DISPLAY",
+            "液基门诊");
+        upsertApplicationRegistrationWorkbenchIdNo(context.caseId(), "08305");
+
+        createMedicalOrderWithTarget(context.caseId());
+
+        JsonNode pending = responseBody(mockMvc.perform(authorized(get("/api/v1/medical-orders/pending"), USER_M4_ORDER_EXECUTE)
+            .param("page", "1")
+            .param("size", "20")
+            .param("pathologyNo", context.pathologyNo())), 200);
+
+        assertThat(pending.path("total").asInt()).isEqualTo(1);
+        JsonNode item = pending.path("items").get(0);
+        assertThat(item.path("patientIdDisplay").asText()).isEqualTo("08305");
+        assertThat(item.path("submittingDepartmentName").asText()).isEqualTo("液基门诊");
+    }
+
+    @Test
+    void shouldCreateMedicalOrderOnlyBlockAndReturnNormalizedBlockNo() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-BLOCK-001", "BC-M4-ORDER-BLOCK-001");
+
+        JsonNode created = responseBody(postJson(
+            "/api/v1/pathology-cases/%s/medical-order-blocks".formatted(context.caseId()),
+            USER_M4_DIAGNOSIS,
+            """
+                {
+                  "blockNo":"%s-a3"
+                }
+                """.formatted(context.pathologyNo())), 200);
+
+        assertThat(created.path("medicalOrderBlockId").asText()).startsWith("MOB");
+        assertThat(created.path("blockNo").asText()).isEqualTo("A3");
+
+        Map<String, Object> persisted = namedParameterJdbcTemplate.queryForMap("""
+            select case_id, block_no, created_by_user_id, created_by_name
+            from medical_order_blocks
+            where id = :id
+            """, Map.of("id", created.path("medicalOrderBlockId").asText()));
+        assertThat(persisted.get("case_id")).isEqualTo(context.caseId());
+        assertThat(persisted.get("block_no")).isEqualTo("A3");
+        assertThat(persisted.get("created_by_user_id")).isEqualTo(USER_M4_DIAGNOSIS);
+        assertThat(persisted.get("created_by_name")).isEqualTo(userDisplayName(USER_M4_DIAGNOSIS));
+    }
+
+    @Test
+    void shouldRejectDuplicateMedicalOrderOnlyBlockCreation() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-BLOCK-DUP-001", "BC-M4-ORDER-BLOCK-DUP-001");
+
+        responseBody(postJson(
+            "/api/v1/pathology-cases/%s/medical-order-blocks".formatted(context.caseId()),
+            USER_M4_DIAGNOSIS,
+            """
+                {
+                  "blockNo":"A3"
+                }
+                """), 200);
+
+        postJson(
+            "/api/v1/pathology-cases/%s/medical-order-blocks".formatted(context.caseId()),
+            USER_M4_DIAGNOSIS,
+            """
+                {
+                  "blockNo":"  a3  "
+                }
+                """)
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message", containsString("already exists")));
+    }
+
+    @Test
+    void shouldRejectMedicalOrderOnlyBlockWhenFormalCaseBlockCodeAlreadyExists() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-BLOCK-CONFLICT-001", "BC-M4-ORDER-BLOCK-CONFLICT-001");
+        MedicalOrderTargetSnapshot targetSnapshot = queryMedicalOrderTargetSnapshot(context.caseId());
+
+        postJson(
+            "/api/v1/pathology-cases/%s/medical-order-blocks".formatted(context.caseId()),
+            USER_M4_DIAGNOSIS,
+            """
+                {
+                  "blockNo":"%s"
+                }
+                """.formatted(targetSnapshot.blockNo()))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message", containsString("formal case block")));
+    }
+
+    @Test
     void shouldReturnRoutinePendingMedicalOrdersWithSlicingLinkFields() throws Exception {
         MergeReadyMedicalOrderContext context = prepareRoutineMergeReadyMedicalOrders("APP-M4-ORDER-PENDING-LINK", "BC-M4-ORDER-PENDING-LINK");
 
@@ -922,6 +1013,49 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
             """, Map.of(
             "applicationId", applicationId,
             "inpatientNo", inpatientNo));
+    }
+
+    private void upsertApplicationRegistrationWorkbenchIdNo(String caseId, String idNo) {
+        Map<String, Object> caseRow = namedParameterJdbcTemplate.queryForMap("""
+            select application_id
+            from pathology_cases
+            where id = :caseId
+            """, Map.of("caseId", caseId));
+        String applicationId = (String) caseRow.get("application_id");
+
+        Integer workbenchCount = namedParameterJdbcTemplate.queryForObject("""
+            select count(1)
+            from application_registration_workbench
+            where application_id = :applicationId
+            """, Map.of("applicationId", applicationId), Integer.class);
+
+        if (workbenchCount != null && workbenchCount > 0) {
+            namedParameterJdbcTemplate.update("""
+                update application_registration_workbench
+                set id_no = :idNo,
+                    updated_at = current_timestamp
+                where application_id = :applicationId
+                """, Map.of(
+                "applicationId", applicationId,
+                "idNo", idNo));
+            return;
+        }
+
+        namedParameterJdbcTemplate.update("""
+            insert into application_registration_workbench (
+                application_id,
+                id_no,
+                created_at,
+                updated_at
+            ) values (
+                :applicationId,
+                :idNo,
+                current_timestamp,
+                current_timestamp
+            )
+            """, Map.of(
+            "applicationId", applicationId,
+            "idNo", idNo));
     }
 
     private MergeReadyMedicalOrderContext prepareRoutineMergeReadyMedicalOrders(String applicationNo, String barcode) throws Exception {

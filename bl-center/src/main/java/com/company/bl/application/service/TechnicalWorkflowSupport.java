@@ -172,7 +172,8 @@ class TechnicalWorkflowSupport {
                                      String objectType,
                                      String objectId,
                                      String parentTaskId,
-                                     String payload) {
+                                     String payload,
+                                     String productionRemarks) {
         if (!technicalWorkflowRepository.findActiveTechnicalTasksByObject(taskType, objectType, objectId).isEmpty()) {
             throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Active technical task already exists");
         }
@@ -193,8 +194,8 @@ class TechnicalWorkflowSupport {
             null,
             null,
             null,
+            productionRemarks,
             null,
-            LocalDateTime.now(),
             payload,
             null,
             LocalDateTime.now()));

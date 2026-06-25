@@ -884,6 +884,7 @@ public final class TechnicalWorkflowModels {
         String specimenId,
         String blockCode,
         String embeddingBoxNo,
+        String embeddingBoxName,
         String description,
         String specimenName,
         String grossDescription,

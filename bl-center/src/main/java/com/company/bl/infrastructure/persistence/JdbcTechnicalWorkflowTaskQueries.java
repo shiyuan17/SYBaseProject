@@ -290,7 +290,7 @@ final class JdbcTechnicalWorkflowTaskQueries {
         }
         return jdbcTemplate.query("""
             select sb.id, sb.case_id, sb.specimen_id, sb.sampling_id, sb.sequence_no, sb.block_code,
-                   sb.block_site, sb.block_description, sb.embedding_box_no, sb.special_requirement,
+                   sb.block_site, sb.block_description, sb.embedding_box_no, sb.embedding_box_name, sb.special_requirement,
                    sb.embedding_remarks,
                    s.specimen_name_standardized as specimen_name, sm.gross_description
             from sampling_blocks sb
@@ -304,7 +304,7 @@ final class JdbcTechnicalWorkflowTaskQueries {
     Optional<SamplingBlock> findSamplingBlockById(String samplingBlockId) {
         List<SamplingBlock> rows = jdbcTemplate.query("""
             select sb.id, sb.case_id, sb.specimen_id, sb.sampling_id, sb.sequence_no, sb.block_code,
-                   sb.block_site, sb.block_description, sb.embedding_box_no, sb.special_requirement,
+                   sb.block_site, sb.block_description, sb.embedding_box_no, sb.embedding_box_name, sb.special_requirement,
                    sb.embedding_remarks,
                    s.specimen_name_standardized as specimen_name, sm.gross_description
             from sampling_blocks sb
@@ -318,7 +318,7 @@ final class JdbcTechnicalWorkflowTaskQueries {
     List<SamplingBlock> findSamplingBlocksByCaseId(String caseId) {
         return jdbcTemplate.query("""
             select sb.id, sb.case_id, sb.specimen_id, sb.sampling_id, sb.sequence_no, sb.block_code,
-                   sb.block_site, sb.block_description, sb.embedding_box_no, sb.special_requirement,
+                   sb.block_site, sb.block_description, sb.embedding_box_no, sb.embedding_box_name, sb.special_requirement,
                    sb.embedding_remarks,
                    s.specimen_name_standardized as specimen_name, sm.gross_description
             from sampling_blocks sb
@@ -379,7 +379,7 @@ final class JdbcTechnicalWorkflowTaskQueries {
                 t.assigned_to_user_id,
                 t.assigned_to_name,
                 t.expected_completed_at,
-                t.production_remarks,
+                coalesce(t.production_remarks, parent.production_remarks) as production_remarks,
                 t.received_at,
                 t.payload,
                 t.remarks,
@@ -395,6 +395,7 @@ final class JdbcTechnicalWorkflowTaskQueries {
               or p.inpatient_no = a.patient_id
               or p.outpatient_no = a.patient_id
             left join application_registration_workbench w on w.application_id = t.application_id
+            left join technical_pending_tasks parent on parent.id = t.parent_task_id
             left join sampling_blocks sb
               on t.object_type = 'SAMPLING_BLOCK'
              and t.object_id = sb.id

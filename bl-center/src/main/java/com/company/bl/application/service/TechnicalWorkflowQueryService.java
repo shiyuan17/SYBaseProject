@@ -345,6 +345,7 @@ class TechnicalWorkflowQueryService {
                 block.specimenId(),
                 block.blockCode(),
                 block.embeddingBoxNo(),
+                block.embeddingBoxName(),
                 block.blockDescription(),
                 block.specimenName(),
                 block.grossDescription(),

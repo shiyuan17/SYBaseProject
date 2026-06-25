@@ -32,6 +32,7 @@ public interface DiagnosticTrackingQueryRepository {
         List<DiagnosticReportRepository.DiagnosticTask> diagnosticTasks,
         DiagnosticReportRepository.PathologyReport currentReport,
         List<TechnicalWorkflowRecords.SamplingBlock> blocks,
+        List<MedicalOrderRepository.MedicalOrderBlock> medicalOrderBlocks,
         List<TechnicalWorkflowProcessingRecords.Slide> slides,
         List<TechnicalWorkflowRecords.EmbeddingBox> embeddingBoxes,
         List<ArchiveRepository.ObjectArchiveSummary> embeddingBoxArchives,

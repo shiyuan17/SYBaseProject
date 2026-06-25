@@ -316,6 +316,7 @@ public final class TechnicalWorkflowRecords {
         String blockSite,
         String blockDescription,
         String embeddingBoxNo,
+        String embeddingBoxName,
         String specialRequirement,
         String embeddingRemarks,
         String specimenName,

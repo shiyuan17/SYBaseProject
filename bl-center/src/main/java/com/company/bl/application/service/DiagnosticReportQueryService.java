@@ -97,6 +97,8 @@ class DiagnosticReportQueryService {
             aggregate.specimens().stream().map(item -> new DiagnosticReportViews.WorkbenchSpecimenSummary(
                 item.id(), item.specimenNo(), item.barcode(), item.specimenNameStandardized(), item.specimenStatus().name())).toList(),
             aggregate.blocks().stream().map(item -> toBlockSummary(item, embeddingBoxesByNo, embeddingBoxArchiveByObjectId)).toList(),
+            aggregate.medicalOrderBlocks().stream().map(item -> new DiagnosticReportViews.MedicalOrderBlockView(
+                item.id(), item.blockNo())).toList(),
             aggregate.slides().stream().map(item -> toSlideSummary(item, slideArchiveByObjectId)).toList(),
             aggregate.diagnosticTasks().stream().map(this::toTaskView).toList(),
             aggregate.currentReport() == null ? null : toReportView(aggregate.currentReport()),
@@ -368,6 +370,7 @@ class DiagnosticReportQueryService {
             order.patientName(),
             order.patientId(),
             order.patientIdDisplay(),
+            order.submittingDepartmentName(),
             order.orderNumber(),
             order.orderType(),
             order.orderContent(),

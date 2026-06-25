@@ -123,7 +123,8 @@ class TechnicalProcessingWorkflowService {
             TechnicalWorkflowConstants.OBJECT_EMBEDDING_BOX,
             embeddingBoxId,
             task.id(),
-            "embeddingBoxNo=" + embeddingBoxNo);
+            "embeddingBoxNo=" + embeddingBoxNo,
+            null);
         return new TechnicalWorkflowModels.EmbeddingResult(
             task.id(), embeddingId, embeddingBoxId, "EMBEDDING", markingResult.success(), markingResult.message());
     }
@@ -435,7 +436,8 @@ class TechnicalProcessingWorkflowService {
                 TechnicalWorkflowConstants.OBJECT_SLIDE,
                 slide.id(),
                 task.id(),
-                "slideNo=" + slide.slideNo());
+                "slideNo=" + slide.slideNo(),
+                task.productionRemarks());
             slideIds.add(slide.id());
         }
         technicalWorkflowRepository.completeTechnicalTask(task.id(), TechnicalWorkflowConstants.TASK_COMPLETED, command.remarks(), now);

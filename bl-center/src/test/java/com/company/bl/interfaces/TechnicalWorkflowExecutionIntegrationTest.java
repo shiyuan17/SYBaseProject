@@ -302,6 +302,14 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
 
         JsonNode slicingTasks = listPendingTasks("SLICING", context.pathologyNo(), USER_M3_SLICING);
         String slicingTaskId = slicingTasks.path("items").get(0).path("id").asText();
+        String slicingProductionRemarks = "切片主班备注-自动带入";
+        namedParameterJdbcTemplate.update("""
+            update technical_pending_tasks
+            set production_remarks = :productionRemarks
+            where id = :taskId
+            """, java.util.Map.of(
+            "productionRemarks", slicingProductionRemarks,
+            "taskId", slicingTaskId));
 
         postJson("/api/v1/slicings/start", USER_M3_SLICING, """
             {
@@ -330,6 +338,12 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
         String stainingTaskId = stainingTask.path("id").asText();
         assertThat(stainingTask.path("objectId").asText()).isEqualTo(slideId);
         assertThat(stainingTask.path("objectDisplayNo").asText()).startsWith("BX-");
+        assertThat(stainingTask.path("productionRemarks").asText()).isEqualTo(slicingProductionRemarks);
+        assertThat(namedParameterJdbcTemplate.queryForObject("""
+            select production_remarks
+            from technical_pending_tasks
+            where id = :taskId
+            """, java.util.Map.of("taskId", stainingTaskId), String.class)).isEqualTo(slicingProductionRemarks);
 
         postJson("/api/v1/slide-stainings/start", USER_M3_STAINING, """
             {
@@ -744,6 +758,16 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
               "embeddingBoxId": "%s",
               "slideCount": 1}
             """.formatted(slicingTaskId, embeddingBoxId)), 200).path("slideIds").get(0).asText();
+        String originalStainingTaskId = listPendingTasks("STAINING", context.pathologyNo(), USER_M3_STAINING)
+            .path("items").get(0).path("id").asText();
+        String restainProductionRemarks = "重染主班备注-沿用";
+        namedParameterJdbcTemplate.update("""
+            update technical_pending_tasks
+            set production_remarks = :productionRemarks
+            where id = :taskId
+            """, java.util.Map.of(
+            "productionRemarks", restainProductionRemarks,
+            "taskId", originalStainingTaskId));
 
         postJson("/api/v1/rework-orders", USER_M3_REWORK, """
             {
@@ -777,7 +801,17 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
                 .param("taskType", "STAINING")
                 .param("pathologyNo", context.pathologyNo()))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.total").value(1));
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].productionRemarks").value(restainProductionRemarks));
+
+        String regeneratedStainingTaskId = listPendingTasks("STAINING", context.pathologyNo(), USER_M3_STAINING)
+            .path("items").get(0).path("id").asText();
+        assertThat(regeneratedStainingTaskId).isNotEqualTo(originalStainingTaskId);
+        assertThat(namedParameterJdbcTemplate.queryForObject("""
+            select production_remarks
+            from technical_pending_tasks
+            where id = :taskId
+            """, java.util.Map.of("taskId", regeneratedStainingTaskId), String.class)).isEqualTo(restainProductionRemarks);
     }
 
     private void dropTechnicalSpecimenRegistrationsTable() {

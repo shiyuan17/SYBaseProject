@@ -52,6 +52,8 @@ public record DiagnosticWorkbenchResponse(
     List<SpecimenSummary> specimens,
     @Schema(description = "Block summaries")
     List<BlockSummary> blocks,
+    @Schema(description = "Medical-order-only block summaries")
+    List<MedicalOrderBlockSummary> medicalOrderBlocks,
     @Schema(description = "Slide summaries")
     List<SlideSummary> slides,
     @Schema(description = "Diagnostic tasks")
@@ -112,6 +114,15 @@ public record DiagnosticWorkbenchResponse(
         String archiveLocation,
         @Schema(description = "Loan status")
         String loanStatus
+    ) {
+    }
+
+    @Schema(name = "DiagnosticWorkbenchMedicalOrderBlockSummary", description = "Medical-order-only block summary in diagnostic workbench")
+    public record MedicalOrderBlockSummary(
+        @Schema(description = "Medical-order-only block ID")
+        String medicalOrderBlockId,
+        @Schema(description = "Block number")
+        String blockNo
     ) {
     }
 

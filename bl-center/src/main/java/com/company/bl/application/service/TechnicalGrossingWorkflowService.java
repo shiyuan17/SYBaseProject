@@ -159,7 +159,8 @@ class TechnicalGrossingWorkflowService {
                     TechnicalWorkflowConstants.OBJECT_SAMPLING_BLOCK,
                     blockId,
                     task.id(),
-                    "blockCode=" + blockCode + ";embeddingBoxNo=" + embeddingBoxNo);
+                    "blockCode=" + blockCode + ";embeddingBoxNo=" + embeddingBoxNo,
+                    null);
                 nextTaskCount++;
             }
             technicalWorkflowSupport.storeMediaAssets(
@@ -325,6 +326,7 @@ class TechnicalGrossingWorkflowService {
                 TechnicalWorkflowConstants.OBJECT_SAMPLING_BLOCK,
                 item.samplingBlockId(),
                 dehydrationTask.id(),
+                null,
                 null);
         }
         technicalWorkflowSupport.storeMediaAssets(pathologyCase, null, "DEHYDRATION", "DEHYDRATION_IMAGE",
@@ -398,6 +400,7 @@ class TechnicalGrossingWorkflowService {
             TechnicalWorkflowConstants.OBJECT_SAMPLING_BLOCK,
             block.id(),
             task.id(),
+            null,
             null);
         technicalWorkflowSupport.insertWorkflowEvent(
             task,

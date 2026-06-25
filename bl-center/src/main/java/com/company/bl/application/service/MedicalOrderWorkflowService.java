@@ -206,6 +206,39 @@ public class MedicalOrderWorkflowService {
     }
 
     @Transactional
+    DiagnosticReportModels.MedicalOrderBlockResult createMedicalOrderBlock(
+        DiagnosticReportModels.CreateMedicalOrderBlockCommand command
+    ) {
+        String caseId = diagnosticReportSupport.resolveCaseIdentifier(command.caseId()).id();
+        var pathologyCase = diagnosticReportSupport.getCase(caseId);
+        diagnosticReportSupport.ensureAssignedDoctor(diagnosticReportSupport.getLatestDiagnosticTask(caseId), command.operatorUserId());
+
+        String normalizedBlockNo = normalizeMedicalOrderBlockNo(pathologyCase.pathologyNo(), command.blockNo());
+        medicalOrderRepository.findMedicalOrderBlockByCaseIdAndBlockNo(caseId, normalizedBlockNo)
+            .ifPresent(existing -> {
+                throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Medical-order-only block already exists");
+            });
+        boolean conflictsWithFormalBlock = technicalWorkflowRepository.findSamplingBlocksByCaseId(caseId).stream()
+            .anyMatch(block -> normalizedBlockNo.equalsIgnoreCase(block.blockCode()));
+        if (conflictsWithFormalBlock) {
+            throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Medical-order-only block conflicts with formal case block");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        String medicalOrderBlockId = diagnosticReportSupport.nextId("MOB");
+        medicalOrderRepository.insertMedicalOrderBlock(new MedicalOrderRepository.CreateMedicalOrderBlockCommand(
+            medicalOrderBlockId,
+            caseId,
+            normalizedBlockNo,
+            command.operatorUserId(),
+            command.operatorName(),
+            now));
+        diagnosticReportSupport.insertWorkflowEvent(caseId, "MEDICAL_ORDER_BLOCK_CREATE", "CREATE", "SUCCESS",
+            command.operatorUserId(), command.operatorName(), command.terminalCode(), normalizedBlockNo);
+        return new DiagnosticReportModels.MedicalOrderBlockResult(medicalOrderBlockId, caseId, normalizedBlockNo);
+    }
+
+    @Transactional
     DiagnosticReportModels.MedicalOrderResult acceptMedicalOrder(DiagnosticReportModels.MedicalOrderActionCommand command) {
         MedicalOrderRepository.MedicalOrder order = getOrder(command.orderId());
         if (!DiagnosticReportConstants.ORDER_PENDING.equals(order.status())) {
@@ -519,6 +552,7 @@ public class MedicalOrderWorkflowService {
             order.patientName(),
             order.patientId(),
             order.patientIdDisplay(),
+            order.submittingDepartmentName(),
             order.orderNumber(),
             order.orderType(),
             order.orderContent(),
@@ -618,6 +652,27 @@ public class MedicalOrderWorkflowService {
             return "";
         }
         return "\"" + value.replace("\"", "\"\"") + "\"";
+    }
+
+    private String normalizeMedicalOrderBlockNo(String pathologyNo, String blockNo) {
+        if (blockNo == null || blockNo.isBlank()) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Block number is required");
+        }
+        String normalized = blockNo.trim().toUpperCase();
+        String normalizedPathologyNo = pathologyNo == null ? null : pathologyNo.trim().toUpperCase();
+        if (normalizedPathologyNo != null && !normalizedPathologyNo.isBlank()) {
+            String prefix = normalizedPathologyNo + "-";
+            if (normalized.startsWith(prefix)) {
+                normalized = normalized.substring(prefix.length()).trim();
+            }
+        }
+        if (normalized.isBlank()) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Block number is required");
+        }
+        if (normalized.length() > 64) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Block number is too long");
+        }
+        return normalized;
     }
 
     private boolean canConfirm(MedicalOrderRepository.MedicalOrder order) {

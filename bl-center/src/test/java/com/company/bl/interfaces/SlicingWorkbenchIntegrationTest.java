@@ -287,6 +287,67 @@ class SlicingWorkbenchIntegrationTest extends AbstractTechnicalWorkflowIntegrati
     }
 
     @Test
+    void shouldExposePrintedMergeGroupAsMergedPendingSliceRow() throws Exception {
+        MergeReadyContext context = prepareSlicingMergeReadyContext(
+            "APP-M3-MERGE-PRINTED-001",
+            "BC-M3-MERGE-PRINTED-001",
+            List.of("A1", "A2", "B1"));
+
+        JsonNode mergeResult = responseBody(postJson("/api/v1/slicings/slide-print-merge-groups", USER_M3_SLICING, """
+            {
+              "taskIds": [%s],
+              "terminalCode": "TS-MERGED-PENDING-SLICE"
+            }
+            """.formatted(quotedJsonArray(context.taskIdsByBoxNo().values().stream().toList()))), 200);
+        assertThat(mergeResult.path("printGroupIds")).hasSize(1);
+
+        String printGroupId = mergeResult.path("printGroupIds").get(0).asText();
+        JsonNode printResult = responseBody(postJson("/api/v1/slicings/slide-print-merge-groups/print", USER_M3_SLICING, """
+            {
+              "printGroupId": "%s",
+              "printerCode": "PRN-MERGED-PENDING-SLICE",
+              "terminalCode": "TS-MERGED-PENDING-SLICE"
+            }
+            """.formatted(printGroupId)), 200);
+        assertThat(printResult.path("merged").asBoolean()).isTrue();
+        assertThat(printResult.path("printedSlideCount").asInt()).isEqualTo(2);
+
+        JsonNode workbench = responseBody(mockMvc.perform(authorized(get("/api/v1/slicings/workbench"), USER_M3_SLICING)
+                .param("keyword", context.baseContext().pathologyNo())
+                .param("pendingPage", "1")
+                .param("pendingSize", "20")
+                .param("completedPage", "1")
+                .param("completedSize", "20")), 200);
+
+        assertThat(workbench.path("pendingPrintTotal").asInt()).isEqualTo(1);
+        assertThat(workbench.path("pendingPrintList")).hasSize(1);
+        assertThat(workbench.path("pendingPrintList").get(0).path("embeddingBoxNo").asText()).isEqualTo("B1");
+
+        assertThat(workbench.path("pendingSliceTotal").asInt()).isEqualTo(1);
+        assertThat(workbench.path("pendingSliceList")).hasSize(1);
+        JsonNode mergedPendingSlice = workbench.path("pendingSliceList").get(0);
+        assertThat(mergedPendingSlice.path("printGroupId").asText()).isEqualTo(printGroupId);
+        assertThat(mergedPendingSlice.path("mergedPrintGroup").asBoolean()).isTrue();
+        assertThat(mergedPendingSlice.path("combinedSlide").asBoolean()).isFalse();
+        assertThat(mergedPendingSlice.path("slidePrintStatus").asText()).isEqualTo("PRINTED");
+        assertThat(mergedPendingSlice.path("printedSlideCount").asInt()).isEqualTo(2);
+        assertThat(mergedPendingSlice.path("embeddingBoxNo").asText()).isEqualTo("A1+A2");
+        assertThat(mergedPendingSlice.path("taskIds"))
+            .extracting(JsonNode::asText)
+            .containsExactly(
+                context.taskIdsByBoxNo().get("A1"),
+                context.taskIdsByBoxNo().get("A2"));
+        assertThat(mergedPendingSlice.path("embeddingBoxIds"))
+            .extracting(JsonNode::asText)
+            .containsExactly(
+                context.embeddingBoxIdsByBoxNo().get("A1"),
+                context.embeddingBoxIdsByBoxNo().get("A2"));
+        assertThat(workbench.path("pendingSliceList"))
+            .extracting(item -> item.path("taskId").asText())
+            .doesNotContain(context.taskIdsByBoxNo().get("A1"), context.taskIdsByBoxNo().get("A2"));
+    }
+
+    @Test
     void shouldRejectPendingSlideMergeWhenNoSamePrefixPairExists() throws Exception {
         MergeReadyContext context = prepareSlicingMergeReadyContext(
             "APP-M3-MERGE-002",

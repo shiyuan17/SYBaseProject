@@ -547,7 +547,8 @@ class TechnicalSpecimenRegistrationService {
                 TechnicalWorkflowConstants.OBJECT_CASE,
                 command.caseId(),
                 null,
-                "pathologyNo=" + pathologyNo + ";receivedCount=" + specimens.size() + ";processedCount=" + specimens.size());
+                "pathologyNo=" + pathologyNo + ";receivedCount=" + specimens.size() + ";processedCount=" + specimens.size(),
+                null);
             technicalWorkflowSupport.insertWorkflowEvent(
                 pathologyCase.applicationId(),
                 null,

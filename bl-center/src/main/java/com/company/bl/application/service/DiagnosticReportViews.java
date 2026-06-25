@@ -22,6 +22,7 @@ public final class DiagnosticReportViews {
         String patientName,
         String patientId,
         String patientIdDisplay,
+        String submittingDepartmentName,
         String orderNumber,
         String orderType,
         String orderContent,
@@ -109,6 +110,7 @@ public final class DiagnosticReportViews {
         String applicationFormImageUrl,
         List<WorkbenchSpecimenSummary> specimens,
         List<WorkbenchBlockSummary> blocks,
+        List<MedicalOrderBlockView> medicalOrderBlocks,
         List<WorkbenchSlideSummary> slides,
         List<DiagnosticReportModels.TaskView> diagnosticTasks,
         PathologyReportView currentReport,
@@ -143,6 +145,12 @@ public final class DiagnosticReportViews {
         String archiveStatus,
         String archiveLocation,
         String loanStatus
+    ) {
+    }
+
+    public record MedicalOrderBlockView(
+        String medicalOrderBlockId,
+        String blockNo
     ) {
     }
 

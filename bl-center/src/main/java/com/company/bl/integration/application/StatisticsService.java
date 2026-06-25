@@ -12,11 +12,14 @@ public class StatisticsService {
 
     private final M6JdbcRepository repository;
     private final StatisticsComputationSupport computationSupport;
+    private final PathologyScreenDashboardSupport pathologyScreenDashboardSupport;
 
     public StatisticsService(M6JdbcRepository repository,
-                             StatisticsComputationSupport computationSupport) {
+                             StatisticsComputationSupport computationSupport,
+                             PathologyScreenDashboardSupport pathologyScreenDashboardSupport) {
         this.repository = repository;
         this.computationSupport = computationSupport;
+        this.pathologyScreenDashboardSupport = pathologyScreenDashboardSupport;
     }
 
     @Transactional(readOnly = true)
@@ -51,6 +54,11 @@ public class StatisticsService {
 
     public byte[] exportReportDetails(QueryStatReportDetailCommand command) {
         return computationSupport.exportReportDetails(command);
+    }
+
+    @Transactional(readOnly = true)
+    public PathologyScreenDashboardView queryPathologyScreenDashboard() {
+        return pathologyScreenDashboardSupport.queryDashboard();
     }
 
     public record IndicatorDefinitionView(
@@ -160,6 +168,96 @@ public class StatisticsService {
         LocalDateTime occurredAt,
         String detailStatus,
         String reason
+    ) {
+    }
+
+    public record PathologyScreenDashboardView(
+        PathologyScreenSummaryCardsView summaryCards,
+        PathologyScreenSectionView reportRevisionRateTrend,
+        PathologyScreenSectionView technicalQualificationRates,
+        PathologyScreenTableSectionView diagnosisWorkloadRows,
+        PathologyScreenThreeYearSectionView threeYearTechnicalRates,
+        PathologyScreenStructuredReportSummaryView structuredReportSummary,
+        PathologyScreenSectionView lastMonthWorkload,
+        PathologyScreenThreeYearSectionView threeYearReportQualityRates,
+        PathologyScreenSectionView overallComplianceRates
+    ) {
+    }
+
+    public record PathologyScreenSummaryCardsView(
+        PathologyScreenMetricCardView annualCaseTotal,
+        PathologyScreenMetricCardView lastMonthCaseTotal,
+        PathologyScreenMetricCardView lastMonthReportTimelinessRate
+    ) {
+    }
+
+    public record PathologyScreenMetricCardView(
+        String label,
+        String value,
+        String status,
+        String sourceNote
+    ) {
+    }
+
+    public record PathologyScreenMetricItemView(
+        String label,
+        String value,
+        String status,
+        String sourceNote
+    ) {
+    }
+
+    public record PathologyScreenTrendItemView(
+        String label,
+        String value,
+        String status,
+        String sourceNote
+    ) {
+    }
+
+    public record PathologyScreenSectionView(
+        String status,
+        String sourceNote,
+        List<?> items
+    ) {
+    }
+
+    public record PathologyScreenWorkloadRowView(
+        String label,
+        String januaryCount,
+        String februaryCount,
+        String momRate,
+        String status,
+        String sourceNote
+    ) {
+    }
+
+    public record PathologyScreenTableSectionView(
+        String status,
+        String sourceNote,
+        List<PathologyScreenWorkloadRowView> items
+    ) {
+    }
+
+    public record PathologyScreenThreeYearItemView(
+        String year,
+        List<PathologyScreenMetricItemView> metrics
+    ) {
+    }
+
+    public record PathologyScreenThreeYearSectionView(
+        String status,
+        String sourceNote,
+        List<PathologyScreenThreeYearItemView> items
+    ) {
+    }
+
+    public record PathologyScreenStructuredReportSummaryView(
+        PathologyScreenMetricCardView templateTypeCount,
+        PathologyScreenMetricCardView reportCount,
+        List<PathologyScreenMetricItemView> topTemplates,
+        String status,
+        String sourceNote
     ) {
     }
 }

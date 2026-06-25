@@ -134,6 +134,12 @@ public class DiagnosticReportAppService {
         return medicalOrderWorkflowService.createMedicalOrder(command);
     }
 
+    public DiagnosticReportModels.MedicalOrderBlockResult createMedicalOrderBlock(
+        DiagnosticReportModels.CreateMedicalOrderBlockCommand command
+    ) {
+        return medicalOrderWorkflowService.createMedicalOrderBlock(command);
+    }
+
     public DiagnosticReportModels.MedicalOrderResult acceptMedicalOrder(DiagnosticReportModels.MedicalOrderActionCommand command) {
         return medicalOrderWorkflowService.acceptMedicalOrder(command);
     }

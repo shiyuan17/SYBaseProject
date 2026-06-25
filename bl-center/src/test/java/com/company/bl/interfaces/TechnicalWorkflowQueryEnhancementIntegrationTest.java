@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -221,8 +222,55 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
             .andExpect(jsonPath("$.data.task.taskStatus").value("COMPLETED"))
             .andExpect(jsonPath("$.data.tracking.blocks[0].grossDescription").value(grossDescription))
             .andExpect(jsonPath("$.data.tracking.blocks[0].embeddingBoxNo").value("A1"))
+            .andExpect(jsonPath("$.data.tracking.blocks[0].embeddingBoxName").value("box-read-1"))
             .andExpect(jsonPath("$.data.tracking.blocks[0].description").value("block-read-1"))
             .andExpect(jsonPath("$.data.tracking.blocks[0].embeddingRemarks").value("read-only remark"));
+    }
+
+    @Test
+    void shouldExposeNullEmbeddingBoxNameWhenHistoricalGrossingDidNotSaveOne() throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-GROSSING-READ-002", "BC-M3-GROSSING-READ-002");
+
+        postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
+            {
+              "taskId": "%s"}
+            """.formatted(context.grossingTaskId()))
+            .andExpect(status().isOk());
+
+        postJson("/api/v1/grossings/complete", USER_M3_GROSSING, """
+            {
+              "taskId": "%s",
+              "caseId": "%s",
+              "specimens": [
+                {
+                  "specimenId": "%s",
+                  "specimenType": "ROUTINE",
+                  "grossDescription": "completed grossing description 2",
+                  "blocks": [
+                    {"blockSite": "B", "blockDescription": "block-read-2"}
+                  ],
+                  "embeddingBoxes": [
+                    {
+                      "sequenceNo": 1,
+                      "embeddingBoxNo": "A1",
+                      "boxName": " ",
+                      "status": "CONFIRMED",
+                      "embeddingRemarks": "remark-2"
+                    }
+                  ]
+                }
+              ]
+            }
+            """.formatted(
+                context.grossingTaskId(),
+                context.caseId(),
+                context.specimenId()))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(get("/api/v1/grossings/{taskId}/context", context.grossingTaskId()), USER_M3_GROSSING))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.tracking.blocks[0].embeddingBoxNo").value("A1"))
+            .andExpect(jsonPath("$.data.tracking.blocks[0].embeddingBoxName").value(nullValue()));
     }
 
     @Test
@@ -796,6 +844,57 @@ class TechnicalWorkflowQueryEnhancementIntegrationTest extends AbstractTechnical
             }
         }
         assertThat(newerIndex).isLessThan(olderIndex);
+    }
+
+    @Test
+    void shouldFallbackToParentProductionRemarksForHistoricalStainingTasks() throws Exception {
+        TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-STAIN-REMARK-001", "BC-M3-STAIN-REMARK-001");
+        EmbeddingFixture fixture = advanceCaseToCompletedEmbedding(
+            context,
+            "staining remark gross",
+            "staining remark embedding",
+            "staining remark evaluation",
+            "staining remark notice");
+        String slicingTaskId = listPendingTasks("SLICING", context.pathologyNo(), USER_M3_SLICING)
+            .path("items").get(0).path("id").asText();
+        String parentProductionRemarks = "历史切片主班备注";
+        namedParameterJdbcTemplate.update("""
+            update technical_pending_tasks
+            set production_remarks = :productionRemarks
+            where id = :taskId
+            """, Map.of("productionRemarks", parentProductionRemarks, "taskId", slicingTaskId));
+
+        postJson("/api/v1/slicings/start", USER_M3_SLICING, """
+            {
+              "taskId": "%s"
+            }
+            """.formatted(slicingTaskId))
+            .andExpect(status().isOk());
+        printSlides(slicingTaskId, fixture.embeddingBoxId());
+        postJson("/api/v1/slicings/complete", USER_M3_SLICING, """
+            {
+              "taskId": "%s",
+              "embeddingBoxId": "%s",
+              "slideCount": 1
+            }
+            """.formatted(slicingTaskId, fixture.embeddingBoxId()))
+            .andExpect(status().isOk());
+
+        String stainingTaskId = listPendingTasks("STAINING", context.pathologyNo(), USER_M3_STAINING)
+            .path("items").get(0).path("id").asText();
+        namedParameterJdbcTemplate.update("""
+            update technical_pending_tasks
+            set production_remarks = null
+            where id = :taskId
+            """, Map.of("taskId", stainingTaskId));
+
+        mockMvc.perform(authorized(get("/api/v1/technical-tasks/pending"), USER_M3_STAINING)
+                .param("page", "1")
+                .param("size", "20")
+                .param("taskType", "STAINING")
+                .param("pathologyNo", context.pathologyNo()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.items[0].productionRemarks").value(parentProductionRemarks));
     }
 
     @Test

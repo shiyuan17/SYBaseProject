@@ -123,4 +123,33 @@ class DiagnosticWorkbenchMaterialSectionIntegrationTest extends AbstractDiagnost
         assertThat(workbench.path("chargeItems").get(0).path("chargedByName").asText())
             .isEqualTo("收费员甲");
     }
+
+    @Test
+    void shouldReturnMedicalOrderOnlyBlocksInDiagnosticWorkbench() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase(
+            "APP-M4-MATERIAL-BLOCK-001",
+            "BC-M4-MATERIAL-BLOCK-001");
+        LocalDateTime now = LocalDateTime.now();
+        namedParameterJdbcTemplate.update("""
+            insert into medical_order_blocks
+                (id, case_id, block_no, created_by_user_id, created_by_name, created_at, updated_at)
+            values
+                (:id, :caseId, :blockNo, :createdByUserId, :createdByName, :createdAt, :updatedAt)
+            """, Map.of(
+            "id", "MOB-M4-MATERIAL-001",
+            "caseId", context.caseId(),
+            "blockNo", "A3",
+            "createdByUserId", USER_M4_DIAGNOSIS,
+            "createdByName", "M4 Diagnosis",
+            "createdAt", now,
+            "updatedAt", now));
+
+        JsonNode workbench = diagnosticWorkbench(context.caseId(), USER_M4_DIAGNOSIS);
+
+        assertThat(workbench.path("medicalOrderBlocks")).hasSize(1);
+        assertThat(workbench.path("medicalOrderBlocks").get(0).path("medicalOrderBlockId").asText())
+            .isEqualTo("MOB-M4-MATERIAL-001");
+        assertThat(workbench.path("medicalOrderBlocks").get(0).path("blockNo").asText())
+            .isEqualTo("A3");
+    }
 }

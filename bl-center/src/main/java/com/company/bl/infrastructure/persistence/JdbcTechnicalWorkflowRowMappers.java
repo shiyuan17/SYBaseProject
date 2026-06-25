@@ -146,6 +146,7 @@ final class JdbcTechnicalWorkflowRowMappers {
             rs.getString("block_site"),
             rs.getString("block_description"),
             rs.getString("embedding_box_no"),
+            rs.getString("embedding_box_name"),
             rs.getString("special_requirement"),
             rs.getString("embedding_remarks"),
             rs.getString("specimen_name"),

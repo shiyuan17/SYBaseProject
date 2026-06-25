@@ -5,17 +5,23 @@ import com.company.bl.application.service.DiagnosticReportModels;
 import com.company.bl.application.service.DiagnosticReportViews;
 import com.company.bl.interfaces.auth.M4PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
+import com.company.bl.interfaces.dto.CreateMedicalOrderBlockRequest;
 import com.company.bl.interfaces.vo.CaseReportVersionListItemResponse;
 import com.company.bl.interfaces.vo.CaseLifecycleTrackingResponse;
 import com.company.bl.interfaces.vo.DiagnosticWorkbenchResponse;
 import com.company.bl.interfaces.vo.FormalReportVersionListItemResponse;
+import com.company.bl.interfaces.vo.MedicalOrderBlockResponse;
 import com.company.bl.interfaces.vo.PendingDiagnosticTaskResponse;
 import com.company.bl.interfaces.vo.ReportTrackingResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -24,7 +30,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/pathology-cases")
 @Tag(name = "医生流程", description = "病例级诊断工作台与报告追踪接口")
-public class PathologyCaseDiagnosticController {
+public class PathologyCaseDiagnosticController extends TechnicalControllerSupport {
 
     private final DiagnosticReportAppService diagnosticReportAppService;
 
@@ -67,6 +73,8 @@ public class PathologyCaseDiagnosticController {
             result.blocks().stream().map(item -> new DiagnosticWorkbenchResponse.BlockSummary(
                 item.blockId(), item.specimenId(), item.blockCode(), item.embeddingBoxNo(), item.description(),
                 item.archiveStatus(), item.archiveLocation(), item.loanStatus())).toList(),
+            result.medicalOrderBlocks().stream().map(item -> new DiagnosticWorkbenchResponse.MedicalOrderBlockSummary(
+                item.medicalOrderBlockId(), item.blockNo())).toList(),
             result.slides().stream().map(item -> new DiagnosticWorkbenchResponse.SlideSummary(
                 item.slideId(), item.specimenId(), item.embeddingBoxId(), item.slideNo(), item.slideStatus(), item.qualityStatus(),
                 item.archiveStatus(), item.archiveLocation(), item.loanStatus())).toList(),
@@ -83,6 +91,24 @@ public class PathologyCaseDiagnosticController {
             result.remarkSections().stream().map(this::toRemarkSectionSummary).toList(),
             result.chargeItems().stream().map(this::toChargeItemSummary).toList(),
             result.hasPendingRevision());
+    }
+
+    @Operation(summary = "创建病例医嘱区专用蜡块", description = "为诊断工作站医嘱区创建可持久化复用的蜡块号。")
+    @RequirePermission(M4PermissionCodes.MEDICAL_ORDER_CREATE)
+    @PostMapping("/{id}/medical-order-blocks")
+    public MedicalOrderBlockResponse createMedicalOrderBlock(
+        @Parameter(description = "病例 ID 或病理号") @PathVariable("id") String caseIdentifier,
+        @Valid @RequestBody CreateMedicalOrderBlockRequest request,
+        HttpServletRequest servletRequest
+    ) {
+        DiagnosticReportModels.MedicalOrderBlockResult result = diagnosticReportAppService.createMedicalOrderBlock(
+            new DiagnosticReportModels.CreateMedicalOrderBlockCommand(
+                caseIdentifier,
+                request.getBlockNo(),
+                resolveUserId(servletRequest),
+                resolveOperatorName(servletRequest),
+                null));
+        return new MedicalOrderBlockResponse(result.medicalOrderBlockId(), result.blockNo());
     }
 
     @Operation(summary = "查询病例报告追踪", description = "按病例 ID 或病理号查询诊断任务、报告状态、版本摘要和关键时间线。")

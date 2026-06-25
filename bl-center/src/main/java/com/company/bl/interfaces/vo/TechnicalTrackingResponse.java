@@ -58,6 +58,8 @@ public record TechnicalTrackingResponse(
         String blockCode,
         @Schema(description = "包埋盒号")
         String embeddingBoxNo,
+        @Schema(description = "包埋盒名称")
+        String embeddingBoxName,
         @Schema(description = "描述")
         String description,
         @Schema(description = "标本名称")

@@ -414,13 +414,33 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             where t.task_type = 'SLICING'
               and t.task_status in ('PENDING', 'IN_PROGRESS')
               and slc.id is not null
+              and not exists (
+                  select 1
+                  from slicing_slide_print_merge_group_items mgi
+                  join slicing_slide_print_merge_groups mg on mg.id = mgi.group_id
+                  where mgi.task_id = t.id
+                    and mg.group_status = 'PRINTED'
+                    and mg.printed_slicing_id is not null
+              )
             """ + buildWorkbenchWorkDateFilter() + buildWorkbenchKeywordFilter(query.keyword()) + buildWorkbenchApplicationTypeFilter(query.applicationType()) + buildWorkbenchOverdueFilter(query.overdueOnly());
-        return findSlicingWorkbenchRows(query, where, query.pendingPage(), query.pendingSize(), """
+        TechnicalWorkflowRecords.PagedSlicingWorkbenchRows baseRows = findSlicingWorkbenchRows(query, where, 1, 10_000, """
             order by task_status_sort asc,
                      slicing_created_sort asc,
                      slide_no asc,
                      task_id asc
             """);
+        List<TechnicalWorkflowRecords.SlicingWorkbenchRow> rows = new ArrayList<>(baseRows.items());
+        rows.addAll(findPrintedSlicingProcessMergeGroupRows(query));
+        rows.sort(Comparator
+            .comparing((TechnicalWorkflowRecords.SlicingWorkbenchRow row) -> row.pathologyNo() == null ? "" : row.pathologyNo())
+            .thenComparing(row -> row.patientId() == null ? "" : row.patientId())
+            .thenComparing(row -> row.embeddingBoxNo() == null ? "" : row.embeddingBoxNo())
+            .thenComparing(TechnicalWorkflowRecords.SlicingWorkbenchRow::taskId));
+        int fromIndex = Math.max(query.pendingPage() - 1, 0) * query.pendingSize();
+        int toIndex = Math.min(fromIndex + query.pendingSize(), rows.size());
+        List<TechnicalWorkflowRecords.SlicingWorkbenchRow> pageItems =
+            fromIndex >= rows.size() ? List.of() : rows.subList(fromIndex, toIndex);
+        return new TechnicalWorkflowRecords.PagedSlicingWorkbenchRows(pageItems, rows.size());
     }
 
     TechnicalWorkflowRecords.PagedSlicingWorkbenchRows findCompletedSlicingWorkbenchRows(
@@ -715,6 +735,10 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             .map(TechnicalWorkflowRecords.SlicingWorkbenchRow::embeddingBoxNo)
             .filter(value -> value != null && !value.isBlank())
             .toList();
+        int printedSlideCount = rows.stream()
+            .mapToInt(TechnicalWorkflowRecords.SlicingWorkbenchRow::printedSlideCount)
+            .sum();
+        boolean combinedSlide = rows.stream().anyMatch(TechnicalWorkflowRecords.SlicingWorkbenchRow::combinedSlide);
         return new TechnicalWorkflowRecords.SlicingWorkbenchRow(
             first.printGroupId(),
             first.caseId(),
@@ -742,8 +766,8 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             first.submittingDepartmentName(),
             first.taskStatus(),
             first.slidePrintStatus(),
-            0,
-            true,
+            printedSlideCount,
+            combinedSlide,
             rows.stream().anyMatch(TechnicalWorkflowRecords.SlicingWorkbenchRow::timedOut),
             true,
             first.printGroupId(),
@@ -751,6 +775,110 @@ final class JdbcTechnicalWorkflowProcessingQueries {
             taskIds,
             embeddingBoxIds);
     }
+
+    private List<TechnicalWorkflowRecords.SlicingWorkbenchRow> findPrintedSlicingProcessMergeGroupRows(
+        TechnicalWorkflowRecords.SlicingWorkbenchQuery query
+    ) {
+        MapSqlParameterSource params = buildWorkbenchParams(query);
+        List<TechnicalWorkflowRecords.SlicingWorkbenchRow> itemRows = jdbcTemplate.query("""
+            select
+                mg.id as print_group_id,
+                mg.embedding_box_no as merged_embedding_box_no,
+                t.id as task_id,
+                t.case_id,
+                a.application_type,
+                pc.pathology_no,
+                a.patient_name,
+                a.patient_id,
+                w.id_no as patient_id_display,
+                t.specimen_id,
+                sp.specimen_name_standardized as specimen_name,
+                eb.id as embedding_box_id,
+                eb.embedding_box_no,
+                min(s.id) as slide_id,
+                min(s.slide_no) as slide_no,
+                slc.sliced_by_name as slicing_operator_name,
+                slc.remarks as slicing_remark,
+                null as completed_at,
+                emb.sampling_evaluation as grossing_evaluation,
+                emb.evaluation_level as embedding_evaluation,
+                emb.embedded_by_name as embedding_operator_name,
+                emb.remarks as embedding_clear_remark,
+                coalesce(emb.remarks, sb.embedding_remarks) as embedding_remarks,
+                t.production_remarks as shift_remark,
+                mg.embedding_box_no as slice_notice,
+                a.submitting_department_name,
+                t.task_status,
+                'PRINTED' as slide_print_status,
+                count(s.id) as printed_slide_count,
+                max(coalesce(s.combined_slide_flag, 0)) as combined_slide,
+                case when t.created_at <= :slicingTimedOutBefore then 1 else 0 end as timed_out,
+                mgi.sequence_no
+            from slicing_slide_print_merge_groups mg
+            join slicing_slide_print_merge_group_items mgi on mgi.group_id = mg.id
+            join technical_pending_tasks t on t.id = mgi.task_id
+            join pathology_cases pc on pc.id = t.case_id
+            join applications a on a.id = t.application_id
+            left join application_registration_workbench w on w.application_id = t.application_id
+            left join specimens sp on sp.id = t.specimen_id
+            join embedding_boxes eb on eb.id = mgi.embedding_box_id
+            left join sampling_blocks sb on sb.id = eb.sampling_block_id
+            left join embeddings emb on emb.id = eb.embedding_id
+            join slicings slc on slc.id = mg.printed_slicing_id
+            left join slides s on s.slicing_id = slc.id
+            where mg.group_status = 'PRINTED'
+              and mg.printed_slicing_id is not null
+              and t.task_type = 'SLICING'
+              and t.task_status in ('PENDING', 'IN_PROGRESS')
+              """ + buildWorkbenchWorkDateFilter() + buildWorkbenchKeywordFilter(query.keyword()) + buildWorkbenchApplicationTypeFilter(query.applicationType()) + buildWorkbenchOverdueFilter(query.overdueOnly()) + """
+            group by mg.id, mg.embedding_box_no, t.id, t.case_id, a.application_type, pc.pathology_no, a.patient_name,
+                     a.patient_id, w.id_no, t.specimen_id, sp.specimen_name_standardized, eb.id, eb.embedding_box_no,
+                     slc.sliced_by_name, slc.remarks, emb.sampling_evaluation, emb.evaluation_level,
+                     emb.embedded_by_name, emb.remarks, sb.embedding_remarks, t.production_remarks,
+                     a.submitting_department_name, t.task_status, t.created_at, mgi.sequence_no
+            order by mg.created_at asc, mgi.sequence_no asc
+            """, params, (rs, rowNum) -> new TechnicalWorkflowRecords.SlicingWorkbenchRow(
+            rs.getString("task_id"),
+            rs.getString("case_id"),
+            JdbcResultSetUtils.getNullableString(rs, "application_type"),
+            JdbcResultSetUtils.getNullableString(rs, "pathology_no"),
+            JdbcResultSetUtils.getNullableString(rs, "patient_name"),
+            JdbcResultSetUtils.getNullableString(rs, "patient_id"),
+            JdbcResultSetUtils.getNullableString(rs, "patient_id_display"),
+            rs.getString("specimen_id"),
+            JdbcResultSetUtils.getNullableString(rs, "specimen_name"),
+            rs.getString("embedding_box_id"),
+            JdbcResultSetUtils.getNullableString(rs, "embedding_box_no"),
+            JdbcResultSetUtils.getNullableString(rs, "slide_id"),
+            JdbcResultSetUtils.getNullableString(rs, "slide_no"),
+            JdbcResultSetUtils.getNullableString(rs, "slicing_operator_name"),
+            JdbcResultSetUtils.getNullableString(rs, "slicing_remark"),
+            toLocalDateTime(rs.getTimestamp("completed_at")),
+            JdbcResultSetUtils.getNullableString(rs, "grossing_evaluation"),
+            JdbcResultSetUtils.getNullableString(rs, "embedding_evaluation"),
+            JdbcResultSetUtils.getNullableString(rs, "embedding_operator_name"),
+            JdbcResultSetUtils.getNullableString(rs, "embedding_clear_remark"),
+            JdbcResultSetUtils.getNullableString(rs, "embedding_remarks"),
+            JdbcResultSetUtils.getNullableString(rs, "shift_remark"),
+            JdbcResultSetUtils.getNullableString(rs, "slice_notice"),
+            JdbcResultSetUtils.getNullableString(rs, "submitting_department_name"),
+            rs.getString("task_status"),
+            "PRINTED",
+            rs.getInt("printed_slide_count"),
+            rs.getInt("combined_slide") != 0,
+            rs.getInt("timed_out") != 0,
+            true,
+            rs.getString("print_group_id"),
+            true,
+            List.of(rs.getString("task_id")),
+            List.of(rs.getString("embedding_box_id"))));
+        Map<String, List<TechnicalWorkflowRecords.SlicingWorkbenchRow>> groupedRows = new LinkedHashMap<>();
+        for (TechnicalWorkflowRecords.SlicingWorkbenchRow row : itemRows) {
+            groupedRows.computeIfAbsent(row.printGroupId(), ignored -> new ArrayList<>()).add(row);
+        }
+        return groupedRows.values().stream().map(this::mergePendingSlicingPrintGroupRow).toList();
+    }
+
     List<TechnicalWorkflowRecords.CaseMediaAsset> findCaseMediaAssets(
         String caseId,
         String objectType,

@@ -3,7 +3,7 @@ spring:
         driver-class-name: ${AUTH_CENTER_DATASOURCE_DRIVER_CLASS_NAME:dm.jdbc.driver.DmDriver}
         url: ${AUTH_CENTER_DATASOURCE_URL:jdbc:dm://127.0.0.1:5236}
         username: ${AUTH_CENTER_DATASOURCE_USERNAME:SYSDBA}
-        password: ${AUTH_CENTER_DATASOURCE_PASSWORD:Dm8#Pathology2026}
+        password: ${AUTH_CENTER_DATASOURCE_PASSWORD:Jw.Xc.2027}
 
 security:
     auth:

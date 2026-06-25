@@ -60,6 +60,7 @@ public class JdbcDiagnosticTrackingQueryRepository implements DiagnosticTracking
         Application application = applicationRepository.findById(new ApplicationId(pathologyCase.applicationId())).orElseThrow();
         List<Specimen> specimens = technicalWorkflowRepository.findSpecimensByCaseId(caseId);
         List<TechnicalWorkflowRecords.SamplingBlock> blocks = technicalWorkflowRepository.findSamplingBlocksByCaseId(caseId);
+        List<MedicalOrderRepository.MedicalOrderBlock> medicalOrderBlocks = medicalOrderRepository.findMedicalOrderBlocksByCaseId(caseId);
         List<TechnicalWorkflowProcessingRecords.Slide> slides = technicalWorkflowRepository.findSlidesByCaseId(caseId);
         List<TechnicalWorkflowRecords.EmbeddingBox> embeddingBoxes = technicalWorkflowRepository.findEmbeddingBoxesByCaseId(caseId);
         List<TrackingEvent> recentEvents = technicalWorkflowRepository.findRecentTrackingEventsByCaseId(caseId, 10);
@@ -104,6 +105,7 @@ public class JdbcDiagnosticTrackingQueryRepository implements DiagnosticTracking
             tasks,
             report,
             blocks,
+            medicalOrderBlocks,
             slides,
             embeddingBoxes,
             embeddingBoxArchives,

@@ -29,6 +29,8 @@ public record PendingMedicalOrderResponse(
     String patientId,
     @Schema(description = "Patient ID display")
     String patientIdDisplay,
+    @Schema(description = "Submitting department name")
+    String submittingDepartmentName,
     @Schema(description = "Order number")
     String orderNumber,
     @Schema(description = "Order type")

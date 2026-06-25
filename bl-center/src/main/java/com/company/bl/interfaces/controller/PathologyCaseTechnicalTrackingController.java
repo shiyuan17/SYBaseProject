@@ -54,7 +54,7 @@ public class PathologyCaseTechnicalTrackingController {
                 item.specimenId(), item.specimenNo(), item.barcode(), item.specimenName(), item.specimenStatus()))
                 .toList(),
             result.blocks().stream().map(item -> new TechnicalTrackingResponse.BlockSummary(
-                item.blockId(), item.specimenId(), item.blockCode(), item.embeddingBoxNo(), item.description(),
+                item.blockId(), item.specimenId(), item.blockCode(), item.embeddingBoxNo(), item.embeddingBoxName(), item.description(),
                 item.specimenName(), item.grossDescription(), item.embeddingRemarks()))
                 .toList(),
             result.embeddingBoxes().stream().map(item -> new TechnicalTrackingResponse.EmbeddingBoxSummary(

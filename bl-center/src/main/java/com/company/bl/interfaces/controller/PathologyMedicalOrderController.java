@@ -326,6 +326,7 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
             item.patientName(),
             item.patientId(),
             item.patientIdDisplay(),
+            item.submittingDepartmentName(),
             item.orderNumber(),
             item.orderType(),
             item.orderContent(),

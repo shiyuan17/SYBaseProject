@@ -171,6 +171,13 @@ public class M6ManagementController {
         return statisticsService.listTemplates(templateType);
     }
 
+    @Operation(summary = "Query pathology screen dashboard", description = "Query the pathology big-screen dashboard summary.")
+    @RequirePermission(M6PermissionCodes.STAT_REPORT_QUERY)
+    @GetMapping("/dashboard/pathology-screen")
+    public StatisticsService.PathologyScreenDashboardView queryPathologyScreenDashboard() {
+        return statisticsService.queryPathologyScreenDashboard();
+    }
+
     @Operation(summary = "Query stat report", description = "Query statistic reports with time, department, role, and operator filters.")
     @RequirePermission(M6PermissionCodes.STAT_REPORT_QUERY)
     @PostMapping("/stat-reports/query")

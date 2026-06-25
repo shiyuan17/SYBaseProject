@@ -266,6 +266,15 @@ public final class DiagnosticReportModels {
     ) {
     }
 
+    public record CreateMedicalOrderBlockCommand(
+        String caseId,
+        String blockNo,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode
+    ) {
+    }
+
     public record MedicalOrderActionCommand(
         String orderId,
         String operatorUserId,
@@ -280,6 +289,13 @@ public final class DiagnosticReportModels {
         String caseId,
         String orderNumber,
         String status
+    ) {
+    }
+
+    public record MedicalOrderBlockResult(
+        String medicalOrderBlockId,
+        String caseId,
+        String blockNo
     ) {
     }
 

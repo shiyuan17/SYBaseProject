@@ -16,6 +16,12 @@ public interface MedicalOrderRepository {
 
     List<MedicalOrder> findMedicalOrdersByCaseId(String caseId);
 
+    void insertMedicalOrderBlock(CreateMedicalOrderBlockCommand command);
+
+    List<MedicalOrderBlock> findMedicalOrderBlocksByCaseId(String caseId);
+
+    Optional<MedicalOrderBlock> findMedicalOrderBlockByCaseIdAndBlockNo(String caseId, String blockNo);
+
     List<MedicalOrder> findMedicalOrdersByIds(List<String> orderIds);
 
     PagedMedicalOrders findMedicalOrders(PendingMedicalOrderQuery query);
@@ -116,6 +122,16 @@ public interface MedicalOrderRepository {
     ) {
     }
 
+    record CreateMedicalOrderBlockCommand(
+        String id,
+        String caseId,
+        String blockNo,
+        String createdByUserId,
+        String createdByName,
+        LocalDateTime createdAt
+    ) {
+    }
+
     record MedicalOrderQcEvaluation(
         String id,
         String orderId,
@@ -148,6 +164,16 @@ public interface MedicalOrderRepository {
     ) {
     }
 
+    record MedicalOrderBlock(
+        String id,
+        String caseId,
+        String blockNo,
+        String createdByUserId,
+        String createdByName,
+        LocalDateTime createdAt
+    ) {
+    }
+
     record MedicalOrder(
         String id,
         String caseId,
@@ -161,6 +187,7 @@ public interface MedicalOrderRepository {
         String patientName,
         String patientId,
         String patientIdDisplay,
+        String submittingDepartmentName,
         String orderNumber,
         String orderContent,
         String orderType,

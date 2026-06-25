@@ -111,12 +111,52 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
     }
 
     @Override
+    public void insertMedicalOrderBlock(CreateMedicalOrderBlockCommand command) {
+        jdbcTemplate.update("""
+            insert into medical_order_blocks
+                (id, case_id, block_no, created_by_user_id, created_by_name, created_at, updated_at)
+            values
+                (:id, :caseId, :blockNo, :createdByUserId, :createdByName, :createdAt, :updatedAt)
+            """, new MapSqlParameterSource()
+            .addValue("id", command.id())
+            .addValue("caseId", command.caseId())
+            .addValue("blockNo", command.blockNo())
+            .addValue("createdByUserId", command.createdByUserId())
+            .addValue("createdByName", command.createdByName())
+            .addValue("createdAt", command.createdAt())
+            .addValue("updatedAt", command.createdAt()));
+    }
+
+    @Override
     public List<MedicalOrder> findMedicalOrdersByCaseId(String caseId) {
         List<MedicalOrder> rows = jdbcTemplate.query(selectSql() + """
             where mo.case_id = :caseId
             order by mo.created_at desc, mo.id desc
             """, Map.of("caseId", caseId), this::mapMedicalOrder);
         return attachSlicingLinks(rows);
+    }
+
+    @Override
+    public List<MedicalOrderBlock> findMedicalOrderBlocksByCaseId(String caseId) {
+        return jdbcTemplate.query("""
+            select id, case_id, block_no, created_by_user_id, created_by_name, created_at
+            from medical_order_blocks
+            where case_id = :caseId
+            order by created_at asc, id asc
+            """, Map.of("caseId", caseId), this::mapMedicalOrderBlock);
+    }
+
+    @Override
+    public Optional<MedicalOrderBlock> findMedicalOrderBlockByCaseIdAndBlockNo(String caseId, String blockNo) {
+        List<MedicalOrderBlock> rows = jdbcTemplate.query("""
+            select id, case_id, block_no, created_by_user_id, created_by_name, created_at
+            from medical_order_blocks
+            where case_id = :caseId
+              and upper(block_no) = upper(:blockNo)
+            """, new MapSqlParameterSource()
+            .addValue("caseId", caseId)
+            .addValue("blockNo", blockNo), this::mapMedicalOrderBlock);
+        return rows.stream().findFirst();
     }
 
     @Override
@@ -385,7 +425,8 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
                 w.inpatient_no,
                 a.patient_name,
                 a.patient_id,
-                a.patient_id as patient_id_display
+                w.id_no as patient_id_display,
+                a.submitting_department_name
             from medical_orders mo
             join pathology_cases pc on pc.id = mo.case_id
             join applications a on a.id = pc.application_id
@@ -460,6 +501,7 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
             rs.getString("patient_name"),
             rs.getString("patient_id"),
             rs.getString("patient_id_display"),
+            rs.getString("submitting_department_name"),
             rs.getString("order_number"),
             rs.getString("order_content"),
             rs.getString("order_type"),
@@ -538,6 +580,7 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
             order.patientName(),
             order.patientId(),
             order.patientIdDisplay(),
+            order.submittingDepartmentName(),
             order.orderNumber(),
             order.orderContent(),
             order.orderType(),
@@ -664,6 +707,16 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
             rs.getString("order_type"),
             rs.getString("default_content"),
             rs.getString("execution_scope"));
+    }
+
+    private MedicalOrderBlock mapMedicalOrderBlock(ResultSet rs, int rowNum) throws SQLException {
+        return new MedicalOrderBlock(
+            rs.getString("id"),
+            rs.getString("case_id"),
+            rs.getString("block_no"),
+            rs.getString("created_by_user_id"),
+            rs.getString("created_by_name"),
+            toLocalDateTime(rs.getTimestamp("created_at")));
     }
 
     private List<String> parseOrderCategoryCodes(String value) {

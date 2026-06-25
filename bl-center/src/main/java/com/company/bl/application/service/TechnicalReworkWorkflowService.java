@@ -125,6 +125,10 @@ class TechnicalReworkWorkflowService {
             technicalWorkflowRepository.completeTechnicalTask(activeTask.id(), TechnicalWorkflowConstants.TASK_RETURNED, command.remarks(), now);
         }
         String parentTaskId = activeTasks.isEmpty() ? null : activeTasks.get(0).id();
+        String parentProductionRemarks =
+            TechnicalWorkflowConstants.NODE_STAINING.equals(taskType) && !activeTasks.isEmpty()
+                ? activeTasks.get(0).productionRemarks()
+                : null;
         technicalWorkflowSupport.createTechnicalTaskIfAbsent(
             pathologyCase.applicationId(),
             pathologyCase.id(),
@@ -133,7 +137,8 @@ class TechnicalReworkWorkflowService {
             objectType,
             objectId,
             parentTaskId,
-            "reworkOrderId=" + order.id() + ";reworkType=" + order.reworkType());
+            "reworkOrderId=" + order.id() + ";reworkType=" + order.reworkType(),
+            parentProductionRemarks);
         List<TechnicalWorkflowRecords.TechnicalTask> regeneratedTasks =
             technicalWorkflowRepository.findActiveTechnicalTasksByObject(taskType, objectType, objectId);
         technicalWorkflowRepository.updateReworkOrderStatus(
