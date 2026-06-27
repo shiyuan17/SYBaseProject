@@ -487,22 +487,28 @@ class PathologyScreenDashboardSupport extends StatisticsQualitySupportBase {
 
     private RateSnapshot criticalValueTenMinuteRate(LocalDateTime from, LocalDateTime to) {
         String sql = """
-            select count(*) as eligible_count,
-                   sum(case when read_at is not null and created_at is not null and read_at <= dateadd('MINUTE', 10, created_at) then 1 else 0 end) as pass_count
+            select created_at,
+                   read_at
             from user_notifications
             where topic_code = 'CRITICAL_VALUE'
               and (:fromTime is null or created_at >= :fromTime)
               and (:toTime is null or created_at <= :toTime)
             """;
-        return jdbcTemplate.queryForObject(sql, new MapSqlParameterSource()
+        List<CriticalValueNotificationRow> rows = jdbcTemplate.query(sql, new MapSqlParameterSource()
             .addValue("fromTime", from)
-            .addValue("toTime", to), (rs, rowNum) -> {
-            long eligibleCount = rs.getLong("eligible_count");
-            return new RateSnapshot(
-                percentValue(rs.getLong("pass_count"), eligibleCount),
-                eligibleCount == 0 ? STATUS_PARTIAL : STATUS_AVAILABLE,
-                "大屏专用代理：按危急值通知 10 分钟内已读确认统计及时率。");
-        });
+            .addValue("toTime", to), (rs, rowNum) -> new CriticalValueNotificationRow(
+            toLocalDateTime(rs.getObject("created_at")),
+            toLocalDateTime(rs.getObject("read_at"))));
+        long eligibleCount = rows.size();
+        long passCount = rows.stream()
+            .filter(row -> row.createdAt() != null
+                && row.readAt() != null
+                && !row.readAt().isAfter(row.createdAt().plusMinutes(10)))
+            .count();
+        return new RateSnapshot(
+            percentValue(passCount, eligibleCount),
+            eligibleCount == 0 ? STATUS_PARTIAL : STATUS_AVAILABLE,
+            "大屏专用代理：按危急值通知 10 分钟内已读确认统计及时率。");
     }
 
     private RateSnapshot cytologyTimelinessRate(LocalDateTime from, LocalDateTime to) {
@@ -585,6 +591,9 @@ class PathologyScreenDashboardSupport extends StatisticsQualitySupportBase {
     }
 
     private record RateSnapshot(BigDecimal value, String status, String sourceNote) {
+    }
+
+    private record CriticalValueNotificationRow(LocalDateTime createdAt, LocalDateTime readAt) {
     }
 
     private record TemplateCountRow(String templateCode, String templateName, long reportCount) {
