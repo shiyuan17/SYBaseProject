@@ -3,6 +3,8 @@ package db.migration;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
 
 public class V110__backfill_dm_table_and_column_comments extends BaseJavaMigration {
@@ -11,7 +13,16 @@ public class V110__backfill_dm_table_and_column_comments extends BaseJavaMigrati
 
     @Override
     public void migrate(Context context) throws Exception {
-        new DmCommentBackfillSupport(OWNER).backfill(context.getConnection(), commentDefinitions());
+        Connection connection = context.getConnection();
+        if (!isDmDatabase(connection)) {
+            return;
+        }
+        new DmCommentBackfillSupport(OWNER).backfill(connection, commentDefinitions());
+    }
+
+    private boolean isDmDatabase(Connection connection) throws SQLException {
+        String productName = connection.getMetaData().getDatabaseProductName();
+        return productName != null && productName.toUpperCase().contains("DM");
     }
 
     static List<DmTableCommentDefinition> commentDefinitions() {
