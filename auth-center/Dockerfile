@@ -38,7 +38,7 @@ ENV TZ=Asia/Shanghai \
     JAVA_OPTS="" \
     SERVER_PORT=8081
 
-COPY --from=build /workspace/auth-center/target/auth-center-*-exec.jar /app/app.jar
+COPY --from=build /workspace/auth-center/target/auth-center-*.jar /app/app.jar
 
 RUN chown -R app:app /app
 

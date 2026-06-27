@@ -3,7 +3,9 @@ set -eu
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 APP_NAME="auth-center"
-JAR_NAME="${AUTH_CENTER_JAR_NAME:-auth-center-0.1.0-SNAPSHOT-exec.jar}"
+DEFAULT_JAR_NAME="auth-center-0.1.0-SNAPSHOT.jar"
+LEGACY_JAR_NAME="auth-center-0.1.0-SNAPSHOT-exec.jar"
+JAR_NAME="${AUTH_CENTER_JAR_NAME:-$DEFAULT_JAR_NAME}"
 JAR_PATH="${AUTH_CENTER_JAR_PATH:-$ROOT_DIR/auth-center/target/$JAR_NAME}"
 RUNTIME_DIR="${AUTH_CENTER_RUNTIME_DIR:-$ROOT_DIR/tmp/dev-services}"
 PID_FILE="$RUNTIME_DIR/$APP_NAME.pid"
@@ -16,6 +18,12 @@ fi
 
 if [ ! -f "$JAR_PATH" ] && [ -f "$PWD/$JAR_NAME" ]; then
   JAR_PATH="$PWD/$JAR_NAME"
+elif [ -z "${AUTH_CENTER_JAR_PATH:-}" ] && [ -z "${AUTH_CENTER_JAR_NAME:-}" ]; then
+  if [ ! -f "$JAR_PATH" ] && [ -f "$ROOT_DIR/auth-center/target/$LEGACY_JAR_NAME" ]; then
+    JAR_PATH="$ROOT_DIR/auth-center/target/$LEGACY_JAR_NAME"
+  elif [ ! -f "$JAR_PATH" ] && [ -f "$PWD/$LEGACY_JAR_NAME" ]; then
+    JAR_PATH="$PWD/$LEGACY_JAR_NAME"
+  fi
 fi
 
 usage() {
