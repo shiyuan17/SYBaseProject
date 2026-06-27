@@ -10,8 +10,7 @@ public enum OutputFormat {
         if (parseResult == null) {
             return TEXT;
         }
-        String matchedValue = parseResult.matchedOptionValue("output", "text");
-        return "json".equalsIgnoreCase(matchedValue) ? JSON : TEXT;
+        Object matchedValue = parseResult.matchedOptionValue("output", "text");
+        return matchedValue instanceof String value && "json".equalsIgnoreCase(value) ? JSON : TEXT;
     }
 }
-

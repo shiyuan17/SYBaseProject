@@ -1,5 +1,6 @@
 package com.company.cli.command;
 
+import com.company.cli.database.DatabaseCommand;
 import com.company.cli.command.health.HealthCommand;
 import com.company.cli.command.user.UserCommand;
 import com.company.cli.command.version.VersionCommand;
@@ -16,7 +17,8 @@ import picocli.CommandLine.Spec;
     subcommands = {
         VersionCommand.class,
         HealthCommand.class,
-        UserCommand.class
+        UserCommand.class,
+        DatabaseCommand.class
     }
 )
 public class RootCommand implements Runnable {
