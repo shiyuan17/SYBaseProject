@@ -813,6 +813,7 @@ final class JdbcTechnicalWorkflowProcessingQueries {
                 count(s.id) as printed_slide_count,
                 max(coalesce(s.combined_slide_flag, 0)) as combined_slide,
                 case when t.created_at <= :slicingTimedOutBefore then 1 else 0 end as timed_out,
+                mg.created_at as print_group_created_at,
                 mgi.sequence_no
             from slicing_slide_print_merge_groups mg
             join slicing_slide_print_merge_group_items mgi on mgi.group_id = mg.id
@@ -835,8 +836,8 @@ final class JdbcTechnicalWorkflowProcessingQueries {
                      a.patient_id, w.id_no, t.specimen_id, sp.specimen_name_standardized, eb.id, eb.embedding_box_no,
                      slc.sliced_by_name, slc.remarks, emb.sampling_evaluation, emb.evaluation_level,
                      emb.embedded_by_name, emb.remarks, sb.embedding_remarks, t.production_remarks,
-                     a.submitting_department_name, t.task_status, t.created_at, mgi.sequence_no
-            order by mg.created_at asc, mgi.sequence_no asc
+                     a.submitting_department_name, t.task_status, t.created_at, mg.created_at, mgi.sequence_no
+            order by print_group_created_at asc, mgi.sequence_no asc
             """, params, (rs, rowNum) -> new TechnicalWorkflowRecords.SlicingWorkbenchRow(
             rs.getString("task_id"),
             rs.getString("case_id"),

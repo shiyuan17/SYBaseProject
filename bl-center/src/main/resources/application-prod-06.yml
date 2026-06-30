@@ -1,0 +1,11 @@
+spring:
+    datasource:
+        driver-class-name: ${BL_CENTER_DATASOURCE_DRIVER_CLASS_NAME:dm.jdbc.driver.DmDriver}
+        url: ${BL_CENTER_DATASOURCE_URL:jdbc:dm://127.0.0.1:5236}
+        username: ${BL_CENTER_DATASOURCE_USERNAME:SYSDBA}
+        password: ${BL_CENTER_DATASOURCE_PASSWORD:Jw.Xc.2027}
+
+security:
+    auth:
+        jwt:
+            allow-generated-keys: ${SECURITY_AUTH_JWT_ALLOW_GENERATED_KEYS:true}
