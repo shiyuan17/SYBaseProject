@@ -18,9 +18,36 @@ class DatabaseLegacyDictionaryGenerator {
         List<DatabaseConnectionTarget> targets = targetResolver.resolve(request.targets());
         List<DatabaseSourceReport> sources = targets.stream()
             .map(metadataLoader::load)
+            .map(this::retainLegacyVisibleOwners)
             .toList();
         DatabaseDictionaryReport report = buildReport(request.scope(), sources);
         return new DatabaseDictionaryGenerationResult(htmlRenderer.render(report), report);
+    }
+
+    private DatabaseSourceReport retainLegacyVisibleOwners(DatabaseSourceReport source) {
+        List<DatabaseOwnerReport> filteredOwners = source.owners().stream()
+            .filter(owner -> owner.owner().equalsIgnoreCase(source.username()))
+            .map(this::retainLegacyVisibleTables)
+            .filter(owner -> !owner.tables().isEmpty())
+            .toList();
+        if (filteredOwners.isEmpty()) {
+            return source;
+        }
+        return new DatabaseSourceReport(source.labels(), source.url(), source.username(), filteredOwners);
+    }
+
+    private DatabaseOwnerReport retainLegacyVisibleTables(DatabaseOwnerReport owner) {
+        List<DatabaseTableReport> tables = owner.tables().stream()
+            .filter(this::isLegacyVisibleTable)
+            .toList();
+        return new DatabaseOwnerReport(owner.owner(), tables);
+    }
+
+    private boolean isLegacyVisibleTable(DatabaseTableReport table) {
+        String tableName = table.tableName().toUpperCase();
+        return !tableName.startsWith("##")
+            && !tableName.startsWith("SREF_CON_")
+            && !"FLYWAY_SCHEMA_HISTORY".equals(tableName);
     }
 
     private DatabaseDictionaryReport buildReport(DatabaseDictionaryScope scope, List<DatabaseSourceReport> sources) {

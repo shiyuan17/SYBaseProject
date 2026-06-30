@@ -66,7 +66,7 @@ class DmCommentBackfillSupport {
             statement.setString(1, owner);
             statement.setString(2, tableName);
             try (ResultSet resultSet = statement.executeQuery()) {
-                return !resultSet.next() || isBlank(resultSet.getString(1));
+                return shouldBackfillComment(resultSet, tableName);
             }
         }
     }
@@ -78,9 +78,24 @@ class DmCommentBackfillSupport {
             statement.setString(2, tableName);
             statement.setString(3, columnName);
             try (ResultSet resultSet = statement.executeQuery()) {
-                return !resultSet.next() || isBlank(resultSet.getString(1));
+                return shouldBackfillComment(resultSet, columnName);
             }
         }
+    }
+
+    private boolean shouldBackfillComment(ResultSet resultSet, String codeName) throws SQLException {
+        if (!resultSet.next()) {
+            return true;
+        }
+        return shouldBackfillExistingComment(resultSet.getString(1), codeName);
+    }
+
+    private boolean shouldBackfillExistingComment(String existingComment, String codeName) {
+        if (isBlank(existingComment)) {
+            return true;
+        }
+        String normalized = existingComment.trim();
+        return normalized.equalsIgnoreCase(codeName) || isAsciiOnly(normalized);
     }
 
     private void executeComment(Connection connection, String sql) throws SQLException {
@@ -91,6 +106,10 @@ class DmCommentBackfillSupport {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private boolean isAsciiOnly(String value) {
+        return value.chars().allMatch(character -> character <= 0x7F);
     }
 
     private String escape(String value) {

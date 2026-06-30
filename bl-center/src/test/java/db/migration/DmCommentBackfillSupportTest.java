@@ -67,6 +67,97 @@ class DmCommentBackfillSupportTest {
     }
 
     @Test
+    void shouldBackfillEnglishPlaceholderComments() throws Exception {
+        Connection connection = mock(Connection.class);
+        PreparedStatement tableCommentQuery = mock(PreparedStatement.class);
+        PreparedStatement columnCommentQuery = mock(PreparedStatement.class);
+        PreparedStatement tableExistsQuery = mock(PreparedStatement.class);
+        PreparedStatement columnExistsQuery = mock(PreparedStatement.class);
+        ResultSet tableExistsResultSet = mock(ResultSet.class);
+        ResultSet columnExistsResultSet = mock(ResultSet.class);
+        ResultSet tableCommentResultSet = mock(ResultSet.class);
+        ResultSet columnCommentResultSet = mock(ResultSet.class);
+        Statement statement = mock(Statement.class);
+
+        when(connection.prepareStatement("select comments from all_tab_comments where owner = ? and table_name = ?"))
+            .thenReturn(tableCommentQuery);
+        when(connection.prepareStatement("select comments from all_col_comments where owner = ? and table_name = ? and column_name = ?"))
+            .thenReturn(columnCommentQuery);
+        when(connection.prepareStatement("select 1 from all_tables where owner = ? and table_name = ?"))
+            .thenReturn(tableExistsQuery);
+        when(connection.prepareStatement("select 1 from all_tab_columns where owner = ? and table_name = ? and column_name = ?"))
+            .thenReturn(columnExistsQuery);
+        when(connection.createStatement()).thenReturn(statement);
+
+        when(tableExistsQuery.executeQuery()).thenReturn(tableExistsResultSet);
+        when(columnExistsQuery.executeQuery()).thenReturn(columnExistsResultSet);
+        when(tableExistsResultSet.next()).thenReturn(true);
+        when(columnExistsResultSet.next()).thenReturn(true);
+        when(tableCommentQuery.executeQuery()).thenReturn(tableCommentResultSet);
+        when(columnCommentQuery.executeQuery()).thenReturn(columnCommentResultSet);
+        when(tableCommentResultSet.next()).thenReturn(true);
+        when(columnCommentResultSet.next()).thenReturn(true);
+        when(tableCommentResultSet.getString(1)).thenReturn("TEST_TABLE");
+        when(columnCommentResultSet.getString(1)).thenReturn("COLUMN_CODE");
+
+        DmCommentBackfillSupport support = new DmCommentBackfillSupport("SYSDBA");
+        support.backfill(
+            connection,
+            List.of(new DmTableCommentDefinition(
+                "TEST_TABLE",
+                "测试表",
+                List.of(new DmColumnCommentDefinition("COLUMN_CODE", "字段中文名")))));
+
+        verify(statement).execute("COMMENT ON TABLE TEST_TABLE IS '测试表'");
+        verify(statement).execute("COMMENT ON COLUMN TEST_TABLE.COLUMN_CODE IS '字段中文名'");
+    }
+
+    @Test
+    void shouldKeepExistingChineseComments() throws Exception {
+        Connection connection = mock(Connection.class);
+        PreparedStatement tableCommentQuery = mock(PreparedStatement.class);
+        PreparedStatement columnCommentQuery = mock(PreparedStatement.class);
+        PreparedStatement tableExistsQuery = mock(PreparedStatement.class);
+        PreparedStatement columnExistsQuery = mock(PreparedStatement.class);
+        ResultSet tableExistsResultSet = mock(ResultSet.class);
+        ResultSet columnExistsResultSet = mock(ResultSet.class);
+        ResultSet tableCommentResultSet = mock(ResultSet.class);
+        ResultSet columnCommentResultSet = mock(ResultSet.class);
+        Statement statement = mock(Statement.class);
+
+        when(connection.prepareStatement("select comments from all_tab_comments where owner = ? and table_name = ?"))
+            .thenReturn(tableCommentQuery);
+        when(connection.prepareStatement("select comments from all_col_comments where owner = ? and table_name = ? and column_name = ?"))
+            .thenReturn(columnCommentQuery);
+        when(connection.prepareStatement("select 1 from all_tables where owner = ? and table_name = ?"))
+            .thenReturn(tableExistsQuery);
+        when(connection.prepareStatement("select 1 from all_tab_columns where owner = ? and table_name = ? and column_name = ?"))
+            .thenReturn(columnExistsQuery);
+        when(connection.createStatement()).thenReturn(statement);
+
+        when(tableExistsQuery.executeQuery()).thenReturn(tableExistsResultSet);
+        when(columnExistsQuery.executeQuery()).thenReturn(columnExistsResultSet);
+        when(tableExistsResultSet.next()).thenReturn(true);
+        when(columnExistsResultSet.next()).thenReturn(true);
+        when(tableCommentQuery.executeQuery()).thenReturn(tableCommentResultSet);
+        when(columnCommentQuery.executeQuery()).thenReturn(columnCommentResultSet);
+        when(tableCommentResultSet.next()).thenReturn(true);
+        when(columnCommentResultSet.next()).thenReturn(true);
+        when(tableCommentResultSet.getString(1)).thenReturn("测试表");
+        when(columnCommentResultSet.getString(1)).thenReturn("字段中文名");
+
+        DmCommentBackfillSupport support = new DmCommentBackfillSupport("SYSDBA");
+        support.backfill(
+            connection,
+            List.of(new DmTableCommentDefinition(
+                "TEST_TABLE",
+                "测试表",
+                List.of(new DmColumnCommentDefinition("COLUMN_CODE", "字段中文名")))));
+
+        verify(statement, never()).execute(anyString());
+    }
+
+    @Test
     void shouldEscapeSingleQuotesInCommentStatements() throws Exception {
         Connection connection = mock(Connection.class);
         PreparedStatement tableCommentQuery = mock(PreparedStatement.class);

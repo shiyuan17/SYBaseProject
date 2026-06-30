@@ -129,7 +129,7 @@ class DatabaseLegacyDictionaryHtmlRenderer {
             html.append("<li><a href=\"#").append(tableHeadingId(ownerIndex, i + 1, table)).append("\">1.")
                 .append(ownerIndex).append(".2.").append(i + 1).append(" ")
                 .append(escapeHtml(table.tableName())).append("[")
-                .append(escapeHtml(orEmpty(table.comment()))).append("] </a></li>");
+                .append(escapeHtml(displayTableName(table))).append("] </a></li>");
         }
         html.append("</ul></li>");
         html.append("<li><a href=\"#").append(ownerSectionId(owner.owner(), "relation"))
@@ -167,8 +167,8 @@ class DatabaseLegacyDictionaryHtmlRenderer {
         html.append("<table><thead><tr><th>数据表</th><th>名称</th><th>备注说明</th></tr></thead><tbody>");
         for (DatabaseTableReport table : tables) {
             html.append("<tr><td>").append(escapeHtml(table.tableName())).append("</td>")
-                .append("<td>").append(escapeHtml(orEmpty(table.comment()))).append("</td>")
-                .append("<td>").append(escapeHtml(orEmpty(table.comment()))).append("</td></tr>");
+                .append("<td>").append(escapeHtml(displayTableName(table))).append("</td>")
+                .append("<td>").append(escapeHtml(displayTableComment(table))).append("</td></tr>");
         }
         html.append("</tbody></table>");
     }
@@ -178,7 +178,7 @@ class DatabaseLegacyDictionaryHtmlRenderer {
         html.append("<h3 id=\"").append(headingId).append("\" tabindex=\"-1\">1.")
             .append(ownerIndex).append(".2.").append(tableIndex).append(" ")
             .append(escapeHtml(table.tableName())).append("[")
-            .append(escapeHtml(orEmpty(table.comment()))).append("] <a class=\"header-anchor\" href=\"#")
+            .append(escapeHtml(displayTableName(table))).append("] <a class=\"header-anchor\" href=\"#")
             .append(headingId).append("\" aria-hidden=\"true\">#</a></h3>");
         html.append("<table><thead><tr>")
             .append("<th>代码</th><th>名称</th><th>主键</th><th>不为空</th><th>自增</th><th>业务数据类型</th>")
@@ -189,7 +189,7 @@ class DatabaseLegacyDictionaryHtmlRenderer {
             ColumnTypeParts typeParts = ColumnTypeParts.parse(column.type());
             html.append("<tr>")
                 .append("<td>").append(escapeHtml(column.name())).append("</td>")
-                .append("<td>").append(escapeHtml(orEmpty(column.comment()))).append("</td>")
+                .append("<td>").append(escapeHtml(displayColumnName(column))).append("</td>")
                 .append("<td>").append(column.primaryKey() ? "✓" : "").append("</td>")
                 .append("<td>").append(column.nullable() ? "" : "✓").append("</td>")
                 .append("<td></td><td></td>")
@@ -197,7 +197,7 @@ class DatabaseLegacyDictionaryHtmlRenderer {
                 .append("<td>").append(escapeHtml(orEmpty(typeParts.length()))).append("</td>")
                 .append("<td>").append(escapeHtml(orEmpty(typeParts.scale()))).append("</td>")
                 .append("<td>").append(escapeHtml(orEmpty(column.defaultValue()))).append("</td>")
-                .append("<td>").append(escapeHtml(orEmpty(column.comment()))).append("</td>")
+                .append("<td>").append(escapeHtml(displayColumnComment(column))).append("</td>")
                 .append("<td></td><td></td><td></td><td></td>")
                 .append("</tr>");
         }
@@ -214,7 +214,30 @@ class DatabaseLegacyDictionaryHtmlRenderer {
 
     private String tableHeadingId(int ownerIndex, int tableIndex, DatabaseTableReport table) {
         return "1." + ownerIndex + ".2." + tableIndex + "-" + sanitize(table.tableName()) + "%5B"
-            + sanitize(orEmpty(table.comment())) + "%5D";
+            + sanitize(displayTableName(table)) + "%5D";
+    }
+
+    private String displayTableName(DatabaseTableReport table) {
+        return firstNonBlank(table.comment(), table.tableName());
+    }
+
+    private String displayTableComment(DatabaseTableReport table) {
+        return firstNonBlank(table.comment(), table.tableName());
+    }
+
+    private String displayColumnName(DatabaseColumnReport column) {
+        return firstNonBlank(column.comment(), column.name());
+    }
+
+    private String displayColumnComment(DatabaseColumnReport column) {
+        return firstNonBlank(column.comment(), column.name());
+    }
+
+    private String firstNonBlank(String preferred, String fallback) {
+        if (preferred != null && !preferred.isBlank()) {
+            return preferred;
+        }
+        return orEmpty(fallback);
     }
 
     private String sanitize(String value) {
