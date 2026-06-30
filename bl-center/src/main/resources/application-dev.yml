@@ -1,4 +1,7 @@
 spring:
+  devtools:
+    restart:
+      trigger-file: .reloadtrigger
   datasource:
     driver-class-name: ${BL_CENTER_DATASOURCE_DRIVER_CLASS_NAME:dm.jdbc.driver.DmDriver}
     url: ${BL_CENTER_DATASOURCE_URL:jdbc:dm://127.0.0.1:5236}

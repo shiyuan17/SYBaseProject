@@ -38,9 +38,11 @@
 
 ## Local Dev Startup
 
-- Prefer Maven Wrapper for local service startup instead of relying on IDE incremental compilation outputs.
-- Shared IntelliJ Spring Boot run configurations for `bl-center` and `auth-center` now run a Maven before-launch compile step so `target/classes` is refreshed before `Run` or `Debug`.
+- `bl-center` and `auth-center` now include `spring-boot-devtools` for development-time automatic restart.
+- Shared IntelliJ Spring Boot run configurations for `bl-center` and `auth-center` still run a Maven before-launch compile step, and devtools will restart the app after IntelliJ refreshes `target/classes`.
+- For IntelliJ hot reload, enable automatic project build while the application is running. If auto-build is off, `Build Project` still triggers a restart.
 - Command line launchers are available in `scripts/dev/`.
+- The command line launchers now perform an initial `-pl <module> -am compile`, add `common/*/target/classes` to the runtime classpath, and keep a background source watcher running so Java or resource saves trigger a devtools restart.
 
 ```bash
 ./scripts/dev/run-bl-center-dev.sh
