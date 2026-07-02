@@ -11,6 +11,7 @@ out/
 .codex-backups/
 .codegraph/
 .cursor/
+.codex/
 .understand-anything/
 .repomix/
 .agents/
@@ -18,3 +19,4 @@ repomix-output.xml
 .claude
 tmp/
 linear-setting.json
+docs/reports/database-dictionary-*.html
