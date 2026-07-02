@@ -14,6 +14,40 @@
 ./run-centers.sh start
 ```
 
+`run-centers-prod-06.sh`
+- `application-prod-06` 环境的快捷入口
+- 默认先加载 `run-centers.conf` 里的共享路径和数据源配置，再把 `SPRING_PROFILES_ACTIVE` 覆盖成 `prod-06`
+- 内部仍然复用 `run-centers.sh`，所以支持相同的动作：`start`、`stop`、`restart`、`status`、`log`
+
+最小示例：
+
+```sh
+./run-centers-prod-06.sh start all
+./run-centers-prod-06.sh restart all
+./run-centers-prod-06.sh status all
+./run-centers-prod-06.sh log bl -f
+./run-centers-prod-06.sh log auth -f
+```
+
+Windows 可用原生脚本：
+
+- `run-centers-prod-06.ps1`
+- `run-centers-prod-06.cmd`
+
+它们会读取同目录的 `run-centers.conf`，然后强制使用 `prod-06` profile。
+
+- `run-centers-prod-06.cmd` 是 Windows 入口包装脚本，会转发到同目录下的 `run-centers-prod-06.ps1`
+
+最小示例：
+
+```powershell
+.\run-centers-prod-06.ps1 start all
+.\run-centers-prod-06.ps1 restart all
+.\run-centers-prod-06.ps1 status all
+.\run-centers-prod-06.ps1 log bl
+.\run-centers-prod-06.cmd log auth -f
+```
+
 ## SMB 同步发布脚本
 
 `sync-centers-from-smb.sh`
