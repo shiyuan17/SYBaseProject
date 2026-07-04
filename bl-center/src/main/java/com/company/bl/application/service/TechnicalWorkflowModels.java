@@ -372,6 +372,7 @@ public final class TechnicalWorkflowModels {
         String productionRemarks,
         String operatorUserId,
         String operatorName,
+        String operatorRoleCode,
         String terminalCode
     ) implements OperatorCarrier {
         @Override
@@ -388,6 +389,7 @@ public final class TechnicalWorkflowModels {
         String stationName,
         String operatorUserId,
         String operatorName,
+        String operatorRoleCode,
         String terminalCode,
         String remarks
     ) implements OperatorCarrier {
@@ -397,6 +399,7 @@ public final class TechnicalWorkflowModels {
         String taskId,
         String operatorUserId,
         String operatorName,
+        String operatorRoleCode,
         String terminalCode,
         String remarks
     ) implements OperatorCarrier {
@@ -408,6 +411,7 @@ public final class TechnicalWorkflowModels {
         String productionRemarks,
         String operatorUserId,
         String operatorName,
+        String operatorRoleCode,
         String terminalCode
     ) implements OperatorCarrier {
         @Override
@@ -422,6 +426,7 @@ public final class TechnicalWorkflowModels {
         String productionRemarks,
         String operatorUserId,
         String operatorName,
+        String operatorRoleCode,
         String terminalCode
     ) implements OperatorCarrier {
     }

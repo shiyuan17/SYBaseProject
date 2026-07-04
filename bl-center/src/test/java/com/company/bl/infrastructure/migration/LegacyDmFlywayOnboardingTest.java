@@ -73,7 +73,7 @@ class LegacyDmFlywayOnboardingTest {
                 """));
             assertEquals(13, queryInt(statement, "SELECT COUNT(*) FROM roles WHERE role_code LIKE 'M2_%' OR role_code LIKE 'M3_%'"));
             assertEquals(17, queryInt(statement, "SELECT COUNT(*) FROM menus WHERE menu_code LIKE 'M2_%' OR menu_code LIKE 'M3_%'"));
-            assertEquals(18, queryInt(statement, "SELECT COUNT(*) FROM permissions WHERE permission_group IN ('M2', 'M3')"));
+            assertEquals(23, queryInt(statement, "SELECT COUNT(*) FROM permissions WHERE permission_group IN ('M2', 'M3')"));
             assertTrue(queryInt(statement, "SELECT COUNT(*) FROM users WHERE id LIKE 'USER_M%'") >= 28);
             assertTrue(queryInt(statement, "SELECT COUNT(*) FROM user_roles WHERE id LIKE 'UR_M%'") >= 25);
             assertEquals(1, queryInt(statement, "SELECT COUNT(*) FROM users WHERE id = 'USER_M1_ADMIN' AND password_algo = 'SM3'"));

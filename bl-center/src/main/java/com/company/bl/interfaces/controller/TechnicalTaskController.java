@@ -75,7 +75,7 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
     }
 
     @Operation(summary = "分派技术任务", description = "设置任务优先级、工作台、责任技师与期望完成时间。")
-    @RequirePermission(M3PermissionCodes.TECHNICAL_TASK_QUERY)
+    @RequirePermission(M3PermissionCodes.TECHNICAL_TASK_ASSIGN)
     @PostMapping("/{id}/assign")
     public PendingTechnicalTaskResponse assign(@PathVariable String id,
                                                @Valid @RequestBody TechnicalTaskAssignRequest request,
@@ -92,11 +92,12 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
                 request.getProductionRemarks(),
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest),
+                resolveRoleCode(httpServletRequest),
                 request.getTerminalCode())));
     }
 
     @Operation(summary = "领取技术任务", description = "当前技师接单并写入工作台信息。")
-    @RequirePermission(M3PermissionCodes.TECHNICAL_TASK_QUERY)
+    @RequirePermission(M3PermissionCodes.TECHNICAL_TASK_CLAIM)
     @PostMapping("/{id}/claim")
     public PendingTechnicalTaskResponse claim(@PathVariable String id,
                                               @Valid @RequestBody TechnicalTaskClaimRequest request,
@@ -110,12 +111,13 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
                 request.getStationName(),
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest),
+                resolveRoleCode(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks())));
     }
 
     @Operation(summary = "释放技术任务", description = "清空任务责任技师，回到未分派状态。")
-    @RequirePermission(M3PermissionCodes.TECHNICAL_TASK_QUERY)
+    @RequirePermission(M3PermissionCodes.TECHNICAL_TASK_RELEASE)
     @PostMapping("/{id}/release")
     public PendingTechnicalTaskResponse release(@PathVariable String id,
                                                 @Valid @RequestBody TechnicalTaskReleaseRequest request,
@@ -125,12 +127,13 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
                 id,
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest),
+                resolveRoleCode(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks())));
     }
 
     @Operation(summary = "调整技术任务优先级", description = "调整任务优先级并同步生产备注。")
-    @RequirePermission(M3PermissionCodes.TECHNICAL_TASK_QUERY)
+    @RequirePermission(M3PermissionCodes.TECHNICAL_TASK_PRIORITY)
     @PostMapping("/{id}/priority")
     public PendingTechnicalTaskResponse priority(@PathVariable String id,
                                                  @Valid @RequestBody TechnicalTaskPriorityRequest request,
@@ -142,11 +145,12 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
                 request.getProductionRemarks(),
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest),
+                resolveRoleCode(httpServletRequest),
                 request.getTerminalCode())));
     }
 
     @Operation(summary = "更新技术任务备注", description = "更新任务备注和主班备注。")
-    @RequirePermission(M3PermissionCodes.TECHNICAL_TASK_QUERY)
+    @RequirePermission(M3PermissionCodes.TECHNICAL_TASK_REMARKS)
     @PatchMapping("/{id}/remarks")
     public PendingTechnicalTaskResponse remarks(@PathVariable String id,
                                                 @Valid @RequestBody TechnicalTaskRemarksRequest request,
@@ -158,6 +162,7 @@ public class TechnicalTaskController extends TechnicalControllerSupport {
                 request.getProductionRemarks(),
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest),
+                resolveRoleCode(httpServletRequest),
                 request.getTerminalCode())));
     }
 

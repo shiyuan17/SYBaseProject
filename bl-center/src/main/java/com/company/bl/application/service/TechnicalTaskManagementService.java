@@ -10,9 +10,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 class TechnicalTaskManagementService {
+
+    private static final String ROLE_PATHOLOGY_ADMIN = "PATHOLOGY_ADMIN";
 
     private final TechnicalWorkflowRepository technicalWorkflowRepository;
     private final TechnicalWorkflowSupport technicalWorkflowSupport;
@@ -32,6 +35,7 @@ class TechnicalTaskManagementService {
     @Transactional
     TechnicalWorkflowModels.TaskView assignTechnicalTask(TechnicalWorkflowModels.TechnicalTaskAssignCommand command) {
         TechnicalWorkflowRecords.TechnicalTask task = requireTask(command.taskId());
+        requireAssignable(task, command.operatorUserId(), command.operatorRoleCode());
         technicalWorkflowRepository.assignTechnicalTask(
             task.id(),
             normalizePriority(command.priority(), task.priority()),
@@ -65,6 +69,9 @@ class TechnicalTaskManagementService {
     @Transactional
     TechnicalWorkflowModels.TaskView claimTechnicalTask(TechnicalWorkflowModels.TechnicalTaskClaimCommand command) {
         TechnicalWorkflowRecords.TechnicalTask task = requireTask(command.taskId());
+        requireNodeRole(task, command.operatorRoleCode());
+        requireOperatorIdentity(command.assignedToUserId(), command.assignedToName(), command.operatorUserId(), command.operatorName());
+        requireClaimable(task, command.operatorUserId(), command.operatorRoleCode());
         technicalWorkflowRepository.claimTechnicalTask(
             task.id(),
             requireText(command.assignedToUserId(), "Assigned user is required"),
@@ -80,6 +87,7 @@ class TechnicalTaskManagementService {
     @Transactional
     TechnicalWorkflowModels.TaskView releaseTechnicalTask(TechnicalWorkflowModels.TechnicalTaskReleaseCommand command) {
         TechnicalWorkflowRecords.TechnicalTask task = requireTask(command.taskId());
+        requireReleasable(task, command.operatorUserId(), command.operatorRoleCode());
         technicalWorkflowRepository.releaseTechnicalTask(task.id(), command.remarks());
         technicalWorkflowSupport.insertWorkflowEvent(task, task.currentNode(), "RELEASE", "SUCCESS",
             command.operatorUserId(), command.operatorName(), command.terminalCode(), "Technical task released");
@@ -105,6 +113,7 @@ class TechnicalTaskManagementService {
     @Transactional
     TechnicalWorkflowModels.TaskView updateTechnicalTaskPriority(TechnicalWorkflowModels.TechnicalTaskPriorityCommand command) {
         TechnicalWorkflowRecords.TechnicalTask task = requireTask(command.taskId());
+        requireAdmin(command.operatorRoleCode(), "Only admin can update technical task priority");
         technicalWorkflowRepository.updateTechnicalTaskPriority(
             task.id(),
             normalizePriority(command.priority(), null),
@@ -133,6 +142,7 @@ class TechnicalTaskManagementService {
     @Transactional
     TechnicalWorkflowModels.TaskView updateTechnicalTaskRemarks(TechnicalWorkflowModels.TechnicalTaskRemarksCommand command) {
         TechnicalWorkflowRecords.TechnicalTask task = requireTask(command.taskId());
+        requireRemarksEditable(task, command.operatorUserId(), command.operatorRoleCode(), command.productionRemarks());
         technicalWorkflowRepository.updateTechnicalTaskRemarks(
             task.id(),
             trimToNull(command.remarks()),
@@ -149,6 +159,109 @@ class TechnicalTaskManagementService {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Technical task is completed");
         }
         return task;
+    }
+
+    private void requireAssignable(TechnicalWorkflowRecords.TechnicalTask task, String operatorUserId, String operatorRoleCode) {
+        if (isAdmin(operatorRoleCode)) {
+            return;
+        }
+        requireNodeRole(task, operatorRoleCode);
+        String assignedToUserId = trimToNull(task.assignedToUserId());
+        if (assignedToUserId != null && !Objects.equals(assignedToUserId, trimToNull(operatorUserId))) {
+            throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403, "Only admin can reassign tasks already owned by another user");
+        }
+    }
+
+    private void requireClaimable(TechnicalWorkflowRecords.TechnicalTask task, String operatorUserId, String operatorRoleCode) {
+        if (isAdmin(operatorRoleCode)) {
+            return;
+        }
+        String assignedToUserId = trimToNull(task.assignedToUserId());
+        String normalizedOperatorUserId = requireText(operatorUserId, "Operator user is required");
+        if (assignedToUserId != null && !Objects.equals(assignedToUserId, normalizedOperatorUserId)) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Technical task is already assigned to another user");
+        }
+    }
+
+    private void requireReleasable(TechnicalWorkflowRecords.TechnicalTask task, String operatorUserId, String operatorRoleCode) {
+        String assignedToUserId = trimToNull(task.assignedToUserId());
+        if (assignedToUserId == null) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Technical task is already unassigned");
+        }
+        if (isAdmin(operatorRoleCode)) {
+            return;
+        }
+        requireNodeRole(task, operatorRoleCode);
+        if (!Objects.equals(assignedToUserId, requireText(operatorUserId, "Operator user is required"))) {
+            throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403, "Only the owner can release their own assigned task");
+        }
+    }
+
+    private void requireRemarksEditable(
+        TechnicalWorkflowRecords.TechnicalTask task,
+        String operatorUserId,
+        String operatorRoleCode,
+        String productionRemarks
+    ) {
+        if (isAdmin(operatorRoleCode)) {
+            return;
+        }
+        if (trimToNull(productionRemarks) != null) {
+            throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403, "Only admin can update production remarks");
+        }
+        requireNodeRole(task, operatorRoleCode);
+        if (!Objects.equals(trimToNull(task.assignedToUserId()), requireText(operatorUserId, "Operator user is required"))) {
+            throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403, "Only the owner can update their own assigned task remarks");
+        }
+    }
+
+    private void requireOperatorIdentity(
+        String assignedToUserId,
+        String assignedToName,
+        String operatorUserId,
+        String operatorName
+    ) {
+        String normalizedAssignedToUserId = requireText(assignedToUserId, "Assigned user is required");
+        String normalizedAssignedToName = requireText(assignedToName, "Assigned name is required");
+        if (!Objects.equals(normalizedAssignedToUserId, requireText(operatorUserId, "Operator user is required"))
+            || !Objects.equals(normalizedAssignedToName, requireText(operatorName, "Operator name is required"))) {
+            throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403, "Technical task claim must be performed by the same operator");
+        }
+    }
+
+    private void requireNodeRole(TechnicalWorkflowRecords.TechnicalTask task, String operatorRoleCode) {
+        if (isAdmin(operatorRoleCode)) {
+            return;
+        }
+        String expectedRoleCode = roleCodeForNode(task.currentNode());
+        if (expectedRoleCode == null || !expectedRoleCode.equals(trimToNull(operatorRoleCode))) {
+            throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403, "Operator role does not match technical task node");
+        }
+    }
+
+    private void requireAdmin(String operatorRoleCode, String message) {
+        if (!isAdmin(operatorRoleCode)) {
+            throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403, message);
+        }
+    }
+
+    private boolean isAdmin(String operatorRoleCode) {
+        return ROLE_PATHOLOGY_ADMIN.equals(trimToNull(operatorRoleCode));
+    }
+
+    private String roleCodeForNode(String currentNode) {
+        if (currentNode == null || currentNode.isBlank()) {
+            return null;
+        }
+        return switch (currentNode.trim()) {
+            case TechnicalWorkflowConstants.NODE_GROSSING -> "M3_GROSSING";
+            case TechnicalWorkflowConstants.NODE_DEHYDRATION -> "M3_DEHYDRATION";
+            case TechnicalWorkflowConstants.NODE_EMBEDDING -> "M3_EMBEDDING";
+            case TechnicalWorkflowConstants.NODE_SLICING -> "M3_SLICING";
+            case TechnicalWorkflowConstants.NODE_STAINING -> "M3_STAINING";
+            case TechnicalWorkflowConstants.NODE_REWORK -> "M3_REWORK";
+            default -> null;
+        };
     }
 
     private TechnicalWorkflowModels.TaskView reloadTaskView(String taskId) {
