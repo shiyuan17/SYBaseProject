@@ -275,6 +275,16 @@ public final class DiagnosticReportModels {
     ) {
     }
 
+    public record ChangeMedicalOrderBlockCommand(
+        String orderId,
+        String blockNo,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks
+    ) {
+    }
+
     public record MedicalOrderActionCommand(
         String orderId,
         String operatorUserId,
@@ -296,6 +306,22 @@ public final class DiagnosticReportModels {
         String medicalOrderBlockId,
         String caseId,
         String blockNo
+    ) {
+    }
+
+    public record MedicalOrderTargetSnapshotResult(
+        String orderId,
+        String caseId,
+        String orderNumber,
+        String status,
+        String targetType,
+        String targetSpecimenId,
+        String targetSpecimenNo,
+        String targetBlockId,
+        String targetBlockNo,
+        String targetSlideId,
+        String targetSlideNo,
+        String medicalOrderBlockId
     ) {
     }
 

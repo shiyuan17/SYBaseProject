@@ -2,6 +2,7 @@ package com.company.bl.application.service;
 
 final class DiagnosticReportConstants {
 
+    static final String TASK_FROZEN = "FROZEN";
     static final String TASK_PRIMARY = "PRIMARY";
     static final String TASK_PENDING = "PENDING";
     static final String TASK_ASSIGNED = "ASSIGNED";
@@ -9,6 +10,7 @@ final class DiagnosticReportConstants {
     static final String TASK_IN_PROGRESS = "IN_PROGRESS";
     static final String TASK_COMPLETED = "COMPLETED";
 
+    static final String REPORT_SCOPE_FROZEN = "FROZEN";
     static final String REPORT_SCOPE_ROUTINE = "ROUTINE";
     static final String REPORT_DRAFT = "DRAFT";
     static final String REPORT_SUBMITTED = "SUBMITTED";
@@ -24,6 +26,7 @@ final class DiagnosticReportConstants {
     static final String ORDER_IN_PROGRESS = "IN_PROGRESS";
     static final String ORDER_COMPLETED = "COMPLETED";
     static final String ORDER_CANCELLED = "CANCELLED";
+    static final String ORDER_TARGET_BLOCK = "BLOCK";
     static final String CONSULTATION_INTERNAL = "INTERNAL";
     static final String CONSULTATION_PENDING = "PENDING";
     static final String CONSULTATION_IN_PROGRESS = "IN_PROGRESS";

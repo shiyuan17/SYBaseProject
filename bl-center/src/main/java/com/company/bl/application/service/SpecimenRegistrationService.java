@@ -22,6 +22,8 @@ import static com.company.bl.application.service.SpecimenWorkflowModels.*;
 @Service
 class SpecimenRegistrationService {
 
+    private static final String APPLICATION_TYPE_FROZEN = "FROZEN";
+
     private final SpecimenWorkflowCommandRepository specimenWorkflowRepository;
     private final SpecimenWorkflowSupport specimenWorkflowSupport;
     private final NumberingService numberingService;
@@ -70,7 +72,7 @@ class SpecimenRegistrationService {
                 specimenWorkflowSupport.trim(item.collectionMode()),
                 item.specimenCount(),
                 null,
-                false,
+                APPLICATION_TYPE_FROZEN.equalsIgnoreCase(application.getApplicationType()),
                 null,
                 specimenWorkflowSupport.trim(item.containerName()),
                 item.containerCount(),

@@ -24,6 +24,7 @@ public class UpdateApplicationAppService {
     private final ApplicationRepository applicationRepository;
     private final ApplicationRegistrationWorkbenchRepository workbenchRepository;
     private final ApplicationPatientIdentityResolver patientIdentityResolver;
+    private final ApplicationTrackingEventSupport applicationTrackingEventSupport;
 
     @Transactional
     @ObservedOperation(
@@ -62,7 +63,12 @@ public class UpdateApplicationAppService {
             command.specimenRemovalTime(),
             command.applicationFormStatus(),
             command.remarks());
-        return applicationRepository.update(updated);
+        if (isNoopUpdate(application, updated)) {
+            return application;
+        }
+        Application saved = applicationRepository.update(updated);
+        applicationTrackingEventSupport.writeUpdateEvent(saved);
+        return saved;
     }
 
     @Transactional
@@ -101,7 +107,9 @@ public class UpdateApplicationAppService {
             application.getRemarks(),
             application.getCreatedAt(),
             java.time.LocalDateTime.now());
-        return applicationRepository.update(voided);
+        Application saved = applicationRepository.update(voided);
+        applicationTrackingEventSupport.writeVoidEvent(saved);
+        return saved;
     }
 
     private Application loadEditableApplication(String applicationId) {
@@ -122,5 +130,36 @@ public class UpdateApplicationAppService {
                 DOWNSTREAM_STARTED_MESSAGE);
         }
         return application;
+    }
+
+    private boolean isNoopUpdate(Application existing, Application updated) {
+        Application comparableUpdated = new Application(
+            updated.getId(),
+            updated.getApplicationNo(),
+            updated.getPatientId(),
+            updated.getPatientName(),
+            updated.getPatientGender(),
+            updated.getPatientAge(),
+            updated.getApplicationType(),
+            updated.getStatus(),
+            updated.getApplicationFormStatus(),
+            updated.getExternalOrderNo(),
+            updated.getThirdPartySource(),
+            updated.getSourceHospitalId(),
+            updated.getSourceHospitalName(),
+            updated.getSubmittingDepartmentId(),
+            updated.getSubmittingDepartmentName(),
+            updated.getSubmittingDoctorUserId(),
+            updated.getSubmittingDoctorName(),
+            updated.getClinicalDiagnosis(),
+            updated.getClinicalSymptom(),
+            updated.getSpecimenSite(),
+            updated.getApplicationDate(),
+            updated.getSubmissionDate(),
+            updated.getSpecimenRemovalTime(),
+            updated.getRemarks(),
+            updated.getCreatedAt(),
+            existing.getUpdatedAt());
+        return existing.equals(comparableUpdated);
     }
 }

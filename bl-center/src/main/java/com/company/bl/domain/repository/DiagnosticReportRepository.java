@@ -35,6 +35,11 @@ public interface DiagnosticReportRepository {
 
     void completeDiagnosticTask(String taskId, String remarks, LocalDateTime completedAt);
 
+    void updateFrozenDiagnosisResult(String taskId,
+                                     String frozenDiagnosisResult,
+                                     String remarks,
+                                     LocalDateTime updatedAt);
+
     Optional<PathologyReport> findCurrentReportByCaseIdAndScope(String caseId, String reportScope);
 
     Optional<PathologyReport> findPathologyReportById(String reportId);
@@ -134,6 +139,7 @@ public interface DiagnosticReportRepository {
         LocalDateTime assignedAt,
         LocalDateTime acceptedAt,
         LocalDateTime completedAt,
+        String frozenDiagnosisResult,
         String remarks,
         LocalDateTime createdAt
     ) {

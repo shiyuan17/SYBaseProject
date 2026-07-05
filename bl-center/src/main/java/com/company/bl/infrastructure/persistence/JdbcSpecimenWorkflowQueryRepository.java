@@ -5,6 +5,7 @@ import com.company.bl.domain.enums.FixationStatus;
 import com.company.bl.domain.enums.SpecimenStatus;
 import com.company.bl.domain.model.Application;
 import com.company.bl.domain.model.ApplicationTracking;
+import com.company.bl.domain.model.PathologyCase;
 import com.company.bl.domain.model.Specimen;
 import com.company.bl.domain.model.TrackingEvent;
 import com.company.bl.domain.repository.SpecimenWorkflowQueryRepository;
@@ -22,6 +23,10 @@ import java.util.Map;
 public class JdbcSpecimenWorkflowQueryRepository
     extends AbstractJdbcSpecimenWorkflowProjectionSupport
     implements SpecimenWorkflowQueryRepository {
+
+    private static final String APPLICATION_TYPE_FROZEN = "FROZEN";
+    private static final String CASE_STATUS_REQUESTED = "REQUESTED";
+    private static final String CURRENT_NODE_FROZEN_APPOINTMENT = "APPOINTMENT";
 
     public JdbcSpecimenWorkflowQueryRepository(NamedParameterJdbcTemplate jdbcTemplate) {
         super(jdbcTemplate);
@@ -55,6 +60,14 @@ public class JdbcSpecimenWorkflowQueryRepository
                 a.application_form_status,
                 case
                     when a.status = 'VOIDED' then a.status
+                    when a.application_type = 'FROZEN'
+                         and exists (
+                             select 1
+                             from pathology_cases pc
+                             where pc.application_id = a.id
+                               and pc.case_status = 'REQUESTED'
+                         )
+                    then 'APPOINTMENT'
                     else coalesce(
                         (
                             select we.node_code
@@ -179,16 +192,25 @@ public class JdbcSpecimenWorkflowQueryRepository
     public ApplicationTracking getApplicationTracking(String applicationId, Application application) {
         List<Specimen> specimens = findSpecimensByApplicationId(applicationId);
         List<TrackingEvent> events = findTrackingEventsByApplicationId(applicationId);
+        java.util.Optional<PathologyCase> pathologyCase = findPathologyCaseByApplicationId(applicationId);
         boolean abnormal = specimens.stream().anyMatch(specimen ->
             specimen.specimenStatus() == SpecimenStatus.REJECTED
                 || specimen.specimenStatus() == SpecimenStatus.RETURNED
                 || specimen.fixationStatus() == FixationStatus.ABNORMAL);
         String currentNode = application.getStatus() == ApplicationStatus.VOIDED
             ? application.getStatus().name()
+            : isFrozenRequested(pathologyCase.orElse(null), application)
+                ? CURRENT_NODE_FROZEN_APPOINTMENT
             : events.isEmpty()
                 ? application.getStatus().name()
                 : events.get(events.size() - 1).nodeCode();
         return new ApplicationTracking(application, currentNode, abnormal, specimens, events);
+    }
+
+    private boolean isFrozenRequested(PathologyCase pathologyCase, Application application) {
+        return pathologyCase != null
+            && APPLICATION_TYPE_FROZEN.equalsIgnoreCase(application.getApplicationType())
+            && CASE_STATUS_REQUESTED.equalsIgnoreCase(pathologyCase.caseStatus());
     }
 
     @Override
@@ -373,7 +395,5 @@ public class JdbcSpecimenWorkflowQueryRepository
             rs.getTimestamp("updated_at") == null ? null : rs.getTimestamp("updated_at").toLocalDateTime());
     }
 }
-
-
 
 

@@ -84,6 +84,13 @@ final class JdbcTechnicalWorkflowTaskQueries {
         return rows.stream().findFirst();
     }
 
+    List<TechnicalTask> findTechnicalTasksByCaseId(String caseId) {
+        return jdbcTemplate.query(taskSelectSql() + """
+            where t.case_id = :caseId
+            order by t.created_at asc, t.id asc
+            """, Map.of("caseId", caseId), rowMappers::mapTechnicalTask);
+    }
+
     List<TechnicalTask> findActiveTechnicalTasksByCaseId(String caseId) {
         return jdbcTemplate.query(taskSelectSql() + """
             where t.case_id = :caseId

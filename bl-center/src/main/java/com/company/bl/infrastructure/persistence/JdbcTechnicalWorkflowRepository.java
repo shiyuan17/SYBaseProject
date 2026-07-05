@@ -95,6 +95,11 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     }
 
     @Override
+    public List<TechnicalTask> findTechnicalTasksByCaseId(String caseId) {
+        return taskQueries.findTechnicalTasksByCaseId(caseId);
+    }
+
+    @Override
     public List<TechnicalTask> findActiveTechnicalTasksByCaseId(String caseId) {
         return taskQueries.findActiveTechnicalTasksByCaseId(caseId);
     }

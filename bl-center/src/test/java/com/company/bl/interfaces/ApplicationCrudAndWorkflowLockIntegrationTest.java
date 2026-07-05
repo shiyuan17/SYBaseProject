@@ -9,6 +9,11 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
@@ -98,6 +103,62 @@ class ApplicationCrudAndWorkflowLockIntegrationTest extends AbstractApplicationC
             .andExpect(jsonPath("$.code", is("SUCCESS")))
             .andExpect(jsonPath("$.traceId", notNullValue()))
             .andExpect(jsonPath("$.data.id", notNullValue()));
+    }
+
+    @Test
+    void shouldWriteApplicationCreateTrackingEvent() throws Exception {
+        String applicationNo = "APP-TRACKING-CREATE-" + System.nanoTime();
+        JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "%s",
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-1001",
+                      "patientName": "Patient Tracking Create",
+                      "applicationFormStatus": "PENDING",
+                      "applicationDate": "2026-05-21",
+                      "submissionDate": "2026-05-22",
+                      "clinicalDiagnosis": "tracking create diagnosis"
+                    }
+                    """.formatted(applicationNo))), 201);
+        String applicationId = created.path("id").asText();
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                select application_id,
+                       specimen_id,
+                       case_id,
+                       transport_order_id,
+                       node_code,
+                       event_type,
+                       event_status,
+                       event_content
+                from workflow_events
+                where application_id = :applicationId
+                order by event_time asc, created_at asc
+                """, new MapSqlParameterSource().addValue("applicationId", applicationId));
+
+        assertThat(rows)
+            .extracting(
+                row -> row.get("APPLICATION_ID"),
+                row -> row.get("SPECIMEN_ID"),
+                row -> row.get("CASE_ID"),
+                row -> row.get("TRANSPORT_ORDER_ID"),
+                row -> row.get("NODE_CODE"),
+                row -> row.get("EVENT_TYPE"),
+                row -> row.get("EVENT_STATUS"),
+                row -> row.get("EVENT_CONTENT")
+            )
+            .contains(tuple(
+                applicationId,
+                null,
+                null,
+                null,
+                "APPLICATION_CREATE",
+                "CREATE",
+                "SUCCESS",
+                "创建申请单 " + applicationNo
+            ));
     }
 
     @Test
@@ -288,6 +349,135 @@ class ApplicationCrudAndWorkflowLockIntegrationTest extends AbstractApplicationC
     }
 
     @Test
+    void shouldWriteApplicationUpdateTrackingEvent() throws Exception {
+        String initialApplicationNo = "APP-TRACKING-UPDATE-" + System.nanoTime();
+        JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "%s",
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-UPDATE-001",
+                      "patientName": "Patient Before Tracking Update",
+                      "applicationDate": "2026-05-20",
+                      "submissionDate": "2026-05-21",
+                      "applicationFormStatus": "PENDING",
+                      "clinicalDiagnosis": "before tracking update"
+                    }
+                    """.formatted(initialApplicationNo))), 201);
+        String applicationId = created.path("id").asText();
+        String updatedApplicationNo = initialApplicationNo + "-R";
+
+        mockMvc.perform(authorized(patch("/api/v1/applications/{id}", applicationId), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "%s",
+                      "applicationType": "FROZEN",
+                      "patientId": "P-UPDATE-001",
+                      "patientName": "Patient After Tracking Update",
+                      "applicationDate": "2026-05-22",
+                      "submissionDate": "2026-05-23",
+                      "applicationFormStatus": "UPLOADED",
+                      "clinicalDiagnosis": "after tracking update"
+                    }
+                    """.formatted(updatedApplicationNo)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(applicationId));
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                select application_id,
+                       specimen_id,
+                       case_id,
+                       transport_order_id,
+                       node_code,
+                       event_type,
+                       event_status,
+                       event_content
+                from workflow_events
+                where application_id = :applicationId
+                order by event_time asc, created_at asc
+                """, new MapSqlParameterSource().addValue("applicationId", applicationId));
+
+        assertThat(rows)
+            .extracting(
+                row -> row.get("APPLICATION_ID"),
+                row -> row.get("SPECIMEN_ID"),
+                row -> row.get("CASE_ID"),
+                row -> row.get("TRANSPORT_ORDER_ID"),
+                row -> row.get("NODE_CODE"),
+                row -> row.get("EVENT_TYPE"),
+                row -> row.get("EVENT_STATUS"),
+                row -> row.get("EVENT_CONTENT")
+            )
+            .contains(tuple(
+                applicationId,
+                null,
+                null,
+                null,
+                "APPLICATION_UPDATE",
+                "UPDATE",
+                "SUCCESS",
+                "更新申请单 " + updatedApplicationNo
+            ));
+    }
+
+    @Test
+    void shouldNotWriteApplicationUpdateTrackingEventForNoOpPatch() throws Exception {
+        String applicationNo = "APP-TRACKING-NOOP-" + System.nanoTime();
+        JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "%s",
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-UPDATE-001",
+                      "patientName": "Patient Noop Update",
+                      "applicationDate": "2026-05-20",
+                      "submissionDate": "2026-05-21",
+                      "applicationFormStatus": "PENDING",
+                      "clinicalDiagnosis": "noop update diagnosis"
+                    }
+                    """.formatted(applicationNo))), 201);
+        String applicationId = created.path("id").asText();
+
+        mockMvc.perform(authorized(patch("/api/v1/applications/{id}", applicationId), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "%s",
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-UPDATE-001",
+                      "patientName": "Patient Noop Update",
+                      "applicationDate": "2026-05-20",
+                      "submissionDate": "2026-05-21",
+                      "applicationFormStatus": "PENDING",
+                      "clinicalDiagnosis": "noop update diagnosis"
+                    }
+                    """.formatted(applicationNo)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(applicationId));
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                select application_id,
+                       specimen_id,
+                       case_id,
+                       transport_order_id,
+                       node_code,
+                       event_type,
+                       event_status,
+                       event_content
+                from workflow_events
+                where application_id = :applicationId
+                order by event_time asc, created_at asc
+                """, new MapSqlParameterSource().addValue("applicationId", applicationId));
+
+        assertThat(rows)
+            .extracting(row -> row.get("NODE_CODE"))
+            .doesNotContain("APPLICATION_UPDATE");
+    }
+
+    @Test
     void shouldAutoCreatePatientWhenUpdatingApplicationToNewIdentifier() throws Exception {
         JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -379,6 +569,105 @@ class ApplicationCrudAndWorkflowLockIntegrationTest extends AbstractApplicationC
     }
 
     @Test
+    void shouldWriteApplicationVoidTrackingEvent() throws Exception {
+        String applicationNo = "APP-TRACKING-VOID-" + System.nanoTime();
+        JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "%s",
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-VOID-001",
+                      "patientName": "Patient Tracking Void",
+                      "applicationDate": "2026-05-20",
+                      "submissionDate": "2026-05-21",
+                      "applicationFormStatus": "PENDING",
+                      "clinicalDiagnosis": "before tracking void"
+                    }
+                    """.formatted(applicationNo))), 201);
+        String applicationId = created.path("id").asText();
+
+        mockMvc.perform(authorized(delete("/api/v1/applications/{id}", applicationId), USER_REGISTER))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(applicationId));
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                select application_id,
+                       specimen_id,
+                       case_id,
+                       transport_order_id,
+                       node_code,
+                       event_type,
+                       event_status,
+                       event_content
+                from workflow_events
+                where application_id = :applicationId
+                order by event_time asc, created_at asc
+                """, new MapSqlParameterSource().addValue("applicationId", applicationId));
+
+        assertThat(rows)
+            .extracting(
+                row -> row.get("APPLICATION_ID"),
+                row -> row.get("SPECIMEN_ID"),
+                row -> row.get("CASE_ID"),
+                row -> row.get("TRANSPORT_ORDER_ID"),
+                row -> row.get("NODE_CODE"),
+                row -> row.get("EVENT_TYPE"),
+                row -> row.get("EVENT_STATUS"),
+                row -> row.get("EVENT_CONTENT")
+            )
+            .contains(tuple(
+                applicationId,
+                null,
+                null,
+                null,
+                "APPLICATION_VOID",
+                "VOID",
+                "SUCCESS",
+                "作废申请单 " + applicationNo
+            ));
+    }
+
+    @Test
+    void shouldNotWriteDuplicateVoidTrackingEventWhenRetryingVoid() throws Exception {
+        String applicationNo = "APP-TRACKING-VOID-RETRY-" + System.nanoTime();
+        JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "%s",
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-VOID-001",
+                      "patientName": "Patient Tracking Void Retry",
+                      "applicationDate": "2026-05-20",
+                      "submissionDate": "2026-05-21",
+                      "applicationFormStatus": "PENDING",
+                      "clinicalDiagnosis": "before tracking void retry"
+                    }
+                    """.formatted(applicationNo))), 201);
+        String applicationId = created.path("id").asText();
+
+        mockMvc.perform(authorized(delete("/api/v1/applications/{id}", applicationId), USER_REGISTER))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(applicationId));
+
+        mockMvc.perform(authorized(delete("/api/v1/applications/{id}", applicationId), USER_REGISTER))
+            .andExpect(status().isConflict());
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                select node_code
+                from workflow_events
+                where application_id = :applicationId
+                order by event_time asc, created_at asc
+                """, new MapSqlParameterSource().addValue("applicationId", applicationId));
+
+        assertThat(rows)
+            .extracting(row -> row.get("NODE_CODE"))
+            .filteredOn("APPLICATION_VOID"::equals)
+            .hasSize(1);
+    }
+
+    @Test
     void shouldRejectUpdateAndVoidAfterDownstreamWorkflowStarts() throws Exception {
         JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -459,6 +748,169 @@ class ApplicationCrudAndWorkflowLockIntegrationTest extends AbstractApplicationC
 
         mockMvc.perform(authorized(delete("/api/v1/applications/{id}", applicationId), USER_REGISTER))
             .andExpect(status().isConflict());
+    }
+
+    @Test
+    void shouldNotWriteApplicationSuccessTrackingEventWhenUpdateOrVoidFailsAfterDownstreamWorkflowStarts() throws Exception {
+        String applicationNo = "APP-DOWNSTREAM-TRACKING-LOCK-" + System.nanoTime();
+        JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "%s",
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-DOWNSTREAM-LOCK",
+                      "patientName": "Patient Tracking Locked",
+                      "clinicalDiagnosis": "locked tracking diagnosis"
+                    }
+                    """.formatted(applicationNo))), 201);
+        String applicationId = created.path("id").asText();
+
+        responseData(mockMvc.perform(authorized(post("/api/v1/specimens/register"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationId": "%s",
+                      "items": [
+                        {
+                          "specimenNameStandardized": "Thyroid tissue",
+                          "specimenType": "Tissue",
+                          "specimenSite": "Thyroid",
+                          "collectionMode": "SURGERY",
+                          "containerName": "Specimen Bottle",
+                          "containerCount": 1,
+                          "specimenCount": 1,
+                          "barcode": "BC-DOWNSTREAM-TRACKING-LOCK-%s"
+                        }
+                      ]
+                    }
+                    """.formatted(applicationId, System.nanoTime()))), 201);
+        String barcode = jdbcTemplate.queryForObject("""
+                select barcode
+                from specimens
+                where application_id = :applicationId
+                """, new MapSqlParameterSource().addValue("applicationId", applicationId), String.class);
+
+        mockMvc.perform(authorized(post("/api/v1/specimen-verifications/start"), USER_FIXATION)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "specimenBarcode": "%s"}
+                    """.formatted(barcode)))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(post("/api/v1/specimen-verifications/complete"), USER_FIXATION)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "specimenBarcode": "%s"}
+                    """.formatted(barcode)))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(post("/api/v1/specimen-fixations/start"), USER_FIXATION)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "specimenBarcode": "%s",
+                      "fixationLiquidType": "FORMALIN"}
+                    """.formatted(barcode)))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(patch("/api/v1/applications/{id}", applicationId), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "%s-R",
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-DOWNSTREAM-LOCK",
+                      "patientName": "Patient Tracking Locked",
+                      "submittingDepartmentId": "DEPT-LOCK",
+                      "submittingDepartmentName": "Lock Department",
+                      "submittingDoctorUserId": "DOC-LOCK-001",
+                      "submittingDoctorName": "Dr Lock",
+                      "clinicalDiagnosis": "locked tracking diagnosis",
+                      "specimenSite": "Thyroid"
+                    }
+                    """.formatted(applicationNo)))
+            .andExpect(status().isConflict());
+
+        mockMvc.perform(authorized(delete("/api/v1/applications/{id}", applicationId), USER_REGISTER))
+            .andExpect(status().isConflict());
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                select node_code
+                from workflow_events
+                where application_id = :applicationId
+                order by event_time asc, created_at asc
+                """, new MapSqlParameterSource().addValue("applicationId", applicationId));
+
+        assertThat(rows)
+            .extracting(row -> row.get("NODE_CODE"))
+            .doesNotContain("APPLICATION_UPDATE", "APPLICATION_VOID");
+    }
+
+    @Test
+    void shouldReadBackApplicationLevelTrackingEventsFromTrackingApi() throws Exception {
+        String initialApplicationNo = "APP-TRACKING-READBACK-" + System.nanoTime();
+        JsonNode created = responseData(mockMvc.perform(authorized(post("/api/v1/applications"), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "%s",
+                      "applicationType": "ROUTINE",
+                      "patientId": "P-UPDATE-001",
+                      "patientName": "Patient Tracking Readback",
+                      "applicationDate": "2026-05-20",
+                      "submissionDate": "2026-05-21",
+                      "applicationFormStatus": "PENDING",
+                      "clinicalDiagnosis": "tracking readback diagnosis"
+                    }
+                    """.formatted(initialApplicationNo))), 201);
+        String applicationId = created.path("id").asText();
+        String updatedApplicationNo = initialApplicationNo + "-R";
+
+        mockMvc.perform(authorized(patch("/api/v1/applications/{id}", applicationId), USER_REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "applicationNo": "%s",
+                      "applicationType": "FROZEN",
+                      "patientId": "P-UPDATE-001",
+                      "patientName": "Patient Tracking Readback",
+                      "applicationDate": "2026-05-22",
+                      "submissionDate": "2026-05-23",
+                      "applicationFormStatus": "UPLOADED",
+                      "clinicalDiagnosis": "tracking readback diagnosis"
+                    }
+                    """.formatted(updatedApplicationNo)))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(delete("/api/v1/applications/{id}", applicationId), USER_REGISTER))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(authorized(get("/api/v1/applications/{id}/tracking", applicationId), USER_TRACKING))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.recentEvents[0].nodeCode").value("APPLICATION_CREATE"))
+            .andExpect(jsonPath("$.data.recentEvents[0].eventType").value("CREATE"))
+            .andExpect(jsonPath("$.data.recentEvents[0].eventStatus").value("SUCCESS"))
+            .andExpect(jsonPath("$.data.recentEvents[0].specimenId").isEmpty())
+            .andExpect(jsonPath("$.data.recentEvents[0].specimenNo").isEmpty())
+            .andExpect(jsonPath("$.data.recentEvents[0].specimenBarcode").isEmpty())
+            .andExpect(jsonPath("$.data.recentEvents[0].eventContent").value("创建申请单 " + initialApplicationNo))
+            .andExpect(jsonPath("$.data.recentEvents[1].nodeCode").value("APPLICATION_UPDATE"))
+            .andExpect(jsonPath("$.data.recentEvents[1].eventType").value("UPDATE"))
+            .andExpect(jsonPath("$.data.recentEvents[1].eventStatus").value("SUCCESS"))
+            .andExpect(jsonPath("$.data.recentEvents[1].specimenId").isEmpty())
+            .andExpect(jsonPath("$.data.recentEvents[1].specimenNo").isEmpty())
+            .andExpect(jsonPath("$.data.recentEvents[1].specimenBarcode").isEmpty())
+            .andExpect(jsonPath("$.data.recentEvents[1].eventContent").value("更新申请单 " + updatedApplicationNo))
+            .andExpect(jsonPath("$.data.recentEvents[2].nodeCode").value("APPLICATION_VOID"))
+            .andExpect(jsonPath("$.data.recentEvents[2].eventType").value("VOID"))
+            .andExpect(jsonPath("$.data.recentEvents[2].eventStatus").value("SUCCESS"))
+            .andExpect(jsonPath("$.data.recentEvents[2].specimenId").isEmpty())
+            .andExpect(jsonPath("$.data.recentEvents[2].specimenNo").isEmpty())
+            .andExpect(jsonPath("$.data.recentEvents[2].specimenBarcode").isEmpty())
+            .andExpect(jsonPath("$.data.recentEvents[2].eventContent").value("作废申请单 " + updatedApplicationNo));
     }
 
     @Test

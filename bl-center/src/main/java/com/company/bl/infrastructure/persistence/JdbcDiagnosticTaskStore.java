@@ -210,6 +210,23 @@ final class JdbcDiagnosticTaskStore {
             .addValue("updatedAt", completedAt));
     }
 
+    void updateFrozenDiagnosisResult(String taskId,
+                                     String frozenDiagnosisResult,
+                                     String remarks,
+                                     LocalDateTime updatedAt) {
+        jdbcTemplate.update("""
+            update diagnostic_tasks
+            set frozen_diagnosis_result = :frozenDiagnosisResult,
+                remarks = :remarks,
+                updated_at = :updatedAt
+            where id = :taskId
+            """, new MapSqlParameterSource()
+            .addValue("taskId", taskId)
+            .addValue("frozenDiagnosisResult", frozenDiagnosisResult)
+            .addValue("remarks", remarks)
+            .addValue("updatedAt", updatedAt));
+    }
+
     private String diagnosticTaskSelectSql() {
         return """
             select
@@ -267,6 +284,7 @@ final class JdbcDiagnosticTaskStore {
                 dt.assigned_at,
                 dt.accepted_at,
                 dt.completed_at,
+                dt.frozen_diagnosis_result,
                 dt.remarks,
                 dt.created_at
             from diagnostic_tasks dt
@@ -366,6 +384,7 @@ final class JdbcDiagnosticTaskStore {
             toLocalDateTime(rs.getTimestamp("assigned_at")),
             toLocalDateTime(rs.getTimestamp("accepted_at")),
             toLocalDateTime(rs.getTimestamp("completed_at")),
+            rs.getString("frozen_diagnosis_result"),
             rs.getString("remarks"),
             toLocalDateTime(rs.getTimestamp("created_at")));
     }

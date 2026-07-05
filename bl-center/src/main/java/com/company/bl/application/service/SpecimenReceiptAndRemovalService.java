@@ -29,6 +29,10 @@ import static com.company.bl.application.service.SpecimenWorkflowModels.*;
 @Service
 class SpecimenReceiptAndRemovalService {
 
+    private static final String APPLICATION_TYPE_FROZEN = "FROZEN";
+    private static final String FROZEN_REQUEST_NODE = "APPOINTMENT";
+    private static final String FROZEN_REQUEST_EVENT = "FROZEN_REQUESTED";
+
     private final SpecimenWorkflowCommandRepository specimenWorkflowRepository;
     private final SpecimenWorkflowSupport specimenWorkflowSupport;
     private final NumberingService numberingService;
@@ -178,11 +182,17 @@ class SpecimenReceiptAndRemovalService {
             Specimen specimen = resolveReceiptSpecimen(item);
             validateReceiptSpecimen(application, order, transportOrderItems, specimen, item, directReceive);
             if (pathologyCase == null && item.receiptStatus() == ReceiptStatus.RECEIVED) {
+                String pathologyNo = APPLICATION_TYPE_FROZEN.equalsIgnoreCase(application.getApplicationType())
+                    ? numberingService.generatePathologyNo(APPLICATION_TYPE_FROZEN)
+                    : null;
+                String initialCaseStatus = APPLICATION_TYPE_FROZEN.equalsIgnoreCase(application.getApplicationType())
+                    ? "REQUESTED"
+                    : "RECEIVED";
                 pathologyCase = specimenWorkflowRepository.insertPathologyCase(new PathologyCase(
                     "CASE-" + UUID.randomUUID(),
                     application.getId().value(),
-                    null,
-                    "RECEIVED",
+                    pathologyNo,
+                    initialCaseStatus,
                     application.getSourceHospitalId(),
                     application.getSourceHospitalName(),
                     application.getSubmittingDepartmentId(),
@@ -190,6 +200,23 @@ class SpecimenReceiptAndRemovalService {
                     receivedByUserId,
                     receivedByName,
                     now));
+                if (APPLICATION_TYPE_FROZEN.equalsIgnoreCase(application.getApplicationType())) {
+                    specimenWorkflowRepository.insertWorkflowEvent(new TrackingEvent(
+                        "EVT-" + UUID.randomUUID(),
+                        application.getId().value(),
+                        specimen.id(),
+                        pathologyCase.id(),
+                        order == null ? null : order.id(),
+                        FROZEN_REQUEST_NODE,
+                        FROZEN_REQUEST_EVENT,
+                        "SUCCESS",
+                        resolveFrozenRequestedAt(application, now),
+                        application.getSubmittingDoctorUserId(),
+                        application.getSubmittingDoctorName(),
+                        null,
+                        "创建冰冻术中申请",
+                        null));
+                }
             }
             String caseId = pathologyCase == null ? null : pathologyCase.id();
             specimenWorkflowRepository.insertSpecimenReceipt(
@@ -331,5 +358,15 @@ class SpecimenReceiptAndRemovalService {
         if ("FAILED".equals(qualityCheckResult) && qualityIssueCodes.isEmpty()) {
             throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Failed quality checks must provide issue codes");
         }
+    }
+
+    private LocalDateTime resolveFrozenRequestedAt(Application application, LocalDateTime fallback) {
+        if (application.getSubmissionDate() != null) {
+            return application.getSubmissionDate().atStartOfDay();
+        }
+        if (application.getCreatedAt() != null) {
+            return application.getCreatedAt();
+        }
+        return fallback;
     }
 }

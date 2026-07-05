@@ -36,6 +36,10 @@ public class DiagnosticReportAppService {
         diagnosticTaskWorkflowService.createPrimaryDiagnosticTaskIfAbsent(caseId, remarks);
     }
 
+    public void createFrozenDiagnosticTaskIfAbsent(String caseId, String remarks) {
+        diagnosticTaskWorkflowService.createFrozenDiagnosticTaskIfAbsent(caseId, remarks);
+    }
+
     public DiagnosticReportModels.DiagnosticTaskResult assignTask(DiagnosticReportModels.AssignDiagnosticTaskCommand command) {
         return diagnosticTaskWorkflowService.assignTask(command);
     }
@@ -138,6 +142,12 @@ public class DiagnosticReportAppService {
         DiagnosticReportModels.CreateMedicalOrderBlockCommand command
     ) {
         return medicalOrderWorkflowService.createMedicalOrderBlock(command);
+    }
+
+    public DiagnosticReportModels.MedicalOrderTargetSnapshotResult changeMedicalOrderBlock(
+        DiagnosticReportModels.ChangeMedicalOrderBlockCommand command
+    ) {
+        return medicalOrderWorkflowService.changeMedicalOrderBlock(command);
     }
 
     public DiagnosticReportModels.MedicalOrderResult acceptMedicalOrder(DiagnosticReportModels.MedicalOrderActionCommand command) {

@@ -39,7 +39,7 @@ public class NotificationCenterService {
         this.operationAuditService = operationAuditService;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public NotificationPageView listNotifications(NotificationListCommand command) {
         return operationAuditService.audit(
             "SYSTEM",

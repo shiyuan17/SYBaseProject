@@ -84,6 +84,14 @@ public class JdbcDiagnosticReportRepository implements DiagnosticReportRepositor
     }
 
     @Override
+    public void updateFrozenDiagnosisResult(String taskId,
+                                            String frozenDiagnosisResult,
+                                            String remarks,
+                                            LocalDateTime updatedAt) {
+        diagnosticTaskStore.updateFrozenDiagnosisResult(taskId, frozenDiagnosisResult, remarks, updatedAt);
+    }
+
+    @Override
     public Optional<PathologyReport> findCurrentReportByCaseIdAndScope(String caseId, String reportScope) {
         return pathologyReportStore.findCurrentReportByCaseIdAndScope(caseId, reportScope);
     }

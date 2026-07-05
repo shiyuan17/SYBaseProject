@@ -19,6 +19,7 @@ public class CreateApplicationAppService {
     private final ApplicationRepository applicationRepository;
     private final NumberingService numberingService;
     private final ApplicationPatientIdentityResolver patientIdentityResolver;
+    private final ApplicationTrackingEventSupport applicationTrackingEventSupport;
 
     @Transactional
     @ObservedOperation(
@@ -60,6 +61,8 @@ public class CreateApplicationAppService {
             command.specimenRemovalTime(),
             command.applicationFormStatus(),
             command.remarks());
-        return applicationRepository.save(application).getId();
+        Application saved = applicationRepository.save(application);
+        applicationTrackingEventSupport.writeCreateEvent(saved);
+        return saved.getId();
     }
 }

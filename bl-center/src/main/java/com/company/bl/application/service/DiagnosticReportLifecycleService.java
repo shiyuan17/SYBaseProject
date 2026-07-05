@@ -14,7 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 class DiagnosticReportLifecycleService {
@@ -49,8 +51,9 @@ class DiagnosticReportLifecycleService {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Diagnostic task is not editable");
         }
         diagnosticReportSupport.ensureAssignedDoctor(task, command.operatorUserId());
+        String reportScope = resolveReportScope(task);
         DiagnosticReportRepository.PathologyReport existing = diagnosticReportRepository
-            .findCurrentReportByCaseIdAndScope(command.caseId(), DiagnosticReportConstants.REPORT_SCOPE_ROUTINE)
+            .findCurrentReportByCaseIdAndScope(command.caseId(), reportScope)
             .orElse(null);
         if (existing != null && DiagnosticReportConstants.REPORT_DRAFT.equals(existing.reportStatus())) {
             throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Draft report already exists");
@@ -65,7 +68,7 @@ class DiagnosticReportLifecycleService {
             command.taskId(),
             numberingService.generateReportNo(),
             pathologyCase.pathologyNo(),
-            DiagnosticReportConstants.REPORT_SCOPE_ROUTINE,
+            reportScope,
             1,
             DiagnosticReportConstants.REPORT_DRAFT,
             1,
@@ -85,6 +88,13 @@ class DiagnosticReportLifecycleService {
             command.operatorUserId(), command.operatorName(), command.terminalCode(), "Draft report created");
         DiagnosticReportRepository.PathologyReport report = diagnosticReportSupport.getReport(reportId);
         return new DiagnosticReportModels.PathologyReportResult(report.id(), report.caseId(), report.reportNo(), report.reportStatus(), null, null);
+    }
+
+    private String resolveReportScope(DiagnosticReportRepository.DiagnosticTask task) {
+        if (DiagnosticReportConstants.TASK_FROZEN.equalsIgnoreCase(task.taskType())) {
+            return DiagnosticReportConstants.REPORT_SCOPE_FROZEN;
+        }
+        return DiagnosticReportConstants.REPORT_SCOPE_ROUTINE;
     }
 
     @Transactional
@@ -247,6 +257,17 @@ class DiagnosticReportLifecycleService {
         }
         if (!successIds.isEmpty()) {
             diagnosticReportRepository.markReportVersionsPrinted(successIds, now);
+            versions.stream()
+                .filter(version -> successIds.contains(version.id()))
+                .forEach(version -> diagnosticReportSupport.insertWorkflowEvent(
+                    version.caseId(),
+                    "REPORT_PRINT",
+                    "PRINT",
+                    "SUCCESS",
+                    command.operatorUserId(),
+                    command.operatorName(),
+                    command.terminalCode(),
+                    buildDistributionEventContent("已打印", version)));
         }
         return new DiagnosticReportModels.FormalReportVersionBatchActionResult(
             items.size(),
@@ -294,9 +315,31 @@ class DiagnosticReportLifecycleService {
         }
         if (!successIds.isEmpty()) {
             diagnosticReportRepository.markReportVersionsIssued(successIds, now);
+            versions.stream()
+                .filter(version -> successIds.contains(version.id()))
+                .forEach(version -> diagnosticReportSupport.insertWorkflowEvent(
+                    version.caseId(),
+                    "REPORT_ISSUE",
+                    "ISSUE",
+                    "SUCCESS",
+                    command.operatorUserId(),
+                    command.operatorName(),
+                    command.terminalCode(),
+                    buildDistributionEventContent("已发放", version)));
         }
         if (!scheduledIds.isEmpty() && plannedIssueAt != null) {
             diagnosticReportRepository.scheduleReportVersionsIssue(scheduledIds, plannedIssueAt);
+            versions.stream()
+                .filter(version -> scheduledIds.contains(version.id()))
+                .forEach(version -> diagnosticReportSupport.insertWorkflowEvent(
+                    version.caseId(),
+                    "REPORT_SCHEDULE_ISSUE",
+                    "SCHEDULE_ISSUE",
+                    "SUCCESS",
+                    command.operatorUserId(),
+                    command.operatorName(),
+                    command.terminalCode(),
+                    buildScheduledDistributionEventContent(version, plannedIssueAt)));
         }
         return new DiagnosticReportModels.FormalReportVersionBatchActionResult(
             items.size(),
@@ -327,6 +370,17 @@ class DiagnosticReportLifecycleService {
         }
         if (!successIds.isEmpty()) {
             diagnosticReportRepository.markReportVersionsRecalled(successIds, now);
+            versions.stream()
+                .filter(version -> successIds.contains(version.id()))
+                .forEach(version -> diagnosticReportSupport.insertWorkflowEvent(
+                    version.caseId(),
+                    "REPORT_RECALL",
+                    "RECALL",
+                    "SUCCESS",
+                    command.operatorUserId(),
+                    command.operatorName(),
+                    command.terminalCode(),
+                    buildDistributionEventContent("已回收", version)));
         }
         return new DiagnosticReportModels.FormalReportVersionBatchActionResult(
             items.size(),
@@ -335,12 +389,27 @@ class DiagnosticReportLifecycleService {
             items);
     }
 
+    private String buildDistributionEventContent(String actionLabel,
+                                                 DiagnosticReportRepository.ReportVersion version) {
+        return "正式报告" + buildReportVersionLabel(version) + actionLabel;
+    }
+
+    private String buildScheduledDistributionEventContent(DiagnosticReportRepository.ReportVersion version,
+                                                          LocalDateTime plannedIssueAt) {
+        return buildDistributionEventContent("已计划发放", version) + "，计划时间 " + plannedIssueAt;
+    }
+
+    private String buildReportVersionLabel(DiagnosticReportRepository.ReportVersion version) {
+        return "V" + version.versionNo();
+    }
+
     private List<DiagnosticReportRepository.ReportVersion> loadRequestedVersions(List<String> versionIds) {
         if (versionIds == null || versionIds.isEmpty()) {
             throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Version IDs are required");
         }
+        Set<String> uniqueVersionIds = new LinkedHashSet<>(versionIds);
         List<DiagnosticReportRepository.ReportVersion> versions = new ArrayList<>();
-        for (String versionId : versionIds) {
+        for (String versionId : uniqueVersionIds) {
             versions.add(diagnosticReportSupport.getReportVersion(versionId));
         }
         return versions;

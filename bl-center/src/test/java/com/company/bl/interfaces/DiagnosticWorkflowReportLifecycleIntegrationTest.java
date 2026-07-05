@@ -6,6 +6,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.util.List;
+import java.util.Map;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -428,6 +431,40 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
         assertThat(scheduled).isNotNull();
         assertThat(scheduled.path("deliveryStatus").asText()).isEqualTo("PENDING");
         assertThat(scheduled.path("plannedIssueAt").asText()).isNotBlank();
+        String scheduledVersionLabel = "V" + scheduled.path("versionNo").asText();
+        String plannedIssueAt = scheduled.path("plannedIssueAt").asText();
+        String plannedIssueAtSecondPrecision = plannedIssueAt.length() >= 19
+            ? plannedIssueAt.substring(0, 19)
+            : plannedIssueAt;
+
+        List<String> scheduledDistributionNodes = namedParameterJdbcTemplate.queryForList("""
+            select node_code
+            from workflow_events
+            where case_id = :caseId
+              and node_code in ('REPORT_SCHEDULE_ISSUE', 'REPORT_ISSUE')
+            order by event_time asc, id asc
+            """, Map.of("caseId", context.caseId()), String.class);
+        assertThat(scheduledDistributionNodes)
+            .contains("REPORT_SCHEDULE_ISSUE")
+            .doesNotContain("REPORT_ISSUE");
+
+        List<String> scheduledDistributionContents = namedParameterJdbcTemplate.queryForList("""
+            select event_content
+            from workflow_events
+            where case_id = :caseId
+              and node_code = 'REPORT_SCHEDULE_ISSUE'
+            """, Map.of("caseId", context.caseId()), String.class);
+        assertThat(scheduledDistributionContents)
+            .singleElement()
+            .satisfies(content -> assertThat(content)
+                .contains(scheduledVersionLabel)
+                .contains(plannedIssueAtSecondPrecision));
+
+        JsonNode tracking = reportTracking(context.caseId(), USER_M4_TRACKING);
+        assertThat(tracking.toString()).contains("REPORT_SCHEDULE_ISSUE");
+
+        JsonNode lifecycle = lifecycleTracking(context.caseId(), USER_M4_TRACKING);
+        assertThat(lifecycle.toString()).contains("REPORT_SCHEDULE_ISSUE");
     }
 
     @Test
@@ -485,6 +522,259 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
         assertThat(updatedVersions.toString()).contains("RECALLED");
         assertThat(target.path("printedAt").asText()).isNotBlank();
         assertThat(target.path("recalledAt").asText()).isNotBlank();
+        String versionLabel = "V" + target.path("versionNo").asText();
+
+        List<String> distributionNodes = namedParameterJdbcTemplate.queryForList("""
+            select node_code
+            from workflow_events
+            where case_id = :caseId
+              and node_code in ('REPORT_PRINT', 'REPORT_ISSUE', 'REPORT_RECALL')
+            order by event_time asc, id asc
+            """, Map.of("caseId", context.caseId()), String.class);
+        assertThat(distributionNodes).containsSubsequence(
+            "REPORT_PRINT",
+            "REPORT_ISSUE",
+            "REPORT_RECALL"
+        );
+
+        List<String> distributionContents = namedParameterJdbcTemplate.queryForList("""
+            select event_content
+            from workflow_events
+            where case_id = :caseId
+              and node_code in ('REPORT_PRINT', 'REPORT_ISSUE', 'REPORT_RECALL')
+            order by event_time asc, id asc
+            """, Map.of("caseId", context.caseId()), String.class);
+        assertThat(distributionContents).allSatisfy(content -> assertThat(content).contains(versionLabel));
+
+        JsonNode tracking = reportTracking(context.caseId(), USER_M4_TRACKING);
+        assertThat(tracking.toString())
+            .contains("REPORT_PRINT")
+            .contains("REPORT_ISSUE")
+            .contains("REPORT_RECALL");
+
+        JsonNode lifecycle = lifecycleTracking(context.caseId(), USER_M4_TRACKING);
+        assertThat(lifecycle.toString())
+            .contains("REPORT_PRINT")
+            .contains("REPORT_ISSUE")
+            .contains("REPORT_RECALL");
+    }
+
+    @Test
+    void shouldDeduplicateRepeatedVersionIdsBeforeWritingDistributionEvents() throws Exception {
+        PublishedReportContext context = preparePublishedReportContext("APP-M4-DIST-DEDUPE-001", "BC-M4-DIST-DEDUPE-001");
+
+        JsonNode versions = formalReportVersions(context.caseId(), USER_M4_SIGN);
+        String versionId = versions.get(0).path("versionId").asText();
+
+        postJson("/api/v1/pathology-reports/formal-versions/print", USER_M4_SIGN, """
+            {
+              "versionIds":["%s","%s"]
+            }
+            """.formatted(versionId, versionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.totalCount").value(1))
+            .andExpect(jsonPath("$.data.successCount").value(1))
+            .andExpect(jsonPath("$.data.failureCount").value(0));
+
+        Long reportPrintEventCount = namedParameterJdbcTemplate.queryForObject("""
+            select count(*)
+            from workflow_events
+            where case_id = :caseId
+              and node_code = 'REPORT_PRINT'
+            """, Map.of("caseId", context.caseId()), Long.class);
+        assertThat(reportPrintEventCount).isEqualTo(1);
+    }
+
+    @Test
+    void shouldNotWriteDuplicateDistributionEventsWhenActionRetried() throws Exception {
+        PublishedReportContext context = preparePublishedReportContext("APP-M4-DIST-RETRY-001", "BC-M4-DIST-RETRY-001");
+
+        JsonNode versions = formalReportVersions(context.caseId(), USER_M4_SIGN);
+        String versionId = null;
+        for (JsonNode item : versions) {
+            if ("SIGNED".equals(item.path("versionStatus").asText())) {
+                versionId = item.path("versionId").asText();
+                break;
+            }
+        }
+        assertThat(versionId).isNotBlank();
+
+        postJson("/api/v1/pathology-reports/formal-versions/print", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"]
+            }
+            """.formatted(versionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount").value(1))
+            .andExpect(jsonPath("$.data.failureCount").value(0));
+
+        postJson("/api/v1/pathology-reports/formal-versions/print", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"]
+            }
+            """.formatted(versionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount").value(0))
+            .andExpect(jsonPath("$.data.failureCount").value(1));
+
+        postJson("/api/v1/pathology-reports/formal-versions/issue", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"]
+            }
+            """.formatted(versionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount").value(1))
+            .andExpect(jsonPath("$.data.failureCount").value(0));
+
+        postJson("/api/v1/pathology-reports/formal-versions/issue", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"]
+            }
+            """.formatted(versionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount").value(0))
+            .andExpect(jsonPath("$.data.failureCount").value(1));
+
+        postJson("/api/v1/pathology-reports/formal-versions/recall", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"]
+            }
+            """.formatted(versionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount").value(1))
+            .andExpect(jsonPath("$.data.failureCount").value(0));
+
+        postJson("/api/v1/pathology-reports/formal-versions/recall", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"]
+            }
+            """.formatted(versionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount").value(0))
+            .andExpect(jsonPath("$.data.failureCount").value(1));
+
+        Map<String, Object> params = Map.of("caseId", context.caseId());
+        Long reportPrintEventCount = namedParameterJdbcTemplate.queryForObject("""
+            select count(*)
+            from workflow_events
+            where case_id = :caseId
+              and node_code = 'REPORT_PRINT'
+            """, params, Long.class);
+        Long reportIssueEventCount = namedParameterJdbcTemplate.queryForObject("""
+            select count(*)
+            from workflow_events
+            where case_id = :caseId
+              and node_code = 'REPORT_ISSUE'
+            """, params, Long.class);
+        Long reportRecallEventCount = namedParameterJdbcTemplate.queryForObject("""
+            select count(*)
+            from workflow_events
+            where case_id = :caseId
+              and node_code = 'REPORT_RECALL'
+            """, params, Long.class);
+        assertThat(reportPrintEventCount).isEqualTo(1);
+        assertThat(reportIssueEventCount).isEqualTo(1);
+        assertThat(reportRecallEventCount).isEqualTo(1);
+    }
+
+    @Test
+    void shouldWriteDistributionEventsOnlyForSuccessfulItemsInPartialSuccessBatch() throws Exception {
+        PublishedReportContext context = preparePublishedReportContext("APP-M4-DIST-PARTIAL-001", "BC-M4-DIST-PARTIAL-001");
+
+        JsonNode versions = formalReportVersions(context.caseId(), USER_M4_SIGN);
+        String publishedVersionId = null;
+        String signedVersionId = null;
+        for (JsonNode item : versions) {
+            String versionStatus = item.path("versionStatus").asText();
+            if ("PUBLISHED".equals(versionStatus)) {
+                publishedVersionId = item.path("versionId").asText();
+            }
+            if ("SIGNED".equals(versionStatus)) {
+                signedVersionId = item.path("versionId").asText();
+            }
+        }
+        assertThat(publishedVersionId).isNotBlank();
+        assertThat(signedVersionId).isNotBlank();
+
+        postJson("/api/v1/pathology-reports/formal-versions/print", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"]
+            }
+            """.formatted(publishedVersionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount").value(1));
+
+        postJson("/api/v1/pathology-reports/formal-versions/issue", USER_M4_SIGN, """
+            {
+              "versionIds":["%s","%s"]
+            }
+            """.formatted(publishedVersionId, signedVersionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.totalCount").value(2))
+            .andExpect(jsonPath("$.data.successCount").value(1))
+            .andExpect(jsonPath("$.data.failureCount").value(1));
+
+        Long reportIssueEventCount = namedParameterJdbcTemplate.queryForObject("""
+            select count(*)
+            from workflow_events
+            where case_id = :caseId
+              and node_code = 'REPORT_ISSUE'
+            """, Map.of("caseId", context.caseId()), Long.class);
+        assertThat(reportIssueEventCount).isEqualTo(1);
+    }
+
+    @Test
+    void shouldAuditSuccessfulFormalReportDistributionWrites() throws Exception {
+        PublishedReportContext context = preparePublishedReportContext("APP-M4-DIST-AUDIT-001", "BC-M4-DIST-AUDIT-001");
+
+        JsonNode versions = formalReportVersions(context.caseId(), USER_M4_SIGN);
+        String versionId = null;
+        for (JsonNode item : versions) {
+            if ("SIGNED".equals(item.path("versionStatus").asText())) {
+                versionId = item.path("versionId").asText();
+                break;
+            }
+        }
+        assertThat(versionId).isNotBlank();
+
+        String printOperation = "post /api/v1/pathology-reports/formal-versions/print";
+        String issueOperation = "post /api/v1/pathology-reports/formal-versions/issue";
+        String recallOperation = "post /api/v1/pathology-reports/formal-versions/recall";
+        long printAuditCountBefore = operationLogCount(printOperation);
+        long issueAuditCountBefore = operationLogCount(issueOperation);
+        long recallAuditCountBefore = operationLogCount(recallOperation);
+
+        postJson("/api/v1/pathology-reports/formal-versions/print", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"]
+            }
+            """.formatted(versionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount").value(1));
+
+        postJson("/api/v1/pathology-reports/formal-versions/issue", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"]
+            }
+            """.formatted(versionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount").value(1));
+
+        postJson("/api/v1/pathology-reports/formal-versions/recall", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"]
+            }
+            """.formatted(versionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount").value(1));
+
+        assertThat(operationLogCount(printOperation)).isEqualTo(printAuditCountBefore + 1);
+        assertThat(operationLogCount(issueOperation)).isEqualTo(issueAuditCountBefore + 1);
+        assertThat(operationLogCount(recallOperation)).isEqualTo(recallAuditCountBefore + 1);
+
+        assertSuccessfulDistributionAudit(printOperation);
+        assertSuccessfulDistributionAudit(issueOperation);
+        assertSuccessfulDistributionAudit(recallOperation);
     }
 
     @Test
@@ -537,5 +827,30 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
         assertThat(publishedVersions.get(0).path("versionStatus").asText()).isEqualTo("PUBLISHED");
         assertThat(publishedVersions.get(0).path("printedAt").asText()).isNotBlank();
         assertThat(publishedVersions.get(0).path("printStatus").asText()).isEqualTo("PRINTED");
+    }
+
+    private long operationLogCount(String operationName) {
+        Long count = namedParameterJdbcTemplate.queryForObject("""
+            select count(*)
+            from operation_logs
+            where operation_name = :operationName
+            """, Map.of("operationName", operationName), Long.class);
+        return count == null ? 0L : count;
+    }
+
+    private void assertSuccessfulDistributionAudit(String operationName) {
+        Map<String, Object> latestAudit = namedParameterJdbcTemplate.queryForMap("""
+            select business_type, operation_result, operation_content
+            from operation_logs
+            where operation_name = :operationName
+            order by operation_at desc
+            limit 1
+            """, Map.of("operationName", operationName));
+        assertThat(latestAudit.get("business_type")).isEqualTo("PATHOLOGY_REPORTS");
+        assertThat(latestAudit.get("operation_result")).isEqualTo("SUCCESS");
+        assertThat(latestAudit.get("operation_content").toString())
+            .contains("POST")
+            .contains("status=200")
+            .contains(operationName.substring("post ".length()));
     }
 }

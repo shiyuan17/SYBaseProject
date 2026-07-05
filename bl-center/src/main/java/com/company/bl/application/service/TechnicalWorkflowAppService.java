@@ -7,6 +7,7 @@ public class TechnicalWorkflowAppService {
 
     private final TechnicalWorkflowQueryService technicalWorkflowQueryService;
     private final TechnicalSpecimenRegistrationService technicalSpecimenRegistrationService;
+    private final FrozenWorkflowService frozenWorkflowService;
     private final TechnicalTaskManagementService technicalTaskManagementService;
     private final TechnicalGrossingWorkflowService technicalGrossingWorkflowService;
     private final TechnicalProcessingWorkflowService technicalProcessingWorkflowService;
@@ -14,16 +15,84 @@ public class TechnicalWorkflowAppService {
 
     public TechnicalWorkflowAppService(TechnicalWorkflowQueryService technicalWorkflowQueryService,
                                        TechnicalSpecimenRegistrationService technicalSpecimenRegistrationService,
+                                       FrozenWorkflowService frozenWorkflowService,
                                        TechnicalTaskManagementService technicalTaskManagementService,
                                        TechnicalGrossingWorkflowService technicalGrossingWorkflowService,
                                        TechnicalProcessingWorkflowService technicalProcessingWorkflowService,
                                        TechnicalReworkWorkflowService technicalReworkWorkflowService) {
         this.technicalWorkflowQueryService = technicalWorkflowQueryService;
         this.technicalSpecimenRegistrationService = technicalSpecimenRegistrationService;
+        this.frozenWorkflowService = frozenWorkflowService;
         this.technicalTaskManagementService = technicalTaskManagementService;
         this.technicalGrossingWorkflowService = technicalGrossingWorkflowService;
         this.technicalProcessingWorkflowService = technicalProcessingWorkflowService;
         this.technicalReworkWorkflowService = technicalReworkWorkflowService;
+    }
+
+    public FrozenWorkflowModels.FrozenTechnicalWorkbenchView getFrozenTechnicalWorkbench() {
+        return frozenWorkflowService.getWorkbench();
+    }
+
+    public FrozenWorkflowModels.FrozenReminderSummary getFrozenReminderSummary() {
+        return frozenWorkflowService.getReminderSummary();
+    }
+
+    public FrozenWorkflowModels.FrozenSessionListPage listFrozenSessions(
+        FrozenWorkflowModels.FrozenSessionListQuery query
+    ) {
+        return frozenWorkflowService.listSessions(query);
+    }
+
+    public FrozenWorkflowModels.FrozenSessionDetail getFrozenSessionDetail(String sessionId) {
+        return frozenWorkflowService.getSessionDetail(sessionId);
+    }
+
+    public FrozenWorkflowModels.FrozenTaskActionResult completeFrozenReceive(
+        FrozenWorkflowModels.FrozenActionCommand command
+    ) {
+        return frozenWorkflowService.completeReceive(command);
+    }
+
+    public FrozenWorkflowModels.FrozenTaskActionResult completeFrozenGrossing(
+        FrozenWorkflowModels.FrozenActionCommand command
+    ) {
+        return frozenWorkflowService.completeGrossing(command);
+    }
+
+    public FrozenWorkflowModels.FrozenTaskActionResult completeFrozenSlicing(
+        FrozenWorkflowModels.FrozenActionCommand command
+    ) {
+        return frozenWorkflowService.completeSlicing(command);
+    }
+
+    public FrozenWorkflowModels.FrozenTaskActionResult saveFrozenPreliminaryReport(
+        FrozenWorkflowModels.FrozenPhoneBackCommand command
+    ) {
+        return frozenWorkflowService.savePreliminaryReport(command);
+    }
+
+    public FrozenWorkflowModels.FrozenTaskActionResult completeFrozenPhoneBack(
+        FrozenWorkflowModels.FrozenPhoneBackCommand command
+    ) {
+        return frozenWorkflowService.completePhoneBack(command);
+    }
+
+    public FrozenWorkflowModels.FrozenTaskActionResult confirmFrozenReport(
+        FrozenWorkflowModels.FrozenActionCommand command
+    ) {
+        return frozenWorkflowService.confirmReport(command);
+    }
+
+    public FrozenWorkflowModels.FrozenTaskActionResult completeFrozenParaffinCompare(
+        FrozenWorkflowModels.FrozenParaffinCompareCommand command
+    ) {
+        return frozenWorkflowService.completeParaffinCompare(command);
+    }
+
+    public FrozenWorkflowModels.FrozenTaskActionResult completeFrozenRemainingTissue(
+        FrozenWorkflowModels.FrozenRemainingTissueCommand command
+    ) {
+        return frozenWorkflowService.completeRemainingTissue(command);
     }
 
     public TechnicalWorkflowModels.PendingTechnicalTaskPage listPendingTasks(TechnicalWorkflowModels.PendingTechnicalTaskQuery query) {

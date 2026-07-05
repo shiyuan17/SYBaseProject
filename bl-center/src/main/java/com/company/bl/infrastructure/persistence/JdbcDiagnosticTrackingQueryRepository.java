@@ -65,8 +65,9 @@ public class JdbcDiagnosticTrackingQueryRepository implements DiagnosticTracking
         List<TechnicalWorkflowRecords.EmbeddingBox> embeddingBoxes = technicalWorkflowRepository.findEmbeddingBoxesByCaseId(caseId);
         List<TrackingEvent> recentEvents = technicalWorkflowRepository.findRecentTrackingEventsByCaseId(caseId, 10);
         List<DiagnosticReportRepository.DiagnosticTask> tasks = diagnosticReportRepository.findDiagnosticTasksByCaseId(caseId);
+        String preferredReportScope = preferredReportScope(application);
         DiagnosticReportRepository.PathologyReport report = diagnosticReportRepository
-            .findCurrentReportByCaseIdAndScope(caseId, "ROUTINE")
+            .findCurrentReportByCaseIdAndScope(caseId, preferredReportScope)
             .orElse(null);
         List<ReportRevisionRepository.ReportRevisionRequest> revisions = reportRevisionRepository.findRevisionRequestsByCaseId(caseId);
         List<MedicalOrderRepository.MedicalOrder> medicalOrders = medicalOrderRepository.findMedicalOrdersByCaseId(caseId);
@@ -125,8 +126,9 @@ public class JdbcDiagnosticTrackingQueryRepository implements DiagnosticTracking
         PathologyCase pathologyCase = technicalWorkflowRepository.findPathologyCaseById(caseId).orElseThrow();
         Application application = applicationRepository.findById(new ApplicationId(pathologyCase.applicationId())).orElseThrow();
         List<DiagnosticReportRepository.DiagnosticTask> tasks = diagnosticReportRepository.findDiagnosticTasksByCaseId(caseId);
+        String preferredReportScope = preferredReportScope(application);
         DiagnosticReportRepository.PathologyReport report = diagnosticReportRepository
-            .findCurrentReportByCaseIdAndScope(caseId, "ROUTINE")
+            .findCurrentReportByCaseIdAndScope(caseId, preferredReportScope)
             .orElse(null);
         List<DiagnosticReportRepository.ReportVersion> versions = diagnosticReportRepository.findReportVersionsByCaseId(caseId);
         List<TrackingEvent> events = technicalWorkflowRepository.findTrackingEventsByCaseId(caseId);
@@ -220,6 +222,13 @@ public class JdbcDiagnosticTrackingQueryRepository implements DiagnosticTracking
 
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {
         return timestamp == null ? null : timestamp.toLocalDateTime();
+    }
+
+    private String preferredReportScope(Application application) {
+        if (application != null && "FROZEN".equalsIgnoreCase(application.getApplicationType())) {
+            return "FROZEN";
+        }
+        return "ROUTINE";
     }
 
     private record RegistrationPatientExtension(

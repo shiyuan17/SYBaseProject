@@ -43,6 +43,30 @@ class M4RoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInteg
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
 
+        postJson("/api/v1/pathology-reports/formal-versions/print", USER_M4_DIAGNOSIS, """
+            {
+              "versionIds":["RV-X"]
+            }
+            """)
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+
+        postJson("/api/v1/pathology-reports/formal-versions/issue", USER_M4_REVIEW, """
+            {
+              "versionIds":["RV-X"]
+            }
+            """)
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+
+        postJson("/api/v1/pathology-reports/formal-versions/recall", USER_M4_TRACKING, """
+            {
+              "versionIds":["RV-X"]
+            }
+            """)
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+
         mockMvc.perform(authorized(get("/api/v1/pathology-cases/{id}/report-tracking", "CASE-X"), USER_M4_DIAGNOSIS))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
@@ -65,6 +89,16 @@ class M4RoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInteg
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
 
+        mockMvc.perform(post("/api/v1/pathology-reports/formal-versions/print")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "versionIds":["RV-X"]
+                    }
+                    """))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+
         postJson("/api/v1/pathology-reports", USER_M4_NO_PERMISSION, """
             {
               "caseId":"CASE-X",
@@ -74,6 +108,14 @@ class M4RoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInteg
               "microscopicExam":"m",
               "finalDiagnosis":"f",
               "richTextContent":"<p>x</p>"}
+            """)
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+
+        postJson("/api/v1/pathology-reports/formal-versions/issue", USER_M4_NO_PERMISSION, """
+            {
+              "versionIds":["RV-X"]
+            }
             """)
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));

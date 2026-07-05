@@ -55,6 +55,8 @@ public interface TechnicalWorkflowRepository {
 
     Optional<TechnicalTask> findTechnicalTaskById(String taskId);
 
+    List<TechnicalTask> findTechnicalTasksByCaseId(String caseId);
+
     List<TechnicalTask> findActiveTechnicalTasksByCaseId(String caseId);
 
     List<TechnicalTask> findActiveTechnicalTasksByObject(String taskType, String objectType, String objectId);

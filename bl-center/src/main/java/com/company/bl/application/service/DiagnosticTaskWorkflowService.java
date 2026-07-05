@@ -36,9 +36,18 @@ class DiagnosticTaskWorkflowService {
 
     @Transactional
     void createPrimaryDiagnosticTaskIfAbsent(String caseId, String remarks) {
+        createDiagnosticTaskIfAbsent(caseId, remarks, DiagnosticReportConstants.TASK_PRIMARY);
+    }
+
+    @Transactional
+    void createFrozenDiagnosticTaskIfAbsent(String caseId, String remarks) {
+        createDiagnosticTaskIfAbsent(caseId, remarks, DiagnosticReportConstants.TASK_FROZEN);
+    }
+
+    private void createDiagnosticTaskIfAbsent(String caseId, String remarks, String taskType) {
         PathologyCase pathologyCase = diagnosticReportSupport.getCase(caseId);
         if (!diagnosticReportRepository.findActiveDiagnosticTasksByCaseIdAndType(
-            caseId, DiagnosticReportConstants.TASK_PRIMARY).isEmpty()) {
+            caseId, taskType).isEmpty()) {
             return;
         }
         diagnosticReportRepository.insertDiagnosticTask(new DiagnosticReportRepository.CreateDiagnosticTaskCommand(
@@ -46,7 +55,7 @@ class DiagnosticTaskWorkflowService {
             caseId,
             null,
             pathologyCase.pathologyNo(),
-            DiagnosticReportConstants.TASK_PRIMARY,
+            taskType,
             DiagnosticReportConstants.TASK_PENDING,
             "NORMAL",
             remarks,

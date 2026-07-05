@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 final class DiagnosticCaseLifecycleAssembler {
 
@@ -53,8 +54,8 @@ final class DiagnosticCaseLifecycleAssembler {
         DiagnosticTrackingQueryRepository.ReportTrackingAggregate reportTrackingAggregate,
         List<DiagnosticReportViews.LifecycleSpecimenView> specimenViews
     ) {
-        List<DiagnosticReportViews.LifecycleNodeView> applicationNodes = List.of(
-            buildLifecycleNode(
+        List<DiagnosticReportViews.LifecycleNodeView> applicationNodes = new ArrayList<>();
+        applicationNodes.add(buildLifecycleNode(
                 "APPLICATION",
                 "APPLICATION_CREATED",
                 "申请创建",
@@ -65,6 +66,24 @@ final class DiagnosticCaseLifecycleAssembler {
                     buildKeyFact("申请单号", workbenchAggregate.applicationNo()),
                     buildKeyFact("申请类型", workbenchAggregate.applicationType())),
                 workbenchAggregate.applicationRemarks()));
+        findLatestEvent(
+            workbenchAggregate.recentEvents(),
+            null,
+            List.of("APPOINTMENT"),
+            List.of("FROZEN_REQUESTED"))
+            .ifPresent(event -> applicationNodes.add(buildLifecycleNode(
+                "APPLICATION",
+                "FROZEN_REQUESTED",
+                "冰冻申请",
+                "COMPLETED",
+                stringify(event.eventTime()),
+                event.operatorName(),
+                event,
+                List.of(
+                    buildKeyFact("申请单号", workbenchAggregate.applicationNo()),
+                    buildKeyFact("申请类型", workbenchAggregate.applicationType()),
+                    buildKeyFact("病理号", workbenchAggregate.pathologyNo())),
+                event.eventContent())));
         List<DiagnosticReportViews.LifecycleNodeView> specimenNodes = specimenViews.stream()
             .flatMap(item -> item.specimenEvents().stream())
             .filter(item -> "SPECIMEN".equals(item.stageCode()))
@@ -145,6 +164,74 @@ final class DiagnosticCaseLifecycleAssembler {
                     buildKeyFact("发布时间", stringify(currentReport.publishedAt()))),
                 null));
         }
+        TrackingEvent reportPrintEvent = findLatestEvent(
+            reportTrackingAggregate.events(),
+            null,
+            List.of("REPORT_PRINT"),
+            List.of("PRINT")).orElse(null);
+        if (reportPrintEvent != null) {
+            reportNodes.add(buildLifecycleNode(
+                "REPORT",
+                "REPORT_PRINT",
+                "打印",
+                "PRINTED",
+                null,
+                null,
+                reportPrintEvent,
+                List.of(),
+                null));
+        }
+        TrackingEvent reportScheduleIssueEvent = findLatestEvent(
+            reportTrackingAggregate.events(),
+            null,
+            List.of("REPORT_SCHEDULE_ISSUE"),
+            List.of("SCHEDULE_ISSUE")).orElse(null);
+        if (reportScheduleIssueEvent != null) {
+            reportNodes.add(buildLifecycleNode(
+                "REPORT",
+                "REPORT_SCHEDULE_ISSUE",
+                "计划发放",
+                "COMPLETED",
+                null,
+                null,
+                reportScheduleIssueEvent,
+                List.of(),
+                null));
+        }
+        TrackingEvent reportIssueEvent = findLatestEvent(
+            reportTrackingAggregate.events(),
+            null,
+            List.of("REPORT_ISSUE"),
+            List.of("ISSUE")).orElse(null);
+        if (reportIssueEvent != null) {
+            reportNodes.add(buildLifecycleNode(
+                "REPORT",
+                "REPORT_ISSUE",
+                "发放",
+                "ISSUED",
+                null,
+                null,
+                reportIssueEvent,
+                List.of(),
+                null));
+        }
+        TrackingEvent reportRecallEvent = findLatestEvent(
+            reportTrackingAggregate.events(),
+            null,
+            List.of("REPORT_RECALL"),
+            List.of("RECALL")).orElse(null);
+        if (reportRecallEvent != null) {
+            reportNodes.add(buildLifecycleNode(
+                "REPORT",
+                "REPORT_RECALL",
+                "回收",
+                "RECALLED",
+                null,
+                null,
+                reportRecallEvent,
+                List.of(),
+                null));
+        }
         reportTrackingAggregate.revisions().stream().findFirst().ifPresent(revision -> reportNodes.add(
             buildLifecycleNode(
                 "REPORT",
@@ -194,19 +281,19 @@ final class DiagnosticCaseLifecycleAssembler {
             recentEvents,
             specimen.id(),
             List.of("SPECIMEN_COLLECTION", "SPECIMEN_REGISTER", "SPECIMEN_REGISTRATION"),
-            List.of("REGISTERED"));
+            List.of("REGISTERED")).orElse(null);
         TrackingEvent removalEvent = findLatestEvent(
-            recentEvents, specimen.id(), List.of("REMOVAL"), List.of("COMPLETED"));
+            recentEvents, specimen.id(), List.of("REMOVAL"), List.of("COMPLETED")).orElse(null);
         TrackingEvent fixationEvent = findLatestEvent(
-            recentEvents, specimen.id(), List.of("FIXATION"), List.of("COMPLETED", "STARTED"));
+            recentEvents, specimen.id(), List.of("FIXATION"), List.of("COMPLETED", "STARTED")).orElse(null);
         TrackingEvent confirmationEvent = findLatestEvent(
-            recentEvents, specimen.id(), List.of("CONFIRMATION"), List.of("COMPLETED"));
+            recentEvents, specimen.id(), List.of("CONFIRMATION"), List.of("COMPLETED")).orElse(null);
         TrackingEvent checkInEvent = findLatestEvent(
-            recentEvents, specimen.id(), List.of("CHECK_IN"), List.of("CHECKED_IN"));
+            recentEvents, specimen.id(), List.of("CHECK_IN"), List.of("CHECKED_IN")).orElse(null);
         TrackingEvent outboundEvent = findLatestEvent(
-            recentEvents, specimen.id(), List.of("TRANSPORT"), List.of("HANDED_OVER", "ORDER_CREATED"));
+            recentEvents, specimen.id(), List.of("TRANSPORT"), List.of("HANDED_OVER", "ORDER_CREATED")).orElse(null);
         TrackingEvent receiptEvent = findLatestEvent(
-            recentEvents, specimen.id(), List.of("RECEIPT"), List.of("RECEIVED", "DIRECT_RECEIVE"));
+            recentEvents, specimen.id(), List.of("RECEIPT"), List.of("RECEIVED", "DIRECT_RECEIVE")).orElse(null);
         List<DiagnosticReportViews.LifecycleNodeView> specimenEvents = List.of(
             buildLifecycleNode(
                 "SPECIMEN",
@@ -344,11 +431,11 @@ final class DiagnosticCaseLifecycleAssembler {
         ArchiveRepository.ObjectArchiveSummary blockArchive =
             embeddingBox == null ? null : embeddingBoxArchiveByObjectId.get(embeddingBox.id());
         TrackingEvent grossingEvent = findLatestEvent(
-            recentEvents, block.specimenId(), List.of("GROSSING"), List.of("COMPLETED"));
+            recentEvents, block.specimenId(), List.of("GROSSING"), List.of("COMPLETED")).orElse(null);
         TrackingEvent dehydrationEvent = findLatestEvent(
-            recentEvents, block.specimenId(), List.of("DEHYDRATION"), List.of("COMPLETED", "STARTED"));
+            recentEvents, block.specimenId(), List.of("DEHYDRATION"), List.of("COMPLETED", "STARTED")).orElse(null);
         TrackingEvent embeddingEvent = findLatestEvent(
-            recentEvents, block.specimenId(), List.of("EMBEDDING"), List.of("COMPLETED", "STARTED"));
+            recentEvents, block.specimenId(), List.of("EMBEDDING"), List.of("COMPLETED", "STARTED")).orElse(null);
         List<DiagnosticReportViews.LifecycleNodeView> blockEvents = List.of(
             buildLifecycleNode(
                 "TECHNICAL",
@@ -441,11 +528,11 @@ final class DiagnosticCaseLifecycleAssembler {
         List<TrackingEvent> recentEvents
     ) {
         TrackingEvent slicingPrintEvent = findLatestEvent(
-            recentEvents, slide.specimenId(), List.of("SLICING"), List.of("PRINTED", "SLIDE_PRINTED"));
+            recentEvents, slide.specimenId(), List.of("SLICING"), List.of("PRINTED", "SLIDE_PRINTED")).orElse(null);
         TrackingEvent slicingEvent = findLatestEvent(
-            recentEvents, slide.specimenId(), List.of("SLICING"), List.of("COMPLETED"));
+            recentEvents, slide.specimenId(), List.of("SLICING"), List.of("COMPLETED")).orElse(null);
         TrackingEvent stainingEvent = findLatestEvent(
-            recentEvents, slide.specimenId(), List.of("STAINING"), List.of("COMPLETED"));
+            recentEvents, slide.specimenId(), List.of("STAINING"), List.of("COMPLETED")).orElse(null);
         List<DiagnosticReportViews.LifecycleNodeView> slideEvents = List.of(
             buildLifecycleNode(
                 "TECHNICAL",
@@ -565,7 +652,7 @@ final class DiagnosticCaseLifecycleAssembler {
         return new DiagnosticReportViews.KeyFactView(label, value);
     }
 
-    private TrackingEvent findLatestEvent(
+    private Optional<TrackingEvent> findLatestEvent(
         List<TrackingEvent> events,
         String specimenId,
         List<String> nodeCodes,
@@ -588,8 +675,7 @@ final class DiagnosticCaseLifecycleAssembler {
                     return 1;
                 }
                 return leftTime.compareTo(rightTime);
-            })
-            .orElse(null);
+            });
     }
 
     private String normalizeCode(String value) {
