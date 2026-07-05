@@ -60,6 +60,8 @@ public interface MedicalOrderRepository {
 
     Optional<MedicalOrderQcEvaluation> findLatestMedicalOrderQcEvaluation(String orderId);
 
+    void updateMedicalOrderTargetSnapshot(UpdateMedicalOrderTargetSnapshotCommand command);
+
     record PendingMedicalOrderQuery(
         int page,
         int size,
@@ -129,6 +131,20 @@ public interface MedicalOrderRepository {
         String createdByUserId,
         String createdByName,
         LocalDateTime createdAt
+    ) {
+    }
+
+    record UpdateMedicalOrderTargetSnapshotCommand(
+        String orderId,
+        String targetType,
+        String targetSpecimenId,
+        String targetSpecimenNo,
+        String targetBlockId,
+        String targetBlockNo,
+        String targetSlideId,
+        String targetSlideNo,
+        String remarks,
+        LocalDateTime updatedAt
     ) {
     }
 

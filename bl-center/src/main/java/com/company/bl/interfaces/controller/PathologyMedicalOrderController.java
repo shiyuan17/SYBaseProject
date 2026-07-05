@@ -6,6 +6,7 @@ import com.company.bl.application.service.DiagnosticReportViews;
 import com.company.bl.application.service.MedicalOrderWorkflowService;
 import com.company.bl.interfaces.auth.M4PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
+import com.company.bl.interfaces.dto.ChangeMedicalOrderBlockRequest;
 import com.company.bl.interfaces.dto.CreateMedicalOrderRequest;
 import com.company.bl.interfaces.dto.CreateMedicalOrderQcEvaluationRequest;
 import com.company.bl.interfaces.dto.MedicalOrderActionRequest;
@@ -17,6 +18,7 @@ import com.company.bl.interfaces.vo.MedicalOrderBillingResponse;
 import com.company.bl.interfaces.vo.MedicalOrderOperationResponse;
 import com.company.bl.interfaces.vo.MedicalOrderQcEvaluationResponse;
 import com.company.bl.interfaces.vo.MedicalOrderSlidePrintResponse;
+import com.company.bl.interfaces.vo.MedicalOrderTargetSnapshotResponse;
 import com.company.bl.interfaces.vo.PendingMedicalOrderPageResponse;
 import com.company.bl.interfaces.vo.PendingMedicalOrderResponse;
 import com.company.bl.interfaces.vo.RoutineMedicalOrderMergeResponse;
@@ -72,6 +74,35 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new MedicalOrderOperationResponse(result.orderId(), result.caseId(), result.orderNumber(), result.status());
+    }
+
+    @Operation(summary = "改绑病理医嘱蜡块", description = "必要时创建医嘱专用蜡块，并把待处理病理医嘱的目标切换到指定蜡块。")
+    @RequirePermission(M4PermissionCodes.MEDICAL_ORDER_CREATE)
+    @PostMapping("/{id}/change-block")
+    public MedicalOrderTargetSnapshotResponse changeBlock(@PathVariable("id") String orderId,
+                                                          @Valid @RequestBody ChangeMedicalOrderBlockRequest request,
+                                                          HttpServletRequest httpServletRequest) {
+        DiagnosticReportModels.MedicalOrderTargetSnapshotResult result = diagnosticReportAppService.changeMedicalOrderBlock(
+            new DiagnosticReportModels.ChangeMedicalOrderBlockCommand(
+                orderId,
+                request.getBlockNo(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode(),
+                request.getRemarks()));
+        return new MedicalOrderTargetSnapshotResponse(
+            result.orderId(),
+            result.caseId(),
+            result.orderNumber(),
+            result.status(),
+            result.targetType(),
+            result.targetSpecimenId(),
+            result.targetSpecimenNo(),
+            result.targetBlockId(),
+            result.targetBlockNo(),
+            result.targetSlideId(),
+            result.targetSlideNo(),
+            result.medicalOrderBlockId());
     }
 
     @Operation(summary = "查询待处理病理医嘱", description = "分页查询技术执行域待处理病理医嘱。")

@@ -721,9 +721,83 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
                 {
                   "blockNo":"%s"
                 }
-                """.formatted(targetSnapshot.blockNo()))
+            """.formatted(targetSnapshot.blockNo()))
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.message", containsString("formal case block")));
+    }
+
+    @Test
+    void shouldChangePendingMedicalOrderBlockAndCreateMedicalOrderOnlyBlockWhenNeeded() throws Exception {
+        MergeReadyMedicalOrderContext context = prepareRoutineMergeReadyMedicalOrders("APP-M4-ORDER-CHANGE-BLOCK-001", "BC-M4-ORDER-CHANGE-BLOCK-001");
+        String specimenNo = namedParameterJdbcTemplate.queryForObject("""
+            select specimen_no
+            from specimens
+            where id = :specimenId
+            """, Map.of("specimenId", context.specimenId()), String.class);
+
+        String orderId = responseBody(postJson("/api/v1/medical-orders", USER_M4_DIAGNOSIS, """
+            {
+              "caseId":"%s",
+              "orderType":"SPECIAL",
+              "orderContent":"change block target",
+              "targetType":"BLOCK",
+              "targetSpecimenId":"%s",
+              "targetSpecimenNo":"%s",
+              "targetBlockId":"%s",
+              "targetBlockNo":"%s",
+              "terminalCode":"M4-ORD-CHANGE-BLOCK-CREATE"
+            }
+            """.formatted(
+            context.caseId(),
+            context.specimenId(),
+            specimenNo,
+            context.blockIds().get(0),
+            context.blockNos().get(0))), 200).path("orderId").asText();
+
+        JsonNode changed = responseBody(postJson(
+            "/api/v1/medical-orders/%s/change-block".formatted(orderId),
+            USER_M4_DIAGNOSIS,
+            """
+                {
+                  "blockNo":"%s-a3",
+                  "terminalCode":"M4-ORD-CHANGE-BLOCK-01",
+                  "remarks":"switch to medical-order-only block"
+                }
+                """.formatted(context.pathologyNo())), 200);
+
+        assertThat(changed.path("orderId").asText()).isEqualTo(orderId);
+        assertThat(changed.path("caseId").asText()).isEqualTo(context.caseId());
+        assertThat(changed.path("status").asText()).isEqualTo("PENDING");
+        assertThat(changed.path("targetType").asText()).isEqualTo("BLOCK");
+        assertThat(changed.path("targetSpecimenId").asText()).isEqualTo(context.specimenId());
+        assertThat(changed.path("targetSpecimenNo").asText()).isEqualTo(specimenNo);
+        assertThat(changed.path("targetBlockId").isNull()).isTrue();
+        assertThat(changed.path("targetBlockNo").asText()).isEqualTo("A3");
+        assertThat(changed.path("targetSlideId").isNull()).isTrue();
+        assertThat(changed.path("targetSlideNo").isNull()).isTrue();
+        assertThat(changed.path("medicalOrderBlockId").asText()).startsWith("MOB");
+
+        Map<String, Object> persistedOrder = namedParameterJdbcTemplate.queryForMap("""
+            select target_type, target_specimen_id, target_specimen_no, target_block_id, target_block_no,
+                   target_slide_id, target_slide_no
+            from medical_orders
+            where id = :orderId
+            """, Map.of("orderId", orderId));
+        assertThat(persistedOrder.get("target_type")).isEqualTo("BLOCK");
+        assertThat(persistedOrder.get("target_specimen_id")).isEqualTo(context.specimenId());
+        assertThat(persistedOrder.get("target_specimen_no")).isEqualTo(specimenNo);
+        assertThat(persistedOrder.get("target_block_id")).isNull();
+        assertThat(persistedOrder.get("target_block_no")).isEqualTo("A3");
+        assertThat(persistedOrder.get("target_slide_id")).isNull();
+        assertThat(persistedOrder.get("target_slide_no")).isNull();
+
+        Map<String, Object> persistedBlock = namedParameterJdbcTemplate.queryForMap("""
+            select case_id, block_no
+            from medical_order_blocks
+            where id = :medicalOrderBlockId
+            """, Map.of("medicalOrderBlockId", changed.path("medicalOrderBlockId").asText()));
+        assertThat(persistedBlock.get("case_id")).isEqualTo(context.caseId());
+        assertThat(persistedBlock.get("block_no")).isEqualTo("A3");
     }
 
     @Test

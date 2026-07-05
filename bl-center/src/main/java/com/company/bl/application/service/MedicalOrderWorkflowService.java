@@ -239,6 +239,39 @@ public class MedicalOrderWorkflowService {
     }
 
     @Transactional
+    DiagnosticReportModels.MedicalOrderTargetSnapshotResult changeMedicalOrderBlock(
+        DiagnosticReportModels.ChangeMedicalOrderBlockCommand command
+    ) {
+        MedicalOrderRepository.MedicalOrder order = getOrder(command.orderId());
+        if (!DiagnosticReportConstants.ORDER_PENDING.equals(order.status())) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Medical order is not pending");
+        }
+        diagnosticReportSupport.ensureAssignedDoctor(
+            diagnosticReportSupport.getLatestDiagnosticTask(order.caseId()),
+            command.operatorUserId());
+
+        String pathologyNo = diagnosticReportSupport.getCase(order.caseId()).pathologyNo();
+        String normalizedBlockNo = normalizeMedicalOrderBlockNo(pathologyNo, command.blockNo());
+        ChangedMedicalOrderBlockTarget target = resolveChangedMedicalOrderBlockTarget(order, normalizedBlockNo, command);
+        LocalDateTime now = LocalDateTime.now();
+        medicalOrderRepository.updateMedicalOrderTargetSnapshot(new MedicalOrderRepository.UpdateMedicalOrderTargetSnapshotCommand(
+            order.id(),
+            target.targetType(),
+            target.targetSpecimenId(),
+            target.targetSpecimenNo(),
+            target.targetBlockId(),
+            target.targetBlockNo(),
+            target.targetSlideId(),
+            target.targetSlideNo(),
+            command.remarks(),
+            now));
+        diagnosticReportSupport.insertWorkflowEvent(order.caseId(), "MEDICAL_ORDER_CHANGE_BLOCK", "CHANGE_BLOCK", "SUCCESS",
+            command.operatorUserId(), command.operatorName(), command.terminalCode(), normalizedBlockNo);
+        MedicalOrderRepository.MedicalOrder updated = getOrder(order.id());
+        return toTargetSnapshotResult(updated, target.medicalOrderBlockId());
+    }
+
+    @Transactional
     DiagnosticReportModels.MedicalOrderResult acceptMedicalOrder(DiagnosticReportModels.MedicalOrderActionCommand command) {
         MedicalOrderRepository.MedicalOrder order = getOrder(command.orderId());
         if (!DiagnosticReportConstants.ORDER_PENDING.equals(order.status())) {
@@ -811,6 +844,87 @@ public class MedicalOrderWorkflowService {
             evaluation.detailPayload());
     }
 
+    private ChangedMedicalOrderBlockTarget resolveChangedMedicalOrderBlockTarget(
+        MedicalOrderRepository.MedicalOrder order,
+        String normalizedBlockNo,
+        DiagnosticReportModels.ChangeMedicalOrderBlockCommand command
+    ) {
+        TechnicalWorkflowRecords.SamplingBlock formalBlock = technicalWorkflowRepository.findSamplingBlocksByCaseId(order.caseId()).stream()
+            .filter(block -> normalizedBlockNo.equalsIgnoreCase(block.blockCode()))
+            .findFirst()
+            .orElse(null);
+        if (formalBlock != null) {
+            Specimen formalSpecimen = technicalWorkflowRepository.findSpecimenById(formalBlock.specimenId()).orElse(null);
+            return new ChangedMedicalOrderBlockTarget(
+                DiagnosticReportConstants.ORDER_TARGET_BLOCK,
+                formalSpecimen == null ? null : formalSpecimen.id(),
+                formalSpecimen == null ? null : formalSpecimen.specimenNo(),
+                formalBlock.id(),
+                formalBlock.blockCode(),
+                null,
+                null,
+                null);
+        }
+
+        MedicalOrderRepository.MedicalOrderBlock medicalOrderBlock = medicalOrderRepository
+            .findMedicalOrderBlockByCaseIdAndBlockNo(order.caseId(), normalizedBlockNo)
+            .orElseGet(() -> createMedicalOrderOnlyBlock(order.caseId(), normalizedBlockNo, command));
+        TechnicalWorkflowProcessingRecords.Slide currentSlide = resolveTargetSlide(order);
+        TechnicalWorkflowRecords.SamplingBlock currentBlock = resolveTargetBlock(order, currentSlide);
+        Specimen currentSpecimen = resolveTargetSpecimen(order, currentSlide, currentBlock);
+        return new ChangedMedicalOrderBlockTarget(
+            DiagnosticReportConstants.ORDER_TARGET_BLOCK,
+            firstPresent(order.targetSpecimenId(), currentSpecimen == null ? null : currentSpecimen.id()),
+            firstPresent(order.targetSpecimenNo(), currentSpecimen == null ? null : currentSpecimen.specimenNo()),
+            null,
+            normalizedBlockNo,
+            null,
+            null,
+            medicalOrderBlock.id());
+    }
+
+    private MedicalOrderRepository.MedicalOrderBlock createMedicalOrderOnlyBlock(
+        String caseId,
+        String normalizedBlockNo,
+        DiagnosticReportModels.ChangeMedicalOrderBlockCommand command
+    ) {
+        LocalDateTime now = LocalDateTime.now();
+        String medicalOrderBlockId = diagnosticReportSupport.nextId("MOB");
+        medicalOrderRepository.insertMedicalOrderBlock(new MedicalOrderRepository.CreateMedicalOrderBlockCommand(
+            medicalOrderBlockId,
+            caseId,
+            normalizedBlockNo,
+            command.operatorUserId(),
+            command.operatorName(),
+            now));
+        return new MedicalOrderRepository.MedicalOrderBlock(
+            medicalOrderBlockId,
+            caseId,
+            normalizedBlockNo,
+            command.operatorUserId(),
+            command.operatorName(),
+            now);
+    }
+
+    private DiagnosticReportModels.MedicalOrderTargetSnapshotResult toTargetSnapshotResult(
+        MedicalOrderRepository.MedicalOrder order,
+        String medicalOrderBlockId
+    ) {
+        return new DiagnosticReportModels.MedicalOrderTargetSnapshotResult(
+            order.id(),
+            order.caseId(),
+            order.orderNumber(),
+            order.status(),
+            order.targetType(),
+            order.targetSpecimenId(),
+            order.targetSpecimenNo(),
+            order.targetBlockId(),
+            order.targetBlockNo(),
+            order.targetSlideId(),
+            order.targetSlideNo(),
+            medicalOrderBlockId);
+    }
+
     private TechnicalWorkflowModels.LocalDateRange resolveEffectiveDateRange(
         java.time.LocalDate dateFrom,
         java.time.LocalDate dateTo,
@@ -823,5 +937,17 @@ public class MedicalOrderWorkflowService {
             return new TechnicalWorkflowModels.LocalDateRange(workDate, workDate);
         }
         return new TechnicalWorkflowModels.LocalDateRange(null, null);
+    }
+
+    private record ChangedMedicalOrderBlockTarget(
+        String targetType,
+        String targetSpecimenId,
+        String targetSpecimenNo,
+        String targetBlockId,
+        String targetBlockNo,
+        String targetSlideId,
+        String targetSlideNo,
+        String medicalOrderBlockId
+    ) {
     }
 }

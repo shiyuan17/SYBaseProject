@@ -160,6 +160,33 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
     }
 
     @Override
+    public void updateMedicalOrderTargetSnapshot(UpdateMedicalOrderTargetSnapshotCommand command) {
+        jdbcTemplate.update("""
+            update medical_orders
+            set target_type = :targetType,
+                target_specimen_id = :targetSpecimenId,
+                target_specimen_no = :targetSpecimenNo,
+                target_block_id = :targetBlockId,
+                target_block_no = :targetBlockNo,
+                target_slide_id = :targetSlideId,
+                target_slide_no = :targetSlideNo,
+                remarks = :remarks,
+                updated_at = :updatedAt
+            where id = :orderId
+            """, new MapSqlParameterSource()
+            .addValue("orderId", command.orderId())
+            .addValue("targetType", command.targetType())
+            .addValue("targetSpecimenId", command.targetSpecimenId())
+            .addValue("targetSpecimenNo", command.targetSpecimenNo())
+            .addValue("targetBlockId", command.targetBlockId())
+            .addValue("targetBlockNo", command.targetBlockNo())
+            .addValue("targetSlideId", command.targetSlideId())
+            .addValue("targetSlideNo", command.targetSlideNo())
+            .addValue("remarks", command.remarks())
+            .addValue("updatedAt", command.updatedAt()));
+    }
+
+    @Override
     public List<MedicalOrder> findMedicalOrdersByIds(List<String> orderIds) {
         if (orderIds == null || orderIds.isEmpty()) {
             return List.of();
