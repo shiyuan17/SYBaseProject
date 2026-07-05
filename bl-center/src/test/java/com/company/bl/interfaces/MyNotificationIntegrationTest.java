@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
@@ -41,6 +42,18 @@ class MyNotificationIntegrationTest extends AuthenticatedWebIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Test
+    void shouldRequireAuthenticationBeforeValidatingPreferenceUpdatePayload() throws Exception {
+        mockMvc.perform(put("/api/v1/my/notification-preferences")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                    }
+                    """))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code", is("AUTHENTICATION_REQUIRED")));
+    }
 
     @Test
     void shouldListOnlyCurrentUserNotifications() throws Exception {
@@ -191,6 +204,180 @@ class MyNotificationIntegrationTest extends AuthenticatedWebIntegrationTest {
             .andExpect(jsonPath("$.data.items[?(@.id=='NOTIFY_DOCTOR_UNAUTHORIZED_TOPIC')]").isEmpty());
     }
 
+    @Test
+    void shouldAuditSensitiveNotificationQueryWithoutLeakingNotificationBody() throws Exception {
+        resetAdminPreferences(true, true, true);
+        insertNotification(
+            "NOTIFY_ADMIN_AUDIT_QUERY",
+            USER_M1_ADMIN,
+            "REPORT_REVISION",
+            "SYSTEM_MESSAGE",
+            "UNREAD"
+        );
+
+        long auditCountBefore = operationLogCount("query_my_notifications");
+
+        mockMvc.perform(authorized(get("/api/v1/my/notifications"), USER_M1_ADMIN)
+                .param("page", "1")
+                .param("size", "10")
+                .param("category", "SYSTEM_MESSAGE")
+                .param("keyword", "集成测试通知正文"))
+            .andExpect(status().isOk());
+
+        assertThat(operationLogCount("query_my_notifications")).isEqualTo(auditCountBefore + 1);
+        Map<String, Object> latestAudit = latestOperationLog("query_my_notifications");
+        assertThat(latestAudit.get("operation_result")).isEqualTo("SUCCESS");
+        assertThat(latestAudit.get("operation_content").toString())
+            .contains("category=SYSTEM_MESSAGE")
+            .contains("keywordPresent=true")
+            .doesNotContain("集成测试通知正文")
+            .doesNotContain("NOTIFY_ADMIN_AUDIT_QUERY");
+    }
+
+    @Test
+    void shouldAuditNotificationMutationsWithSummaryOnly() throws Exception {
+        resetAdminPreferences(true, true, true);
+        insertNotification(
+            "NOTIFY_ADMIN_AUDIT_READ",
+            USER_M1_ADMIN,
+            "REPORT_REVISION",
+            "SYSTEM_MESSAGE",
+            "UNREAD"
+        );
+        insertNotification(
+            "NOTIFY_ADMIN_AUDIT_ARCHIVE",
+            USER_M1_ADMIN,
+            "REPORT_REVISION",
+            "SYSTEM_MESSAGE",
+            "UNREAD"
+        );
+
+        long readAuditBefore = operationLogCount("mark_my_notification_read");
+        mockMvc.perform(authorized(patch("/api/v1/my/notifications/NOTIFY_ADMIN_AUDIT_READ/read"), USER_M1_ADMIN))
+            .andExpect(status().isOk());
+        assertThat(operationLogCount("mark_my_notification_read")).isEqualTo(readAuditBefore + 1);
+        assertThat(latestOperationLog("mark_my_notification_read").get("operation_content").toString())
+            .contains("notificationId=NOTIFY_ADMIN_AUDIT_READ")
+            .doesNotContain("集成测试通知正文");
+
+        long readAllAuditBefore = operationLogCount("mark_all_my_notifications_read");
+        mockMvc.perform(authorized(patch("/api/v1/my/notifications/read-all"), USER_M1_ADMIN))
+            .andExpect(status().isOk());
+        assertThat(operationLogCount("mark_all_my_notifications_read")).isEqualTo(readAllAuditBefore + 1);
+        assertThat(latestOperationLog("mark_all_my_notifications_read").get("operation_content").toString())
+            .contains("scope=visible-unread")
+            .doesNotContain("集成测试通知正文");
+
+        long archiveOneAuditBefore = operationLogCount("archive_my_notification");
+        mockMvc.perform(authorized(patch("/api/v1/my/notifications/NOTIFY_ADMIN_AUDIT_READ/archive"), USER_M1_ADMIN))
+            .andExpect(status().isOk());
+        assertThat(operationLogCount("archive_my_notification")).isEqualTo(archiveOneAuditBefore + 1);
+        assertThat(latestOperationLog("archive_my_notification").get("operation_content").toString())
+            .contains("notificationId=NOTIFY_ADMIN_AUDIT_READ")
+            .doesNotContain("集成测试通知正文");
+
+        long archiveManyAuditBefore = operationLogCount("archive_my_notifications");
+        mockMvc.perform(authorized(patch("/api/v1/my/notifications/archive"), USER_M1_ADMIN)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "notificationIds": ["NOTIFY_ADMIN_AUDIT_ARCHIVE"]
+                    }
+                    """))
+            .andExpect(status().isOk());
+        assertThat(operationLogCount("archive_my_notifications")).isEqualTo(archiveManyAuditBefore + 1);
+        assertThat(latestOperationLog("archive_my_notifications").get("operation_content").toString())
+            .contains("notificationCount=1")
+            .doesNotContain("NOTIFY_ADMIN_AUDIT_ARCHIVE")
+            .doesNotContain("集成测试通知正文");
+
+        long preferenceAuditBefore = operationLogCount("update_my_notification_preferences");
+        mockMvc.perform(authorized(put("/api/v1/my/notification-preferences"), USER_M1_ADMIN)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "accountPassword": false,
+                      "systemMessage": true,
+                      "todoTask": false
+                    }
+                    """))
+            .andExpect(status().isOk());
+        assertThat(operationLogCount("update_my_notification_preferences")).isEqualTo(preferenceAuditBefore + 1);
+        assertThat(latestOperationLog("update_my_notification_preferences").get("operation_content").toString())
+            .contains("accountPassword=false")
+            .contains("systemMessage=true")
+            .contains("todoTask=false");
+    }
+
+    @Test
+    void shouldKeepOtherUsersNotificationsUnchangedWhenIdsAreForged() throws Exception {
+        insertNotification(
+            "NOTIFY_DOCTOR_FORGED_READ",
+            USER_M1_DOCTOR,
+            "CRITICAL_VALUE",
+            "SYSTEM_MESSAGE",
+            "UNREAD"
+        );
+        insertNotification(
+            "NOTIFY_DOCTOR_FORGED_ARCHIVE_1",
+            USER_M1_DOCTOR,
+            "CRITICAL_VALUE",
+            "SYSTEM_MESSAGE",
+            "UNREAD"
+        );
+        insertNotification(
+            "NOTIFY_DOCTOR_FORGED_ARCHIVE_2",
+            USER_M1_DOCTOR,
+            "CRITICAL_VALUE",
+            "SYSTEM_MESSAGE",
+            "UNREAD"
+        );
+
+        long readAuditBefore = operationLogCount("mark_my_notification_read");
+        mockMvc.perform(authorized(patch("/api/v1/my/notifications/NOTIFY_DOCTOR_FORGED_READ/read"), USER_M1_ADMIN))
+            .andExpect(status().isOk());
+        assertThat(operationLogCount("mark_my_notification_read")).isEqualTo(readAuditBefore + 1);
+
+        Map<String, Object> readTarget = jdbcTemplate.queryForMap("""
+            select user_id, status, read_at
+            from user_notifications
+            where id = :notificationId
+            """, Map.of("notificationId", "NOTIFY_DOCTOR_FORGED_READ"));
+        assertThat(readTarget.get("user_id")).isEqualTo(USER_M1_DOCTOR);
+        assertThat(readTarget.get("status")).isEqualTo("UNREAD");
+        assertThat(readTarget.get("read_at")).isNull();
+
+        long archiveAuditBefore = operationLogCount("archive_my_notifications");
+        mockMvc.perform(authorized(patch("/api/v1/my/notifications/archive"), USER_M1_ADMIN)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "notificationIds": [
+                        "NOTIFY_DOCTOR_FORGED_ARCHIVE_1",
+                        "NOTIFY_DOCTOR_FORGED_ARCHIVE_2"
+                      ]
+                    }
+                    """))
+            .andExpect(status().isOk());
+        assertThat(operationLogCount("archive_my_notifications")).isEqualTo(archiveAuditBefore + 1);
+        assertThat(latestOperationLog("archive_my_notifications").get("operation_content").toString())
+            .contains("notificationCount=2")
+            .doesNotContain("NOTIFY_DOCTOR_FORGED_ARCHIVE_1")
+            .doesNotContain("NOTIFY_DOCTOR_FORGED_ARCHIVE_2");
+
+        Long archivedCount = jdbcTemplate.queryForObject("""
+            select count(*)
+            from user_notifications
+            where id in (:ids)
+              and user_id = :userId
+              and status = 'ARCHIVED'
+            """, Map.of(
+            "ids", List.of("NOTIFY_DOCTOR_FORGED_ARCHIVE_1", "NOTIFY_DOCTOR_FORGED_ARCHIVE_2"),
+            "userId", USER_M1_DOCTOR
+        ), Long.class);
+        assertThat(archivedCount).isZero();
+    }
+
     private void insertNotification(
         String id,
         String userId,
@@ -238,5 +425,24 @@ class MyNotificationIntegrationTest extends AuthenticatedWebIntegrationTest {
             .addValue("systemMessageEnabled", systemMessageEnabled ? 1 : 0)
             .addValue("todoTaskEnabled", todoTaskEnabled ? 1 : 0)
             .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    private long operationLogCount(String operationName) {
+        Long count = jdbcTemplate.queryForObject("""
+            select count(*)
+            from operation_logs
+            where operation_name = :operationName
+            """, Map.of("operationName", operationName), Long.class);
+        return count == null ? 0L : count;
+    }
+
+    private Map<String, Object> latestOperationLog(String operationName) {
+        return jdbcTemplate.queryForMap("""
+            select operation_result, operation_content, failure_reason
+            from operation_logs
+            where operation_name = :operationName
+            order by operation_at desc
+            limit 1
+            """, Map.of("operationName", operationName));
     }
 }

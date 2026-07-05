@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.notification.application.NotificationCenterService;
+import com.company.bl.interfaces.auth.RequireAuthenticated;
 import com.company.common.security.context.AuthenticatedPrincipal;
 import com.company.common.security.context.AuthenticatedPrincipalContext;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,6 +27,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/my")
+@RequireAuthenticated
 @Tag(name = "个人通知中心", description = "当前登录用户的站内通知与提醒偏好接口")
 public class MyNotificationController {
 

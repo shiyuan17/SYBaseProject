@@ -2,6 +2,7 @@ package com.company.bl.application.service;
 
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
+import com.company.bl.support.application.OperationAuditService;
 import com.company.common.security.crypto.Sm3PasswordEncoder;
 import com.company.common.security.exception.SecurityAuthenticationException;
 import com.company.common.security.jwt.JwtAccessTokenClaims;
@@ -25,13 +26,16 @@ public class OperatorVerificationService {
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final Sm2JwtTokenService tokenService;
     private final Sm3PasswordEncoder passwordEncoder;
+    private final OperationAuditService operationAuditService;
 
     public OperatorVerificationService(NamedParameterJdbcTemplate jdbcTemplate,
                                        Sm2JwtTokenService tokenService,
-                                       Sm3PasswordEncoder passwordEncoder) {
+                                       Sm3PasswordEncoder passwordEncoder,
+                                       OperationAuditService operationAuditService) {
         this.jdbcTemplate = jdbcTemplate;
         this.tokenService = tokenService;
         this.passwordEncoder = passwordEncoder;
+        this.operationAuditService = operationAuditService;
     }
 
     public OperatorVerificationResult verify(String currentUserId,
@@ -42,6 +46,24 @@ public class OperatorVerificationService {
         String normalizedOperatorUserId = requireText(operatorUserId, "请选择核对操作人");
         String normalizedLoginName = requireText(loginName, "请输入核对人账号");
         String normalizedPassword = requireText(password, "请输入核对人密码");
+        return operationAuditService.audit(
+            "M2",
+            "OPERATOR_VERIFICATION",
+            "issue_operator_verification_token",
+            () -> verifyInternal(
+                normalizedCurrentUserId,
+                normalizedOperatorUserId,
+                normalizedLoginName,
+                normalizedPassword),
+            OperatorVerificationResult::operatorUserId,
+            () -> normalizedOperatorUserId,
+            () -> buildAuditContent(normalizedCurrentUserId, normalizedOperatorUserId, normalizedLoginName));
+    }
+
+    private OperatorVerificationResult verifyInternal(String normalizedCurrentUserId,
+                                                      String normalizedOperatorUserId,
+                                                      String normalizedLoginName,
+                                                      String normalizedPassword) {
         if (normalizedCurrentUserId.equals(normalizedOperatorUserId)) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409,
                 "登录人跟核对人不能是同一个人！");
@@ -70,6 +92,12 @@ public class OperatorVerificationService {
             credential.id(),
             credential.loginName(),
             credential.name());
+    }
+
+    private String buildAuditContent(String currentUserId, String operatorUserId, String loginName) {
+        return "currentUserId=" + currentUserId
+            + ",operatorUserId=" + operatorUserId
+            + ",loginName=" + loginName;
     }
 
     public VerifiedOperator resolveVerifiedOperator(String token, String currentUserId) {

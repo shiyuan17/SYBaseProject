@@ -1,5 +1,6 @@
 package com.company.bl.notification.application;
 
+import com.company.bl.support.application.OperationAuditService;
 import com.company.bl.notification.infrastructure.NotificationCenterJdbcRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,44 +27,56 @@ public class NotificationCenterService {
 
     private final NotificationCenterJdbcRepository repository;
     private final ObjectMapper objectMapper;
+    private final OperationAuditService operationAuditService;
 
     public NotificationCenterService(
         NotificationCenterJdbcRepository repository,
-        ObjectMapper objectMapper
+        ObjectMapper objectMapper,
+        OperationAuditService operationAuditService
     ) {
         this.repository = repository;
         this.objectMapper = objectMapper;
+        this.operationAuditService = operationAuditService;
     }
 
     @Transactional(readOnly = true)
     public NotificationPageView listNotifications(NotificationListCommand command) {
-        try {
-            NotificationCenterJdbcRepository.PreferenceRow preference = resolvePreferenceRow(command.userId());
-            Set<String> authorizedTopicCodes = repository.findAuthorizedTopicCodes(command.userId());
-            NotificationCenterJdbcRepository.PagedNotifications paged =
-                repository.findNotifications(
-                    command.userId(),
-                    command.page(),
-                    command.size(),
-                    command.status(),
-                    command.category(),
-                    command.keyword(),
-                    authorizedTopicCodes,
-                    preference
-                );
-            return new NotificationPageView(
-                paged.items().stream().map(this::toView).toList(),
-                Math.max(1, command.page()),
-                Math.max(1, command.size()),
-                paged.total()
-            );
-        } catch (DataAccessException exception) {
-            if (isNotificationSchemaMissing(exception)) {
-                logNotificationFallback("listNotifications", command.userId(), exception);
-                return emptyPage(command);
-            }
-            throw exception;
-        }
+        return operationAuditService.audit(
+            "SYSTEM",
+            "MY_NOTIFICATION",
+            "query_my_notifications",
+            () -> {
+                try {
+                    NotificationCenterJdbcRepository.PreferenceRow preference = resolvePreferenceRow(command.userId());
+                    Set<String> authorizedTopicCodes = repository.findAuthorizedTopicCodes(command.userId());
+                    NotificationCenterJdbcRepository.PagedNotifications paged =
+                        repository.findNotifications(
+                            command.userId(),
+                            command.page(),
+                            command.size(),
+                            command.status(),
+                            command.category(),
+                            command.keyword(),
+                            authorizedTopicCodes,
+                            preference
+                        );
+                    return new NotificationPageView(
+                        paged.items().stream().map(this::toView).toList(),
+                        Math.max(1, command.page()),
+                        Math.max(1, command.size()),
+                        paged.total()
+                    );
+                } catch (DataAccessException exception) {
+                    if (isNotificationSchemaMissing(exception)) {
+                        logNotificationFallback("listNotifications", command.userId(), exception);
+                        return emptyPage(command);
+                    }
+                    throw exception;
+                }
+            },
+            ignored -> command.userId(),
+            () -> command.userId(),
+            () -> buildListAuditContent(command));
     }
 
     @Transactional(readOnly = true)
@@ -87,60 +100,100 @@ public class NotificationCenterService {
 
     @Transactional
     public void markRead(String userId, String notificationId) {
-        try {
-            repository.markRead(userId, notificationId, LocalDateTime.now());
-        } catch (DataAccessException exception) {
-            if (isNotificationSchemaMissing(exception)) {
-                logNotificationFallback("markRead", userId, exception);
-                return;
-            }
-            throw exception;
-        }
+        operationAuditService.audit(
+            "SYSTEM",
+            "MY_NOTIFICATION",
+            "mark_my_notification_read",
+            () -> {
+                try {
+                    repository.markRead(userId, notificationId, LocalDateTime.now());
+                    return null;
+                } catch (DataAccessException exception) {
+                    if (isNotificationSchemaMissing(exception)) {
+                        logNotificationFallback("markRead", userId, exception);
+                        return null;
+                    }
+                    throw exception;
+                }
+            },
+            ignored -> userId,
+            () -> userId,
+            () -> "notificationId=" + notificationId);
     }
 
     @Transactional
     public void markAllRead(String userId) {
-        try {
-            NotificationCenterJdbcRepository.PreferenceRow preference = resolvePreferenceRow(userId);
-            repository.markAllRead(
-                userId,
-                repository.findAuthorizedTopicCodes(userId),
-                preference,
-                LocalDateTime.now()
-            );
-        } catch (DataAccessException exception) {
-            if (isNotificationSchemaMissing(exception)) {
-                logNotificationFallback("markAllRead", userId, exception);
-                return;
-            }
-            throw exception;
-        }
+        operationAuditService.audit(
+            "SYSTEM",
+            "MY_NOTIFICATION",
+            "mark_all_my_notifications_read",
+            () -> {
+                try {
+                    NotificationCenterJdbcRepository.PreferenceRow preference = resolvePreferenceRow(userId);
+                    repository.markAllRead(
+                        userId,
+                        repository.findAuthorizedTopicCodes(userId),
+                        preference,
+                        LocalDateTime.now()
+                    );
+                    return null;
+                } catch (DataAccessException exception) {
+                    if (isNotificationSchemaMissing(exception)) {
+                        logNotificationFallback("markAllRead", userId, exception);
+                        return null;
+                    }
+                    throw exception;
+                }
+            },
+            ignored -> userId,
+            () -> userId,
+            () -> "scope=visible-unread");
     }
 
     @Transactional
     public void archiveOne(String userId, String notificationId) {
-        try {
-            repository.archiveOne(userId, notificationId, LocalDateTime.now());
-        } catch (DataAccessException exception) {
-            if (isNotificationSchemaMissing(exception)) {
-                logNotificationFallback("archiveOne", userId, exception);
-                return;
-            }
-            throw exception;
-        }
+        operationAuditService.audit(
+            "SYSTEM",
+            "MY_NOTIFICATION",
+            "archive_my_notification",
+            () -> {
+                try {
+                    repository.archiveOne(userId, notificationId, LocalDateTime.now());
+                    return null;
+                } catch (DataAccessException exception) {
+                    if (isNotificationSchemaMissing(exception)) {
+                        logNotificationFallback("archiveOne", userId, exception);
+                        return null;
+                    }
+                    throw exception;
+                }
+            },
+            ignored -> userId,
+            () -> userId,
+            () -> "notificationId=" + notificationId);
     }
 
     @Transactional
     public void archiveMany(String userId, List<String> notificationIds) {
-        try {
-            repository.archiveMany(userId, notificationIds, LocalDateTime.now());
-        } catch (DataAccessException exception) {
-            if (isNotificationSchemaMissing(exception)) {
-                logNotificationFallback("archiveMany", userId, exception);
-                return;
-            }
-            throw exception;
-        }
+        operationAuditService.audit(
+            "SYSTEM",
+            "MY_NOTIFICATION",
+            "archive_my_notifications",
+            () -> {
+                try {
+                    repository.archiveMany(userId, notificationIds, LocalDateTime.now());
+                    return null;
+                } catch (DataAccessException exception) {
+                    if (isNotificationSchemaMissing(exception)) {
+                        logNotificationFallback("archiveMany", userId, exception);
+                        return null;
+                    }
+                    throw exception;
+                }
+            },
+            ignored -> userId,
+            () -> userId,
+            () -> "notificationCount=" + countNotificationIds(notificationIds));
     }
 
     @Transactional(readOnly = true)
@@ -169,16 +222,25 @@ public class NotificationCenterService {
                 command.todoTask(),
                 LocalDateTime.now()
             );
-        try {
-            repository.upsertPreference(userId, nextPreference, LocalDateTime.now());
-            return toPreferenceView(resolvePreferenceRow(userId));
-        } catch (DataAccessException exception) {
-            if (isNotificationSchemaMissing(exception)) {
-                logNotificationFallback("updatePreferences", userId, exception);
-                return toPreferenceView(nextPreference);
-            }
-            throw exception;
-        }
+        return operationAuditService.audit(
+            "SYSTEM",
+            "MY_NOTIFICATION",
+            "update_my_notification_preferences",
+            () -> {
+                try {
+                    repository.upsertPreference(userId, nextPreference, LocalDateTime.now());
+                    return toPreferenceView(resolvePreferenceRow(userId));
+                } catch (DataAccessException exception) {
+                    if (isNotificationSchemaMissing(exception)) {
+                        logNotificationFallback("updatePreferences", userId, exception);
+                        return toPreferenceView(nextPreference);
+                    }
+                    throw exception;
+                }
+            },
+            ignored -> userId,
+            () -> userId,
+            () -> buildPreferenceAuditContent(command));
     }
 
     private NotificationCenterJdbcRepository.PreferenceRow resolvePreferenceRow(String userId) {
@@ -229,6 +291,38 @@ public class NotificationCenterService {
             current = current.getCause();
         }
         return false;
+    }
+
+    private String buildListAuditContent(NotificationListCommand command) {
+        return "page=" + Math.max(1, command.page())
+            + ",size=" + Math.max(1, command.size())
+            + ",status=" + normalizeAuditValue(command.status(), "ALL")
+            + ",category=" + normalizeAuditValue(command.category(), "ALL")
+            + ",keywordPresent=" + (command.keyword() != null && !command.keyword().isBlank());
+    }
+
+    private String buildPreferenceAuditContent(UpdateNotificationPreferenceCommand command) {
+        return "accountPassword=" + command.accountPassword()
+            + ",systemMessage=" + command.systemMessage()
+            + ",todoTask=" + command.todoTask();
+    }
+
+    private int countNotificationIds(List<String> notificationIds) {
+        if (notificationIds == null) {
+            return 0;
+        }
+        return (int) notificationIds.stream()
+            .filter(item -> item != null && !item.isBlank())
+            .map(String::trim)
+            .distinct()
+            .count();
+    }
+
+    private String normalizeAuditValue(String value, String defaultValue) {
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        return value.trim();
     }
 
     private NotificationRecordView toView(NotificationCenterJdbcRepository.NotificationRow row) {

@@ -30,6 +30,14 @@ public class ApiPermissionInterceptor implements HandlerInterceptor {
         if (!(handler instanceof HandlerMethod handlerMethod)) {
             return true;
         }
+        RequireAuthenticated requireAuthenticated = AnnotatedElementUtils.findMergedAnnotation(
+            handlerMethod.getMethod(),
+            RequireAuthenticated.class);
+        if (requireAuthenticated == null) {
+            requireAuthenticated = AnnotatedElementUtils.findMergedAnnotation(
+                handlerMethod.getBeanType(),
+                RequireAuthenticated.class);
+        }
         RequirePermission permission = AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getMethod(), RequirePermission.class);
         if (permission == null) {
             permission = AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getBeanType(), RequirePermission.class);
@@ -38,7 +46,7 @@ public class ApiPermissionInterceptor implements HandlerInterceptor {
         if (anyPermission == null) {
             anyPermission = AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getBeanType(), RequireAnyPermission.class);
         }
-        if (permission == null && anyPermission == null) {
+        if (requireAuthenticated == null && permission == null && anyPermission == null) {
             return true;
         }
         AuthenticatedPrincipal principal = AuthenticatedPrincipalContext.currentPrincipal(request);

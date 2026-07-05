@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.controller;
 
 import com.company.bl.application.service.OperatorVerificationService;
+import com.company.bl.interfaces.auth.RequireAuthenticated;
 import com.company.bl.interfaces.dto.OperatorVerificationRequest;
 import com.company.bl.interfaces.vo.OperatorVerificationResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/operator-verifications")
 @RequiredArgsConstructor
+@RequireAuthenticated
 @Tag(name = "Operator Verification", description = "核对操作人二次登录确认")
 public class OperatorVerificationController {
 

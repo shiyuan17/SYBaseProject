@@ -2,6 +2,7 @@ package com.company.bl.interfaces.openapi;
 
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.auth.RequireAnyPermission;
+import com.company.bl.interfaces.auth.RequireAuthenticated;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
@@ -54,17 +55,22 @@ public class BlOpenApiConfiguration {
                 return operation;
             }
             ensureValidationResponse(operation);
+            RequireAuthenticated requireAuthenticated = findRequireAuthenticated(handlerMethod);
             RequirePermission permission = findPermission(handlerMethod);
             RequireAnyPermission anyPermission = findAnyPermission(handlerMethod);
-            if (permission != null || anyPermission != null) {
+            if (requireAuthenticated != null || permission != null || anyPermission != null) {
                 operation.addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME));
                 if (permission != null) {
                     operation.setDescription(appendPermission(operation.getDescription(), permission.value()));
                 } else {
-                    operation.setDescription(appendAnyPermission(operation.getDescription(), anyPermission.value()));
+                    if (anyPermission != null) {
+                        operation.setDescription(appendAnyPermission(operation.getDescription(), anyPermission.value()));
+                    }
                 }
                 ensureErrorResponse(operation, "401", "未提供 Bearer Token 或 Token 无效");
-                ensureErrorResponse(operation, "403", "当前用户缺少接口权限");
+                if (permission != null || anyPermission != null) {
+                    ensureErrorResponse(operation, "403", "当前用户缺少接口权限");
+                }
             }
             return operation;
         };
@@ -157,6 +163,16 @@ public class BlOpenApiConfiguration {
             return permission;
         }
         return AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getBeanType(), RequirePermission.class);
+    }
+
+    private RequireAuthenticated findRequireAuthenticated(HandlerMethod handlerMethod) {
+        RequireAuthenticated annotation = AnnotatedElementUtils.findMergedAnnotation(
+            handlerMethod.getMethod(),
+            RequireAuthenticated.class);
+        if (annotation != null) {
+            return annotation;
+        }
+        return AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getBeanType(), RequireAuthenticated.class);
     }
 
     private RequireAnyPermission findAnyPermission(HandlerMethod handlerMethod) {
