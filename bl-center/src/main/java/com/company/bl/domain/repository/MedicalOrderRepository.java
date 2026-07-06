@@ -60,7 +60,7 @@ public interface MedicalOrderRepository {
 
     Optional<MedicalOrderQcEvaluation> findLatestMedicalOrderQcEvaluation(String orderId);
 
-    void updateMedicalOrderTargetSnapshot(UpdateMedicalOrderTargetSnapshotCommand command);
+    int updateMedicalOrderTargetSnapshot(UpdateMedicalOrderTargetSnapshotCommand command);
 
     record PendingMedicalOrderQuery(
         int page,

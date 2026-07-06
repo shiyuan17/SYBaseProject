@@ -12,6 +12,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
@@ -254,7 +255,7 @@ public class MedicalOrderWorkflowService {
         String normalizedBlockNo = normalizeMedicalOrderBlockNo(pathologyNo, command.blockNo());
         ChangedMedicalOrderBlockTarget target = resolveChangedMedicalOrderBlockTarget(order, normalizedBlockNo, command);
         LocalDateTime now = LocalDateTime.now();
-        medicalOrderRepository.updateMedicalOrderTargetSnapshot(new MedicalOrderRepository.UpdateMedicalOrderTargetSnapshotCommand(
+        int updatedCount = medicalOrderRepository.updateMedicalOrderTargetSnapshot(new MedicalOrderRepository.UpdateMedicalOrderTargetSnapshotCommand(
             order.id(),
             target.targetType(),
             target.targetSpecimenId(),
@@ -265,6 +266,9 @@ public class MedicalOrderWorkflowService {
             target.targetSlideNo(),
             command.remarks(),
             now));
+        if (updatedCount == 0) {
+            throw new BlBusinessException(BlErrorCode.RESOURCE_CONFLICT, 409, "Medical order changed concurrently");
+        }
         diagnosticReportSupport.insertWorkflowEvent(order.caseId(), "MEDICAL_ORDER_CHANGE_BLOCK", "CHANGE_BLOCK", "SUCCESS",
             command.operatorUserId(), command.operatorName(), command.terminalCode(), normalizedBlockNo);
         MedicalOrderRepository.MedicalOrder updated = getOrder(order.id());
@@ -876,7 +880,7 @@ public class MedicalOrderWorkflowService {
             DiagnosticReportConstants.ORDER_TARGET_BLOCK,
             firstPresent(order.targetSpecimenId(), currentSpecimen == null ? null : currentSpecimen.id()),
             firstPresent(order.targetSpecimenNo(), currentSpecimen == null ? null : currentSpecimen.specimenNo()),
-            null,
+            medicalOrderBlock.id(),
             normalizedBlockNo,
             null,
             null,
@@ -890,20 +894,25 @@ public class MedicalOrderWorkflowService {
     ) {
         LocalDateTime now = LocalDateTime.now();
         String medicalOrderBlockId = diagnosticReportSupport.nextId("MOB");
-        medicalOrderRepository.insertMedicalOrderBlock(new MedicalOrderRepository.CreateMedicalOrderBlockCommand(
-            medicalOrderBlockId,
-            caseId,
-            normalizedBlockNo,
-            command.operatorUserId(),
-            command.operatorName(),
-            now));
-        return new MedicalOrderRepository.MedicalOrderBlock(
-            medicalOrderBlockId,
-            caseId,
-            normalizedBlockNo,
-            command.operatorUserId(),
-            command.operatorName(),
-            now);
+        try {
+            medicalOrderRepository.insertMedicalOrderBlock(new MedicalOrderRepository.CreateMedicalOrderBlockCommand(
+                medicalOrderBlockId,
+                caseId,
+                normalizedBlockNo,
+                command.operatorUserId(),
+                command.operatorName(),
+                now));
+            return new MedicalOrderRepository.MedicalOrderBlock(
+                medicalOrderBlockId,
+                caseId,
+                normalizedBlockNo,
+                command.operatorUserId(),
+                command.operatorName(),
+                now);
+        } catch (DataIntegrityViolationException ex) {
+            return medicalOrderRepository.findMedicalOrderBlockByCaseIdAndBlockNo(caseId, normalizedBlockNo)
+                .orElseThrow(() -> ex);
+        }
     }
 
     private DiagnosticReportModels.MedicalOrderTargetSnapshotResult toTargetSnapshotResult(

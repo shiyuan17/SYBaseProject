@@ -771,11 +771,12 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
         assertThat(changed.path("targetType").asText()).isEqualTo("BLOCK");
         assertThat(changed.path("targetSpecimenId").asText()).isEqualTo(context.specimenId());
         assertThat(changed.path("targetSpecimenNo").asText()).isEqualTo(specimenNo);
-        assertThat(changed.path("targetBlockId").isNull()).isTrue();
+        assertThat(changed.path("targetBlockId").asText()).startsWith("MOB");
         assertThat(changed.path("targetBlockNo").asText()).isEqualTo("A3");
         assertThat(changed.path("targetSlideId").isNull()).isTrue();
         assertThat(changed.path("targetSlideNo").isNull()).isTrue();
         assertThat(changed.path("medicalOrderBlockId").asText()).startsWith("MOB");
+        assertThat(changed.path("targetBlockId").asText()).isEqualTo(changed.path("medicalOrderBlockId").asText());
 
         Map<String, Object> persistedOrder = namedParameterJdbcTemplate.queryForMap("""
             select target_type, target_specimen_id, target_specimen_no, target_block_id, target_block_no,
@@ -786,7 +787,7 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
         assertThat(persistedOrder.get("target_type")).isEqualTo("BLOCK");
         assertThat(persistedOrder.get("target_specimen_id")).isEqualTo(context.specimenId());
         assertThat(persistedOrder.get("target_specimen_no")).isEqualTo(specimenNo);
-        assertThat(persistedOrder.get("target_block_id")).isNull();
+        assertThat(persistedOrder.get("target_block_id")).isEqualTo(changed.path("medicalOrderBlockId").asText());
         assertThat(persistedOrder.get("target_block_no")).isEqualTo("A3");
         assertThat(persistedOrder.get("target_slide_id")).isNull();
         assertThat(persistedOrder.get("target_slide_no")).isNull();

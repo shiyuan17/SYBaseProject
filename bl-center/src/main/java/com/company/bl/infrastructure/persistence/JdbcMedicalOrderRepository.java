@@ -160,8 +160,8 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
     }
 
     @Override
-    public void updateMedicalOrderTargetSnapshot(UpdateMedicalOrderTargetSnapshotCommand command) {
-        jdbcTemplate.update("""
+    public int updateMedicalOrderTargetSnapshot(UpdateMedicalOrderTargetSnapshotCommand command) {
+        return jdbcTemplate.update("""
             update medical_orders
             set target_type = :targetType,
                 target_specimen_id = :targetSpecimenId,
@@ -173,6 +173,7 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
                 remarks = :remarks,
                 updated_at = :updatedAt
             where id = :orderId
+              and status = 'PENDING'
             """, new MapSqlParameterSource()
             .addValue("orderId", command.orderId())
             .addValue("targetType", command.targetType())
