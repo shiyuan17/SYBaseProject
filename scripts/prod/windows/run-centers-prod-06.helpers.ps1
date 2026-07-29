@@ -56,7 +56,7 @@ function Get-ManagedDirectory {
         [string] $SettingName
     )
 
-    return (Get-Setting -Name $SettingName -DefaultValue $script:ScriptDir)
+    return (Get-Setting -Name $SettingName -DefaultValue $script:ProdDir)
 }
 
 function Get-ServiceFile {

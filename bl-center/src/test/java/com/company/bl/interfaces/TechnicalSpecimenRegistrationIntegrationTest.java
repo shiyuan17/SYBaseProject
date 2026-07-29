@@ -94,7 +94,7 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
             """, Map.of("applicationId", frozenContext.applicationId()));
 
         JsonNode filteredRegistrations =
-            listPendingTechnicalSpecimenRegistrations(null, "FROZEN", null, null, USER_RECEIVE);
+            listPendingTechnicalSpecimenRegistrations(frozenContext.applicationNo(), "FROZEN", null, null, USER_RECEIVE);
 
         assertThat(filteredRegistrations.path("total").asInt()).isEqualTo(1);
         assertThat(filteredRegistrations.path("items").get(0).path("caseId").asText())

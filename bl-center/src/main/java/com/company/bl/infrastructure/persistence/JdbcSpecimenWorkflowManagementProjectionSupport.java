@@ -231,6 +231,152 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
         return new SpecimenWorkflowRepository.PagedSpecimenManagementItems(items, total, summary);
     }
 
+    List<SpecimenWorkflowRepository.SpecimenManagementExportRow> listSpecimenManagementExportRows(
+        SpecimenWorkflowRepository.SpecimenManagementListQuery query
+    ) {
+        String abnormalExpression = specimenManagementAbnormalExpression("s");
+        String whereClause = """
+            from specimens s
+            join applications a on a.id = s.application_id
+            left join specimen_fixation_records sfr on sfr.specimen_id = s.id
+            left join application_registration_workbench w on w.application_id = a.id
+            left join (
+                select specimen_id, max(event_time) as latest_event_time
+                from workflow_events
+                group by specimen_id
+            ) evt on evt.specimen_id = s.id
+            left join (
+                select
+                    ranked.specimen_id,
+                    ranked.operator_name
+                from (
+                    select
+                        we.specimen_id,
+                        we.operator_name,
+                        row_number() over (
+                            partition by we.specimen_id
+                            order by we.event_time desc, we.created_at desc, we.id desc
+                        ) as rn
+                    from workflow_events we
+                    where we.node_code = 'CONFIRMATION'
+                      and we.event_type = 'COMPLETED'
+                      and we.event_status = 'SUCCESS'
+                ) ranked
+                where ranked.rn = 1
+            ) confirm_evt on confirm_evt.specimen_id = s.id
+            left join (
+                select
+                    ranked.specimen_id,
+                    ranked.receipt_status,
+                    ranked.received_at,
+                    ranked.received_by_name,
+                    ranked.logistics_staff_name,
+                    ranked.reject_reason,
+                    ranked.return_reason
+                from (
+                    select
+                        sr.*,
+                        row_number() over (
+                            partition by sr.specimen_id
+                            order by sr.received_at desc, sr.id desc
+                        ) as rn
+                    from specimen_receipts sr
+                ) ranked
+                where ranked.rn = 1
+            ) latest_receipt on latest_receipt.specimen_id = s.id
+            left join (
+                select
+                    ranked.specimen_id,
+                    ranked.handed_over_at,
+                    ranked.outbound_user_name
+                from (
+                    select
+                        toi.specimen_id,
+                        t.handed_over_at,
+            """ + latestOrderOutboundUserNameSelect()
+            + """
+                        row_number() over (
+                            partition by toi.specimen_id
+                            order by coalesce(t.handed_over_at, t.to_be_transported_at) desc, t.id desc
+                        ) as rn
+                    from transport_order_items toi
+                    join transport_orders t on t.id = toi.transport_order_id
+                    where t.order_status <> 'CANCELLED'
+                ) ranked
+                where ranked.rn = 1
+            ) latest_order on latest_order.specimen_id = s.id
+            where 1 = 1
+            """ + buildSpecimenManagementFilters(query, abnormalExpression);
+        return jdbcTemplate.query(
+            """
+            select
+                s.id as specimen_id,
+                a.id as application_id,
+                a.application_no,
+                a.patient_name,
+                a.patient_age,
+                a.patient_gender,
+                s.specimen_name_standardized as specimen_name,
+                w.check_item as project_name,
+                s.specimen_count,
+            """ + specimenRemovalAtSelect("s")
+                + specimenRemovalOperatorNameSelect("s")
+                + """
+                sfr.fixation_completed_at,
+                sfr.verified_by_name as fixation_operator_name,
+                a.submitting_doctor_name,
+                """ + specimenManagementExportStatusExpression() + """
+                 as display_status,
+                w.clinical_findings as surgery_findings,
+                s.registered_at,
+                s.registered_by_name as registration_operator_name,
+            """ + specimenConfirmedAtSelect("s")
+                + """
+                confirm_evt.operator_name as specimen_confirmed_by_name,
+            """ + checkedInAtSelect("s")
+                + checkedInByNameSelect("s")
+                + """
+                latest_order.handed_over_at as outbound_at,
+                latest_order.outbound_user_name as outbound_user_name,
+                case
+                    when latest_receipt.receipt_status = 'RECEIVED' then latest_receipt.received_at
+                    else null
+                end as signed_at,
+                case
+                    when latest_receipt.receipt_status = 'RECEIVED' then latest_receipt.received_by_name
+                    else null
+                end as signed_by_name,
+                case
+                    when latest_receipt.receipt_status in ('REJECTED', 'RETURNED') then latest_receipt.received_at
+                    else null
+                end as rejected_at,
+                case
+                    when latest_receipt.receipt_status in ('REJECTED', 'RETURNED') then latest_receipt.received_by_name
+                    else null
+                end as rejected_by_name,
+                a.submission_date,
+                w.inpatient_no,
+                w.bed_no,
+                w.ward_name,
+                case
+                    when s.label_print_status = 'SUCCESS' then '1'
+                    else '0'
+                end as print_flag,
+                a.clinical_symptom as clinical_description,
+                a.clinical_diagnosis,
+                w.delivery_requirement as clinical_suggestion,
+                """ + specimenManagementInfectionFlagExpression() + """
+                 as infection_flag,
+                latest_receipt.logistics_staff_name,
+                coalesce(latest_receipt.reject_reason, latest_receipt.return_reason) as rejection_reason,
+                a.submitting_department_name
+            """
+                + whereClause
+                + " order by coalesce(s.registered_at, evt.latest_event_time) desc, s.id desc",
+            specimenManagementParams(query),
+            this::mapSpecimenManagementExportRow);
+    }
+
     private long countSpecimenManagement(String whereClause, SpecimenWorkflowRepository.SpecimenManagementListQuery query) {
         Long total = jdbcTemplate.queryForObject(
             "select count(1) " + whereClause,
@@ -458,6 +604,51 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
             rs.getInt("abnormal_flag") == 1);
     }
 
+    private SpecimenWorkflowRepository.SpecimenManagementExportRow mapSpecimenManagementExportRow(ResultSet rs, int rowNum)
+        throws SQLException {
+        return new SpecimenWorkflowRepository.SpecimenManagementExportRow(
+            rs.getString("specimen_id"),
+            rs.getString("application_id"),
+            rs.getString("application_no"),
+            JdbcResultSetUtils.getNullableString(rs, "patient_name"),
+            JdbcResultSetUtils.getNullableString(rs, "patient_age"),
+            JdbcResultSetUtils.getNullableString(rs, "patient_gender"),
+            JdbcResultSetUtils.getNullableString(rs, "specimen_name"),
+            JdbcResultSetUtils.getNullableString(rs, "project_name"),
+            rs.getObject("specimen_count", Integer.class),
+            nullableDateTime(rs, "specimen_removal_at"),
+            JdbcResultSetUtils.getNullableString(rs, "specimen_removal_operator_name"),
+            nullableDateTime(rs, "fixation_completed_at"),
+            JdbcResultSetUtils.getNullableString(rs, "fixation_operator_name"),
+            JdbcResultSetUtils.getNullableString(rs, "submitting_doctor_name"),
+            JdbcResultSetUtils.getNullableString(rs, "display_status"),
+            JdbcResultSetUtils.getNullableString(rs, "surgery_findings"),
+            nullableDateTime(rs, "registered_at"),
+            JdbcResultSetUtils.getNullableString(rs, "registration_operator_name"),
+            nullableDateTime(rs, "specimen_confirmed_at"),
+            JdbcResultSetUtils.getNullableString(rs, "specimen_confirmed_by_name"),
+            nullableDateTime(rs, "checked_in_at"),
+            JdbcResultSetUtils.getNullableString(rs, "checked_in_by_name"),
+            nullableDateTime(rs, "outbound_at"),
+            JdbcResultSetUtils.getNullableString(rs, "outbound_user_name"),
+            nullableDateTime(rs, "signed_at"),
+            JdbcResultSetUtils.getNullableString(rs, "signed_by_name"),
+            nullableDateTime(rs, "rejected_at"),
+            JdbcResultSetUtils.getNullableString(rs, "rejected_by_name"),
+            rs.getDate("submission_date") == null ? null : rs.getDate("submission_date").toLocalDate(),
+            JdbcResultSetUtils.getNullableString(rs, "inpatient_no"),
+            JdbcResultSetUtils.getNullableString(rs, "bed_no"),
+            JdbcResultSetUtils.getNullableString(rs, "ward_name"),
+            JdbcResultSetUtils.getNullableString(rs, "print_flag"),
+            JdbcResultSetUtils.getNullableString(rs, "clinical_description"),
+            JdbcResultSetUtils.getNullableString(rs, "clinical_diagnosis"),
+            JdbcResultSetUtils.getNullableString(rs, "clinical_suggestion"),
+            JdbcResultSetUtils.getNullableString(rs, "infection_flag"),
+            JdbcResultSetUtils.getNullableString(rs, "logistics_staff_name"),
+            JdbcResultSetUtils.getNullableString(rs, "rejection_reason"),
+            JdbcResultSetUtils.getNullableString(rs, "submitting_department_name"));
+    }
+
     private SpecimenWorkflowRepository.SpecimenManagementSummary mapSpecimenManagementSummary(ResultSet rs, int rowNum) throws SQLException {
         return new SpecimenWorkflowRepository.SpecimenManagementSummary(
             rs.getLong("total_count"),
@@ -465,5 +656,65 @@ class JdbcSpecimenWorkflowManagementProjectionSupport extends AbstractJdbcSpecim
             rs.getLong("pending_label_count"),
             rs.getLong("abnormal_count"),
             rs.getLong("unbound_count"));
+    }
+
+    private String latestOrderOutboundUserNameSelect() {
+        if (hasTransportOrderOutboundColumns()) {
+            return "                        t.outbound_user_name as outbound_user_name,\n";
+        }
+        return "                        cast(null as varchar(100)) as outbound_user_name,\n";
+    }
+
+    private String specimenManagementExportStatusExpression() {
+        String checkedInAtExpression = hasSpecimenConfirmationColumns()
+            ? "s.checked_in_at"
+            : "cast(null as timestamp)";
+        String specimenConfirmedAtExpression = hasSpecimenConfirmationColumns()
+            ? "s.specimen_confirmed_at"
+            : "cast(null as timestamp)";
+        return """
+            case
+                when latest_receipt.receipt_status = 'RECEIVED' then '签收'
+                when latest_receipt.receipt_status = 'REJECTED' then '拒收'
+                when latest_receipt.receipt_status = 'RETURNED' then '退回'
+                when latest_order.handed_over_at is not null or s.specimen_status = 'IN_TRANSIT' then '出库'
+                when %s is not null then '标本入库'
+                when %s is not null then '待入库'
+                when sfr.fixation_completed_at is not null
+                    or s.fixation_status = 'COMPLETED'
+                    or s.specimen_status in ('FIXED', 'CHECKED_IN', 'IN_TRANSIT', 'RECEIVED', 'REJECTED', 'RETURNED')
+                    then '待确认'
+                when sfr.fixation_start_at is not null
+                    or s.fixation_status = 'FIXING'
+                    or s.specimen_status = 'FIXING'
+                    then '标本固定'
+                when %s is not null then '标本离体'
+                else '已登记'
+            end
+            """.formatted(
+            checkedInAtExpression,
+            specimenConfirmedAtExpression,
+            specimenRemovalAtExpression("s")
+        ).trim();
+    }
+
+    private String specimenManagementInfectionFlagExpression() {
+        return """
+            case
+                when coalesce(w.contagious_isolation, 0) = 1
+                    or coalesce(w.contagious_hiv, 0) = 1
+                    or coalesce(w.contagious_tuberculosis, 0) = 1
+                    or coalesce(w.contagious_hepatitis, 0) = 1
+                    or coalesce(w.contagious_syphilis, 0) = 1 then '有'
+                when w.application_id is not null then '无'
+                else ''
+            end
+            """.trim();
+    }
+
+    private java.time.LocalDateTime nullableDateTime(ResultSet rs, String columnName) throws SQLException {
+        return JdbcResultSetUtils.getNullableTimestamp(rs, columnName) == null
+            ? null
+            : JdbcResultSetUtils.getNullableTimestamp(rs, columnName).toLocalDateTime();
     }
 }

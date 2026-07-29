@@ -118,32 +118,38 @@ function Stop-TestProcesses([string] $TempRoot) {
 }
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
-$cmdScript = Join-Path $repoRoot "scripts\prod\run-centers-prod-06.cmd"
-$ps1Script = Join-Path $repoRoot "scripts\prod\run-centers-prod-06.ps1"
-$helperScript = Join-Path $repoRoot "scripts\prod\run-centers-prod-06.helpers.ps1"
+$legacyCmdScript = Join-Path $repoRoot "scripts\prod\run-centers-prod-06.cmd"
+$legacyPs1Script = Join-Path $repoRoot "scripts\prod\run-centers-prod-06.ps1"
+$cmdScript = Join-Path $repoRoot "scripts\prod\windows\run-centers-prod-06.cmd"
+$ps1Script = Join-Path $repoRoot "scripts\prod\windows\run-centers-prod-06.ps1"
+$helperScript = Join-Path $repoRoot "scripts\prod\windows\run-centers-prod-06.helpers.ps1"
 
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("run-centers-prod-06-windows-tests-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $tempRoot | Out-Null
 
 $runtimeDir = Join-Path $tempRoot "runtime"
 $logDir = Join-Path $tempRoot "logs"
-$scriptDir = Join-Path $tempRoot "scripts\prod"
+$prodDir = Join-Path $tempRoot "scripts\prod"
+$windowsDir = Join-Path $prodDir "windows"
+$configDir = Join-Path $prodDir "config"
 $fakeJava = Join-Path $tempRoot "fake-java.ps1"
 $blPidFile = Join-Path $runtimeDir "bl-center.pid"
 $authPidFile = Join-Path $runtimeDir "auth-center.pid"
 
 try {
-    Assert-True (Test-Path -LiteralPath $cmdScript) "CMD prod-06 launcher should exist at scripts/prod/run-centers-prod-06.cmd."
-    Assert-True (Test-Path -LiteralPath $ps1Script) "PowerShell prod-06 launcher should exist at scripts/prod/run-centers-prod-06.ps1."
-    Assert-True (Test-Path -LiteralPath $helperScript) "PowerShell prod-06 helper script should exist at scripts/prod/run-centers-prod-06.helpers.ps1."
+    Assert-True (-not (Test-Path -LiteralPath $legacyCmdScript)) "Legacy CMD prod-06 launcher should be removed from scripts/prod."
+    Assert-True (-not (Test-Path -LiteralPath $legacyPs1Script)) "Legacy PowerShell prod-06 launcher should be removed from scripts/prod."
+    Assert-True (Test-Path -LiteralPath $cmdScript) "CMD prod-06 launcher should exist at scripts/prod/windows/run-centers-prod-06.cmd."
+    Assert-True (Test-Path -LiteralPath $ps1Script) "PowerShell prod-06 launcher should exist at scripts/prod/windows/run-centers-prod-06.ps1."
+    Assert-True (Test-Path -LiteralPath $helperScript) "PowerShell prod-06 helper script should exist at scripts/prod/windows/run-centers-prod-06.helpers.ps1."
 
-    New-Item -ItemType Directory -Path $runtimeDir, $logDir, $scriptDir | Out-Null
+    New-Item -ItemType Directory -Path $runtimeDir, $logDir, $windowsDir, $configDir | Out-Null
 
-    Copy-Item $cmdScript (Join-Path $scriptDir "run-centers-prod-06.cmd")
-    Copy-Item $ps1Script (Join-Path $scriptDir "run-centers-prod-06.ps1")
-    Copy-Item $helperScript (Join-Path $scriptDir "run-centers-prod-06.helpers.ps1")
+    Copy-Item $cmdScript (Join-Path $windowsDir "run-centers-prod-06.cmd")
+    Copy-Item $ps1Script (Join-Path $windowsDir "run-centers-prod-06.ps1")
+    Copy-Item $helperScript (Join-Path $windowsDir "run-centers-prod-06.helpers.ps1")
 
-    Set-Content -Path (Join-Path $scriptDir "run-centers.conf") -Value @(
+    Set-Content -Path (Join-Path $configDir "run-centers.conf") -Value @(
         "RUNTIME_DIR=$runtimeDir"
         "LOG_DIR=$logDir"
         "BL_JAR_PATH=$(Join-Path $tempRoot 'bl-center.jar')"
@@ -157,6 +163,9 @@ try {
         "AUTH_CENTER_DATASOURCE_USERNAME=auth-user"
         "AUTH_CENTER_DATASOURCE_PASSWORD=auth-pass"
         "TAIL_LINES=20"
+    )
+    Set-Content -Path (Join-Path $configDir "run-centers-prod-06.conf") -Value @(
+        "SPRING_PROFILES_ACTIVE=prod-06"
     )
 
     Set-Content -Path (Join-Path $tempRoot "bl-center.jar") -Value "fake-bl" -NoNewline
@@ -184,13 +193,14 @@ while ($true) {
 }
 '@
 
-    $initialStatusResult = Invoke-CmdScript -ScriptPath (Join-Path $scriptDir "run-centers-prod-06.cmd") -Arguments @("status", "all")
+    $initialStatusResult = Invoke-CmdScript -ScriptPath (Join-Path $windowsDir "run-centers-prod-06.cmd") -Arguments @("status", "all")
     Assert-True ($initialStatusResult.ExitCode -eq 0) "cmd launcher should run status by delegating to the ps1 script. Output: $($initialStatusResult.Output)"
     Assert-OutputContains $initialStatusResult.Output "bl-center is not running" "initial cmd status should report bl-center stopped."
     Assert-OutputContains $initialStatusResult.Output "auth-center is not running" "initial cmd status should report auth-center stopped."
     Assert-OutputContains $initialStatusResult.Output "Profile: prod-06" "initial cmd status should report prod-06."
+    Assert-OutputContains $initialStatusResult.Output "scripts\prod\config\run-centers.conf" "initial cmd status should report the config file under scripts/prod/config."
 
-    $startResult = Invoke-CmdScript -ScriptPath (Join-Path $scriptDir "run-centers-prod-06.cmd") -Arguments @("start", "all")
+    $startResult = Invoke-CmdScript -ScriptPath (Join-Path $windowsDir "run-centers-prod-06.cmd") -Arguments @("start", "all")
     Assert-True ($startResult.ExitCode -eq 0) "cmd launcher should start both services. Output: $($startResult.Output)"
     Assert-OutputContains $startResult.Output "Profile: prod-06" "cmd start output should show the forced prod-06 profile."
 
@@ -199,19 +209,20 @@ while ($true) {
     Assert-True (Test-Path -LiteralPath $blPidFile) "bl-center pid file should exist after cmd start."
     Assert-True (Test-Path -LiteralPath $authPidFile) "auth-center pid file should exist after cmd start."
 
-    $statusResult = Invoke-CmdScript -ScriptPath (Join-Path $scriptDir "run-centers-prod-06.cmd") -Arguments @("status", "all")
+    $statusResult = Invoke-CmdScript -ScriptPath (Join-Path $windowsDir "run-centers-prod-06.cmd") -Arguments @("status", "all")
     Assert-True ($statusResult.ExitCode -eq 0) "cmd status should succeed. Output: $($statusResult.Output)"
     Assert-OutputContains $statusResult.Output "bl-center is running with PID" "cmd status should report bl-center running."
     Assert-OutputContains $statusResult.Output "auth-center is running with PID" "cmd status should report auth-center running."
     Assert-OutputContains $statusResult.Output "Profile: prod-06" "cmd status should report prod-06."
+    Assert-OutputContains $statusResult.Output "scripts\prod\config\run-centers.conf" "cmd status should report the config file under scripts/prod/config."
 
-    $blLogResult = Invoke-CmdScript -ScriptPath (Join-Path $scriptDir "run-centers-prod-06.cmd") -Arguments @("log", "bl")
+    $blLogResult = Invoke-CmdScript -ScriptPath (Join-Path $windowsDir "run-centers-prod-06.cmd") -Arguments @("log", "bl")
     Assert-True ($blLogResult.ExitCode -eq 0) "cmd bl log command should succeed. Output: $($blLogResult.Output)"
     Assert-OutputContains $blLogResult.Output "service=bl-center" "cmd bl log should include the service marker."
     Assert-OutputContains $blLogResult.Output "profile=prod-06" "cmd bl log should include the prod-06 profile."
     Assert-OutputContains $blLogResult.Output "datasource=jdbc:dm://127.0.0.1:5236/BL" "cmd bl log should include the BL datasource."
 
-    $authLogResult = Invoke-CmdScript -ScriptPath (Join-Path $scriptDir "run-centers-prod-06.cmd") -Arguments @("log", "auth")
+    $authLogResult = Invoke-CmdScript -ScriptPath (Join-Path $windowsDir "run-centers-prod-06.cmd") -Arguments @("log", "auth")
     Assert-True ($authLogResult.ExitCode -eq 0) "cmd auth log command should succeed. Output: $($authLogResult.Output)"
     Assert-OutputContains $authLogResult.Output "service=auth-center" "cmd auth log should include the service marker."
     Assert-OutputContains $authLogResult.Output "profile=prod-06" "cmd auth log should include the prod-06 profile."
@@ -220,7 +231,7 @@ while ($true) {
     $oldBlPid = (Get-Content -Raw $blPidFile).Trim()
     $oldAuthPid = (Get-Content -Raw $authPidFile).Trim()
 
-    $restartResult = Invoke-CmdScript -ScriptPath (Join-Path $scriptDir "run-centers-prod-06.cmd") -Arguments @("restart", "all")
+    $restartResult = Invoke-CmdScript -ScriptPath (Join-Path $windowsDir "run-centers-prod-06.cmd") -Arguments @("restart", "all")
     Assert-True ($restartResult.ExitCode -eq 0) "cmd restart should succeed. Output: $($restartResult.Output)"
 
     Start-Sleep -Seconds 2
@@ -230,14 +241,15 @@ while ($true) {
     Assert-True ($newBlPid -ne $oldBlPid) "restart should replace the bl-center process."
     Assert-True ($newAuthPid -ne $oldAuthPid) "restart should replace the auth-center process."
 
-    $stopResult = Invoke-CmdScript -ScriptPath (Join-Path $scriptDir "run-centers-prod-06.cmd") -Arguments @("stop", "all")
+    $stopResult = Invoke-CmdScript -ScriptPath (Join-Path $windowsDir "run-centers-prod-06.cmd") -Arguments @("stop", "all")
     Assert-True ($stopResult.ExitCode -eq 0) "cmd stop should succeed. Output: $($stopResult.Output)"
 
-    $cmdStatusResult = Invoke-CmdScript -ScriptPath (Join-Path $scriptDir "run-centers-prod-06.cmd") -Arguments @("status", "all")
+    $cmdStatusResult = Invoke-CmdScript -ScriptPath (Join-Path $windowsDir "run-centers-prod-06.cmd") -Arguments @("status", "all")
     Assert-True ($cmdStatusResult.ExitCode -eq 0) "cmd final status should succeed. Output: $($cmdStatusResult.Output)"
     Assert-OutputContains $cmdStatusResult.Output "bl-center is not running" "cmd final status should report bl-center stopped."
     Assert-OutputContains $cmdStatusResult.Output "auth-center is not running" "cmd final status should report auth-center stopped."
     Assert-OutputContains $cmdStatusResult.Output "Profile: prod-06" "cmd final status should keep the prod-06 profile."
+    Assert-OutputContains $cmdStatusResult.Output "scripts\prod\config\run-centers.conf" "cmd final status should keep reporting the config file under scripts/prod/config."
 
     Write-Host "Prod-06 Windows run-centers script tests passed."
 }

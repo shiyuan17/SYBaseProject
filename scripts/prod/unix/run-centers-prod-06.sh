@@ -3,8 +3,9 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 RUN_SCRIPT="$SCRIPT_DIR/run-centers.sh"
-BASE_CONFIG_FILE="${RUN_CENTERS_BASE_CONFIG_FILE:-$SCRIPT_DIR/run-centers.conf}"
-PROD06_CONFIG_FILE="${RUN_CENTERS_PROD06_CONFIG_FILE:-$SCRIPT_DIR/run-centers-prod-06.conf}"
+PROD_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+BASE_CONFIG_FILE="${RUN_CENTERS_BASE_CONFIG_FILE:-$PROD_DIR/config/run-centers.conf}"
+PROD06_CONFIG_FILE="${RUN_CENTERS_PROD06_CONFIG_FILE:-$PROD_DIR/config/run-centers-prod-06.conf}"
 
 require_file() {
   if [ ! -f "$1" ]; then

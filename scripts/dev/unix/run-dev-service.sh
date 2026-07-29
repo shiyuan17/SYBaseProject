@@ -8,7 +8,7 @@ fi
 
 MODULE_NAME="$1"
 BACKEND_LOG_FILE="$2"
-ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
 COMMON_CLASSPATH="../common/common-core/target/classes,../common/common-security/target/classes,../common/common-web/target/classes"
 
 mkdir -p "$(dirname "$BACKEND_LOG_FILE")"
@@ -32,7 +32,7 @@ run_with_backend_log() {
 
 run_with_backend_log ./mvnw -Dmaven.repo.local=.m2/repository -pl "$MODULE_NAME" -am -DskipTests compile
 
-"$ROOT_DIR/scripts/dev/watch-dev-reload.sh" "$MODULE_NAME" "$BACKEND_LOG_FILE" >>"$BACKEND_LOG_FILE" 2>&1 &
+"$ROOT_DIR/scripts/dev/unix/watch-dev-reload.sh" "$MODULE_NAME" "$BACKEND_LOG_FILE" >>"$BACKEND_LOG_FILE" 2>&1 &
 WATCHER_PID=$!
 
 cleanup() {

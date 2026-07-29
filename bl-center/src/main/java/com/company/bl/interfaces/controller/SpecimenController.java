@@ -24,6 +24,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,6 +37,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/v1/specimens")
@@ -102,6 +108,49 @@ public class SpecimenController {
                     abnormalFlag,
                     dateFrom,
                     dateTo)));
+    }
+
+    @Operation(summary = "Export specimen management items", description = "Export current filtered specimen tracking rows as xlsx.")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_REGISTER)
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> exportSpecimens(
+        @RequestParam(value = "page", defaultValue = "1") int page,
+        @RequestParam(value = "size", defaultValue = "10000") int size,
+        @RequestParam(value = "keyword", required = false) String keyword,
+        @RequestParam(value = "applicationNo", required = false) String applicationNo,
+        @RequestParam(value = "departmentId", required = false) String departmentId,
+        @RequestParam(value = "buildingId", required = false) String buildingId,
+        @RequestParam(value = "roomId", required = false) String roomId,
+        @RequestParam(value = "barcodeBindingStatus", required = false) String barcodeBindingStatus,
+        @RequestParam(value = "specimenStatus", required = false) String specimenStatus,
+        @RequestParam(value = "labelPrintStatus", required = false) String labelPrintStatus,
+        @RequestParam(value = "abnormalFlag", required = false) Boolean abnormalFlag,
+        @RequestParam(value = "dateFrom", required = false) String dateFrom,
+        @RequestParam(value = "dateTo", required = false) String dateTo
+    ) {
+        byte[] content = specimenWorkflowAppService.exportSpecimenManagementItems(
+            specimenControllerAssembler.toSpecimenManagementListQuery(
+                page,
+                size,
+                keyword,
+                applicationNo,
+                departmentId,
+                buildingId,
+                roomId,
+                barcodeBindingStatus,
+                specimenStatus,
+                labelPrintStatus,
+                abnormalFlag,
+                dateFrom,
+                dateTo));
+        String fileName = "标本综合信息_" + LocalDate.now() + ".xlsx";
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                .filename(fileName, StandardCharsets.UTF_8)
+                .build()
+                .toString())
+            .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+            .body(content);
     }
 
     @Operation(summary = "Lookup application for registration", description = "Resolve registration context by application number.")

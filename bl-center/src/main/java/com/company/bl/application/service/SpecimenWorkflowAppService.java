@@ -129,6 +129,10 @@ public class SpecimenWorkflowAppService {
         return specimenWorkflowQueryService.listSpecimenManagementItems(query);
     }
 
+    public byte[] exportSpecimenManagementItems(SpecimenManagementListQuery query) {
+        return specimenWorkflowQueryService.exportSpecimenManagementItems(query);
+    }
+
     public SpecimenRemovalListPage listSpecimenRemovalItems(SpecimenRemovalQuery query) {
         return specimenWorkflowQueryService.listSpecimenRemovalItems(query);
     }

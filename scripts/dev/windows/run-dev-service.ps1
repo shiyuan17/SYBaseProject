@@ -9,7 +9,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$rootDir = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$rootDir = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
 $commonClasspath = @(
     "../common/common-core/target/classes",
     "../common/common-security/target/classes",
@@ -17,7 +17,7 @@ $commonClasspath = @(
 ) -join ","
 $compileCommand = "mvnw.cmd -Dmaven.repo.local=.m2/repository -pl $ModuleName -am -DskipTests compile"
 $runCommand = "mvnw.cmd -Dmaven.repo.local=.m2/repository -f $ModuleName/pom.xml -DskipTests ""-Dspring-boot.run.profiles=dev"" ""-Dspring-boot.run.additional-classpath-elements=$commonClasspath"" spring-boot:run"
-$watcherScript = Join-Path $rootDir "scripts\dev\watch-dev-reload.ps1"
+$watcherScript = Join-Path $PSScriptRoot "watch-dev-reload.ps1"
 
 function Invoke-LoggedCommand {
     param(

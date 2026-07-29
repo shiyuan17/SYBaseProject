@@ -8,7 +8,7 @@ fi
 
 MODULE_NAME="$1"
 BACKEND_LOG_FILE="$2"
-ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
 SERVICE_SOURCE_PATH="$ROOT_DIR/$MODULE_NAME/src/main"
 TRIGGER_FILE="$ROOT_DIR/$MODULE_NAME/target/classes/.reloadtrigger"
 SHARED_SOURCE_PATHS="

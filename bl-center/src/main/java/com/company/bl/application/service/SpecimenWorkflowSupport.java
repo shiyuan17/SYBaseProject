@@ -32,6 +32,7 @@ class SpecimenWorkflowSupport {
     private final SpecimenWorkflowStatusPolicy statusPolicy;
     private final SpecimenWorkflowModelAssembler modelAssembler;
     private final SpecimenWorkflowInputNormalizer inputNormalizer;
+    private final SpecimenManagementExportBuilder managementExportBuilder;
     private final SpecimenRemovalExportBuilder removalExportBuilder;
 
     SpecimenWorkflowSupport(ApplicationRepository applicationRepository,
@@ -42,6 +43,7 @@ class SpecimenWorkflowSupport {
         this.statusPolicy = new SpecimenWorkflowStatusPolicy();
         this.inputNormalizer = new SpecimenWorkflowInputNormalizer();
         this.modelAssembler = new SpecimenWorkflowModelAssembler(applicationPolicy, statusPolicy);
+        this.managementExportBuilder = new SpecimenManagementExportBuilder();
         this.removalExportBuilder = new SpecimenRemovalExportBuilder();
     }
 
@@ -145,6 +147,10 @@ class SpecimenWorkflowSupport {
         return modelAssembler.copyWithLabelPrintStatus(specimen, labelPrintStatus);
     }
 
+    byte[] buildSpecimenManagementExport(List<SpecimenWorkflowRepository.SpecimenManagementExportRow> rows) {
+        return managementExportBuilder.buildSpecimenManagementExport(rows);
+    }
+
     byte[] buildSpecimenRemovalExport(List<SpecimenWorkflowRepository.SpecimenRemovalListRow> rows) {
         return removalExportBuilder.buildSpecimenRemovalExport(rows);
     }
@@ -179,6 +185,10 @@ class SpecimenWorkflowSupport {
 
     int normalizeSize(int size) {
         return inputNormalizer.normalizeSize(size);
+    }
+
+    int normalizeExportSize(int size) {
+        return inputNormalizer.normalizeExportSize(size);
     }
 
     LocalDateTime parseDateFrom(String value) {

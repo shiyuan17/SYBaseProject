@@ -135,13 +135,20 @@ function New-ZipWithRootWeb([string] $ZipPath, [string] $MarkerContent) {
 }
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
-$centersScript = Join-Path $repoRoot "scripts\prod\sync-centers-from-smb.sh"
-$webScript = Join-Path $repoRoot "scripts\prod\sync-web-from-smb.sh"
+$legacyCentersScript = Join-Path $repoRoot "scripts\prod\sync-centers-from-smb.sh"
+$legacyWebScript = Join-Path $repoRoot "scripts\prod\sync-web-from-smb.sh"
+$centersScript = Join-Path $repoRoot "scripts\prod\unix\sync-centers-from-smb.sh"
+$webScript = Join-Path $repoRoot "scripts\prod\unix\sync-web-from-smb.sh"
 
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("prod-sync-tests-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $tempRoot | Out-Null
 
 try {
+    Assert-True (-not (Test-Path $legacyCentersScript)) "Legacy centers sync script should be removed from scripts/prod."
+    Assert-True (-not (Test-Path $legacyWebScript)) "Legacy web sync script should be removed from scripts/prod."
+    Assert-True (Test-Path $centersScript) "Centers sync script should exist at scripts/prod/unix/sync-centers-from-smb.sh."
+    Assert-True (Test-Path $webScript) "Web sync script should exist at scripts/prod/unix/sync-web-from-smb.sh."
+
     $sourceDir = Join-Path $tempRoot "smb-source"
     $apiTarget = Join-Path $tempRoot "online-api"
     $webTarget = Join-Path $tempRoot "online-web"

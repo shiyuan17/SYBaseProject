@@ -4,6 +4,8 @@ import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRepository;
+import com.company.bl.interfaces.auth.RbacPermissionRepository;
+import com.company.bl.interfaces.auth.M3PermissionCodes;
 import com.company.bl.notification.application.WorkflowNotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,15 +23,18 @@ class TechnicalTaskManagementService {
     private final TechnicalWorkflowSupport technicalWorkflowSupport;
     private final TechnicalTaskTimeoutPolicy technicalTaskTimeoutPolicy;
     private final WorkflowNotificationService workflowNotificationService;
+    private final RbacPermissionRepository permissionRepository;
 
     TechnicalTaskManagementService(TechnicalWorkflowRepository technicalWorkflowRepository,
                                    TechnicalWorkflowSupport technicalWorkflowSupport,
                                    TechnicalTaskTimeoutPolicy technicalTaskTimeoutPolicy,
-                                   WorkflowNotificationService workflowNotificationService) {
+                                   WorkflowNotificationService workflowNotificationService,
+                                   RbacPermissionRepository permissionRepository) {
         this.technicalWorkflowRepository = technicalWorkflowRepository;
         this.technicalWorkflowSupport = technicalWorkflowSupport;
         this.technicalTaskTimeoutPolicy = technicalTaskTimeoutPolicy;
         this.workflowNotificationService = workflowNotificationService;
+        this.permissionRepository = permissionRepository;
     }
 
     @Transactional
@@ -142,11 +147,15 @@ class TechnicalTaskManagementService {
     @Transactional
     TechnicalWorkflowModels.TaskView updateTechnicalTaskRemarks(TechnicalWorkflowModels.TechnicalTaskRemarksCommand command) {
         TechnicalWorkflowRecords.TechnicalTask task = requireTask(command.taskId());
-        requireRemarksEditable(task, command.operatorUserId(), command.operatorRoleCode(), command.productionRemarks());
+        requireRemarksEditable(task, command.operatorUserId(), command.operatorRoleCode(), command.remarks(), command.productionRemarks());
+        String nextRemarks = command.remarks() != null ? trimToNull(command.remarks()) : task.remarks();
+        String nextProductionRemarks = command.productionRemarks() != null
+            ? trimToNull(command.productionRemarks())
+            : task.productionRemarks();
         technicalWorkflowRepository.updateTechnicalTaskRemarks(
             task.id(),
-            trimToNull(command.remarks()),
-            trimToNull(command.productionRemarks()));
+            nextRemarks,
+            nextProductionRemarks);
         technicalWorkflowSupport.insertWorkflowEvent(task, task.currentNode(), "REMARKS", "SUCCESS",
             command.operatorUserId(), command.operatorName(), command.terminalCode(), "Technical task remarks updated");
         return reloadTaskView(task.id());
@@ -201,18 +210,34 @@ class TechnicalTaskManagementService {
         TechnicalWorkflowRecords.TechnicalTask task,
         String operatorUserId,
         String operatorRoleCode,
+        String remarks,
         String productionRemarks
     ) {
         if (isAdmin(operatorRoleCode)) {
             return;
         }
-        if (trimToNull(productionRemarks) != null) {
-            throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403, "Only admin can update production remarks");
+        if (productionRemarks != null) {
+            requireProductionRemarksEditable(task, operatorUserId, operatorRoleCode);
+        }
+        if (remarks != null) {
+            requireNodeRole(task, operatorRoleCode);
+            if (!Objects.equals(trimToNull(task.assignedToUserId()), requireText(operatorUserId, "Operator user is required"))) {
+                throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403, "Only the owner can update their own assigned task remarks");
+            }
+        }
+    }
+
+    private void requireProductionRemarksEditable(
+        TechnicalWorkflowRecords.TechnicalTask task,
+        String operatorUserId,
+        String operatorRoleCode
+    ) {
+        String workstationPermission = workstationPermissionForNode(task.currentNode());
+        if (workstationPermission != null
+            && permissionRepository.hasPermission(requireText(operatorUserId, "Operator user is required"), workstationPermission)) {
+            return;
         }
         requireNodeRole(task, operatorRoleCode);
-        if (!Objects.equals(trimToNull(task.assignedToUserId()), requireText(operatorUserId, "Operator user is required"))) {
-            throw new BlBusinessException(BlErrorCode.PERMISSION_DENIED, 403, "Only the owner can update their own assigned task remarks");
-        }
     }
 
     private void requireOperatorIdentity(
@@ -260,6 +285,17 @@ class TechnicalTaskManagementService {
             case TechnicalWorkflowConstants.NODE_SLICING -> "M3_SLICING";
             case TechnicalWorkflowConstants.NODE_STAINING -> "M3_STAINING";
             case TechnicalWorkflowConstants.NODE_REWORK -> "M3_REWORK";
+            default -> null;
+        };
+    }
+
+    private String workstationPermissionForNode(String currentNode) {
+        if (currentNode == null || currentNode.isBlank()) {
+            return null;
+        }
+        return switch (currentNode.trim()) {
+            case TechnicalWorkflowConstants.NODE_EMBEDDING -> M3PermissionCodes.EMBEDDING;
+            case TechnicalWorkflowConstants.NODE_SLICING -> M3PermissionCodes.SLICING;
             default -> null;
         };
     }

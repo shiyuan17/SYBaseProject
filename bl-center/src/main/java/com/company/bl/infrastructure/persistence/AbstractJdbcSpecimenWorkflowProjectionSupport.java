@@ -61,4 +61,10 @@ abstract class AbstractJdbcSpecimenWorkflowProjectionSupport extends AbstractJdb
     ) {
         return removalProjectionSupport.listSpecimenRemovalExportRows(query);
     }
+
+    public List<SpecimenWorkflowRepository.SpecimenManagementExportRow> listSpecimenManagementExportRows(
+        SpecimenWorkflowRepository.SpecimenManagementListQuery query
+    ) {
+        return managementProjectionSupport.listSpecimenManagementExportRows(query);
+    }
 }

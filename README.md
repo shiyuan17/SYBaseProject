@@ -36,42 +36,48 @@
 ./mvnw test
 ```
 
-## Local Dev Startup
+## 本地开发启动
 
-- `bl-center` and `auth-center` now include `spring-boot-devtools` for development-time automatic restart.
-- Shared IntelliJ Spring Boot run configurations for `bl-center` and `auth-center` still run a Maven before-launch compile step, and devtools will restart the app after IntelliJ refreshes `target/classes`.
-- For IntelliJ hot reload, enable automatic project build while the application is running. If auto-build is off, `Build Project` still triggers a restart.
-- Command line launchers are available in `scripts/dev/`.
-- The command line launchers now perform an initial `-pl <module> -am compile`, add `common/*/target/classes` to the runtime classpath, and keep a background source watcher running so Java or resource saves trigger a devtools restart.
+- `bl-center` 与 `auth-center` 已包含 `spring-boot-devtools`，支持开发态自动重启。
+- 命令行启动脚本现在按操作系统拆分到 `scripts/dev/windows/` 与 `scripts/dev/unix/`。
+- 启动脚本会先执行一次 `-pl <module> -am compile`，把 `common/*/target/classes` 加入运行时 classpath，并在后台持续监听源码变化触发 DevTools 重启。
+
+推荐入口：
 
 ```bash
-./scripts/dev/run-bl-center-dev.sh
-./scripts/dev/run-auth-center-dev.sh
+./scripts/dev/unix/run-bl-center-dev.sh
+./scripts/dev/unix/run-auth-center-dev.sh
 ```
 
-On Windows, use:
+Windows 可用：
 
 ```powershell
-.\scripts\dev\run-bl-center-dev.cmd
-.\scripts\dev\run-auth-center-dev.cmd
+.\run-bl-center-dev.cmd
+.\scripts\dev\windows\run-bl-center-dev.cmd
 ```
 
-If you hit `ClassNotFoundException: com.company.bl.BlCenterApplication`, rebuild the module output with:
+这些命令只能在 `D:\Github\JW\SYBaseProject` 仓库根目录运行，不适用于 `D:\Github\JW\SYBaseProjectWeb`。
+
+如果遇到 `ClassNotFoundException: com.company.bl.BlCenterApplication`，可重新编译：
 
 ```powershell
 .\mvnw.cmd -pl bl-center -am compile -DskipTests
 ```
 
-If you hit `ClassNotFoundException: com.company.auth.AuthCenterApplication`, rebuild with:
+如果遇到 `ClassNotFoundException: com.company.auth.AuthCenterApplication`，可重新编译：
 
 ```powershell
 .\mvnw.cmd -pl auth-center -am compile -DskipTests
 ```
 
-## 鐩綍涓庢不鐞嗚鏄?
-- `scripts/dev/`锛氭湰鍦板惎鍔ㄨ剼鏈?- `scripts/migration/`锛欶lyway 涓庤縼绉昏緟鍔╄剼鏈?- `docs/`锛氬崗浣滆鑼冦€佸伐绋嬭鏄庛€佽鍒掍笌娌荤悊鏂囨。
-- `deploy/`锛氭湰鍦?GitLab 涓庨儴缃茬浉鍏虫牱渚?- `gateway/`銆乣order-center/`銆乣ai-center/`銆乣admin-web/`锛氬綋鍓嶄粛涓洪鐣欐墿灞曚綅
-- 椤跺眰 `infrastructure/`锛氬钩鍙扮骇娌夋穩棰勭暀鐩綍锛屽皻鏈綔涓虹嫭绔嬪彲杩愯妯″潡浜や粯
+## 目录与治理说明
+- `scripts/dev/`：本地开发脚本，实际实现按 `windows/` 与 `unix/` 分层
+- `scripts/prod/`：生产启动、同步发布与 `config/` 配置模板
+- `scripts/migration/`：Flyway 与迁移辅助脚本
+- `docs/`：协作规范、工程说明、计划与治理文档
+- `deploy/`：本地 GitLab 与部署样例
+- `gateway/`、`order-center/`、`ai-center/`、`admin-web/`：当前仍为预留扩展位
+- 顶层 `infrastructure/`：平台级沉淀预留目录，尚未作为独立可运行模块交付
 
 ## 绀轰緥鎺ュ彛
 

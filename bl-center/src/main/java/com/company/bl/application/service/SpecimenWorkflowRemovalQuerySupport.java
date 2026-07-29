@@ -100,6 +100,26 @@ class SpecimenWorkflowRemovalQuerySupport extends AbstractSpecimenWorkflowQueryS
     }
 
     @Transactional(readOnly = true)
+    byte[] exportSpecimenManagementItems(SpecimenManagementListQuery query) {
+        return specimenWorkflowSupport.buildSpecimenManagementExport(
+            specimenWorkflowRepository.listSpecimenManagementExportRows(
+                new SpecimenWorkflowRepository.SpecimenManagementListQuery(
+                    specimenWorkflowSupport.normalizePage(query.page()),
+                    specimenWorkflowSupport.normalizeExportSize(query.size()),
+                    specimenWorkflowSupport.trim(query.keyword()),
+                    specimenWorkflowSupport.trim(query.applicationNo()),
+                    specimenWorkflowSupport.trim(query.departmentId()),
+                    specimenWorkflowSupport.trim(query.buildingId()),
+                    specimenWorkflowSupport.trim(query.roomId()),
+                    specimenWorkflowSupport.normalizeStatus(query.barcodeBindingStatus()),
+                    specimenWorkflowSupport.normalizeStatus(query.specimenStatus()),
+                    specimenWorkflowSupport.normalizeStatus(query.labelPrintStatus()),
+                    query.abnormalFlag(),
+                    specimenWorkflowSupport.parseDateFrom(query.dateFrom()),
+                    specimenWorkflowSupport.parseDateTo(query.dateTo()))));
+    }
+
+    @Transactional(readOnly = true)
     SpecimenOutboundPage listSpecimenOutbounds(SpecimenOutboundListQuery query) {
         int page = specimenWorkflowSupport.normalizePage(query.page());
         int size = specimenWorkflowSupport.normalizeSize(query.size());

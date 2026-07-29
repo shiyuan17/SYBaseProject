@@ -53,6 +53,10 @@ class SpecimenWorkflowQueryService {
         return removalQuerySupport.listSpecimenManagementItems(query);
     }
 
+    byte[] exportSpecimenManagementItems(SpecimenManagementListQuery query) {
+        return removalQuerySupport.exportSpecimenManagementItems(query);
+    }
+
     SpecimenRemovalListPage listSpecimenRemovalItems(SpecimenRemovalQuery query) {
         return removalQuerySupport.listSpecimenRemovalItems(query);
     }

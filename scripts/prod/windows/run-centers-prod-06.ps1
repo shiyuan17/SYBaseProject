@@ -11,8 +11,11 @@ $ErrorActionPreference = "Stop"
 
 $script:ExtraArgs = @($args)
 $script:ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
-$script:DefaultConfigFile = Join-Path $script:ScriptDir "run-centers.conf"
+$script:ProdDir = (Resolve-Path (Join-Path $script:ScriptDir "..")).Path
+$script:DefaultConfigFile = Join-Path (Join-Path $script:ProdDir "config") "run-centers.conf"
 $script:ConfigFile = if ($env:RUN_CENTERS_CONFIG_FILE) { $env:RUN_CENTERS_CONFIG_FILE } else { $script:DefaultConfigFile }
+$script:DefaultProd06ConfigFile = Join-Path (Join-Path $script:ProdDir "config") "run-centers-prod-06.conf"
+$script:Prod06ConfigFile = if ($env:RUN_CENTERS_PROD06_CONFIG_FILE) { $env:RUN_CENTERS_PROD06_CONFIG_FILE } else { $script:DefaultProd06ConfigFile }
 $script:HelperScript = Join-Path $script:ScriptDir "run-centers-prod-06.helpers.ps1"
 
 $script:Services = @{
@@ -74,7 +77,7 @@ function Get-JarPath {
     )
 
     $definition = Get-ServiceDefinition $ServiceKey
-    $defaultPath = Join-Path $script:ScriptDir $definition.DefaultJar
+    $defaultPath = Join-Path $script:ProdDir $definition.DefaultJar
     return (Get-Setting -Name $definition.JarEnv -DefaultValue $defaultPath)
 }
 
@@ -317,7 +320,7 @@ function Start-ServiceProcess {
     $startProcessArguments = @{
         FilePath = $javaCmd
         ArgumentList = (Join-CommandLineArguments -Arguments (Get-JavaArguments -ServiceKey $ServiceKey -Arguments $Arguments))
-        WorkingDirectory = $script:ScriptDir
+        WorkingDirectory = $script:ProdDir
         RedirectStandardOutput = $stdoutLog
         RedirectStandardError = $stderrLog
         PassThru = $true
@@ -426,6 +429,7 @@ Usage:
 }
 
 Import-KeyValueConfig -Path $script:ConfigFile
+Import-KeyValueConfig -Path $script:Prod06ConfigFile
 [Environment]::SetEnvironmentVariable("SPRING_PROFILES_ACTIVE", "prod-06", "Process")
 Ensure-Directories
 if ($Action -ieq "logs") {

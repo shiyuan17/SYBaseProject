@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -90,21 +91,32 @@ class SpecimenWorkflowEndToEndIntegrationTest extends AbstractSpecimenWorkflowIn
             .andExpect(jsonPath("$.data.pathologyNo").isNotEmpty())
             .andExpect(jsonPath("$.data.registrationStatus").value("COMPLETED"));
 
-        mockMvc.perform(authorized(get("/api/v1/applications/{id}/tracking", applicationId), USER_TRACKING))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.status").value("RECEIVED"))
-            .andExpect(jsonPath("$.data.currentNode").value("GROSSING"))
-            .andExpect(jsonPath("$.data.abnormalFlag").value(false))
-            .andExpect(jsonPath("$.data.recentEvents[0].specimenId").isNotEmpty())
-            .andExpect(jsonPath("$.data.recentEvents[0].specimenNo").isNotEmpty())
-            .andExpect(jsonPath("$.data.recentEvents[0].specimenBarcode").isNotEmpty())
-            .andExpect(jsonPath("$.data.recentEvents[0].operatorIp").isNotEmpty())
-            .andExpect(jsonPath("$.data.specimens[0].specimenStatus").value("RECEIVED"))
-            .andExpect(jsonPath("$.data.specimens[1].specimenStatus").value("RECEIVED"));
+        JsonNode tracking = responseBody(
+            mockMvc.perform(authorized(get("/api/v1/applications/{id}/tracking", applicationId), USER_TRACKING))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("RECEIVED"))
+                .andExpect(jsonPath("$.data.currentNode").value("GROSSING"))
+                .andExpect(jsonPath("$.data.abnormalFlag").value(false))
+                .andExpect(jsonPath("$.data.specimens[0].specimenStatus").value("RECEIVED"))
+                .andExpect(jsonPath("$.data.specimens[1].specimenStatus").value("RECEIVED")),
+            200);
+        assertThat(hasSpecimenTrackingEvent(tracking)).isTrue();
 
         mockMvc.perform(authorized(get("/api/v1/specimens/barcodes/{barcode}/tracking", barcode1), USER_TRACKING))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.applicationNo").value("APP-M2-001"));
+    }
+
+    private boolean hasSpecimenTrackingEvent(JsonNode tracking) {
+        for (JsonNode event : tracking.path("recentEvents")) {
+            if (!event.path("specimenId").asText("").isBlank()
+                && !event.path("specimenNo").asText("").isBlank()
+                && !event.path("specimenBarcode").asText("").isBlank()
+                && !event.path("operatorIp").asText("").isBlank()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Test

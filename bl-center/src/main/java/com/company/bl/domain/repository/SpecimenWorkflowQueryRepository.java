@@ -78,4 +78,8 @@ public interface SpecimenWorkflowQueryRepository {
     List<SpecimenWorkflowRepository.SpecimenRemovalListRow> listSpecimenRemovalExportRows(
         SpecimenWorkflowRepository.SpecimenRemovalListQuery query
     );
+
+    List<SpecimenWorkflowRepository.SpecimenManagementExportRow> listSpecimenManagementExportRows(
+        SpecimenWorkflowRepository.SpecimenManagementListQuery query
+    );
 }

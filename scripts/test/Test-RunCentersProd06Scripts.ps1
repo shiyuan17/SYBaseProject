@@ -80,29 +80,35 @@ function Assert-True([bool] $Condition, [string] $Message) {
 }
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
-$wrapperScript = Join-Path $repoRoot "scripts\prod\run-centers-prod-06.sh"
-$prod06Config = Join-Path $repoRoot "scripts\prod\run-centers-prod-06.conf"
+$legacyWrapperScript = Join-Path $repoRoot "scripts\prod\run-centers-prod-06.sh"
+$wrapperScript = Join-Path $repoRoot "scripts\prod\unix\run-centers-prod-06.sh"
+$runCentersScript = Join-Path $repoRoot "scripts\prod\unix\run-centers.sh"
+$prod06Config = Join-Path $repoRoot "scripts\prod\config\run-centers-prod-06.conf"
 
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("run-centers-prod-06-tests-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $tempRoot | Out-Null
 
 try {
-    Assert-True (Test-Path $wrapperScript) "Wrapper script should exist at scripts/prod/run-centers-prod-06.sh."
-    Assert-True (Test-Path $prod06Config) "Prod-06 config should exist at scripts/prod/run-centers-prod-06.conf."
+    Assert-True (-not (Test-Path $legacyWrapperScript)) "Legacy wrapper script should be removed from scripts/prod."
+    Assert-True (Test-Path $wrapperScript) "Wrapper script should exist at scripts/prod/unix/run-centers-prod-06.sh."
+    Assert-True (Test-Path $runCentersScript) "Run-centers script should exist at scripts/prod/unix/run-centers.sh."
+    Assert-True (Test-Path $prod06Config) "Prod-06 config should exist at scripts/prod/config/run-centers-prod-06.conf."
 
-    $tempScriptDir = Join-Path $tempRoot "scripts\prod"
-    New-Item -ItemType Directory -Path $tempScriptDir -Force | Out-Null
+    $tempProdDir = Join-Path $tempRoot "scripts\prod"
+    $tempUnixDir = Join-Path $tempProdDir "unix"
+    $tempConfigDir = Join-Path $tempProdDir "config"
+    New-Item -ItemType Directory -Path $tempUnixDir, $tempConfigDir -Force | Out-Null
 
-    Copy-Item $wrapperScript (Join-Path $tempScriptDir "run-centers-prod-06.sh")
-    Copy-Item $prod06Config (Join-Path $tempScriptDir "run-centers-prod-06.conf")
+    Copy-Item $wrapperScript (Join-Path $tempUnixDir "run-centers-prod-06.sh")
+    Copy-Item $prod06Config (Join-Path $tempConfigDir "run-centers-prod-06.conf")
 
-    Set-Content -Path (Join-Path $tempScriptDir "run-centers.conf") -Value @(
+    Set-Content -Path (Join-Path $tempConfigDir "run-centers.conf") -Value @(
         "SPRING_PROFILES_ACTIVE=prod"
         "BASE_CONFIG_MARKER=shared-config"
     )
 
     $captureFile = Join-Path $tempRoot "captured.txt"
-    Set-Content -Path (Join-Path $tempScriptDir "run-centers.sh") -Value @(
+    Set-Content -Path (Join-Path $tempUnixDir "run-centers.sh") -Value @(
         "#!/usr/bin/env sh"
         "set -eu"
         '. "$RUN_CENTERS_CONFIG_FILE"'
@@ -115,9 +121,9 @@ try {
     )
 
     $bash = Find-Bash
-    & $bash -lc "chmod +x '$(To-BashPath (Join-Path $tempScriptDir "run-centers-prod-06.sh"))' '$(To-BashPath (Join-Path $tempScriptDir "run-centers.sh"))'"
+    & $bash -lc "chmod +x '$(To-BashPath (Join-Path $tempUnixDir "run-centers-prod-06.sh"))' '$(To-BashPath (Join-Path $tempUnixDir "run-centers.sh"))'"
 
-    $result = Invoke-BashScript -Script (To-BashPath (Join-Path $tempScriptDir "run-centers-prod-06.sh")) -Arguments @("restart", "all")
+    $result = Invoke-BashScript -Script (To-BashPath (Join-Path $tempUnixDir "run-centers-prod-06.sh")) -Arguments @("restart", "all")
 
     Assert-True ($result.ExitCode -eq 0) "Wrapper script should succeed. Output: $($result.Output)"
     Assert-True (Test-Path $captureFile) "Wrapper script should invoke run-centers.sh."
@@ -126,7 +132,7 @@ try {
     Assert-True ($captured.Contains("profile=prod-06")) "Wrapper should force the prod-06 profile."
     Assert-True ($captured.Contains("base_marker=shared-config")) "Wrapper should keep loading shared base config."
     Assert-True ($captured.Contains("args=restart all")) "Wrapper should forward command arguments."
-    Assert-True ($captured.Contains("run-centers-prod-06.conf")) "Wrapper should point run-centers.sh at the prod-06 config file."
+    Assert-True ($captured.Contains("scripts/prod/config/run-centers-prod-06.conf")) "Wrapper should point run-centers.sh at the prod-06 config file under scripts/prod/config."
 
     Write-Host "Prod-06 run-centers wrapper tests passed."
 }

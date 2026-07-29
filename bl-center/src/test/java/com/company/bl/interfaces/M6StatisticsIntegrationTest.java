@@ -483,17 +483,17 @@ class M6StatisticsIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
         assertThat(timeoutRow.path("breakdowns").toString()).contains("切片耗时");
         assertThat(timeoutRow.path("breakdowns").toString()).contains("诊断耗时");
 
-        JsonNode grossingDetails = queryDetails("QC_FROZEN_GROSSING_TIMEOUT_COUNT");
+        JsonNode grossingDetails = queryDetails("QC_FROZEN_GROSSING_TIMEOUT_COUNT", DEPARTMENT_STAT_OR);
         assertThat(grossingDetails.path("items").toString()).contains("取材耗时");
         assertThat(grossingDetails.path("items").toString()).contains(context.pathologyNo());
 
-        JsonNode slicingDetails = queryDetails("QC_FROZEN_SLICING_TIMEOUT_COUNT");
+        JsonNode slicingDetails = queryDetails("QC_FROZEN_SLICING_TIMEOUT_COUNT", DEPARTMENT_STAT_OR);
         assertThat(slicingDetails.path("items").toString()).contains("切片耗时");
 
-        JsonNode diagnosisDetails = queryDetails("QC_FROZEN_DIAGNOSIS_TIMEOUT_COUNT");
+        JsonNode diagnosisDetails = queryDetails("QC_FROZEN_DIAGNOSIS_TIMEOUT_COUNT", DEPARTMENT_STAT_OR);
         assertThat(diagnosisDetails.path("items").toString()).contains("诊断耗时");
 
-        String timeoutCsv = exportDetails("QC_FROZEN_DIAGNOSIS_TIMEOUT_COUNT");
+        String timeoutCsv = exportDetails("QC_FROZEN_DIAGNOSIS_TIMEOUT_COUNT", DEPARTMENT_STAT_OR);
         assertThat(timeoutCsv).contains("QC_FROZEN_DIAGNOSIS_TIMEOUT_COUNT");
         assertThat(timeoutCsv).contains("诊断耗时");
     }
@@ -586,6 +586,10 @@ class M6StatisticsIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
     }
 
     private JsonNode queryDetails(String indicatorCode) throws Exception {
+        return queryDetails(indicatorCode, null);
+    }
+
+    private JsonNode queryDetails(String indicatorCode, String departmentId) throws Exception {
         return responseBody(mockMvc.perform(authorized(post("/api/v1/stat-reports/details/query"), USER_M1_QUALITY)
             .contentType(APPLICATION_JSON)
             .content("""
@@ -593,13 +597,18 @@ class M6StatisticsIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
                   "indicatorCode":"%s",
                   "from":"2026-01-01T00:00:00",
                   "to":"2026-12-31T23:59:59",
+                  "departmentId":%s,
                   "page":1,
                   "size":20
                 }
-                """.formatted(indicatorCode))), 200);
+                """.formatted(indicatorCode, nullableJsonString(departmentId)))), 200);
     }
 
     private String exportDetails(String indicatorCode) throws Exception {
+        return exportDetails(indicatorCode, null);
+    }
+
+    private String exportDetails(String indicatorCode, String departmentId) throws Exception {
         return mockMvc.perform(authorized(post("/api/v1/stat-reports/details/export"), USER_M1_QUALITY)
                 .contentType(APPLICATION_JSON)
                 .content("""
@@ -607,15 +616,20 @@ class M6StatisticsIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
                       "indicatorCode":"%s",
                       "from":"2026-01-01T00:00:00",
                       "to":"2026-12-31T23:59:59",
+                      "departmentId":%s,
                       "page":1,
                       "size":20
                     }
-                    """.formatted(indicatorCode)))
+                    """.formatted(indicatorCode, nullableJsonString(departmentId))))
             .andExpect(status().isOk())
             .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString(".csv")))
             .andReturn()
             .getResponse()
             .getContentAsString();
+    }
+
+    private String nullableJsonString(String value) {
+        return value == null ? "null" : "\"" + value + "\"";
     }
 
     private String exportStatReport(String payload) throws Exception {

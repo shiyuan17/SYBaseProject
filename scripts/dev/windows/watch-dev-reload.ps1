@@ -11,7 +11,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$rootDir = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$rootDir = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
 $serviceSourcePath = Join-Path $rootDir "$ModuleName\src\main"
 $sharedSourcePaths = @(
     (Join-Path $rootDir "common\common-core\src\main"),

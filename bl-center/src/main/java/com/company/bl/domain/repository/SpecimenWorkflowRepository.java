@@ -292,6 +292,50 @@ public interface SpecimenWorkflowRepository extends SpecimenWorkflowQueryReposit
     ) {
     }
 
+    record SpecimenManagementExportRow(
+        String specimenId,
+        String applicationId,
+        String applicationNo,
+        String patientName,
+        String patientAge,
+        String patientGender,
+        String specimenName,
+        String projectName,
+        Integer specimenCount,
+        LocalDateTime specimenRemovalAt,
+        String specimenRemovalOperatorName,
+        LocalDateTime fixationCompletedAt,
+        String fixationOperatorName,
+        String submittingDoctorName,
+        String displayStatus,
+        String surgeryFindings,
+        LocalDateTime registeredAt,
+        String registrationOperatorName,
+        LocalDateTime specimenConfirmedAt,
+        String specimenConfirmedByName,
+        LocalDateTime checkedInAt,
+        String checkedInByName,
+        LocalDateTime outboundAt,
+        String outboundUserName,
+        LocalDateTime signedAt,
+        String signedByName,
+        LocalDateTime rejectedAt,
+        String rejectedByName,
+        java.time.LocalDate submissionDate,
+        String inpatientNo,
+        String bedNo,
+        String wardName,
+        String printFlag,
+        String clinicalDescription,
+        String clinicalDiagnosis,
+        String clinicalSuggestion,
+        String infectionFlag,
+        String logisticsStaffName,
+        String rejectionReason,
+        String submittingDepartmentName
+    ) {
+    }
+
     record SpecimenRemovalListRow(
         String specimenId,
         String specimenNo,
@@ -353,4 +397,3 @@ public interface SpecimenWorkflowRepository extends SpecimenWorkflowQueryReposit
     ) {
     }
 }
-

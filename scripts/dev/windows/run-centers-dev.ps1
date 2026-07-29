@@ -3,15 +3,15 @@ param()
 
 $ErrorActionPreference = "Stop"
 
-$rootDir = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$rootDir = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
 $services = @(
     @{
         Name = "bl-center"
-        ScriptPath = Join-Path $rootDir "scripts\dev\run-bl-center-dev.cmd"
+        ScriptPath = Join-Path $PSScriptRoot "run-bl-center-dev.cmd"
     },
     @{
         Name = "auth-center"
-        ScriptPath = Join-Path $rootDir "scripts\dev\run-auth-center-dev.cmd"
+        ScriptPath = Join-Path $PSScriptRoot "run-auth-center-dev.cmd"
     }
 )
 

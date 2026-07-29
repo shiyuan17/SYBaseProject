@@ -1,0 +1,11 @@
+spring:
+    datasource:
+        driver-class-name: ${AUTH_CENTER_DATASOURCE_DRIVER_CLASS_NAME:dm.jdbc.driver.DmDriver}
+        url: ${AUTH_CENTER_DATASOURCE_URL:jdbc:dm://127.0.0.1:5236}
+        username: ${AUTH_CENTER_DATASOURCE_USERNAME:SYSDBA}
+        password: ${AUTH_CENTER_DATASOURCE_PASSWORD:Dm8#Pathology2026}
+
+security:
+    auth:
+        jwt:
+            allow-generated-keys: ${SECURITY_AUTH_JWT_ALLOW_GENERATED_KEYS:true}

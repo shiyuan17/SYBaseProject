@@ -1,5 +1,5 @@
 @ECHO OFF
-SETLOCAL EnableDelayedExpansion
+SETLOCAL DisableDelayedExpansion
 
 SET "BASE_DIR=%~dp0"
 IF "%BASE_DIR:~-1%"=="\" SET "BASE_DIR=%BASE_DIR:~0,-1%"
@@ -29,11 +29,11 @@ FOR /F "delims=" %%A IN ('"%JAVA_CMD%" -version 2^>^&1') DO (
 )
 
 :check_java_version
-echo(!JAVA_VERSION_LINE! | findstr /C:"17." >NUL
+echo(%JAVA_VERSION_LINE% | findstr /C:"17." >NUL
 IF ERRORLEVEL 1 (
   ECHO SY Base Project requires JDK 17 for Maven Wrapper builds.
   ECHO Resolved Java: %JAVA_CMD%
-  ECHO Version line: !JAVA_VERSION_LINE!
+  ECHO Version line: %JAVA_VERSION_LINE%
   ECHO Set JAVA_HOME to a JDK 17 installation and retry.
   EXIT /B 1
 )

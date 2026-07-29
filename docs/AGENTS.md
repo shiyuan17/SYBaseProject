@@ -22,6 +22,7 @@
 
 - 日志：`.logs/backend.log`、`frontend.log`、`build.log`、`test.log`
 - `scripts/dev/` 下本地后端启动脚本默认会追加写入 `.logs/backend.log`，并保留控制台输出
+- `scripts/dev/` 与 `scripts/prod/` 已按 `windows/`、`unix/`、`config/` 分层；新增脚本优先进入这些子目录，不再回到根目录平铺
 - 排查先读最近日志，修改后重跑命令并核对输出
 
 ## 一页式执行入口

@@ -21,6 +21,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class TechnicalWorkflowAutomationAndGovernanceIntegrationTest extends AbstractTechnicalWorkflowIntegrationTest {
 
     private static final String USER_M3_TASK_QUERY_ONLY = "USER_M3_TASK_QUERY_ONLY";
+    private static final String USER_CUSTOM_EMBEDDING_REMARKS = "USER_CUSTOM_EMBEDDING_REMARKS";
+    private static final String USER_CUSTOM_SLICING_REMARKS = "USER_CUSTOM_SLICING_REMARKS";
 
     @Test
     void shouldMatchSingleSamplingTemplateAutomatically() throws Exception {
@@ -252,6 +254,91 @@ class TechnicalWorkflowAutomationAndGovernanceIntegrationTest extends AbstractTe
     }
 
     @Test
+    void shouldAllowEmbeddingAndSlicingWorkstationRolesToUpdateProductionRemarksAcrossVisibleTasks() throws Exception {
+        TechnicalCaseContext embeddingContext =
+            receiveCaseAndGetGrossingTask("APP-M3-REMARK-EMB-001", "BC-M3-REMARK-EMB-001");
+        String embeddingTaskId = advanceCaseToPendingEmbedding(embeddingContext, "embedding remark permission");
+
+        mockMvc.perform(authorized(patch("/api/v1/technical-tasks/%s/remarks".formatted(embeddingTaskId)), USER_M3_EMBEDDING)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "productionRemarks": "未脱钙",
+                      "terminalCode": "M3-E-01"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(embeddingTaskId))
+            .andExpect(jsonPath("$.data.productionRemarks").value("未脱钙"));
+
+        TechnicalCaseContext slicingContext =
+            receiveCaseAndGetGrossingTask("APP-M3-REMARK-SLC-001", "BC-M3-REMARK-SLC-001");
+        SlicingTaskFixture slicingTask = advanceCaseToPendingSlicing(slicingContext, "slicing remark permission");
+
+        mockMvc.perform(authorized(patch("/api/v1/technical-tasks/%s/remarks".formatted(slicingTask.taskId())), USER_M3_SLICING)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "productionRemarks": "脱钙未完成",
+                      "terminalCode": "M3-S-01"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(slicingTask.taskId()))
+            .andExpect(jsonPath("$.data.productionRemarks").value("脱钙未完成"));
+    }
+
+    @Test
+    void shouldAllowCustomPermissionBasedUsersToUpdateProductionRemarksAcrossVisibleTasks() throws Exception {
+        seedCustomWorkstationRemarksUser(
+            USER_CUSTOM_EMBEDDING_REMARKS,
+            "ROLE_CUSTOM_EMBEDDING_REMARKS",
+            "CUSTOM_EMBEDDING_REMARKS",
+            "自定义包埋主班备注角色",
+            "PERM_M3_EMBEDDING",
+            "PERM_M3_TECH_TASK_REMARKS");
+        seedCustomWorkstationRemarksUser(
+            USER_CUSTOM_SLICING_REMARKS,
+            "ROLE_CUSTOM_SLICING_REMARKS",
+            "CUSTOM_SLICING_REMARKS",
+            "自定义切片主班备注角色",
+            "PERM_M3_SLICING",
+            "PERM_M3_TECH_TASK_REMARKS");
+
+        TechnicalCaseContext embeddingContext =
+            receiveCaseAndGetGrossingTask("APP-M3-REMARK-CUSTOM-EMB-001", "BC-M3-REMARK-CUSTOM-EMB-001");
+        String embeddingTaskId = advanceCaseToPendingEmbedding(embeddingContext, "custom embedding remark permission");
+
+        mockMvc.perform(authorized(patch("/api/v1/technical-tasks/%s/remarks".formatted(embeddingTaskId)), USER_CUSTOM_EMBEDDING_REMARKS)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "productionRemarks": "未脱钙",
+                      "terminalCode": "M3-E-CUSTOM-01"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(embeddingTaskId))
+            .andExpect(jsonPath("$.data.productionRemarks").value("未脱钙"));
+
+        TechnicalCaseContext slicingContext =
+            receiveCaseAndGetGrossingTask("APP-M3-REMARK-CUSTOM-SLC-001", "BC-M3-REMARK-CUSTOM-SLC-001");
+        SlicingTaskFixture slicingTask = advanceCaseToPendingSlicing(slicingContext, "custom slicing remark permission");
+
+        mockMvc.perform(authorized(patch("/api/v1/technical-tasks/%s/remarks".formatted(slicingTask.taskId())), USER_CUSTOM_SLICING_REMARKS)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "productionRemarks": "脱钙未完成",
+                      "terminalCode": "M3-S-CUSTOM-01"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(slicingTask.taskId()))
+            .andExpect(jsonPath("$.data.productionRemarks").value("脱钙未完成"));
+    }
+
+    @Test
     void shouldRequireM3PermissionForPendingTaskQuery() throws Exception {
         TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M3-005", "BC-M3-005");
 
@@ -329,5 +416,164 @@ class TechnicalWorkflowAutomationAndGovernanceIntegrationTest extends AbstractTe
             "roleId", "ROLE_M3_TASK_QUERY_ONLY",
             "permissionId", "PERM_M3_TECH_TASK_QUERY",
             "assignedAt", now));
+    }
+
+    private void seedCustomWorkstationRemarksUser(
+        String userId,
+        String roleId,
+        String roleCode,
+        String roleName,
+        String workstationPermissionId,
+        String remarksPermissionId
+    ) {
+        LocalDateTime now = LocalDateTime.now();
+        namedParameterJdbcTemplate.update("""
+            merge into users (id, user_code, login_name, name, role, enabled, created_at, updated_at)
+            key (id)
+            values (:id, :userCode, :loginName, :name, :role, 1, :createdAt, :updatedAt)
+            """, Map.of(
+            "id", userId,
+            "userCode", "U-" + roleCode,
+            "loginName", roleCode.toLowerCase(),
+            "name", roleName,
+            "role", roleCode,
+            "createdAt", now,
+            "updatedAt", now));
+        namedParameterJdbcTemplate.update("""
+            merge into roles (id, role_code, role_name, role_type, data_scope, remarks, enabled, created_at, updated_at)
+            key (id)
+            values (
+              :id,
+              :roleCode,
+              :roleName,
+              'BUSINESS',
+              'DEPARTMENT',
+              :remarks,
+              1,
+              :createdAt,
+              :updatedAt
+            )
+            """, Map.of(
+            "id", roleId,
+            "roleCode", roleCode,
+            "roleName", roleName,
+            "remarks", roleName + " test role",
+            "createdAt", now,
+            "updatedAt", now));
+        namedParameterJdbcTemplate.update("""
+            merge into user_roles (id, user_id, role_id, is_primary, assigned_at, assigned_by_name)
+            key (id)
+            values (:id, :userId, :roleId, 1, :assignedAt, 'test')
+            """, Map.of(
+            "id", "UR_" + roleCode,
+            "userId", userId,
+            "roleId", roleId,
+            "assignedAt", now));
+        namedParameterJdbcTemplate.update("""
+            merge into role_permissions (id, role_id, permission_id, assigned_at)
+            key (id)
+            values (:id, :roleId, :permissionId, :assignedAt)
+            """, Map.of(
+            "id", "RP_" + roleCode + "_WORKSTATION",
+            "roleId", roleId,
+            "permissionId", workstationPermissionId,
+            "assignedAt", now));
+        namedParameterJdbcTemplate.update("""
+            merge into role_permissions (id, role_id, permission_id, assigned_at)
+            key (id)
+            values (:id, :roleId, :permissionId, :assignedAt)
+            """, Map.of(
+            "id", "RP_" + roleCode + "_REMARKS",
+            "roleId", roleId,
+            "permissionId", remarksPermissionId,
+            "assignedAt", now));
+    }
+
+    private String advanceCaseToPendingEmbedding(TechnicalCaseContext context, String grossDescription) throws Exception {
+        postJson("/api/v1/grossings/start", USER_M3_GROSSING, """
+            {
+              "taskId": "%s",
+              "terminalCode": "M3-R-01"
+            }
+            """.formatted(context.grossingTaskId()))
+            .andExpect(status().isOk());
+
+        postJson("/api/v1/grossings/complete", USER_M3_GROSSING, """
+            {
+              "taskId": "%s",
+              "caseId": "%s",
+              "terminalCode": "M3-R-02",
+              "specimens": [
+                {
+                  "specimenId": "%s",
+                  "specimenType": "ROUTINE",
+                  "grossDescription": "%s",
+                  "blocks": [
+                    {"blockSite": "A", "blockDescription": "block-1"}
+                  ]
+                }
+              ]
+            }
+            """.formatted(context.grossingTaskId(), context.caseId(), context.specimenId(), grossDescription))
+            .andExpect(status().isOk());
+
+        String blockId = listPendingTasks("DEHYDRATION", context.pathologyNo(), USER_M3_DEHYDRATION)
+            .path("items").get(0).path("objectId").asText();
+        String batchId = responseBody(postJson("/api/v1/dehydration-batches", USER_M3_DEHYDRATION, """
+            {
+              "caseId": "%s",
+              "basketNo": "BASKET-%s",
+              "samplingBlockIds": ["%s"]
+            }
+            """.formatted(context.caseId(), uniqueSuffix(), blockId)), 201).path("batchId").asText();
+        postJson("/api/v1/dehydration-batches/%s/start".formatted(batchId), USER_M3_DEHYDRATION, """
+            {
+            }
+            """)
+            .andExpect(status().isOk());
+        postJson("/api/v1/dehydration-batches/%s/complete".formatted(batchId), USER_M3_DEHYDRATION, """
+            {
+            }
+            """)
+            .andExpect(status().isOk());
+
+        return listPendingTasks("EMBEDDING", context.pathologyNo(), USER_M3_EMBEDDING)
+            .path("items").get(0).path("id").asText();
+    }
+
+    private SlicingTaskFixture advanceCaseToPendingSlicing(TechnicalCaseContext context, String grossDescription) throws Exception {
+        String embeddingTaskId = advanceCaseToPendingEmbedding(context, grossDescription);
+
+        postJson("/api/v1/embeddings/start", USER_M3_EMBEDDING, """
+            {
+              "taskId": "%s",
+              "terminalCode": "M3-R-03"
+            }
+            """.formatted(embeddingTaskId))
+            .andExpect(status().isOk());
+
+        String samplingBlockId = namedParameterJdbcTemplate.queryForObject("""
+            select id
+            from sampling_blocks
+            where case_id = :caseId
+            order by created_at desc
+            limit 1
+            """, Map.of("caseId", context.caseId()), String.class);
+
+        JsonNode embedding = responseBody(postJson("/api/v1/embeddings/complete", USER_M3_EMBEDDING, """
+            {
+              "taskId": "%s",
+              "samplingBlockId": "%s",
+              "blockCount": 1,
+              "terminalCode": "M3-R-04"
+            }
+            """.formatted(embeddingTaskId, samplingBlockId)), 200);
+
+        String slicingTaskId = listPendingTasks("SLICING", context.pathologyNo(), USER_M3_SLICING)
+            .path("items").get(0).path("id").asText();
+        return new SlicingTaskFixture(slicingTaskId, embedding.path("embeddingBoxId").asText());
+    }
+
+    private record SlicingTaskFixture(String taskId, String embeddingBoxId) {
     }
 }

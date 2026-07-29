@@ -2,7 +2,8 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-CONFIG_FILE="${RUN_CENTERS_CONFIG_FILE:-$SCRIPT_DIR/run-centers.conf}"
+PROD_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+CONFIG_FILE="${RUN_CENTERS_CONFIG_FILE:-$PROD_DIR/config/run-centers.conf}"
 
 if [ -f "$CONFIG_FILE" ]; then
   set -a
@@ -11,15 +12,15 @@ if [ -f "$CONFIG_FILE" ]; then
   set +a
 fi
 
-RUNTIME_DIR="${RUNTIME_DIR:-$SCRIPT_DIR}"
-LOG_DIR="${LOG_DIR:-$SCRIPT_DIR}"
+RUNTIME_DIR="${RUNTIME_DIR:-$PROD_DIR}"
+LOG_DIR="${LOG_DIR:-$PROD_DIR}"
 ACTION="${1:-start}"
 SERVICE_ARG="${2:-all}"
 
 BL_JAR_NAME="${BL_JAR_NAME:-bl-center.jar}"
 AUTH_JAR_NAME="${AUTH_JAR_NAME:-auth-center.jar}"
-BL_JAR_PATH="${BL_JAR_PATH:-$SCRIPT_DIR/$BL_JAR_NAME}"
-AUTH_JAR_PATH="${AUTH_JAR_PATH:-$SCRIPT_DIR/$AUTH_JAR_NAME}"
+BL_JAR_PATH="${BL_JAR_PATH:-$PROD_DIR/$BL_JAR_NAME}"
+AUTH_JAR_PATH="${AUTH_JAR_PATH:-$PROD_DIR/$AUTH_JAR_NAME}"
 
 if [ "$#" -gt 0 ]; then
   shift
@@ -41,13 +42,13 @@ Usage:
   ./run-centers.sh log [all|bl|auth] [-f]
 
 Default jar location:
-  bl-center.jar and auth-center.jar must be in the same directory as this script.
+  bl-center.jar and auth-center.jar must be in the scripts/prod root directory.
 
 Default log location:
-  bl-center.log and auth-center.log will be written to the same directory as this script.
+  bl-center.log and auth-center.log will be written to the scripts/prod root directory.
 
 Default pid location:
-  bl-center.pid and auth-center.pid will be written to the same directory as this script.
+  bl-center.pid and auth-center.pid will be written to the scripts/prod root directory.
 
 Optional environment variables:
   RUN_CENTERS_CONFIG_FILE Override the config file path, default: ./run-centers.conf
@@ -65,7 +66,7 @@ Optional environment variables:
   TAIL_LINES   Tail lines for log command, default: 200
 
 Optional config file:
-  Place ./run-centers.conf next to this script using shell-style KEY=VALUE lines.
+  Default: ../config/run-centers.conf relative to this script.
 EOF
 }
 

@@ -60,6 +60,10 @@ class SpecimenWorkflowInputNormalizer {
         return size <= 0 ? 20 : Math.min(size, 200);
     }
 
+    int normalizeExportSize(int size) {
+        return size <= 0 ? 10000 : Math.min(size, 10000);
+    }
+
     LocalDateTime parseDateFrom(String value) {
         if (blank(value)) {
             return null;

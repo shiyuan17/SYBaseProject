@@ -34,7 +34,8 @@ project-root
 
 ## 已落地但不属于独立业务中心的目录
 
-- `scripts/dev/`：本地开发启动脚本
+- `scripts/dev/`：本地开发启动脚本，内部已按 `windows/` 与 `unix/` 分层
+- `scripts/prod/`：生产启动与同步发布脚本，内部已按 `windows/`、`unix/`、`config/` 分层
 - `scripts/migration/`：Flyway 与迁移辅助脚本
 - `deploy/`：本地 GitLab 与环境样例
 - `.run/`：共享 IDE 运行配置

@@ -1,14 +1,31 @@
 #!/usr/bin/env sh
 set -eu
 
-ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 APP_NAME="bl-center"
-JAR_NAME="${BL_CENTER_JAR_NAME:-bl-center-0.1.0-SNAPSHOT-exec.jar}"
-JAR_PATH="${BL_CENTER_JAR_PATH:-$ROOT_DIR/bl-center/target/$JAR_NAME}"
-RUNTIME_DIR="${BL_CENTER_RUNTIME_DIR:-$ROOT_DIR/tmp/dev-services}"
+JAR_NAME="${BL_CENTER_JAR_NAME:-bl-center.jar}"
+JAR_PATH="${BL_CENTER_JAR_PATH:-$SCRIPT_DIR/$JAR_NAME}"
+RUNTIME_DIR="${BL_CENTER_RUNTIME_DIR:-$SCRIPT_DIR}"
 PID_FILE="$RUNTIME_DIR/$APP_NAME.pid"
-LOG_FILE="${BL_CENTER_LOG_FILE:-$ROOT_DIR/.logs/backend.log}"
-SPRING_PROFILE="${SPRING_PROFILES_ACTIVE:-dev}"
+LOG_FILE="${BL_CENTER_LOG_FILE:-$SCRIPT_DIR/log/$APP_NAME.log}"
+PROFILE_OVERRIDE=""
+
+case "${1:-}" in
+  --profile)
+    if [ "$#" -lt 2 ]; then
+      echo "Missing profile name after --profile." >&2
+      exit 1
+    fi
+    PROFILE_OVERRIDE=$2
+    shift 2
+    ;;
+  -?*)
+    PROFILE_OVERRIDE=${1#-}
+    shift
+    ;;
+esac
+
+SPRING_PROFILE="${PROFILE_OVERRIDE:-${BL_CENTER_SPRING_PROFILES_ACTIVE:-${SPRING_PROFILES_ACTIVE:-dev}}}"
 ACTION="${1:-start}"
 
 if [ "$#" -gt 0 ]; then
@@ -20,7 +37,16 @@ if [ ! -f "$JAR_PATH" ] && [ -f "$PWD/$JAR_NAME" ]; then
 fi
 
 usage() {
-  echo "Usage: $0 {start|stop|pause|resume|restart|status|logs} [args]"
+  echo "Usage: $0 [-<profile>|--profile <profile>] {start|stop|pause|resume|restart|status|logs} [args]"
+}
+
+display_profile() {
+  if [ -n "$SPRING_PROFILE" ]; then
+    printf '%s\n' "$SPRING_PROFILE"
+    return 0
+  fi
+
+  printf '%s\n' "default"
 }
 
 require_java() {
@@ -33,7 +59,7 @@ require_java() {
 require_jar() {
   if [ ! -f "$JAR_PATH" ]; then
     echo "BL jar not found: $JAR_PATH" >&2
-    echo "Set BL_CENTER_JAR_PATH or place $JAR_NAME in the current directory." >&2
+    echo "Set BL_CENTER_JAR_PATH or place $JAR_NAME in the script directory." >&2
     exit 1
   fi
 }
@@ -88,10 +114,15 @@ start_app() {
   fi
 
   touch "$LOG_FILE"
-  nohup java ${JAVA_OPTS:-} -jar "$JAR_PATH" --spring.profiles.active="$SPRING_PROFILE" "$@" >>"$LOG_FILE" 2>&1 &
+  set -- "$@"
+  if [ -n "$SPRING_PROFILE" ]; then
+    set -- "--spring.profiles.active=$SPRING_PROFILE" "$@"
+  fi
+  nohup java ${JAVA_OPTS:-} -jar "$JAR_PATH" "$@" >>"$LOG_FILE" 2>&1 &
   pid=$!
   printf '%s\n' "$pid" >"$PID_FILE"
   echo "Started $APP_NAME with PID $pid"
+  echo "Profile: $(display_profile)"
   echo "Log file: $LOG_FILE"
 }
 
@@ -157,12 +188,14 @@ status_app() {
     else
       echo "$APP_NAME is running with PID $pid"
     fi
+    echo "Profile: $(display_profile)"
     echo "Jar: $JAR_PATH"
     echo "Log: $LOG_FILE"
     return 0
   fi
 
   echo "$APP_NAME is not running"
+  echo "Profile: $(display_profile)"
   echo "Jar: $JAR_PATH"
   echo "Log: $LOG_FILE"
 }
