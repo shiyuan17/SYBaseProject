@@ -168,6 +168,7 @@ class MedicalOrderWorkflowServiceTest {
             null,
             null,
             null,
+            null,
             doctorUserId,
             "Doctor One",
             doctorUserId,

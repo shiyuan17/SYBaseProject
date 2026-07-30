@@ -124,6 +124,7 @@ public interface DiagnosticReportRepository {
         String specimenName,
         String taskType,
         String status,
+        String reportStatus,
         String priority,
         String assignmentMode,
         String assignedByUserId,

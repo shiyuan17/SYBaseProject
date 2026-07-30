@@ -176,6 +176,7 @@ public final class DiagnosticReportViews {
         String microscopicExam,
         String finalDiagnosis,
         String richTextContent,
+        String remarks,
         String submittedAt,
         String reviewedAt,
         String signedAt,
