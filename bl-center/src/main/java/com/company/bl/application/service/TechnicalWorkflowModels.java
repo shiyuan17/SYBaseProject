@@ -567,6 +567,34 @@ public final class TechnicalWorkflowModels {
     ) implements OperatorCarrier {
     }
 
+    public record GrossingDraftCommand(
+        String taskId,
+        String caseId,
+        String operatorUserId,
+        String operatorName,
+        String terminalCode,
+        String remarks,
+        List<GrossingSpecimenItem> specimens
+    ) implements OperatorCarrier {
+    }
+
+    public record GrossingDraft(
+        String taskId,
+        String caseId,
+        String terminalCode,
+        String remarks,
+        String savedAt,
+        List<GrossingSpecimenItem> specimens
+    ) {
+    }
+
+    public record GrossingDraftPayload(
+        String terminalCode,
+        String remarks,
+        List<GrossingSpecimenItem> specimens
+    ) {
+    }
+
     public record GrossingResult(String taskId, String caseId, String caseStatus, int createdDehydrationTaskCount) {
     }
 
@@ -615,7 +643,8 @@ public final class TechnicalWorkflowModels {
         String infectiousAndPastHistorySummary,
         String externalPathologyDiagnosis,
         List<TechnicalSpecimenRegistrationCheckItem> checkItems,
-        List<GrossingWorkbenchMediaAsset> mediaAssets
+        List<GrossingWorkbenchMediaAsset> mediaAssets,
+        GrossingDraft draft
     ) {
     }
 

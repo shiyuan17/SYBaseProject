@@ -211,6 +211,10 @@ public class TechnicalWorkflowAppService {
         return technicalGrossingWorkflowService.getGrossingWorkbenchContext(taskId);
     }
 
+    public TechnicalWorkflowModels.GrossingDraft saveGrossingDraft(TechnicalWorkflowModels.GrossingDraftCommand command) {
+        return technicalGrossingWorkflowService.saveGrossingDraft(command);
+    }
+
     public TechnicalWorkflowModels.GrossingResult completeGrossing(TechnicalWorkflowModels.GrossingCompleteCommand command) {
         return technicalGrossingWorkflowService.completeGrossing(command);
     }

@@ -1,5 +1,7 @@
 package com.company.bl.application.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.company.bl.domain.model.PathologyCase;
 import com.company.bl.domain.model.Specimen;
 import com.company.bl.domain.enums.BlErrorCode;
@@ -25,15 +27,18 @@ class TechnicalGrossingWorkflowService {
     private final TechnicalWorkflowSupport technicalWorkflowSupport;
     private final TechnicalWorkflowQueryService technicalWorkflowQueryService;
     private final TechnicalSpecimenRegistrationService technicalSpecimenRegistrationService;
+    private final ObjectMapper objectMapper;
 
     TechnicalGrossingWorkflowService(TechnicalWorkflowRepository technicalWorkflowRepository,
                                      TechnicalWorkflowSupport technicalWorkflowSupport,
                                      TechnicalWorkflowQueryService technicalWorkflowQueryService,
-                                     TechnicalSpecimenRegistrationService technicalSpecimenRegistrationService) {
+                                     TechnicalSpecimenRegistrationService technicalSpecimenRegistrationService,
+                                     ObjectMapper objectMapper) {
         this.technicalWorkflowRepository = technicalWorkflowRepository;
         this.technicalWorkflowSupport = technicalWorkflowSupport;
         this.technicalWorkflowQueryService = technicalWorkflowQueryService;
         this.technicalSpecimenRegistrationService = technicalSpecimenRegistrationService;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
@@ -54,6 +59,10 @@ class TechnicalGrossingWorkflowService {
                 .stream()
                 .map(this::toWorkbenchMediaAsset)
                 .toList();
+        TechnicalWorkflowModels.GrossingDraft draft = technicalWorkflowRepository
+            .findGrossingDraftByTaskId(task.id())
+            .map(this::toGrossingDraft)
+            .orElse(null);
         return new TechnicalWorkflowModels.GrossingWorkbenchContext(
             new TechnicalWorkflowModels.GrossingWorkbenchTaskSummary(
                 task.id(),
@@ -84,7 +93,35 @@ class TechnicalGrossingWorkflowService {
             workspace.detailSections().infectiousAndPastHistorySummary(),
             workspace.detailSections().externalPathologyDiagnosis(),
             detail.checkItems(),
-            mediaAssets);
+            mediaAssets,
+            draft);
+    }
+
+    @Transactional
+    TechnicalWorkflowModels.GrossingDraft saveGrossingDraft(TechnicalWorkflowModels.GrossingDraftCommand command) {
+        TechnicalWorkflowRecords.TechnicalTask task = technicalWorkflowSupport.requireActiveTask(
+            command.taskId(), TechnicalWorkflowConstants.NODE_GROSSING, TechnicalWorkflowConstants.OBJECT_CASE);
+        if (!task.caseId().equals(command.caseId())) {
+            throw invalidArgument("Grossing draft case does not match task");
+        }
+        List<TechnicalWorkflowModels.GrossingSpecimenItem> specimens = command.specimens() == null
+            ? List.of()
+            : command.specimens();
+        for (TechnicalWorkflowModels.GrossingSpecimenItem specimenItem : specimens) {
+            String specimenId = trimToNull(specimenItem.specimenId());
+            if (specimenId == null) {
+                continue;
+            }
+            Specimen specimen = technicalWorkflowSupport.getSpecimen(specimenId);
+            technicalWorkflowSupport.ensureSameCase(task.caseId(), specimen.caseId());
+        }
+        LocalDateTime now = LocalDateTime.now();
+        TechnicalWorkflowModels.GrossingDraftPayload payload = new TechnicalWorkflowModels.GrossingDraftPayload(
+            command.terminalCode(), command.remarks(), specimens);
+        technicalWorkflowRepository.saveGrossingDraft(new TechnicalWorkflowRecords.SaveGrossingDraftCommand(
+            task.id(), task.caseId(), serializeGrossingDraft(payload), command.operatorUserId(), command.operatorName(), now));
+        return new TechnicalWorkflowModels.GrossingDraft(
+            task.id(), task.caseId(), command.terminalCode(), command.remarks(), now.toString(), specimens);
     }
 
     @Transactional
@@ -101,6 +138,9 @@ class TechnicalGrossingWorkflowService {
     TechnicalWorkflowModels.GrossingResult completeGrossing(TechnicalWorkflowModels.GrossingCompleteCommand command) {
         TechnicalWorkflowRecords.TechnicalTask task = technicalWorkflowSupport.requireActiveTask(
             command.taskId(), TechnicalWorkflowConstants.NODE_GROSSING, TechnicalWorkflowConstants.OBJECT_CASE);
+        if (!task.caseId().equals(command.caseId())) {
+            throw invalidArgument("Grossing completion case does not match task");
+        }
         PathologyCase pathologyCase = technicalWorkflowSupport.getCase(task.caseId());
         LocalDateTime now = LocalDateTime.now();
         int nextTaskCount = 0;
@@ -177,7 +217,32 @@ class TechnicalGrossingWorkflowService {
                 command.operatorName(), command.terminalCode(), "Grossing completed for specimen " + specimen.specimenNo());
         }
         technicalWorkflowRepository.completeTechnicalTask(task.id(), TechnicalWorkflowConstants.TASK_COMPLETED, command.remarks(), now);
+        technicalWorkflowRepository.deleteGrossingDraft(task.id());
         return new TechnicalWorkflowModels.GrossingResult(task.id(), pathologyCase.id(), "SAMPLING", nextTaskCount);
+    }
+
+    private TechnicalWorkflowModels.GrossingDraft toGrossingDraft(TechnicalWorkflowRecords.GrossingDraft draft) {
+        try {
+            TechnicalWorkflowModels.GrossingDraftPayload payload = objectMapper.readValue(
+                draft.draftPayload(), TechnicalWorkflowModels.GrossingDraftPayload.class);
+            return new TechnicalWorkflowModels.GrossingDraft(
+                draft.taskId(),
+                draft.caseId(),
+                payload.terminalCode(),
+                payload.remarks(),
+                draft.savedAt().toString(),
+                payload.specimens() == null ? List.of() : payload.specimens());
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Unable to read grossing draft", exception);
+        }
+    }
+
+    private String serializeGrossingDraft(TechnicalWorkflowModels.GrossingDraftPayload payload) {
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Unable to save grossing draft", exception);
+        }
     }
 
     private List<TechnicalWorkflowModels.GrossingEmbeddingBoxItem> validateGrossingEmbeddingBoxes(

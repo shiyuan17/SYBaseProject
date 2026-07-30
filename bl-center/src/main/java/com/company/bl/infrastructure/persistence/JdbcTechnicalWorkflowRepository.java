@@ -28,10 +28,12 @@ import com.company.bl.domain.repository.TechnicalWorkflowRecords.DehydrationBatc
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.Embedding;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingBox;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingWorkstationRecord;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.GrossingDraft;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedSlicingWorkbenchRows;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedTechnicalTasks;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PendingTechnicalTaskQuery;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.SamplingBlock;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.SaveGrossingDraftCommand;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.SlicingWorkbenchQuery;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.SlicingWorkbenchStats;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.TechnicalTask;
@@ -270,6 +272,21 @@ public class JdbcTechnicalWorkflowRepository implements TechnicalWorkflowReposit
     @Override
     public void insertSamplingBlock(CreateSamplingBlockCommand command) {
         taskMutations.insertSamplingBlock(command);
+    }
+
+    @Override
+    public Optional<GrossingDraft> findGrossingDraftByTaskId(String taskId) {
+        return taskQueries.findGrossingDraftByTaskId(taskId);
+    }
+
+    @Override
+    public void saveGrossingDraft(SaveGrossingDraftCommand command) {
+        taskMutations.saveGrossingDraft(command);
+    }
+
+    @Override
+    public void deleteGrossingDraft(String taskId) {
+        taskMutations.deleteGrossingDraft(taskId);
     }
 
     @Override

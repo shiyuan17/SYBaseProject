@@ -5,8 +5,10 @@ import com.company.bl.application.service.TechnicalWorkflowModels;
 import com.company.bl.interfaces.auth.M3PermissionCodes;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.GrossingCompleteRequest;
+import com.company.bl.interfaces.dto.GrossingDraftRequest;
 import com.company.bl.interfaces.dto.TechnicalTaskStartRequest;
 import com.company.bl.interfaces.vo.GrossingWorkbenchContextResponse;
+import com.company.bl.interfaces.vo.GrossingDraftResponse;
 import com.company.bl.interfaces.vo.GrossingResponse;
 import com.company.bl.interfaces.vo.PendingTechnicalTaskResponse;
 import com.company.bl.interfaces.vo.TechnicalSpecimenRegistrationCheckItemResponse;
@@ -19,6 +21,7 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -77,7 +80,8 @@ public class GrossingController extends TechnicalControllerSupport {
                 item.fileUrl(),
                 item.capturedAt(),
                 item.capturedByName()))
-                .toList());
+                .toList(),
+            result.draft() == null ? null : toGrossingDraftResponse(result.draft()));
     }
 
     @Operation(summary = "开始取材", description = "将技术任务推进到取材中状态。")
@@ -93,6 +97,26 @@ public class GrossingController extends TechnicalControllerSupport {
                 request.getTerminalCode(),
                 request.getRemarks()));
         return new TaskOperationResponse(result.taskId(), result.caseId(), result.caseStatus(), result.taskStatus());
+    }
+
+    @Operation(summary = "保存取材草稿", description = "保存整单取材内容，不完成任务且不生成脱水任务。")
+    @RequirePermission(M3PermissionCodes.GROSSING)
+    @PutMapping("/{taskId}/draft")
+    public GrossingDraftResponse saveDraft(@PathVariable("taskId") String taskId,
+                                           @Valid @RequestBody GrossingDraftRequest request,
+                                           HttpServletRequest httpServletRequest) {
+        TechnicalWorkflowModels.GrossingDraft result = technicalWorkflowAppService.saveGrossingDraft(
+            new TechnicalWorkflowModels.GrossingDraftCommand(
+                taskId,
+                request.getCaseId(),
+                resolveUserId(httpServletRequest),
+                resolveOperatorName(httpServletRequest),
+                request.getTerminalCode(),
+                request.getRemarks(),
+                request.getSpecimens() == null ? java.util.List.of() : request.getSpecimens().stream()
+                    .map(this::toGrossingSpecimenItem)
+                    .toList()));
+        return toGrossingDraftResponse(result);
     }
 
     @Operation(summary = "完成取材", description = "完成取材并生成后续脱水任务。")
@@ -136,6 +160,58 @@ public class GrossingController extends TechnicalControllerSupport {
                         .toList()))
                     .toList()));
         return new GrossingResponse(result.taskId(), result.caseId(), result.caseStatus(), result.createdDehydrationTaskCount());
+    }
+
+    private TechnicalWorkflowModels.GrossingSpecimenItem toGrossingSpecimenItem(GrossingDraftRequest.SpecimenItem item) {
+        return new TechnicalWorkflowModels.GrossingSpecimenItem(
+            item.getSpecimenId(),
+            item.getSpecimenType(),
+            item.getBodyPartId(),
+            item.getSamplingTemplateId(),
+            item.getSizeText(),
+            item.getCutSurfaceFeature(),
+            item.getMarginMarking(),
+            item.getBlockCount(),
+            item.getGrossDescription(),
+            item.getBlocks() == null ? java.util.List.of() : item.getBlocks().stream()
+                .map(block -> new TechnicalWorkflowModels.GrossingBlockItem(
+                    block.getBlockSite(), block.getBlockDescription(), block.getSpecialRequirement()))
+                .toList(),
+            item.getMediaAssets() == null ? java.util.List.of() : item.getMediaAssets().stream()
+                .map(asset -> new TechnicalWorkflowModels.MediaAssetInput(asset.getFileUrl(), asset.getFileName()))
+                .toList(),
+            item.getEmbeddingBoxes() == null ? java.util.List.of() : item.getEmbeddingBoxes().stream()
+                .map(box -> new TechnicalWorkflowModels.GrossingEmbeddingBoxItem(
+                    box.getSequenceNo(), box.getBoxName(), box.getEmbeddingBoxNo(), box.getStatus(), box.getEmbeddingRemarks()))
+                .toList());
+    }
+
+    private GrossingDraftResponse toGrossingDraftResponse(TechnicalWorkflowModels.GrossingDraft draft) {
+        return new GrossingDraftResponse(
+            draft.taskId(),
+            draft.caseId(),
+            draft.terminalCode(),
+            draft.remarks(),
+            draft.savedAt(),
+            draft.specimens().stream().map(item -> new GrossingDraftResponse.SpecimenItem(
+                item.specimenId(),
+                item.specimenType(),
+                item.bodyPartId(),
+                item.samplingTemplateId(),
+                item.sizeText(),
+                item.cutSurfaceFeature(),
+                item.marginMarking(),
+                item.blockCount(),
+                item.grossDescription(),
+                item.blocks().stream().map(block -> new GrossingDraftResponse.BlockItem(
+                    block.blockSite(), block.blockDescription(), block.specialRequirement())).toList(),
+                item.mediaAssets().stream().map(asset -> new GrossingDraftResponse.MediaAssetItem(
+                    asset.fileUrl(), asset.fileName())).toList(),
+                item.embeddingBoxes() == null ? java.util.List.of() : item.embeddingBoxes().stream()
+                    .map(box -> new GrossingDraftResponse.EmbeddingBoxItem(
+                        box.sequenceNo(), box.boxName(), box.embeddingBoxNo(), box.status(), box.embeddingRemarks()))
+                    .toList()))
+                .toList());
     }
 
     private TechnicalTrackingResponse toTrackingResponse(TechnicalWorkflowModels.TechnicalTrackingView result) {

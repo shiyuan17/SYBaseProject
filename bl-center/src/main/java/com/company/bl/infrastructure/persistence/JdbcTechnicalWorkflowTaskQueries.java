@@ -4,6 +4,7 @@ import com.company.bl.domain.model.PathologyCase;
 import com.company.bl.domain.model.Specimen;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.DehydrationBatch;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.DehydrationBatchItem;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.GrossingDraft;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedTechnicalTasks;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PendingTechnicalTaskQuery;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.SamplingBlock;
@@ -81,6 +82,22 @@ final class JdbcTechnicalWorkflowTaskQueries {
         List<TechnicalTask> rows = jdbcTemplate.query(taskSelectSql() + """
             where t.id = :taskId
             """, Map.of("taskId", taskId), rowMappers::mapTechnicalTask);
+        return rows.stream().findFirst();
+    }
+
+    Optional<GrossingDraft> findGrossingDraftByTaskId(String taskId) {
+        List<GrossingDraft> rows = jdbcTemplate.query("""
+            select task_id, case_id, draft_payload, saved_by_user_id, saved_by_name, saved_at, updated_at
+            from grossing_drafts
+            where task_id = :taskId
+            """, Map.of("taskId", taskId), (rs, rowNum) -> new GrossingDraft(
+            rs.getString("task_id"),
+            rs.getString("case_id"),
+            rs.getString("draft_payload"),
+            rs.getString("saved_by_user_id"),
+            rs.getString("saved_by_name"),
+            rs.getTimestamp("saved_at").toLocalDateTime(),
+            rs.getTimestamp("updated_at").toLocalDateTime()));
         return rows.stream().findFirst();
     }
 

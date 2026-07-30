@@ -7,10 +7,12 @@ import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateEmbedding
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateSamplingBlockCommand;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateSamplingCommand;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.CreateTechnicalTaskCommand;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.SaveGrossingDraftCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 final class JdbcTechnicalWorkflowTaskMutations {
 
@@ -270,6 +272,39 @@ final class JdbcTechnicalWorkflowTaskMutations {
             .addValue("embeddingRemarks", command.embeddingRemarks())
             .addValue("createdAt", LocalDateTime.now())
             .addValue("updatedAt", LocalDateTime.now()));
+    }
+
+    void saveGrossingDraft(SaveGrossingDraftCommand command) {
+        MapSqlParameterSource parameters = new MapSqlParameterSource()
+            .addValue("taskId", command.taskId())
+            .addValue("caseId", command.caseId())
+            .addValue("draftPayload", command.draftPayload())
+            .addValue("savedByUserId", command.savedByUserId())
+            .addValue("savedByName", command.savedByName())
+            .addValue("savedAt", command.savedAt())
+            .addValue("updatedAt", command.savedAt());
+        int updated = jdbcTemplate.update("""
+            update grossing_drafts
+            set case_id = :caseId,
+                draft_payload = :draftPayload,
+                saved_by_user_id = :savedByUserId,
+                saved_by_name = :savedByName,
+                saved_at = :savedAt,
+                updated_at = :updatedAt
+            where task_id = :taskId
+            """, parameters);
+        if (updated == 0) {
+            jdbcTemplate.update("""
+                insert into grossing_drafts
+                    (task_id, case_id, draft_payload, saved_by_user_id, saved_by_name, saved_at, updated_at)
+                values
+                    (:taskId, :caseId, :draftPayload, :savedByUserId, :savedByName, :savedAt, :updatedAt)
+                """, parameters);
+        }
+    }
+
+    void deleteGrossingDraft(String taskId) {
+        jdbcTemplate.update("delete from grossing_drafts where task_id = :taskId", Map.of("taskId", taskId));
     }
 
     void insertDehydrationBatch(CreateDehydrationBatchCommand command) {
