@@ -93,6 +93,10 @@ class M1RoleAuthorizationIntegrationTest extends AuthenticatedWebIntegrationTest
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.id", is("ST_HE_STOMACH")));
 
+        mockMvc.perform(asUser(get("/api/v1/check-item-rules"), USER_M1_ADMIN))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()", is(25)));
+
         mockMvc.perform(asUser(patch("/api/v1/system-configs/items/SCI_TEMPLATE_MATCH"), USER_M1_ADMIN)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
@@ -159,6 +163,10 @@ class M1RoleAuthorizationIntegrationTest extends AuthenticatedWebIntegrationTest
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
 
         mockMvc.perform(asUser(get("/api/v1/numbering-rules"), USER_M1_QUALITY))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+
+        mockMvc.perform(asUser(get("/api/v1/check-item-rules"), USER_M1_QUALITY))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
     }

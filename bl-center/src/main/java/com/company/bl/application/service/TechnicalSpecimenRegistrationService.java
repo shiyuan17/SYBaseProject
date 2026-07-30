@@ -1094,7 +1094,7 @@ class TechnicalSpecimenRegistrationService {
         }
 
         String pathologyNo = trimToNull(existingPathologyNo);
-        if (pathologyNo == null || !numberingService.matchesPathologyNoRule(applicationType, pathologyNo)) {
+        if (pathologyNo == null) {
             pathologyNo = numberingService.generatePathologyNo(applicationType);
             specimenWorkflowCommandRepository.updatePathologyCasePathologyNo(caseId, pathologyNo);
         }
@@ -1106,12 +1106,7 @@ class TechnicalSpecimenRegistrationService {
         String applicationType,
         String pathologyNo
     ) {
-        if (!numberingService.matchesPathologyNoRule(applicationType, pathologyNo)) {
-            throw new BlBusinessException(
-                BlErrorCode.INVALID_ARGUMENT,
-                400,
-                "Pathology number does not match selected application type");
-        }
+        numberingService.validateAndAcceptPathologyNo(caseId, applicationType, pathologyNo);
         technicalWorkflowRepository.findPathologyCaseByPathologyNo(pathologyNo)
             .filter(existingCase -> !caseId.equals(existingCase.id()))
             .ifPresent(existingCase -> {

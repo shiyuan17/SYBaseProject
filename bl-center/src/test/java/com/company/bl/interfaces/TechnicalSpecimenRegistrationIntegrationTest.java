@@ -29,6 +29,25 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWorkflowIntegrationTest {
 
     @Test
+    void shouldRestrictPathologyNumberPreviewToSpecimenReceivers() throws Exception {
+        mockMvc.perform(authorized(
+                get("/api/v1/technical-specimen-registrations/pathology-number-preview")
+                    .param("applicationType", "ROUTINE"),
+                USER_RECEIVE))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.applicationType").value("ROUTINE"))
+            .andExpect(jsonPath("$.data.configured").value(true))
+            .andExpect(jsonPath("$.data.suggestedPathologyNo").isNotEmpty());
+
+        mockMvc.perform(authorized(
+                get("/api/v1/technical-specimen-registrations/pathology-number-preview")
+                    .param("applicationType", "ROUTINE"),
+                USER_M3_GROSSING))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+    }
+
+    @Test
     void shouldCreatePendingRegistrationAfterReceiptWithoutImmediateGrossingTask() throws Exception {
         TechnicalCaseContext context =
             receiveCaseAndGetPendingRegistration("APP-M3-REG-001", "BC-M3-REG-001");
@@ -376,7 +395,7 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
     }
 
     @Test
-    void shouldRegeneratePathologyNoWhenSelectedTypeDoesNotMatchExistingRule() throws Exception {
+    void shouldPreserveExistingPathologyNoWhenSelectedTypeChanges() throws Exception {
         TechnicalCaseContext context =
             receiveCaseAndGetPendingRegistration("APP-M3-REG-SUP-002B", "BC-M3-REG-SUP-002B");
 
@@ -403,8 +422,7 @@ class TechnicalSpecimenRegistrationIntegrationTest extends AbstractTechnicalWork
             );
         String supplementalPathologyNo = secondCompletion.path("pathologyNo").asText();
 
-        assertThat(supplementalPathologyNo).matches("^MS\\d{2}\\d{5}$");
-        assertThat(supplementalPathologyNo).isNotEqualTo(routinePathologyNo);
+        assertThat(supplementalPathologyNo).isEqualTo(routinePathologyNo);
 
         String persistedApplicationType = namedParameterJdbcTemplate.queryForObject("""
             select application_type
