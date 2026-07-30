@@ -238,6 +238,22 @@ class MasterDataControllerIntegrationTest extends AuthenticatedWebIntegrationTes
             .andExpect(jsonPath("$.data.id", is("NR_APPLICATION")))
             .andExpect(jsonPath("$.data.prefixPattern", is("APX")));
 
+        mockMvc.perform(asAdmin(patch("/api/v1/numbering-rules/NR_CHECK_ITEM_RESEARCH"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "prefixPattern": "BYPASS",
+                      "datePattern": "yyyyMMdd",
+                      "seqLength": 4,
+                      "resetPolicy": "DAILY",
+                      "scopeType": "GLOBAL",
+                      "enabled": true,
+                      "remarks": "legacy endpoint bypass"
+                    }
+                    """))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message", containsString("check-item rule API")));
+
         assertTrue(supportJdbcRepository.findOperationLogs("SUPPORT").stream().anyMatch(log ->
             "update_numbering_rule".equals(log.get("operation_name"))
                 && "SUCCESS".equals(log.get("operation_result"))

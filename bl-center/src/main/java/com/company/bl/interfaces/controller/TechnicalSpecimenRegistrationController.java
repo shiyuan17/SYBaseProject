@@ -24,6 +24,7 @@ import com.company.bl.interfaces.vo.TechnicalSpecimenRegistrationMediaAssetDelet
 import com.company.bl.interfaces.vo.TechnicalSpecimenRegistrationMediaAssetResponse;
 import com.company.bl.interfaces.vo.TechnicalSpecimenRegistrationMaterialResponse;
 import com.company.bl.interfaces.vo.TechnicalSpecimenRegistrationWorkspaceResponse;
+import com.company.bl.support.application.CheckItemRuleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -53,11 +54,24 @@ public class TechnicalSpecimenRegistrationController extends TechnicalController
 
     private final TechnicalWorkflowAppService technicalWorkflowAppService;
     private final GrossingMediaStorageService grossingMediaStorageService;
+    private final CheckItemRuleService checkItemRuleService;
 
     public TechnicalSpecimenRegistrationController(TechnicalWorkflowAppService technicalWorkflowAppService,
-                                                   GrossingMediaStorageService grossingMediaStorageService) {
+                                                   GrossingMediaStorageService grossingMediaStorageService,
+                                                   CheckItemRuleService checkItemRuleService) {
         this.technicalWorkflowAppService = technicalWorkflowAppService;
         this.grossingMediaStorageService = grossingMediaStorageService;
+        this.checkItemRuleService = checkItemRuleService;
+    }
+
+    @Operation(summary = "预览病理号", description = "按送检类型返回当前规则状态和不占号的候选病理号。")
+    @RequirePermission(M2PermissionCodes.SPECIMEN_RECEIVE)
+    @GetMapping("/pathology-number-preview")
+    public CheckItemRuleService.PathologyNumberPreview previewPathologyNumber(
+        @Parameter(description = "送检类型", required = true)
+        @RequestParam String applicationType
+    ) {
+        return checkItemRuleService.preview(applicationType);
     }
 
     @Operation(summary = "查询待技术登记病例", description = "分页查询病理接收后待进入技术登记环节的病例。")

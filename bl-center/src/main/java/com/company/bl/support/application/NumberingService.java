@@ -3,6 +3,7 @@ package com.company.bl.support.application;
 import com.company.bl.domain.enums.BlErrorCode;
 import com.company.bl.domain.exception.BlBusinessException;
 import com.company.bl.support.infrastructure.SupportJdbcRepository;
+import com.company.bl.support.infrastructure.CheckItemRuleRepository;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -92,19 +93,34 @@ public class NumberingService {
 
     private final SupportJdbcRepository supportJdbcRepository;
     private final OperationAuditService operationAuditService;
+    private final CheckItemRuleService checkItemRuleService;
     private final Clock clock;
 
     @Autowired
     public NumberingService(SupportJdbcRepository supportJdbcRepository,
+                            OperationAuditService operationAuditService,
+                            CheckItemRuleService checkItemRuleService) {
+        this(supportJdbcRepository, operationAuditService, checkItemRuleService, Clock.systemDefaultZone());
+    }
+
+    public NumberingService(SupportJdbcRepository supportJdbcRepository,
                             OperationAuditService operationAuditService) {
-        this(supportJdbcRepository, operationAuditService, Clock.systemDefaultZone());
+        this(supportJdbcRepository, operationAuditService, null, Clock.systemDefaultZone());
     }
 
     NumberingService(SupportJdbcRepository supportJdbcRepository,
                      OperationAuditService operationAuditService,
                      Clock clock) {
+        this(supportJdbcRepository, operationAuditService, null, clock);
+    }
+
+    NumberingService(SupportJdbcRepository supportJdbcRepository,
+                     OperationAuditService operationAuditService,
+                     CheckItemRuleService checkItemRuleService,
+                     Clock clock) {
         this.supportJdbcRepository = supportJdbcRepository;
         this.operationAuditService = operationAuditService;
+        this.checkItemRuleService = checkItemRuleService;
         this.clock = clock;
     }
 
@@ -112,6 +128,7 @@ public class NumberingService {
     @Transactional(readOnly = true)
     public List<NumberingRuleView> listRules() {
         return supportJdbcRepository.findNumberingRules().stream()
+            .filter(row -> !row.bizType().startsWith(CheckItemRuleRepository.BIZ_PREFIX))
             .map(this::toView)
             .toList();
     }
@@ -123,6 +140,13 @@ public class NumberingService {
             SupportJdbcRepository.NumberingRuleRow current = supportJdbcRepository.findNumberingRuleById(id);
             if (current == null) {
                 throw new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Numbering rule not found");
+            }
+            if (current.bizType().startsWith(CheckItemRuleRepository.BIZ_PREFIX)) {
+                throw new BlBusinessException(
+                    BlErrorCode.OPERATION_NOT_ALLOWED,
+                    409,
+                    "Check-item rules must be updated through the check-item rule API"
+                );
             }
             if (command.seqLength() < 1 || command.seqLength() > 12) {
                 throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "Sequence length must be between 1 and 12");
@@ -157,11 +181,17 @@ public class NumberingService {
 
     @Transactional
     public String generatePathologyNo(String applicationType) {
+        if (checkItemRuleService != null) {
+            return checkItemRuleService.generatePathologyNo(applicationType);
+        }
         PathologyNoRule rule = resolvePathologyNoRule(applicationType);
         return generatePathologyNoWithRule(rule);
     }
 
     public boolean matchesPathologyNoRule(String applicationType, String pathologyNo) {
+        if (checkItemRuleService != null) {
+            return checkItemRuleService.matchesPathologyNoRule(applicationType, pathologyNo);
+        }
         if (blank(pathologyNo)) {
             return false;
         }
@@ -171,6 +201,21 @@ public class NumberingService {
             "^" + Pattern.quote(rule.prefix()) + dateDigits + "\\d{" + rule.seqLength() + "}$",
             Pattern.CASE_INSENSITIVE
         ).matcher(pathologyNo.trim()).matches();
+    }
+
+    @Transactional
+    public void validateAndAcceptPathologyNo(String caseId, String applicationType, String pathologyNo) {
+        if (checkItemRuleService != null) {
+            checkItemRuleService.validateAndAcceptCandidate(caseId, applicationType, pathologyNo);
+            return;
+        }
+        if (!matchesPathologyNoRule(applicationType, pathologyNo)) {
+            throw new BlBusinessException(
+                BlErrorCode.INVALID_ARGUMENT,
+                400,
+                "Pathology number does not match selected application type"
+            );
+        }
     }
 
     @Transactional

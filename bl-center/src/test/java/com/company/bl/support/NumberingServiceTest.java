@@ -2,6 +2,8 @@ package com.company.bl.support;
 
 import com.company.bl.support.application.NumberingService;
 import com.company.bl.support.application.OperationAuditService;
+import com.company.bl.support.application.CheckItemRuleService;
+import com.company.bl.support.infrastructure.CheckItemRuleRepository;
 import com.company.bl.support.infrastructure.SupportJdbcRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,13 +17,20 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @JdbcTest
 @ActiveProfiles("test")
-@Import({SupportJdbcRepository.class, OperationAuditService.class, NumberingService.class})
+@Import({
+    SupportJdbcRepository.class,
+    CheckItemRuleRepository.class,
+    CheckItemRuleService.class,
+    OperationAuditService.class,
+    NumberingService.class
+})
 class NumberingServiceTest {
 
     @Autowired
@@ -72,6 +81,15 @@ class NumberingServiceTest {
             "update_numbering_rule".equals(log.get("operation_name"))
                 && "FAILED".equals(log.get("operation_result"))
                 && "NR_MISSING".equals(log.get("business_id"))));
+    }
+
+    @Test
+    void shouldRejectUpdatingCheckItemRuleThroughLegacyEndpoint() {
+        assertThatThrownBy(() -> numberingService.updateRule(
+            "NR_CHECK_ITEM_RESEARCH",
+            new NumberingService.UpdateNumberingRuleCommand(
+                "BYPASS", "yyyyMMdd", 4, "DAILY", "GLOBAL", true, "legacy bypass")))
+            .hasMessageContaining("check-item rule API");
     }
 
     @Test
