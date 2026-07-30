@@ -16,6 +16,8 @@ import com.company.bl.domain.repository.TechnicalWorkflowRecords.DehydrationBatc
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.Embedding;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingBox;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingWorkstationRecord;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.GrossingDraft;
+import com.company.bl.domain.repository.TechnicalWorkflowRecords.SaveGrossingDraftCommand;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.WorkstationDailyClearRecord;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedTechnicalSpecimenRegistrations;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords.PagedTechnicalTasks;
@@ -144,6 +146,12 @@ public interface TechnicalWorkflowRepository {
     void insertSampling(CreateSamplingCommand command);
 
     void insertSamplingBlock(CreateSamplingBlockCommand command);
+
+    Optional<GrossingDraft> findGrossingDraftByTaskId(String taskId);
+
+    void saveGrossingDraft(SaveGrossingDraftCommand command);
+
+    void deleteGrossingDraft(String taskId);
 
     List<SamplingBlock> findSamplingBlocksByIds(List<String> samplingBlockIds);
 

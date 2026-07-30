@@ -289,6 +289,27 @@ public final class TechnicalWorkflowRecords {
     ) {
     }
 
+    public record GrossingDraft(
+        String taskId,
+        String caseId,
+        String draftPayload,
+        String savedByUserId,
+        String savedByName,
+        LocalDateTime savedAt,
+        LocalDateTime updatedAt
+    ) {
+    }
+
+    public record SaveGrossingDraftCommand(
+        String taskId,
+        String caseId,
+        String draftPayload,
+        String savedByUserId,
+        String savedByName,
+        LocalDateTime savedAt
+    ) {
+    }
+
     public record CreateSamplingBlockCommand(
         String id,
         String caseId,

@@ -29,7 +29,9 @@ public record GrossingWorkbenchContextResponse(
     @Schema(description = "检查项目")
     List<TechnicalSpecimenRegistrationCheckItemResponse> checkItems,
     @Schema(description = "已采影像")
-    List<MediaAssetSummary> mediaAssets
+    List<MediaAssetSummary> mediaAssets,
+    @Schema(description = "未完成取材草稿")
+    GrossingDraftResponse draft
 ) {
     @Schema(name = "GrossingWorkbenchTaskSummaryResponse", description = "取材任务摘要")
     public record TaskSummary(
