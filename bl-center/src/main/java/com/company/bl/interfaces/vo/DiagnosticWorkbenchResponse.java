@@ -167,6 +167,8 @@ public record DiagnosticWorkbenchResponse(
         String finalDiagnosis,
         @Schema(description = "Rich text content")
         String richTextContent,
+        @Schema(description = "Diagnosis report remarks")
+        String remarks,
         @Schema(description = "Submitted at")
         String submittedAt,
         @Schema(description = "Reviewed at")

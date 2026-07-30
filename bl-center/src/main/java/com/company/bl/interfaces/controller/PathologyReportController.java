@@ -3,6 +3,7 @@ package com.company.bl.interfaces.controller;
 import com.company.bl.application.service.DiagnosticReportAppService;
 import com.company.bl.application.service.DiagnosticReportModels;
 import com.company.bl.interfaces.auth.M4PermissionCodes;
+import com.company.bl.interfaces.auth.RequireAnyPermission;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.CreatePathologyReportRequest;
 import com.company.bl.interfaces.dto.DiagnosticTaskActionRequest;
@@ -55,7 +56,7 @@ public class PathologyReportController extends TechnicalControllerSupport {
     }
 
     @Operation(summary = "保存病理报告草稿", description = "更新当前病理报告草稿，不生成历史版本。")
-    @RequirePermission(M4PermissionCodes.REPORT_CREATE)
+    @RequireAnyPermission({M4PermissionCodes.REPORT_CREATE, M4PermissionCodes.REPORT_REVIEW})
     @PostMapping("/{id}/save-draft")
     public PathologyReportOperationResponse saveDraft(@PathVariable("id") String reportId,
                                                       @Valid @RequestBody UpdatePathologyReportDraftRequest request,

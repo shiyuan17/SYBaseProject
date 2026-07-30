@@ -165,6 +165,7 @@ public class DiagnosticTaskController extends TechnicalControllerSupport {
             item.specimenName(),
             item.taskType(),
             item.taskStatus(),
+            item.reportStatus(),
             item.diagnosisDoctorUserId(),
             item.diagnosisDoctorName(),
             item.primaryDoctorUserId(),

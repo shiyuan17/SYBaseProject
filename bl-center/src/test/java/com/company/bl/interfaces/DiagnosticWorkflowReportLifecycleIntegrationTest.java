@@ -250,6 +250,27 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.reportStatus").value("REVIEWED"));
 
+        postJson("/api/v1/pathology-reports/%s/save-draft".formatted(reportId), USER_M4_DIAGNOSIS, """
+            {
+              "clinicalDiagnosis": "unauthorized change",
+              "finalDiagnosis": "unauthorized change"
+            }
+            """)
+            .andExpect(status().isForbidden());
+
+        postJson("/api/v1/pathology-reports/%s/save-draft".formatted(reportId), USER_M4_REVIEW, """
+            {
+              "clinicalDiagnosis": "reviewed clinical",
+              "grossExam": "reviewed gross",
+              "microscopicExam": "reviewed micro",
+              "finalDiagnosis": "reviewed final",
+              "richTextContent": "<p>reviewed report</p>",
+              "remarks": "审核医生修改"
+            }
+            """)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.reportStatus").value("REVIEWED"));
+
         postJson("/api/v1/pathology-reports/%s/sign".formatted(reportId), USER_M4_SIGN, """
             {
               
@@ -259,6 +280,10 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.reportStatus").value("SIGNED"))
             .andExpect(jsonPath("$.data.versionStatus").value("SIGNED"));
+
+        JsonNode signedTask = listPendingDiagnosticTasks(context.pathologyNo(), USER_M4_ASSIGN)
+            .path("items").get(0);
+        assertThat(signedTask.path("reportStatus").asText()).isEqualTo("SIGNED");
 
         postJson("/api/v1/pathology-reports/%s/publish".formatted(reportId), USER_M4_SIGN, """
             {
@@ -272,6 +297,8 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
 
         JsonNode workbench = diagnosticWorkbench(context.caseId(), USER_M4_DIAGNOSIS);
         assertThat(workbench.path("currentReport").path("reportStatus").asText()).isEqualTo("PUBLISHED");
+        assertThat(workbench.path("currentReport").path("finalDiagnosis").asText()).isEqualTo("reviewed final");
+        assertThat(workbench.path("currentReport").path("remarks").asText()).isEqualTo("审核医生修改");
         assertThat(workbench.path("slides")).hasSize(1);
 
         JsonNode tracking = reportTracking(context.caseId(), USER_M4_TRACKING);

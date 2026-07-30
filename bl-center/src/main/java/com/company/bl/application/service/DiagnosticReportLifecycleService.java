@@ -100,8 +100,22 @@ class DiagnosticReportLifecycleService {
     @Transactional
     DiagnosticReportModels.PathologyReportResult saveDraft(DiagnosticReportModels.UpdateReportDraftCommand command) {
         DiagnosticReportRepository.PathologyReport report = diagnosticReportSupport.getReport(command.reportId());
-        diagnosticReportSupport.ensureDraftReport(report);
-        diagnosticReportSupport.ensureAssignedDoctor(diagnosticReportSupport.getDiagnosticTask(report.taskId()), command.operatorUserId());
+        DiagnosticReportRepository.DiagnosticTask task = diagnosticReportSupport.getDiagnosticTask(report.taskId());
+        String eventNodeCode;
+        String eventContent;
+        if (DiagnosticReportConstants.REPORT_DRAFT.equals(report.reportStatus())) {
+            diagnosticReportSupport.ensureAssignedDoctor(task, command.operatorUserId());
+            eventNodeCode = "REPORT_DRAFT";
+            eventContent = "Draft report saved";
+        } else if (DiagnosticReportConstants.REPORT_REVIEWED.equals(report.reportStatus())) {
+            diagnosticReportSupport.ensureReviewer(task, command.operatorUserId());
+            eventNodeCode = "REPORT_REVIEW";
+            eventContent = "Reviewed report saved";
+        } else {
+            diagnosticReportSupport.ensureDraftReport(report);
+            eventNodeCode = "REPORT_DRAFT";
+            eventContent = "Draft report saved";
+        }
         diagnosticReportRepository.updatePathologyReportDraft(new DiagnosticReportRepository.UpdatePathologyReportDraftCommand(
             report.id(),
             command.grossExam(),
@@ -111,8 +125,8 @@ class DiagnosticReportLifecycleService {
             command.richTextContent(),
             command.remarks(),
             LocalDateTime.now()));
-        diagnosticReportSupport.insertWorkflowEvent(report.caseId(), "REPORT_DRAFT", "SAVE", "SUCCESS",
-            command.operatorUserId(), command.operatorName(), command.terminalCode(), "Draft report saved");
+        diagnosticReportSupport.insertWorkflowEvent(report.caseId(), eventNodeCode, "SAVE", "SUCCESS",
+            command.operatorUserId(), command.operatorName(), command.terminalCode(), eventContent);
         DiagnosticReportRepository.PathologyReport updated = diagnosticReportSupport.getReport(report.id());
         return new DiagnosticReportModels.PathologyReportResult(updated.id(), updated.caseId(), updated.reportNo(), updated.reportStatus(), null, null);
     }

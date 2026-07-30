@@ -42,6 +42,7 @@ public final class DiagnosticReportModels {
         String specimenName,
         String taskType,
         String taskStatus,
+        String reportStatus,
         String diagnosisDoctorUserId,
         String diagnosisDoctorName,
         String primaryDoctorUserId,

@@ -99,7 +99,7 @@ final class JdbcPathologyReportStore {
                 clinical_diagnosis = :clinicalDiagnosis,
                 final_diagnosis = :finalDiagnosis,
                 rich_text_content = :richTextContent,
-                remarks = :remarks,
+                remarks = coalesce(:remarks, remarks),
                 updated_at = :updatedAt
             where id = :reportId
             """, new MapSqlParameterSource()
@@ -118,7 +118,7 @@ final class JdbcPathologyReportStore {
             update pathology_reports
             set report_status = 'SUBMITTED',
                 submitted_at = :submittedAt,
-                remarks = :remarks,
+                remarks = coalesce(:remarks, remarks),
                 updated_at = :updatedAt
             where id = :reportId
             """, new MapSqlParameterSource()
@@ -139,7 +139,7 @@ final class JdbcPathologyReportStore {
                 reviewer_user_id = :reviewerUserId,
                 reviewer_name = :reviewerName,
                 reviewed_at = :reviewedAt,
-                remarks = :remarks,
+                remarks = coalesce(:remarks, remarks),
                 updated_at = :updatedAt
             where id = :reportId
             """, new MapSqlParameterSource()
@@ -155,7 +155,7 @@ final class JdbcPathologyReportStore {
         jdbcTemplate.update("""
             update pathology_reports
             set report_status = 'DRAFT',
-                remarks = :remarks,
+                remarks = coalesce(:remarks, remarks),
                 updated_at = :updatedAt
             where id = :reportId
             """, new MapSqlParameterSource()
@@ -180,7 +180,7 @@ final class JdbcPathologyReportStore {
                 signed_by_name = null,
                 signed_at = null,
                 published_at = null,
-                remarks = :remarks,
+                remarks = coalesce(:remarks, remarks),
                 updated_at = :updatedAt
             where id = :reportId
             """, new MapSqlParameterSource()
@@ -201,7 +201,7 @@ final class JdbcPathologyReportStore {
                 signed_by_user_id = :signedByUserId,
                 signed_by_name = :signedByName,
                 signed_at = :signedAt,
-                remarks = :remarks,
+                remarks = coalesce(:remarks, remarks),
                 updated_at = :updatedAt
             where id = :reportId
             """, new MapSqlParameterSource()
@@ -218,7 +218,7 @@ final class JdbcPathologyReportStore {
             update pathology_reports
             set report_status = 'PUBLISHED',
                 published_at = :publishedAt,
-                remarks = :remarks,
+                remarks = coalesce(:remarks, remarks),
                 updated_at = :updatedAt
             where id = :reportId
             """, new MapSqlParameterSource()

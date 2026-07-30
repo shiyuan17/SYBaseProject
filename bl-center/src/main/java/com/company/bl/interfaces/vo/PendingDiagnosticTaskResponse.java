@@ -34,6 +34,8 @@ public record PendingDiagnosticTaskResponse(
     String taskType,
     @Schema(description = "任务状态")
     String taskStatus,
+    @Schema(description = "报告生命周期状态")
+    String reportStatus,
     @Schema(description = "责任诊断医生用户 ID")
     String diagnosisDoctorUserId,
     @Schema(description = "责任诊断医生姓名")

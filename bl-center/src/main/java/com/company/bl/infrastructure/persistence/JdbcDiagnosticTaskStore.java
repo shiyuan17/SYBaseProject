@@ -269,6 +269,13 @@ final class JdbcDiagnosticTaskStore {
                 ) as specimen_name,
                 dt.task_type,
                 dt.status,
+                (
+                    select pr.report_status
+                    from pathology_reports pr
+                    where pr.task_id = dt.id
+                    order by pr.created_at desc, pr.id desc
+                    fetch first 1 rows only
+                ) as report_status,
                 dt.priority,
                 dt.assignment_mode,
                 dt.assigned_by_user_id,
@@ -369,6 +376,7 @@ final class JdbcDiagnosticTaskStore {
             rs.getString("specimen_name"),
             rs.getString("task_type"),
             rs.getString("status"),
+            rs.getString("report_status"),
             rs.getString("priority"),
             rs.getString("assignment_mode"),
             rs.getString("assigned_by_user_id"),
