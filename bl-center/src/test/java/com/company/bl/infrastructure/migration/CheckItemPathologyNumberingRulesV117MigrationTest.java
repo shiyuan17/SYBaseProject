@@ -20,7 +20,7 @@ class CheckItemPathologyNumberingRulesV117MigrationTest {
         String url = "jdbc:h2:mem:check_item_rules_v117_" + System.nanoTime()
             + ";MODE=LEGACY;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false";
 
-        migrateTo(url, "115");
+        migrateTo(url, "116");
         String routinePathologyNo = "BL" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) + "0321";
         try (Connection connection = DriverManager.getConnection(url, "sa", "");
              Statement statement = connection.createStatement()) {
@@ -61,6 +61,7 @@ class CheckItemPathologyNumberingRulesV117MigrationTest {
             .baselineOnMigrate(true)
             .baselineVersion(MigrationVersion.fromVersion("116"))
             .baselineDescription("check-item-rules-v117-replay")
+            .target(MigrationVersion.fromVersion("117"))
             .load()
             .migrate();
     }
