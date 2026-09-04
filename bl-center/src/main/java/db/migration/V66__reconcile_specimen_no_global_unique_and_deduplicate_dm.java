@@ -37,7 +37,7 @@ public class V66__reconcile_specimen_no_global_unique_and_deduplicate_dm extends
     private void renameLegacyConstraint(Connection connection) throws SQLException {
         for (UniqueConstraint constraint : findUniqueConstraints(connection, TABLE_NAME)) {
             if (constraint.matches("APPLICATION_ID", "SPECIMEN_NO")) {
-                execute(connection, "ALTER TABLE " + TABLE_NAME + " DROP CONSTRAINT " + constraint.name());
+                execute(connection, "ALTER TABLE " + TABLE_NAME + " DROP CONSTRAINT " + quoteIdentifier(constraint.name()));
             }
         }
     }
@@ -195,6 +195,10 @@ public class V66__reconcile_specimen_no_global_unique_and_deduplicate_dm extends
         try (Statement statement = connection.createStatement()) {
             statement.execute(sql);
         }
+    }
+
+    private String quoteIdentifier(String identifier) {
+        return "\"" + identifier.replace("\"", "\"\"") + "\"";
     }
 
     private boolean isDmDatabase(Connection connection) throws SQLException {

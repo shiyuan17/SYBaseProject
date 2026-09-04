@@ -28,6 +28,10 @@ This directory contains the standard Docker host deployment template for `bl-cen
 - `SECURITY_AUTH_JWT_SM2_PRIVATE_KEY` / `SECURITY_AUTH_JWT_SM2_PUBLIC_KEY`: required JWT SM2 key pair for `dev` and `prod`
 - `JAVA_OPTS`: JVM options
 - `TZ`: timezone
+- `BL_REPORT_OFD_ENABLED`: whether report signing must generate an OFD artifact; defaults to `true`, set to `false` only when OFD generation is intentionally disabled
+- `BL_REPORT_OFD_WORKER_MAX_HEAP_MB`: maximum heap for each isolated OFD renderer process; defaults to `256`
+- `BL_REPORT_OFD_WORKER_TIMEOUT_SECONDS`: hard timeout for each isolated OFD renderer process; defaults to `60`
+- `BL_REPORT_STORAGE_ROOT`: persistent report storage root inside the container; keep it under `/data`
 
 ## Manual deployment example
 

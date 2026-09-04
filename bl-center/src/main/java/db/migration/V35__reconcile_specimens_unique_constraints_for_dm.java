@@ -34,7 +34,7 @@ public class V35__reconcile_specimens_unique_constraints_for_dm extends BaseJava
     private void dropLegacyCaseSpecimenConstraint(Connection connection) throws SQLException {
         for (UniqueConstraint constraint : findUniqueConstraints(connection, TABLE_NAME)) {
             if (constraint.matches("CASE_ID", "SPECIMEN_NO")) {
-                execute(connection, "ALTER TABLE " + TABLE_NAME + " DROP CONSTRAINT " + constraint.name());
+                execute(connection, "ALTER TABLE " + TABLE_NAME + " DROP CONSTRAINT " + quoteIdentifier(constraint.name()));
             }
         }
     }
@@ -89,6 +89,10 @@ public class V35__reconcile_specimens_unique_constraints_for_dm extends BaseJava
         }
     }
 
+    private String quoteIdentifier(String identifier) {
+        return "\"" + identifier.replace("\"", "\"\"") + "\"";
+    }
+
     private boolean isDmDatabase(Connection connection) throws SQLException {
         String productName = connection.getMetaData().getDatabaseProductName();
         return productName != null && productName.toUpperCase(Locale.ROOT).contains("DM");
@@ -103,7 +107,7 @@ public class V35__reconcile_specimens_unique_constraints_for_dm extends BaseJava
                 return false;
             }
             for (int index = 0; index < expectedColumns.length; index++) {
-                if (!Objects.equals(columns.get(index), expectedColumns[index])) {
+                if (columns.get(index) == null || !expectedColumns[index].equalsIgnoreCase(columns.get(index))) {
                     return false;
                 }
             }

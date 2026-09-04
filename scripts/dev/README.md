@@ -15,6 +15,7 @@
 - `scripts/dev/windows/run-auth-center-dev.cmd`：启动 `auth-center`
 - `scripts/dev/windows/run-centers-dev.cmd`：一次性启动 `bl-center` 与 `auth-center`
 - `scripts/dev/windows/run-centers-dev.ps1`：`run-centers-dev.cmd` 对应的 PowerShell 实现
+- `scripts/dev/windows/rebuild-and-clean-report-ofds.cmd`：仅限 localhost DM 开发库，重建新版报告快照并清理全部 OFD
 
 示例：
 
@@ -22,6 +23,7 @@
 .\scripts\dev\windows\run-bl-center-dev.cmd
 .\scripts\dev\windows\run-auth-center-dev.cmd
 .\scripts\dev\windows\run-centers-dev.cmd
+.\scripts\dev\windows\rebuild-and-clean-report-ofds.cmd
 ```
 
 ## Unix 推荐入口

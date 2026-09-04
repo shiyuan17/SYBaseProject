@@ -27,6 +27,7 @@ esac
 
 SPRING_PROFILE="${PROFILE_OVERRIDE:-${BL_CENTER_SPRING_PROFILES_ACTIVE:-${SPRING_PROFILES_ACTIVE:-dev}}}"
 ACTION="${1:-start}"
+JAVA_BIN="${BL_CENTER_JAVA_BIN:-${JAVA_BIN:-}}"
 
 if [ "$#" -gt 0 ]; then
   shift
@@ -49,9 +50,25 @@ display_profile() {
   printf '%s\n' "default"
 }
 
+resolve_java() {
+  if [ -n "$JAVA_BIN" ] && [ -x "$JAVA_BIN" ]; then
+    return 0
+  fi
+
+  for candidate in /opt/jdk-21/bin/java /opt/jdk-17/bin/java "${JAVA_HOME:-}/bin/java"; do
+    if [ -x "$candidate" ]; then
+      JAVA_BIN="$candidate"
+      return 0
+    fi
+  done
+
+  JAVA_BIN=$(command -v java || true)
+}
+
 require_java() {
-  if ! command -v java >/dev/null 2>&1; then
-    echo "java is not available in PATH." >&2
+  resolve_java
+  if [ -z "$JAVA_BIN" ] || [ ! -x "$JAVA_BIN" ]; then
+    echo "Java 17 or newer is not available." >&2
     exit 1
   fi
 }
@@ -118,11 +135,12 @@ start_app() {
   if [ -n "$SPRING_PROFILE" ]; then
     set -- "--spring.profiles.active=$SPRING_PROFILE" "$@"
   fi
-  nohup java ${JAVA_OPTS:-} -jar "$JAR_PATH" "$@" >>"$LOG_FILE" 2>&1 &
+  nohup "$JAVA_BIN" ${JAVA_OPTS:-} -jar "$JAR_PATH" "$@" >>"$LOG_FILE" 2>&1 &
   pid=$!
   printf '%s\n' "$pid" >"$PID_FILE"
   echo "Started $APP_NAME with PID $pid"
   echo "Profile: $(display_profile)"
+  echo "Java: $JAVA_BIN"
   echo "Log file: $LOG_FILE"
 }
 
