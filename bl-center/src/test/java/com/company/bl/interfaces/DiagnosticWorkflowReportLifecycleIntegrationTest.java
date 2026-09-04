@@ -18,6 +18,74 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTest {
 
     @Test
+    void shouldCompleteReportLifecycleAndIssueAsWorkbenchOnlyOperator() throws Exception {
+        String suffix = uniqueSuffix();
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase(
+            "APP-M4-WB-" + suffix,
+            "BC-M4-WB-" + suffix);
+        String workbenchUserId = createWorkbenchOnlyUser(suffix);
+
+        JsonNode pending = listPendingDiagnosticTasks(context.pathologyNo(), workbenchUserId);
+        assertThat(pending.path("items")).isEmpty();
+
+        String reportId = responseBody(postJson("/api/v1/pathology-reports", workbenchUserId, """
+            {
+              "caseId":"%s",
+              "taskId":"%s",
+              "clinicalDiagnosis":"workbench clinical",
+              "grossExam":"workbench gross",
+              "microscopicExam":"workbench microscopic",
+              "finalDiagnosis":"workbench final",
+              "richTextContent":"<p>workbench report</p>"
+            }
+            """.formatted(context.caseId(), context.diagnosticTaskId())), 200).path("reportId").asText();
+
+        postJson("/api/v1/pathology-reports/%s/save-draft".formatted(reportId), workbenchUserId, """
+            {
+              "clinicalDiagnosis":"workbench clinical saved",
+              "grossExam":"workbench gross saved",
+              "microscopicExam":"workbench microscopic saved",
+              "finalDiagnosis":"workbench final saved",
+              "richTextContent":"<p>workbench report saved</p>"
+            }
+            """).andExpect(status().isOk());
+        postJson("/api/v1/pathology-reports/%s/submit".formatted(reportId), workbenchUserId, "{}")
+            .andExpect(status().isOk());
+        postJson("/api/v1/pathology-reports/%s/review".formatted(reportId), workbenchUserId, "{}")
+            .andExpect(status().isOk());
+        postJson("/api/v1/pathology-reports/%s/sign".formatted(reportId), workbenchUserId, "{}")
+            .andExpect(status().isOk());
+
+        JsonNode versions = caseReportVersions(context.caseId(), workbenchUserId);
+        String versionId = versions.get(0).path("versionId").asText();
+        postJson("/api/v1/pathology-reports/formal-versions/issue", workbenchUserId, """
+            {"versionIds":["%s"],"issueMode":"IMMEDIATE"}
+            """.formatted(versionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount").value(1));
+
+        JsonNode issuedVersions = caseReportVersions(context.caseId(), workbenchUserId);
+        assertThat(issuedVersions.get(0).path("printStatus").asText()).isEqualTo("UNPRINTED");
+        assertThat(issuedVersions.get(0).path("printedAt").isNull()).isTrue();
+        assertThat(issuedVersions.get(0).path("deliveryStatus").asText()).isEqualTo("ISSUED");
+        Long reportPrintEventCount = namedParameterJdbcTemplate.queryForObject("""
+            select count(*)
+            from workflow_events
+            where case_id = :caseId
+              and node_code = 'REPORT_PRINT'
+            """, Map.of("caseId", context.caseId()), Long.class);
+        assertThat(reportPrintEventCount).isZero();
+        List<String> operators = namedParameterJdbcTemplate.queryForList("""
+            select distinct operator_user_id
+            from workflow_events
+            where case_id = :caseId
+              and node_code in ('REPORT_DRAFT', 'REPORT_SUBMIT', 'REPORT_REVIEW',
+                                'REPORT_SIGN', 'REPORT_PRINT', 'REPORT_ISSUE')
+            """, Map.of("caseId", context.caseId()), String.class);
+        assertThat(operators).containsOnly(workbenchUserId);
+    }
+
+    @Test
     void shouldCreateDiagnosticTaskAfterStainingAndCompleteMinimalReportClosure() throws Exception {
         TechnicalCaseContext context = receiveCaseAndGetGrossingTask("APP-M4-001", "BC-M4-001");
 
@@ -256,7 +324,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
               "finalDiagnosis": "unauthorized change"
             }
             """)
-            .andExpect(status().isForbidden());
+            .andExpect(status().isOk());
 
         postJson("/api/v1/pathology-reports/%s/save-draft".formatted(reportId), USER_M4_REVIEW, """
             {
@@ -430,14 +498,6 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
         assertThat(targetVersion).isNotNull();
         String versionId = targetVersion.path("versionId").asText();
 
-        postJson("/api/v1/pathology-reports/formal-versions/print", USER_M4_SIGN, """
-            {
-              "versionIds":["%s"]
-            }
-            """.formatted(versionId))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.successCount").value(1));
-
         postJson("/api/v1/pathology-reports/formal-versions/issue", USER_M4_SIGN, """
             {
               "versionIds":["%s"],
@@ -456,6 +516,8 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
             }
         }
         assertThat(scheduled).isNotNull();
+        assertThat(scheduled.path("printStatus").asText()).isEqualTo("UNPRINTED");
+        assertThat(scheduled.path("printedAt").isNull()).isTrue();
         assertThat(scheduled.path("deliveryStatus").asText()).isEqualTo("PENDING");
         assertThat(scheduled.path("plannedIssueAt").asText()).isNotBlank();
         String scheduledVersionLabel = "V" + scheduled.path("versionNo").asText();
@@ -468,11 +530,12 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
             select node_code
             from workflow_events
             where case_id = :caseId
-              and node_code in ('REPORT_SCHEDULE_ISSUE', 'REPORT_ISSUE')
+              and node_code in ('REPORT_PRINT', 'REPORT_SCHEDULE_ISSUE', 'REPORT_ISSUE')
             order by event_time asc, id asc
             """, Map.of("caseId", context.caseId()), String.class);
         assertThat(scheduledDistributionNodes)
             .contains("REPORT_SCHEDULE_ISSUE")
+            .doesNotContain("REPORT_PRINT")
             .doesNotContain("REPORT_ISSUE");
 
         List<String> scheduledDistributionContents = namedParameterJdbcTemplate.queryForList("""
@@ -510,7 +573,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
             }
             """.formatted(signedVersionId))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.failureCount").value(1));
+            .andExpect(jsonPath("$.data.successCount").value(1));
 
         postJson("/api/v1/pathology-reports/formal-versions/print", USER_M4_SIGN, """
             {
@@ -526,7 +589,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
             }
             """.formatted(signedVersionId))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.successCount").value(1));
+            .andExpect(jsonPath("$.data.failureCount").value(1));
 
         postJson("/api/v1/pathology-reports/formal-versions/recall", USER_M4_SIGN, """
             {
@@ -559,8 +622,8 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
             order by event_time asc, id asc
             """, Map.of("caseId", context.caseId()), String.class);
         assertThat(distributionNodes).containsSubsequence(
-            "REPORT_PRINT",
             "REPORT_ISSUE",
+            "REPORT_PRINT",
             "REPORT_RECALL"
         );
 
@@ -723,6 +786,14 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
         assertThat(publishedVersionId).isNotBlank();
         assertThat(signedVersionId).isNotBlank();
 
+        postJson("/api/v1/pathology-reports/formal-versions/issue", USER_M4_SIGN, """
+            {
+              "versionIds":["%s"]
+            }
+            """.formatted(signedVersionId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.successCount").value(1));
+
         postJson("/api/v1/pathology-reports/formal-versions/print", USER_M4_SIGN, """
             {
               "versionIds":["%s"]
@@ -747,7 +818,7 @@ class DiagnosticWorkflowReportLifecycleIntegrationTest extends AbstractDiagnosti
             where case_id = :caseId
               and node_code = 'REPORT_ISSUE'
             """, Map.of("caseId", context.caseId()), Long.class);
-        assertThat(reportIssueEventCount).isEqualTo(1);
+        assertThat(reportIssueEventCount).isEqualTo(2);
     }
 
     @Test

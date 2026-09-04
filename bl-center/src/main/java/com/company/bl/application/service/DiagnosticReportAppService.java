@@ -1,6 +1,7 @@
 package com.company.bl.application.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -13,19 +14,22 @@ public class DiagnosticReportAppService {
     private final ReportRevisionWorkflowService reportRevisionWorkflowService;
     private final MedicalOrderWorkflowService medicalOrderWorkflowService;
     private final InternalConsultationWorkflowService internalConsultationWorkflowService;
+    private final ReportArtifactService reportArtifactService;
 
     public DiagnosticReportAppService(DiagnosticReportQueryService diagnosticReportQueryService,
                                       DiagnosticTaskWorkflowService diagnosticTaskWorkflowService,
                                       DiagnosticReportLifecycleService diagnosticReportLifecycleService,
                                       ReportRevisionWorkflowService reportRevisionWorkflowService,
                                       MedicalOrderWorkflowService medicalOrderWorkflowService,
-                                      InternalConsultationWorkflowService internalConsultationWorkflowService) {
+                                      InternalConsultationWorkflowService internalConsultationWorkflowService,
+                                      ReportArtifactService reportArtifactService) {
         this.diagnosticReportQueryService = diagnosticReportQueryService;
         this.diagnosticTaskWorkflowService = diagnosticTaskWorkflowService;
         this.diagnosticReportLifecycleService = diagnosticReportLifecycleService;
         this.reportRevisionWorkflowService = reportRevisionWorkflowService;
         this.medicalOrderWorkflowService = medicalOrderWorkflowService;
         this.internalConsultationWorkflowService = internalConsultationWorkflowService;
+        this.reportArtifactService = reportArtifactService;
     }
 
     public DiagnosticReportModels.PendingDiagnosticTaskPage listPendingTasks(DiagnosticReportModels.PendingDiagnosticTaskQuery query) {
@@ -172,8 +176,14 @@ public class DiagnosticReportAppService {
         return medicalOrderWorkflowService.createMedicalOrderQcEvaluation(command);
     }
 
-    public DiagnosticReportModels.MedicalOrderQcEvaluationResult getLatestMedicalOrderQcEvaluation(String orderId) {
-        return medicalOrderWorkflowService.getLatestMedicalOrderQcEvaluation(orderId);
+    public DiagnosticReportModels.MedicalOrderQcEvaluationResult getLatestMedicalOrderQcEvaluation(String orderId,
+                                                                                                     String qcAspect,
+                                                                                                     String slideId) {
+        return medicalOrderWorkflowService.getLatestMedicalOrderQcEvaluation(orderId, qcAspect, slideId);
+    }
+
+    public DiagnosticReportModels.MedicalOrderQcContextResult getMedicalOrderQcContext(String orderId) {
+        return medicalOrderWorkflowService.getMedicalOrderQcContext(orderId);
     }
 
     public DiagnosticReportModels.MedicalOrderResult cancelMedicalOrder(DiagnosticReportModels.MedicalOrderActionCommand command) {
@@ -198,5 +208,58 @@ public class DiagnosticReportAppService {
 
     public DiagnosticReportModels.ConsultationResult completeConsultation(DiagnosticReportModels.CompleteConsultationCommand command) {
         return internalConsultationWorkflowService.completeConsultation(command);
+    }
+
+    public DiagnosticReportModels.ReportRenderAssetResult storeReportRenderAsset(String caseId, String currentUserId, MultipartFile file) {
+        return reportArtifactService.storeRenderAsset(caseId, currentUserId, file);
+    }
+
+    public void deleteReportRenderAsset(String assetId, String currentUserId) {
+        reportArtifactService.deleteRenderAsset(assetId, currentUserId);
+    }
+
+    public ReportArtifactService.StoredReportResource readReportRenderAsset(String assetId,
+                                                                            String currentUserId,
+                                                                            String currentRoleCode) {
+        return reportArtifactService.readRenderAsset(assetId, currentUserId, currentRoleCode);
+    }
+
+    public ReportArtifactService.StoredReportResource readReportOfd(String reportId,
+                                                                    String currentUserId,
+                                                                    String currentRoleCode) {
+        return reportArtifactService.readOfdArtifact(reportId, currentUserId, currentRoleCode);
+    }
+
+    public ReportArtifactService.TemporaryReportResource convertReportOfdToPdf(
+        String reportId,
+        String currentUserId,
+        String currentRoleCode
+    ) {
+        return reportArtifactService.convertOfdArtifactToPdf(reportId, currentUserId, currentRoleCode);
+    }
+
+    public ReportArtifactService.ReportOfdStatus prepareReportOfd(String reportId,
+                                                                  String currentUserId,
+                                                                  String currentRoleCode,
+                                                                  boolean retryFailed) {
+        return reportArtifactService.prepareOfdArtifact(
+            reportId, currentUserId, currentRoleCode, retryFailed);
+    }
+
+    public List<DiagnosticReportModels.ReportOfdArtifactView> listReportOfdArtifacts(
+        String reportId,
+        String currentUserId,
+        String currentRoleCode
+    ) {
+        return reportArtifactService.listOfdArtifacts(reportId, currentUserId, currentRoleCode);
+    }
+
+    public ReportArtifactService.StoredReportResource readReportOfdArtifact(
+        String reportId,
+        String artifactId,
+        String currentUserId,
+        String currentRoleCode
+    ) {
+        return reportArtifactService.readOfdArtifactById(reportId, artifactId, currentUserId, currentRoleCode);
     }
 }

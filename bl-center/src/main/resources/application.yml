@@ -46,6 +46,14 @@ mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
 
+bl:
+  file-storage:
+    reports:
+      ofd-enabled: ${BL_REPORT_OFD_ENABLED:true}
+      ofd-worker-max-heap-mb: ${BL_REPORT_OFD_WORKER_MAX_HEAP_MB:256}
+      ofd-worker-timeout: ${BL_REPORT_OFD_WORKER_TIMEOUT_SECONDS:60}s
+      root-dir: ${BL_REPORT_STORAGE_ROOT:${java.io.tmpdir}/sybase/bl-center/reports}
+
 security:
   auth:
     jwt:

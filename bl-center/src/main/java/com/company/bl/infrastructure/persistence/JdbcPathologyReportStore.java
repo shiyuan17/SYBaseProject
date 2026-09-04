@@ -14,6 +14,27 @@ import java.util.Optional;
 
 final class JdbcPathologyReportStore {
 
+    private static final String PATHOLOGY_REPORT_COLUMNS = """
+        id, case_id, task_id, report_no, pathology_no, report_scope, report_seq, report_status, version_no,
+        specimen_type, patient_name, submitting_department_id, submitting_department_name, report_date,
+        gross_exam, microscopic_exam, clinical_diagnosis, final_diagnosis, submitted_at,
+        reviewer_user_id, reviewer_name, reviewed_at, signed_by_user_id, signed_by_name, signed_at,
+        published_at, rich_text_content, render_snapshot, remarks, created_at, updated_at
+        """;
+    private static final String REPORT_VERSION_COLUMNS = """
+        id, report_id, case_id, report_scope, report_seq, version_no, version_status,
+        final_diagnosis_snapshot, content_snapshot, render_snapshot, artifact_id,
+        signed_by_user_id, signed_by_name, signed_at, created_at, print_status, printed_at,
+        delivery_status, planned_issue_at, delivery_schedule_status, issued_at, recalled_at
+        """;
+    private static final String REPORT_VERSION_ARTIFACT_COLUMNS = """
+        id, report_id, version_no, artifact_format, file_name, storage_key, content_type,
+        byte_size, sha256, generated_at
+        """;
+    private static final String REPORT_RENDER_ASSET_COLUMNS = """
+        id, case_id, file_name, storage_key, content_type, byte_size, sha256, created_at
+        """;
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     JdbcPathologyReportStore(NamedParameterJdbcTemplate jdbcTemplate) {
@@ -21,8 +42,8 @@ final class JdbcPathologyReportStore {
     }
 
     Optional<DiagnosticReportRepository.PathologyReport> findCurrentReportByCaseIdAndScope(String caseId, String reportScope) {
-        List<DiagnosticReportRepository.PathologyReport> rows = jdbcTemplate.query("""
-            select *
+        List<DiagnosticReportRepository.PathologyReport> rows = jdbcTemplate.query(
+            "select " + PATHOLOGY_REPORT_COLUMNS + """
             from pathology_reports
             where case_id = :caseId
               and report_scope = :reportScope
@@ -35,17 +56,22 @@ final class JdbcPathologyReportStore {
     }
 
     Optional<DiagnosticReportRepository.PathologyReport> findPathologyReportById(String reportId) {
-        List<DiagnosticReportRepository.PathologyReport> rows = jdbcTemplate.query("""
-            select *
+        List<DiagnosticReportRepository.PathologyReport> rows = jdbcTemplate.query(
+            "select " + PATHOLOGY_REPORT_COLUMNS + """
             from pathology_reports
             where id = :reportId
             """, Map.of("reportId", reportId), this::mapPathologyReport);
         return rows.stream().findFirst();
     }
 
+    void lockPathologyReport(String reportId) {
+        jdbcTemplate.queryForList("select id from pathology_reports where id = :reportId for update",
+            Map.of("reportId", reportId), String.class);
+    }
+
     List<DiagnosticReportRepository.PathologyReport> findPathologyReportsByCaseId(String caseId) {
-        return jdbcTemplate.query("""
-            select *
+        return jdbcTemplate.query(
+            "select " + PATHOLOGY_REPORT_COLUMNS + """
             from pathology_reports
             where case_id = :caseId
             order by coalesce(published_at, signed_at, reviewed_at, submitted_at, created_at) desc,
@@ -59,12 +85,12 @@ final class JdbcPathologyReportStore {
             insert into pathology_reports
                 (id, case_id, task_id, report_no, pathology_no, report_scope, report_seq, report_status, version_no,
                  specimen_type, patient_name, submitting_department_id, submitting_department_name, report_date,
-                 gross_exam, microscopic_exam, clinical_diagnosis, final_diagnosis, rich_text_content, remarks,
+                 gross_exam, microscopic_exam, clinical_diagnosis, final_diagnosis, rich_text_content, render_snapshot, remarks,
                  created_at, updated_at)
             values
                 (:id, :caseId, :taskId, :reportNo, :pathologyNo, :reportScope, :reportSeq, :reportStatus, :versionNo,
                  :specimenType, :patientName, :submittingDepartmentId, :submittingDepartmentName, :reportDate,
-                 :grossExam, :microscopicExam, :clinicalDiagnosis, :finalDiagnosis, :richTextContent, :remarks,
+                 :grossExam, :microscopicExam, :clinicalDiagnosis, :finalDiagnosis, :richTextContent, :renderSnapshot, :remarks,
                  :createdAt, :updatedAt)
             """, new MapSqlParameterSource()
             .addValue("id", command.id())
@@ -86,6 +112,7 @@ final class JdbcPathologyReportStore {
             .addValue("clinicalDiagnosis", command.clinicalDiagnosis())
             .addValue("finalDiagnosis", command.finalDiagnosis())
             .addValue("richTextContent", command.richTextContent())
+            .addValue("renderSnapshot", command.renderSnapshot())
             .addValue("remarks", command.remarks())
             .addValue("createdAt", command.createdAt())
             .addValue("updatedAt", command.createdAt()));
@@ -99,6 +126,7 @@ final class JdbcPathologyReportStore {
                 clinical_diagnosis = :clinicalDiagnosis,
                 final_diagnosis = :finalDiagnosis,
                 rich_text_content = :richTextContent,
+                render_snapshot = :renderSnapshot,
                 remarks = coalesce(:remarks, remarks),
                 updated_at = :updatedAt
             where id = :reportId
@@ -109,6 +137,7 @@ final class JdbcPathologyReportStore {
             .addValue("clinicalDiagnosis", command.clinicalDiagnosis())
             .addValue("finalDiagnosis", command.finalDiagnosis())
             .addValue("richTextContent", command.richTextContent())
+            .addValue("renderSnapshot", command.renderSnapshot())
             .addValue("remarks", command.remarks())
             .addValue("updatedAt", command.updatedAt()));
     }
@@ -232,10 +261,10 @@ final class JdbcPathologyReportStore {
         jdbcTemplate.update("""
             insert into report_versions
                 (id, report_id, case_id, report_scope, report_seq, version_no, version_status, final_diagnosis_snapshot,
-                 content_snapshot, signed_by_user_id, signed_by_name, signed_at, created_at)
+                 content_snapshot, render_snapshot, artifact_id, signed_by_user_id, signed_by_name, signed_at, created_at)
             values
                 (:id, :reportId, :caseId, :reportScope, :reportSeq, :versionNo, :versionStatus, :finalDiagnosisSnapshot,
-                 :contentSnapshot, :signedByUserId, :signedByName, :signedAt, :createdAt)
+                 :contentSnapshot, :renderSnapshot, :artifactId, :signedByUserId, :signedByName, :signedAt, :createdAt)
             """, new MapSqlParameterSource()
             .addValue("id", command.id())
             .addValue("reportId", command.reportId())
@@ -246,15 +275,176 @@ final class JdbcPathologyReportStore {
             .addValue("versionStatus", command.versionStatus())
             .addValue("finalDiagnosisSnapshot", command.finalDiagnosisSnapshot())
             .addValue("contentSnapshot", command.contentSnapshot())
+            .addValue("renderSnapshot", command.renderSnapshot())
+            .addValue("artifactId", command.artifactId())
             .addValue("signedByUserId", command.signedByUserId())
             .addValue("signedByName", command.signedByName())
             .addValue("signedAt", command.signedAt())
             .addValue("createdAt", command.createdAt()));
     }
 
+    void insertReportVersionArtifact(DiagnosticReportRepository.CreateReportVersionArtifactCommand command) {
+        jdbcTemplate.update("""
+            insert into report_version_artifacts
+                (id, report_id, version_no, artifact_format, file_name, storage_key, content_type,
+                 byte_size, sha256, generated_at)
+            values
+                (:id, :reportId, :versionNo, :artifactFormat, :fileName, :storageKey, :contentType,
+                 :byteSize, :sha256, :generatedAt)
+            """, new MapSqlParameterSource()
+            .addValue("id", command.id())
+            .addValue("reportId", command.reportId())
+            .addValue("versionNo", command.versionNo())
+            .addValue("artifactFormat", command.artifactFormat())
+            .addValue("fileName", command.fileName())
+            .addValue("storageKey", command.storageKey())
+            .addValue("contentType", command.contentType())
+            .addValue("byteSize", command.byteSize())
+            .addValue("sha256", command.sha256())
+            .addValue("generatedAt", command.generatedAt()));
+    }
+
+    void updateReportVersionArtifact(DiagnosticReportRepository.CreateReportVersionArtifactCommand command) {
+        jdbcTemplate.update("""
+            update report_version_artifacts
+            set file_name = :fileName,
+                storage_key = :storageKey,
+                content_type = :contentType,
+                byte_size = :byteSize,
+                sha256 = :sha256,
+                generated_at = :generatedAt
+            where id = :id
+            """, new MapSqlParameterSource()
+            .addValue("id", command.id())
+            .addValue("fileName", command.fileName())
+            .addValue("storageKey", command.storageKey())
+            .addValue("contentType", command.contentType())
+            .addValue("byteSize", command.byteSize())
+            .addValue("sha256", command.sha256())
+            .addValue("generatedAt", command.generatedAt()));
+    }
+
+    Optional<DiagnosticReportRepository.ReportVersionArtifact> findReportVersionArtifact(
+        String reportId,
+        int versionNo,
+        String artifactFormat
+    ) {
+        List<DiagnosticReportRepository.ReportVersionArtifact> rows = jdbcTemplate.query(
+            "select " + REPORT_VERSION_ARTIFACT_COLUMNS + """
+            from report_version_artifacts
+            where report_id = :reportId
+              and version_no = :versionNo
+              and artifact_format = :artifactFormat
+            order by generated_at desc, id desc
+            """, new MapSqlParameterSource()
+            .addValue("reportId", reportId)
+            .addValue("versionNo", versionNo)
+            .addValue("artifactFormat", artifactFormat), this::mapReportVersionArtifact);
+        return rows.stream().findFirst();
+    }
+
+    Optional<DiagnosticReportRepository.ReportVersionArtifact> findReportVersionArtifactById(String artifactId) {
+        List<DiagnosticReportRepository.ReportVersionArtifact> rows = jdbcTemplate.query(
+            "select " + REPORT_VERSION_ARTIFACT_COLUMNS + """
+            from report_version_artifacts
+            where id = :artifactId
+            """, Map.of("artifactId", artifactId), this::mapReportVersionArtifact);
+        return rows.stream().findFirst();
+    }
+
+    List<DiagnosticReportRepository.ReportVersionArtifact> findReportVersionArtifacts(
+        String reportId,
+        String artifactFormat
+    ) {
+        return jdbcTemplate.query(
+            "select " + REPORT_VERSION_ARTIFACT_COLUMNS + """
+            from report_version_artifacts
+            where report_id = :reportId
+              and artifact_format = :artifactFormat
+            order by version_no desc, generated_at desc
+            """, new MapSqlParameterSource()
+            .addValue("reportId", reportId)
+            .addValue("artifactFormat", artifactFormat), this::mapReportVersionArtifact);
+    }
+
+    Optional<DiagnosticReportRepository.ReportVersion> findLatestFormalReportVersion(String reportId, int versionNo) {
+        List<DiagnosticReportRepository.ReportVersion> rows = jdbcTemplate.query(
+            "select " + REPORT_VERSION_COLUMNS + """
+            from report_versions
+            where report_id = :reportId
+              and version_no = :versionNo
+              and version_status in ('SIGNED', 'PUBLISHED')
+            order by case when version_status = 'PUBLISHED' then 0 else 1 end, created_at desc
+            fetch first 1 row only
+            """, new MapSqlParameterSource()
+            .addValue("reportId", reportId)
+            .addValue("versionNo", versionNo), this::mapReportVersion);
+        return rows.stream().findFirst();
+    }
+
+    void updateReportVersionArtifactId(String reportId, int versionNo, String artifactId) {
+        jdbcTemplate.update("""
+            update report_versions
+            set artifact_id = :artifactId
+            where report_id = :reportId
+              and version_no = :versionNo
+              and version_status in ('SIGNED', 'PUBLISHED')
+            """, new MapSqlParameterSource()
+            .addValue("reportId", reportId)
+            .addValue("versionNo", versionNo)
+            .addValue("artifactId", artifactId));
+    }
+
+    boolean existsReportVersionArtifactByStorageKey(String storageKey) {
+        Integer count = jdbcTemplate.queryForObject("""
+            select count(*)
+            from report_version_artifacts
+            where storage_key = :storageKey
+            """, Map.of("storageKey", storageKey), Integer.class);
+        return count != null && count > 0;
+    }
+
+    void insertReportRenderAsset(DiagnosticReportRepository.CreateReportRenderAssetCommand command) {
+        jdbcTemplate.update("""
+            insert into report_render_assets
+                (id, case_id, file_name, storage_key, content_type, byte_size, sha256, created_at)
+            values
+                (:id, :caseId, :fileName, :storageKey, :contentType, :byteSize, :sha256, :createdAt)
+            """, new MapSqlParameterSource()
+            .addValue("id", command.id())
+            .addValue("caseId", command.caseId())
+            .addValue("fileName", command.fileName())
+            .addValue("storageKey", command.storageKey())
+            .addValue("contentType", command.contentType())
+            .addValue("byteSize", command.byteSize())
+            .addValue("sha256", command.sha256())
+            .addValue("createdAt", command.createdAt()));
+    }
+
+    Optional<DiagnosticReportRepository.ReportRenderAsset> findReportRenderAssetById(String assetId) {
+        List<DiagnosticReportRepository.ReportRenderAsset> rows = jdbcTemplate.query(
+            "select " + REPORT_RENDER_ASSET_COLUMNS + """
+            from report_render_assets where id = :assetId
+            """, Map.of("assetId", assetId), this::mapReportRenderAsset);
+        return rows.stream().findFirst();
+    }
+
+    boolean existsReportRenderAssetByStorageKey(String storageKey) {
+        Integer count = jdbcTemplate.queryForObject("""
+            select count(*)
+            from report_render_assets
+            where storage_key = :storageKey
+            """, Map.of("storageKey", storageKey), Integer.class);
+        return count != null && count > 0;
+    }
+
+    void deleteReportRenderAsset(String assetId) {
+        jdbcTemplate.update("delete from report_render_assets where id = :assetId", Map.of("assetId", assetId));
+    }
+
     Optional<DiagnosticReportRepository.ReportVersion> findReportVersionById(String versionId) {
-        List<DiagnosticReportRepository.ReportVersion> rows = jdbcTemplate.query("""
-            select *
+        List<DiagnosticReportRepository.ReportVersion> rows = jdbcTemplate.query(
+            "select " + REPORT_VERSION_COLUMNS + """
             from report_versions
             where id = :versionId
             """, Map.of("versionId", versionId), this::mapReportVersion);
@@ -262,8 +452,8 @@ final class JdbcPathologyReportStore {
     }
 
     List<DiagnosticReportRepository.ReportVersion> findReportVersionsByCaseId(String caseId) {
-        return jdbcTemplate.query("""
-            select *
+        return jdbcTemplate.query(
+            "select " + REPORT_VERSION_COLUMNS + """
             from report_versions
             where case_id = :caseId
             order by version_no asc, created_at asc
@@ -271,8 +461,8 @@ final class JdbcPathologyReportStore {
     }
 
     List<DiagnosticReportRepository.ReportVersion> findFormalReportVersionsByCaseId(String caseId) {
-        return jdbcTemplate.query("""
-            select *
+        return jdbcTemplate.query(
+            "select " + REPORT_VERSION_COLUMNS + """
             from report_versions
             where case_id = :caseId
               and version_status in ('SIGNED', 'PUBLISHED')
@@ -281,8 +471,8 @@ final class JdbcPathologyReportStore {
     }
 
     List<DiagnosticReportRepository.ReportVersion> findScheduledReportVersionsDue(LocalDateTime scheduledBeforeOrAt) {
-        return jdbcTemplate.query("""
-            select *
+        return jdbcTemplate.query(
+            "select " + REPORT_VERSION_COLUMNS + """
             from report_versions
             where delivery_schedule_status = 'SCHEDULED'
               and planned_issue_at is not null
@@ -366,6 +556,7 @@ final class JdbcPathologyReportStore {
             toLocalDateTime(rs.getTimestamp("signed_at")),
             toLocalDateTime(rs.getTimestamp("published_at")),
             rs.getString("rich_text_content"),
+            rs.getString("render_snapshot"),
             rs.getString("remarks"),
             toLocalDateTime(rs.getTimestamp("created_at")),
             toLocalDateTime(rs.getTimestamp("updated_at")));
@@ -382,6 +573,8 @@ final class JdbcPathologyReportStore {
             rs.getString("version_status"),
             rs.getString("final_diagnosis_snapshot"),
             rs.getString("content_snapshot"),
+            rs.getString("render_snapshot"),
+            rs.getString("artifact_id"),
             rs.getString("signed_by_user_id"),
             rs.getString("signed_by_name"),
             toLocalDateTime(rs.getTimestamp("signed_at")),
@@ -393,6 +586,32 @@ final class JdbcPathologyReportStore {
             rs.getString("delivery_schedule_status"),
             toLocalDateTime(rs.getTimestamp("issued_at")),
             toLocalDateTime(rs.getTimestamp("recalled_at")));
+    }
+
+    private DiagnosticReportRepository.ReportVersionArtifact mapReportVersionArtifact(ResultSet rs, int rowNum) throws SQLException {
+        return new DiagnosticReportRepository.ReportVersionArtifact(
+            rs.getString("id"),
+            rs.getString("report_id"),
+            rs.getInt("version_no"),
+            rs.getString("artifact_format"),
+            rs.getString("file_name"),
+            rs.getString("storage_key"),
+            rs.getString("content_type"),
+            rs.getLong("byte_size"),
+            rs.getString("sha256"),
+            toLocalDateTime(rs.getTimestamp("generated_at")));
+    }
+
+    private DiagnosticReportRepository.ReportRenderAsset mapReportRenderAsset(ResultSet rs, int rowNum) throws SQLException {
+        return new DiagnosticReportRepository.ReportRenderAsset(
+            rs.getString("id"),
+            rs.getString("case_id"),
+            rs.getString("file_name"),
+            rs.getString("storage_key"),
+            rs.getString("content_type"),
+            rs.getLong("byte_size"),
+            rs.getString("sha256"),
+            toLocalDateTime(rs.getTimestamp("created_at")));
     }
 
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {

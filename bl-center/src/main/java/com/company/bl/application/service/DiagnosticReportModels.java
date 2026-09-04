@@ -91,8 +91,10 @@ public final class DiagnosticReportModels {
         String microscopicExam,
         String finalDiagnosis,
         String richTextContent,
+        JsonNode renderSnapshot,
         String operatorUserId,
         String operatorName,
+        boolean workbenchOverrideAllowed,
         String terminalCode,
         String remarks
     ) {
@@ -105,8 +107,11 @@ public final class DiagnosticReportModels {
         String microscopicExam,
         String finalDiagnosis,
         String richTextContent,
+        JsonNode renderSnapshot,
         String operatorUserId,
         String operatorName,
+        String operatorRoleCode,
+        boolean workbenchOverrideAllowed,
         String terminalCode,
         String remarks
     ) {
@@ -116,6 +121,7 @@ public final class DiagnosticReportModels {
         String reportId,
         String operatorUserId,
         String operatorName,
+        boolean workbenchOverrideAllowed,
         String terminalCode,
         String remarks
     ) {
@@ -137,6 +143,30 @@ public final class DiagnosticReportModels {
         String reportStatus,
         Integer versionNo,
         String versionStatus
+    ) {
+    }
+
+    public record ReportRenderAssetResult(
+        String assetId,
+        String caseId,
+        String fileName,
+        String fileUrl,
+        String contentType,
+        long byteSize
+    ) {
+    }
+
+    public record ReportOfdArtifactView(
+        String artifactId,
+        String reportId,
+        Integer versionNo,
+        String artifactFormat,
+        String fileName,
+        String contentType,
+        long byteSize,
+        String sha256,
+        String generatedAt,
+        String downloadUrl
     ) {
     }
 
@@ -182,6 +212,7 @@ public final class DiagnosticReportModels {
         List<String> versionIds,
         String operatorUserId,
         String operatorName,
+        boolean workbenchOverrideAllowed,
         String terminalCode,
         String issueMode,
         String plannedIssueAt,
@@ -361,6 +392,8 @@ public final class DiagnosticReportModels {
 
     public record MedicalOrderQcEvaluationCommand(
         String orderId,
+        String slideId,
+        Integer expectedVersion,
         String qcAspect,
         Integer totalScore,
         String grade,
@@ -375,8 +408,12 @@ public final class DiagnosticReportModels {
     }
 
     public record MedicalOrderQcEvaluationResult(
+        String qcEvaluationId,
         String orderId,
         String caseId,
+        String slideId,
+        String slideNo,
+        int version,
         String qcAspect,
         Integer totalScore,
         String grade,
@@ -388,6 +425,30 @@ public final class DiagnosticReportModels {
         String evaluatorName,
         String evaluatedAt,
         JsonNode detailPayload
+    ) {
+    }
+
+    public record MedicalOrderQcContextResult(
+        String orderId,
+        String caseId,
+        String targetType,
+        boolean targetResolved,
+        String unlinkedReason,
+        List<MedicalOrderQcSlideContext> slides
+    ) {
+    }
+
+    public record MedicalOrderQcSlideContext(
+        String slideId,
+        String slideNo,
+        String specimenId,
+        String specimenNo,
+        String blockId,
+        String blockNo,
+        String projectName,
+        String slideStatus,
+        String qualityStatus,
+        List<MedicalOrderQcEvaluationResult> evaluations
     ) {
     }
 

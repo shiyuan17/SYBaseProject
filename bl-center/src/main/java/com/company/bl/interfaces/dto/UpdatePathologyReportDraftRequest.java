@@ -1,6 +1,7 @@
 package com.company.bl.interfaces.dto;
 
 import com.company.bl.interfaces.auth.RejectLegacyOperatorFields;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -31,7 +32,8 @@ public class UpdatePathologyReportDraftRequest {
     @Schema(description = "富文本正文")
     private String richTextContent;
 
-
+    @Schema(description = "版本化报告版式快照")
+    private JsonNode renderSnapshot;
 
     @Schema(description = "终端编码")
     @Size(max = 64)

@@ -2,12 +2,16 @@ package com.company.bl.application.service;
 
 import com.company.bl.domain.model.TrackingEvent;
 import com.company.bl.domain.repository.ArchiveRepository;
+import com.company.bl.domain.repository.ConsultationRepository;
 import com.company.bl.domain.repository.DiagnosticReportRepository;
 import com.company.bl.domain.repository.DiagnosticTrackingQueryRepository;
 import com.company.bl.domain.repository.MedicalOrderRepository;
 import com.company.bl.domain.repository.ReportRevisionRepository;
 import com.company.bl.domain.repository.TechnicalWorkflowProcessingRecords;
 import com.company.bl.domain.repository.TechnicalWorkflowRecords;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,16 +29,19 @@ class DiagnosticReportQueryService {
     private final DiagnosticTrackingQueryRepository diagnosticTrackingQueryRepository;
     private final DiagnosticReportSupport diagnosticReportSupport;
     private final ArchiveRepository archiveRepository;
+    private final ObjectMapper objectMapper;
     private final DiagnosticCaseLifecycleAssembler diagnosticCaseLifecycleAssembler = new DiagnosticCaseLifecycleAssembler();
 
     DiagnosticReportQueryService(DiagnosticReportRepository diagnosticReportRepository,
                                  DiagnosticTrackingQueryRepository diagnosticTrackingQueryRepository,
                                  DiagnosticReportSupport diagnosticReportSupport,
-                                 ArchiveRepository archiveRepository) {
+                                 ArchiveRepository archiveRepository,
+                                 ObjectMapper objectMapper) {
         this.diagnosticReportRepository = diagnosticReportRepository;
         this.diagnosticTrackingQueryRepository = diagnosticTrackingQueryRepository;
         this.diagnosticReportSupport = diagnosticReportSupport;
         this.archiveRepository = archiveRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
@@ -63,7 +70,8 @@ class DiagnosticReportQueryService {
         DiagnosticTrackingQueryRepository.DiagnosticWorkbenchAggregate aggregate =
             diagnosticTrackingQueryRepository.getDiagnosticWorkbench(caseId);
         Map<String, com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingBox> embeddingBoxesByNo =
-            aggregate.embeddingBoxes().stream()
+            safeList(aggregate.embeddingBoxes()).stream()
+                .filter(item -> item != null && hasText(item.embeddingBoxNo()))
                 .collect(Collectors.toMap(
                     com.company.bl.domain.repository.TechnicalWorkflowRecords.EmbeddingBox::embeddingBoxNo,
                     Function.identity(),
@@ -89,24 +97,33 @@ class DiagnosticReportQueryService {
             aggregate.phone(),
             aggregate.submittingDepartmentName(),
             aggregate.submittingDoctorName(),
+            aggregate.wardName(),
+            aggregate.samplingDoctorNames(),
             aggregate.clinicalDiagnosis(),
+            aggregate.checkItem(),
+            aggregate.submissionDate(),
             aggregate.applicationRemarks(),
             archiveStatus(aggregate.applicationFormArchive()),
             archiveLocation(aggregate.applicationFormArchive()),
             archiveImageUrl(aggregate.applicationFormArchive()),
-            aggregate.specimens().stream().map(item -> new DiagnosticReportViews.WorkbenchSpecimenSummary(
-                item.id(), item.specimenNo(), item.barcode(), item.specimenNameStandardized(), item.specimenStatus().name())).toList(),
-            aggregate.blocks().stream().map(item -> toBlockSummary(item, embeddingBoxesByNo, embeddingBoxArchiveByObjectId)).toList(),
-            aggregate.medicalOrderBlocks().stream().map(item -> new DiagnosticReportViews.MedicalOrderBlockView(
+            safeList(aggregate.specimens()).stream().filter(item -> item != null).map(item -> new DiagnosticReportViews.WorkbenchSpecimenSummary(
+                item.id(), item.specimenNo(), item.barcode(), item.specimenNameStandardized(),
+                item.specimenStatus() == null ? null : item.specimenStatus().name())).toList(),
+            safeList(aggregate.blocks()).stream().filter(item -> item != null)
+                .map(item -> toBlockSummary(item, embeddingBoxesByNo, embeddingBoxArchiveByObjectId)).toList(),
+            safeList(aggregate.medicalOrderBlocks()).stream().filter(item -> item != null).map(item -> new DiagnosticReportViews.MedicalOrderBlockView(
                 item.id(), item.blockNo())).toList(),
-            aggregate.slides().stream().map(item -> toSlideSummary(item, slideArchiveByObjectId)).toList(),
-            aggregate.diagnosticTasks().stream().map(this::toTaskView).toList(),
+            safeList(aggregate.slides()).stream().filter(item -> item != null)
+                .map(item -> toSlideSummary(item, slideArchiveByObjectId)).toList(),
+            safeList(aggregate.diagnosticTasks()).stream().filter(item -> item != null).map(this::toTaskView).toList(),
             aggregate.currentReport() == null ? null : toReportView(aggregate.currentReport()),
-            aggregate.recentEvents().stream().map(this::toTrackingEvent).toList(),
-            aggregate.revisions().stream().map(this::toRevisionView).toList(),
-            aggregate.medicalOrders().stream().map(this::toMedicalOrderView).toList(),
-            aggregate.consultations().stream().map(this::toConsultationView).toList(),
-            aggregate.historicalPathologies().stream().map(this::toHistoricalPathologyView).toList(),
+            safeList(aggregate.recentEvents()).stream().filter(item -> item != null).map(this::toTrackingEvent).toList(),
+            safeList(aggregate.revisions()).stream().filter(item -> item != null).map(this::toRevisionView).toList(),
+            safeList(aggregate.medicalOrders()).stream().filter(item -> item != null).map(this::toMedicalOrderView).toList(),
+            safeList(aggregate.consultations()).stream()
+                .filter(item -> item != null && item.consultationCase() != null).map(this::toConsultationView).toList(),
+            safeList(aggregate.historicalPathologies()).stream().filter(item -> item != null)
+                .map(this::toHistoricalPathologyView).toList(),
             List.of(),
             buildReportTraces(aggregate),
             buildRemarkSections(aggregate),
@@ -128,16 +145,17 @@ class DiagnosticReportQueryService {
             archiveStatus(aggregate.applicationFormArchive()),
             archiveLocation(aggregate.applicationFormArchive()),
             archiveImageUrl(aggregate.applicationFormArchive()),
-            aggregate.diagnosticTasks().stream().map(this::toTaskView).toList(),
+            safeList(aggregate.diagnosticTasks()).stream().filter(item -> item != null).map(this::toTaskView).toList(),
             aggregate.currentReport() == null ? null : toReportView(aggregate.currentReport()),
-            aggregate.versions().stream().map(item -> new DiagnosticReportViews.ReportVersionView(
+            safeList(aggregate.versions()).stream().filter(item -> item != null).map(item -> new DiagnosticReportViews.ReportVersionView(
                 item.id(), item.versionNo(), item.versionStatus(), item.finalDiagnosisSnapshot(),
                 stringify(item.signedAt()), stringify(item.createdAt()), item.deliveryStatus(),
                 stringify(item.issuedAt()), stringify(item.plannedIssueAt()))).toList(),
-            aggregate.events().stream().map(this::toTrackingEvent).toList(),
-            aggregate.revisions().stream().map(this::toRevisionView).toList(),
-            aggregate.medicalOrders().stream().map(this::toMedicalOrderView).toList(),
-            aggregate.consultations().stream().map(this::toConsultationView).toList(),
+            safeList(aggregate.events()).stream().filter(item -> item != null).map(this::toTrackingEvent).toList(),
+            safeList(aggregate.revisions()).stream().filter(item -> item != null).map(this::toRevisionView).toList(),
+            safeList(aggregate.medicalOrders()).stream().filter(item -> item != null).map(this::toMedicalOrderView).toList(),
+            safeList(aggregate.consultations()).stream()
+                .filter(item -> item != null && item.consultationCase() != null).map(this::toConsultationView).toList(),
             aggregate.latestEffectiveVersionNo(),
             aggregate.currentDraftVersionNo(),
             aggregate.hasPendingRevision());
@@ -158,16 +176,19 @@ class DiagnosticReportQueryService {
         Map<String, ArchiveRepository.ObjectArchiveSummary> slideArchiveByObjectId =
             indexObjectArchives(workbenchAggregate.slideArchives());
         Map<String, TechnicalWorkflowRecords.EmbeddingBox> embeddingBoxesByNo =
-            workbenchAggregate.embeddingBoxes().stream().collect(Collectors.toMap(
+            workbenchAggregate.embeddingBoxes().stream()
+                .filter(item -> item != null && hasText(item.embeddingBoxNo()))
+                .collect(Collectors.toMap(
                 TechnicalWorkflowRecords.EmbeddingBox::embeddingBoxNo,
                 Function.identity(),
                 (left, right) -> left));
         Map<String, List<TechnicalWorkflowRecords.SamplingBlock>> blocksBySpecimenId =
-            workbenchAggregate.blocks().stream().collect(Collectors.groupingBy(
-                TechnicalWorkflowRecords.SamplingBlock::specimenId));
+            workbenchAggregate.blocks().stream()
+                .filter(item -> item != null && hasText(item.specimenId()))
+                .collect(Collectors.groupingBy(TechnicalWorkflowRecords.SamplingBlock::specimenId));
         Map<String, List<TechnicalWorkflowProcessingRecords.Slide>> slidesByEmbeddingBoxId =
             workbenchAggregate.slides().stream()
-                .filter(item -> item.embeddingBoxId() != null)
+                .filter(item -> item != null && hasText(item.embeddingBoxId()))
                 .collect(Collectors.groupingBy(TechnicalWorkflowProcessingRecords.Slide::embeddingBoxId));
 
         DiagnosticCaseLifecycleAssembler.LifecycleContent lifecycleContent = diagnosticCaseLifecycleAssembler.build(
@@ -209,14 +230,15 @@ class DiagnosticReportQueryService {
             lifecycleContent.specimenViews(),
             new DiagnosticReportViews.ReportLifecycleView(
                 reportTrackingAggregate.currentReport() == null ? null : toReportView(reportTrackingAggregate.currentReport()),
-                reportTrackingAggregate.diagnosticTasks().stream().map(this::toTaskView).toList(),
-                reportTrackingAggregate.versions().stream().map(item -> new DiagnosticReportViews.ReportVersionView(
+                safeList(reportTrackingAggregate.diagnosticTasks()).stream().filter(item -> item != null).map(this::toTaskView).toList(),
+                safeList(reportTrackingAggregate.versions()).stream().filter(item -> item != null).map(item -> new DiagnosticReportViews.ReportVersionView(
                     item.id(), item.versionNo(), item.versionStatus(), item.finalDiagnosisSnapshot(),
                     stringify(item.signedAt()), stringify(item.createdAt()), item.deliveryStatus(),
                     stringify(item.issuedAt()), stringify(item.plannedIssueAt()))).toList(),
-                reportTrackingAggregate.revisions().stream().map(this::toRevisionView).toList(),
-                reportTrackingAggregate.consultations().stream().map(this::toConsultationView).toList(),
-                reportTrackingAggregate.medicalOrders().stream().map(this::toMedicalOrderView).toList()));
+                safeList(reportTrackingAggregate.revisions()).stream().filter(item -> item != null).map(this::toRevisionView).toList(),
+                safeList(reportTrackingAggregate.consultations()).stream()
+                    .filter(item -> item != null && item.consultationCase() != null).map(this::toConsultationView).toList(),
+                safeList(reportTrackingAggregate.medicalOrders()).stream().filter(item -> item != null).map(this::toMedicalOrderView).toList()));
     }
 
     @Transactional(readOnly = true)
@@ -320,6 +342,7 @@ class DiagnosticReportQueryService {
             report.microscopicExam(),
             report.finalDiagnosis(),
             report.richTextContent(),
+            parseRenderSnapshot(report.renderSnapshot()),
             report.remarks(),
             stringify(report.submittedAt()),
             stringify(report.reviewedAt()),
@@ -331,6 +354,17 @@ class DiagnosticReportQueryService {
             null,
             null,
             report.versionNo());
+    }
+
+    private JsonNode parseRenderSnapshot(String renderSnapshot) {
+        if (renderSnapshot == null || renderSnapshot.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readTree(renderSnapshot);
+        } catch (JsonProcessingException exception) {
+            return null;
+        }
     }
 
     private DiagnosticReportViews.TrackingEventView toTrackingEvent(TrackingEvent event) {
@@ -419,6 +453,8 @@ class DiagnosticReportQueryService {
     }
 
     private DiagnosticReportViews.ConsultationView toConsultationView(DiagnosticTrackingQueryRepository.ConsultationView consultation) {
+        List<ConsultationRepository.ConsultationParticipant> participants =
+            safeList(consultation.participants()).stream().filter(item -> item != null).toList();
         return new DiagnosticReportViews.ConsultationView(
             consultation.consultationCase().id(),
             consultation.consultationCase().consultationType(),
@@ -428,8 +464,8 @@ class DiagnosticReportQueryService {
             consultation.consultationCase().hostName(),
             stringify(consultation.consultationCase().completedAt()),
             consultation.consultationCase().opinion(),
-            consultation.participants().size(),
-            consultation.participants().stream()
+            participants.size(),
+            participants.stream()
                 .map(item -> new DiagnosticReportViews.ConsultationParticipantView(
                     item.id(),
                     item.participantUserId(),
@@ -465,11 +501,11 @@ class DiagnosticReportQueryService {
     private List<DiagnosticReportViews.ChargeItemView> buildChargeItemViews(
         DiagnosticTrackingQueryRepository.DiagnosticWorkbenchAggregate aggregate
     ) {
-        if (!aggregate.chargeItems().isEmpty()) {
-            return aggregate.chargeItems().stream().map(this::toChargeItemView).toList();
+        if (!safeList(aggregate.chargeItems()).isEmpty()) {
+            return safeList(aggregate.chargeItems()).stream().filter(item -> item != null).map(this::toChargeItemView).toList();
         }
-        return aggregate.medicalOrders().stream()
-            .filter(order -> order.billingStatus() != null && !order.billingStatus().isBlank())
+        return safeList(aggregate.medicalOrders()).stream()
+            .filter(order -> order != null && order.billingStatus() != null && !order.billingStatus().isBlank())
             .map(order -> new DiagnosticReportViews.ChargeItemView(
                 firstPresent(order.orderContent(), order.orderNumber()),
                 stringify(firstPresent(order.completedAt(), order.acceptedAt(), order.orderDate())),
@@ -490,7 +526,10 @@ class DiagnosticReportQueryService {
                 report.reportStatus(),
                 report.finalDiagnosis()));
         }
-        for (DiagnosticReportRepository.DiagnosticTask task : aggregate.diagnosticTasks()) {
+        for (DiagnosticReportRepository.DiagnosticTask task : safeList(aggregate.diagnosticTasks())) {
+            if (task == null) {
+                continue;
+            }
             traces.add(new DiagnosticReportViews.ReportTraceView(
                 traces.size() + 1,
                 firstPresent(task.primaryDoctorName(), task.diagnosisDoctorName(), task.reviewerName()),
@@ -514,7 +553,7 @@ class DiagnosticReportQueryService {
             "GROSSING",
             "取材备注",
             aggregate.pathologyNo(),
-            aggregate.blocks().stream()
+            safeList(aggregate.blocks()).stream()
                 .map(DiagnosticReportQueryService::firstNonBlankBlockRemark)
                 .filter(value -> value != null && !value.isBlank())
                 .findFirst()
@@ -524,8 +563,8 @@ class DiagnosticReportQueryService {
             "诊断备注",
             aggregate.pathologyNo(),
             aggregate.currentReport() == null ? null : aggregate.currentReport().remarks()));
-        aggregate.medicalOrders().stream()
-            .filter(order -> order.remarks() != null && !order.remarks().isBlank())
+        safeList(aggregate.medicalOrders()).stream()
+            .filter(order -> order != null && order.remarks() != null && !order.remarks().isBlank())
             .forEach(order -> sections.add(new DiagnosticReportViews.RemarkSectionView(
                 "MEDICAL_ORDER",
                 "医嘱备注",
@@ -535,6 +574,9 @@ class DiagnosticReportQueryService {
     }
 
     private static String firstNonBlankBlockRemark(TechnicalWorkflowRecords.SamplingBlock block) {
+        if (block == null) {
+            return null;
+        }
         if (block.specialRequirement() != null && !block.specialRequirement().isBlank()) {
             return block.specialRequirement();
         }
@@ -594,10 +636,23 @@ class DiagnosticReportQueryService {
     }
 
     private Map<String, ArchiveRepository.ObjectArchiveSummary> indexObjectArchives(List<ArchiveRepository.ObjectArchiveSummary> archives) {
-        return archives.stream().collect(Collectors.toMap(
+        if (archives == null || archives.isEmpty()) {
+            return Map.of();
+        }
+        return archives.stream()
+            .filter(item -> item != null && hasText(item.objectId()))
+            .collect(Collectors.toMap(
             ArchiveRepository.ObjectArchiveSummary::objectId,
             Function.identity(),
             (left, right) -> left));
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private static <T> List<T> safeList(List<T> values) {
+        return values == null ? List.of() : values;
     }
 
     private String archiveStatus(ArchiveRepository.ApplicationArchiveSummary summary) {

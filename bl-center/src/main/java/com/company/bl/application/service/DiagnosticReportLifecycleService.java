@@ -26,17 +26,20 @@ class DiagnosticReportLifecycleService {
     private final NumberingService numberingService;
     private final DiagnosticReportSupport diagnosticReportSupport;
     private final BillingManagementService billingManagementService;
+    private final ReportArtifactService reportArtifactService;
 
     DiagnosticReportLifecycleService(DiagnosticReportRepository diagnosticReportRepository,
                                      TechnicalWorkflowRepository technicalWorkflowRepository,
                                      NumberingService numberingService,
                                      DiagnosticReportSupport diagnosticReportSupport,
-                                     BillingManagementService billingManagementService) {
+                                     BillingManagementService billingManagementService,
+                                     ReportArtifactService reportArtifactService) {
         this.diagnosticReportRepository = diagnosticReportRepository;
         this.technicalWorkflowRepository = technicalWorkflowRepository;
         this.numberingService = numberingService;
         this.diagnosticReportSupport = diagnosticReportSupport;
         this.billingManagementService = billingManagementService;
+        this.reportArtifactService = reportArtifactService;
     }
 
     @Transactional
@@ -50,7 +53,9 @@ class DiagnosticReportLifecycleService {
             && !DiagnosticReportConstants.TASK_ASSIGNED.equals(task.status())) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Diagnostic task is not editable");
         }
-        diagnosticReportSupport.ensureAssignedDoctor(task, command.operatorUserId());
+        if (!command.workbenchOverrideAllowed()) {
+            diagnosticReportSupport.ensureAssignedDoctor(task, command.operatorUserId());
+        }
         String reportScope = resolveReportScope(task);
         DiagnosticReportRepository.PathologyReport existing = diagnosticReportRepository
             .findCurrentReportByCaseIdAndScope(command.caseId(), reportScope)
@@ -82,6 +87,7 @@ class DiagnosticReportLifecycleService {
             command.clinicalDiagnosis(),
             command.finalDiagnosis(),
             command.richTextContent(),
+            reportArtifactService.validateAndSerializeRenderSnapshot(command.renderSnapshot(), command.caseId()),
             command.remarks(),
             now));
         diagnosticReportSupport.insertWorkflowEvent(command.caseId(), "REPORT_DRAFT", "CREATE", "SUCCESS",
@@ -104,13 +110,19 @@ class DiagnosticReportLifecycleService {
         String eventNodeCode;
         String eventContent;
         if (DiagnosticReportConstants.REPORT_DRAFT.equals(report.reportStatus())) {
-            diagnosticReportSupport.ensureAssignedDoctor(task, command.operatorUserId());
+            if (!command.workbenchOverrideAllowed()) {
+                diagnosticReportSupport.ensureAssignedDoctor(task, command.operatorUserId());
+            }
             eventNodeCode = "REPORT_DRAFT";
             eventContent = "Draft report saved";
         } else if (DiagnosticReportConstants.REPORT_REVIEWED.equals(report.reportStatus())) {
-            diagnosticReportSupport.ensureReviewer(task, command.operatorUserId());
+            if (!command.workbenchOverrideAllowed() && !isSigningPreparationRole(command.operatorRoleCode())) {
+                diagnosticReportSupport.ensureReviewer(task, command.operatorUserId());
+            }
             eventNodeCode = "REPORT_REVIEW";
-            eventContent = "Reviewed report saved";
+            eventContent = isSigningPreparationRole(command.operatorRoleCode())
+                ? "Reviewed report snapshot saved before signing"
+                : "Reviewed report saved";
         } else {
             diagnosticReportSupport.ensureDraftReport(report);
             eventNodeCode = "REPORT_DRAFT";
@@ -123,6 +135,7 @@ class DiagnosticReportLifecycleService {
             command.clinicalDiagnosis(),
             command.finalDiagnosis(),
             command.richTextContent(),
+            reportArtifactService.validateAndSerializeRenderSnapshot(command.renderSnapshot(), report.caseId()),
             command.remarks(),
             LocalDateTime.now()));
         diagnosticReportSupport.insertWorkflowEvent(report.caseId(), eventNodeCode, "SAVE", "SUCCESS",
@@ -131,11 +144,19 @@ class DiagnosticReportLifecycleService {
         return new DiagnosticReportModels.PathologyReportResult(updated.id(), updated.caseId(), updated.reportNo(), updated.reportStatus(), null, null);
     }
 
+    private boolean isSigningPreparationRole(String roleCode) {
+        return "M4_SIGN".equals(roleCode) || "PATHOLOGY_ADMIN".equals(roleCode);
+    }
+
     @Transactional
     DiagnosticReportModels.PathologyReportResult submitReport(DiagnosticReportModels.ReportActionCommand command) {
         DiagnosticReportRepository.PathologyReport report = diagnosticReportSupport.getReport(command.reportId());
         diagnosticReportSupport.ensureDraftReport(report);
-        diagnosticReportSupport.ensureAssignedDoctor(diagnosticReportSupport.getDiagnosticTask(report.taskId()), command.operatorUserId());
+        if (!command.workbenchOverrideAllowed()) {
+            diagnosticReportSupport.ensureAssignedDoctor(
+                diagnosticReportSupport.getDiagnosticTask(report.taskId()),
+                command.operatorUserId());
+        }
         LocalDateTime now = LocalDateTime.now();
         diagnosticReportRepository.submitPathologyReport(report.id(), command.remarks(), now);
         diagnosticReportRepository.markDiagnosticTaskSubmitted(report.taskId(), command.remarks(), now);
@@ -152,7 +173,11 @@ class DiagnosticReportLifecycleService {
         if (!DiagnosticReportConstants.REPORT_SUBMITTED.equals(report.reportStatus())) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Report is not submitted");
         }
-        diagnosticReportSupport.ensureReviewer(diagnosticReportSupport.getDiagnosticTask(report.taskId()), command.operatorUserId());
+        if (!command.workbenchOverrideAllowed()) {
+            diagnosticReportSupport.ensureReviewer(
+                diagnosticReportSupport.getDiagnosticTask(report.taskId()),
+                command.operatorUserId());
+        }
         LocalDateTime now = LocalDateTime.now();
         diagnosticReportRepository.reviewPathologyReport(report.id(), command.operatorUserId(), command.operatorName(), command.remarks(), now);
         diagnosticReportRepository.markDiagnosticTaskReviewed(report.taskId(), command.operatorUserId(), command.operatorName(), command.remarks(), now);
@@ -189,20 +214,37 @@ class DiagnosticReportLifecycleService {
         LocalDateTime now = LocalDateTime.now();
         diagnosticReportRepository.signPathologyReport(report.id(), command.operatorUserId(), command.operatorName(), command.remarks(), now);
         DiagnosticReportRepository.PathologyReport updated = diagnosticReportSupport.getReport(report.id());
-        diagnosticReportRepository.insertReportVersion(new DiagnosticReportRepository.CreateReportVersionCommand(
-            diagnosticReportSupport.nextId("RV"),
-            updated.id(),
-            updated.caseId(),
-            updated.reportScope(),
-            updated.reportSeq(),
-            updated.versionNo(),
-            DiagnosticReportConstants.REPORT_SIGNED,
-            updated.finalDiagnosis(),
-            updated.richTextContent(),
-            command.operatorUserId(),
+        ReportArtifactService.GeneratedReportArtifact artifact = reportArtifactService.createOfdArtifact(
+            updated,
+            diagnosticReportSupport.nextId("RVA"),
             command.operatorName(),
-            now,
-            now));
+            now);
+        try {
+            diagnosticReportRepository.insertReportVersionArtifact(
+                new DiagnosticReportRepository.CreateReportVersionArtifactCommand(
+                    artifact.id(), artifact.reportId(), artifact.versionNo(), artifact.artifactFormat(), artifact.fileName(),
+                    artifact.storageKey(), artifact.contentType(), artifact.byteSize(), artifact.sha256(), artifact.generatedAt()));
+            diagnosticReportRepository.insertReportVersion(new DiagnosticReportRepository.CreateReportVersionCommand(
+                diagnosticReportSupport.nextId("RV"),
+                updated.id(),
+                updated.caseId(),
+                updated.reportScope(),
+                updated.reportSeq(),
+                updated.versionNo(),
+                DiagnosticReportConstants.REPORT_SIGNED,
+                updated.finalDiagnosis(),
+                updated.richTextContent(),
+                updated.renderSnapshot(),
+                artifact.id(),
+                command.operatorUserId(),
+                command.operatorName(),
+                now,
+                now));
+        } catch (BlBusinessException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            throw reportArtifactService.artifactFailure();
+        }
         technicalWorkflowRepository.updatePathologyCaseStatus(report.caseId(), "REPORT_SIGNED");
         diagnosticReportSupport.insertWorkflowEvent(report.caseId(), "REPORT_SIGN", "SIGN", "SUCCESS",
             command.operatorUserId(), command.operatorName(), command.terminalCode(), "Report signed");
@@ -220,6 +262,8 @@ class DiagnosticReportLifecycleService {
         LocalDateTime now = LocalDateTime.now();
         diagnosticReportRepository.publishPathologyReport(report.id(), command.remarks(), now);
         DiagnosticReportRepository.PathologyReport updated = diagnosticReportSupport.getReport(report.id());
+        String artifactId = diagnosticReportRepository.findReportVersionArtifact(
+            updated.id(), updated.versionNo(), "OFD").map(DiagnosticReportRepository.ReportVersionArtifact::id).orElse(null);
         diagnosticReportRepository.insertReportVersion(new DiagnosticReportRepository.CreateReportVersionCommand(
             diagnosticReportSupport.nextId("RV"),
             updated.id(),
@@ -230,6 +274,8 @@ class DiagnosticReportLifecycleService {
             DiagnosticReportConstants.REPORT_PUBLISHED,
             updated.finalDiagnosis(),
             updated.richTextContent(),
+            updated.renderSnapshot(),
+            artifactId,
             updated.signedByUserId(),
             updated.signedByName(),
             updated.signedAt(),
@@ -306,10 +352,6 @@ class DiagnosticReportLifecycleService {
         for (DiagnosticReportRepository.ReportVersion version : versions) {
             if (!isFormalVersion(version)) {
                 items.add(new DiagnosticReportModels.FormalReportVersionBatchActionItemResult(version.id(), false, "仅正式报告支持发放"));
-                continue;
-            }
-            if (!"PRINTED".equals(version.printStatus())) {
-                items.add(new DiagnosticReportModels.FormalReportVersionBatchActionItemResult(version.id(), false, "未打印报告不可发放"));
                 continue;
             }
             if (!"PENDING".equals(version.deliveryStatus())) {

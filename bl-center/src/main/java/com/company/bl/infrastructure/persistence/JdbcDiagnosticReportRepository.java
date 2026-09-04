@@ -102,6 +102,11 @@ public class JdbcDiagnosticReportRepository implements DiagnosticReportRepositor
     }
 
     @Override
+    public void lockPathologyReport(String reportId) {
+        pathologyReportStore.lockPathologyReport(reportId);
+    }
+
+    @Override
     public List<PathologyReport> findPathologyReportsByCaseId(String caseId) {
         return pathologyReportStore.findPathologyReportsByCaseId(caseId);
     }
@@ -160,6 +165,66 @@ public class JdbcDiagnosticReportRepository implements DiagnosticReportRepositor
     @Override
     public void insertReportVersion(CreateReportVersionCommand command) {
         pathologyReportStore.insertReportVersion(command);
+    }
+
+    @Override
+    public void insertReportVersionArtifact(CreateReportVersionArtifactCommand command) {
+        pathologyReportStore.insertReportVersionArtifact(command);
+    }
+
+    @Override
+    public void updateReportVersionArtifact(CreateReportVersionArtifactCommand command) {
+        pathologyReportStore.updateReportVersionArtifact(command);
+    }
+
+    @Override
+    public Optional<ReportVersionArtifact> findReportVersionArtifact(String reportId, int versionNo, String artifactFormat) {
+        return pathologyReportStore.findReportVersionArtifact(reportId, versionNo, artifactFormat);
+    }
+
+    @Override
+    public Optional<ReportVersionArtifact> findReportVersionArtifactById(String artifactId) {
+        return pathologyReportStore.findReportVersionArtifactById(artifactId);
+    }
+
+    @Override
+    public List<ReportVersionArtifact> findReportVersionArtifacts(String reportId, String artifactFormat) {
+        return pathologyReportStore.findReportVersionArtifacts(reportId, artifactFormat);
+    }
+
+    @Override
+    public Optional<ReportVersion> findLatestFormalReportVersion(String reportId, int versionNo) {
+        return pathologyReportStore.findLatestFormalReportVersion(reportId, versionNo);
+    }
+
+    @Override
+    public void updateReportVersionArtifactId(String reportId, int versionNo, String artifactId) {
+        pathologyReportStore.updateReportVersionArtifactId(reportId, versionNo, artifactId);
+    }
+
+    @Override
+    public boolean existsReportVersionArtifactByStorageKey(String storageKey) {
+        return pathologyReportStore.existsReportVersionArtifactByStorageKey(storageKey);
+    }
+
+    @Override
+    public void insertReportRenderAsset(CreateReportRenderAssetCommand command) {
+        pathologyReportStore.insertReportRenderAsset(command);
+    }
+
+    @Override
+    public Optional<ReportRenderAsset> findReportRenderAssetById(String assetId) {
+        return pathologyReportStore.findReportRenderAssetById(assetId);
+    }
+
+    @Override
+    public boolean existsReportRenderAssetByStorageKey(String storageKey) {
+        return pathologyReportStore.existsReportRenderAssetByStorageKey(storageKey);
+    }
+
+    @Override
+    public void deleteReportRenderAsset(String assetId) {
+        pathologyReportStore.deleteReportRenderAsset(assetId);
     }
 
     @Override

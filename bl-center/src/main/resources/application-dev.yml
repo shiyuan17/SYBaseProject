@@ -10,6 +10,12 @@ spring:
   flyway:
     enabled: ${BL_CENTER_FLYWAY_ENABLED:false}
 
+bl:
+  file-storage:
+    reports:
+      ofd-enabled: ${BL_REPORT_OFD_ENABLED:true}
+      root-dir: ${BL_REPORT_STORAGE_ROOT:${user.home}/.sybase/bl-center/reports}
+
 security:
   auth:
     jwt:

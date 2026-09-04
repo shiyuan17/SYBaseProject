@@ -111,6 +111,51 @@ abstract class AbstractDiagnosticWorkflowIntegrationTest extends AbstractTechnic
         return userId;
     }
 
+    protected String createWorkbenchOnlyUser(String suffix) {
+        return createPermissionOnlyUser(suffix, "PERM_M4_WORKBENCH_QUERY", "WORKBENCH");
+    }
+
+    protected String createPermissionOnlyUser(String suffix, String permissionId, String label) {
+        String roleId = "ROLE_M4_" + label + "_" + suffix;
+        String userId = "USER_M4_" + label + "_" + suffix;
+        LocalDateTime now = LocalDateTime.now();
+        namedParameterJdbcTemplate.update("""
+            insert into roles (id, role_code, role_name, role_type, data_scope, remarks)
+            values (:id, :roleCode, :roleName, 'BUSINESS', 'DEPARTMENT', 'M4 workbench-only integration test')
+            """, Map.of(
+            "id", roleId,
+            "roleCode", "M4_" + label + "_" + suffix,
+            "roleName", "M4 " + label + " " + suffix));
+        namedParameterJdbcTemplate.update("""
+            insert into role_permissions (id, role_id, permission_id, assigned_at)
+            values (:id, :roleId, :permissionId, :assignedAt)
+            """, Map.of(
+            "id", "RP-M4-" + label + "-" + suffix,
+            "roleId", roleId,
+            "permissionId", permissionId,
+            "assignedAt", now));
+        namedParameterJdbcTemplate.update("""
+            insert into users (id, user_code, login_name, name, role, enabled, created_at, updated_at)
+            values (:id, :userCode, :loginName, :name, :role, 1, :createdAt, :updatedAt)
+            """, Map.of(
+            "id", userId,
+            "userCode", "U-M4-" + label + "-" + suffix,
+            "loginName", "m4." + label.toLowerCase() + "." + suffix.toLowerCase(),
+            "name", "M4 " + label + " " + suffix,
+            "role", "M4_DIAGNOSIS",
+            "createdAt", now,
+            "updatedAt", now));
+        namedParameterJdbcTemplate.update("""
+            insert into user_roles (id, user_id, role_id, is_primary, assigned_at, assigned_by_name)
+            values (:id, :userId, :roleId, 1, :assignedAt, 'test')
+            """, Map.of(
+            "id", "UR-M4-" + label + "-" + suffix,
+            "userId", userId,
+            "roleId", roleId,
+            "assignedAt", now));
+        return userId;
+    }
+
     protected StartedDiagnosticContext prepareStartedDiagnosticCase(String applicationNo, String barcode) throws Exception {
         return prepareStartedDiagnosticCase(applicationNo, barcode, "DEPT-OR", "OR");
     }

@@ -44,6 +44,8 @@ public interface DiagnosticReportRepository {
 
     Optional<PathologyReport> findPathologyReportById(String reportId);
 
+    void lockPathologyReport(String reportId);
+
     List<PathologyReport> findPathologyReportsByCaseId(String caseId);
 
     void insertPathologyReport(CreatePathologyReportCommand command);
@@ -74,6 +76,30 @@ public interface DiagnosticReportRepository {
     void publishPathologyReport(String reportId, String remarks, LocalDateTime publishedAt);
 
     void insertReportVersion(CreateReportVersionCommand command);
+
+    void insertReportVersionArtifact(CreateReportVersionArtifactCommand command);
+
+    void updateReportVersionArtifact(CreateReportVersionArtifactCommand command);
+
+    Optional<ReportVersionArtifact> findReportVersionArtifact(String reportId, int versionNo, String artifactFormat);
+
+    Optional<ReportVersionArtifact> findReportVersionArtifactById(String artifactId);
+
+    List<ReportVersionArtifact> findReportVersionArtifacts(String reportId, String artifactFormat);
+
+    Optional<ReportVersion> findLatestFormalReportVersion(String reportId, int versionNo);
+
+    void updateReportVersionArtifactId(String reportId, int versionNo, String artifactId);
+
+    boolean existsReportVersionArtifactByStorageKey(String storageKey);
+
+    void insertReportRenderAsset(CreateReportRenderAssetCommand command);
+
+    Optional<ReportRenderAsset> findReportRenderAssetById(String assetId);
+
+    boolean existsReportRenderAssetByStorageKey(String storageKey);
+
+    void deleteReportRenderAsset(String assetId);
 
     Optional<ReportVersion> findReportVersionById(String versionId);
 
@@ -202,6 +228,7 @@ public interface DiagnosticReportRepository {
         LocalDateTime signedAt,
         LocalDateTime publishedAt,
         String richTextContent,
+        String renderSnapshot,
         String remarks,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
@@ -228,6 +255,7 @@ public interface DiagnosticReportRepository {
         String clinicalDiagnosis,
         String finalDiagnosis,
         String richTextContent,
+        String renderSnapshot,
         String remarks,
         LocalDateTime createdAt
     ) {
@@ -240,6 +268,7 @@ public interface DiagnosticReportRepository {
         String clinicalDiagnosis,
         String finalDiagnosis,
         String richTextContent,
+        String renderSnapshot,
         String remarks,
         LocalDateTime updatedAt
     ) {
@@ -255,6 +284,8 @@ public interface DiagnosticReportRepository {
         String versionStatus,
         String finalDiagnosisSnapshot,
         String contentSnapshot,
+        String renderSnapshot,
+        String artifactId,
         String signedByUserId,
         String signedByName,
         LocalDateTime signedAt,
@@ -272,6 +303,8 @@ public interface DiagnosticReportRepository {
         String versionStatus,
         String finalDiagnosisSnapshot,
         String contentSnapshot,
+        String renderSnapshot,
+        String artifactId,
         String signedByUserId,
         String signedByName,
         LocalDateTime signedAt,
@@ -283,6 +316,58 @@ public interface DiagnosticReportRepository {
         String deliveryScheduleStatus,
         LocalDateTime issuedAt,
         LocalDateTime recalledAt
+    ) {
+    }
+
+    record CreateReportVersionArtifactCommand(
+        String id,
+        String reportId,
+        int versionNo,
+        String artifactFormat,
+        String fileName,
+        String storageKey,
+        String contentType,
+        long byteSize,
+        String sha256,
+        LocalDateTime generatedAt
+    ) {
+    }
+
+    record ReportVersionArtifact(
+        String id,
+        String reportId,
+        int versionNo,
+        String artifactFormat,
+        String fileName,
+        String storageKey,
+        String contentType,
+        long byteSize,
+        String sha256,
+        LocalDateTime generatedAt
+    ) {
+    }
+
+    record CreateReportRenderAssetCommand(
+        String id,
+        String caseId,
+        String fileName,
+        String storageKey,
+        String contentType,
+        long byteSize,
+        String sha256,
+        LocalDateTime createdAt
+    ) {
+    }
+
+    record ReportRenderAsset(
+        String id,
+        String caseId,
+        String fileName,
+        String storageKey,
+        String contentType,
+        long byteSize,
+        String sha256,
+        LocalDateTime createdAt
     ) {
     }
 }
