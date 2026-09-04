@@ -5,6 +5,7 @@ import com.company.bl.application.service.TechnicalWorkflowAppService;
 import com.company.bl.interfaces.auth.M2PermissionCodes;
 import com.company.bl.interfaces.auth.M3PermissionCodes;
 import com.company.bl.interfaces.auth.M4PermissionCodes;
+import com.company.bl.interfaces.auth.RbacPermissionRepository;
 import com.company.bl.interfaces.auth.RequireAnyPermission;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.FrozenActionRequest;
@@ -38,9 +39,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class FrozenWorkflowController extends TechnicalControllerSupport {
 
     private final TechnicalWorkflowAppService technicalWorkflowAppService;
+    private final RbacPermissionRepository permissionRepository;
 
-    public FrozenWorkflowController(TechnicalWorkflowAppService technicalWorkflowAppService) {
+    public FrozenWorkflowController(TechnicalWorkflowAppService technicalWorkflowAppService,
+                                    RbacPermissionRepository permissionRepository) {
         this.technicalWorkflowAppService = technicalWorkflowAppService;
+        this.permissionRepository = permissionRepository;
     }
 
     @Operation(summary = "查询冰冻工作台", description = "返回冰冻工作台会话列表与提醒汇总。")
@@ -173,6 +177,7 @@ public class FrozenWorkflowController extends TechnicalControllerSupport {
                 sessionId,
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest),
+                false,
                 request.getTerminalCode(),
                 request.getRemarks())));
     }
@@ -191,6 +196,7 @@ public class FrozenWorkflowController extends TechnicalControllerSupport {
                 sessionId,
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest),
+                false,
                 request.getTerminalCode(),
                 request.getRemarks())));
     }
@@ -209,12 +215,13 @@ public class FrozenWorkflowController extends TechnicalControllerSupport {
                 sessionId,
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest),
+                false,
                 request.getTerminalCode(),
                 request.getRemarks())));
     }
 
     @Operation(summary = "保存冰冻初步结果", description = "保存冰冻初步结果并推进到电话回报。")
-    @RequirePermission(M4PermissionCodes.REPORT_CREATE)
+    @RequireAnyPermission({M4PermissionCodes.WORKBENCH_QUERY, M4PermissionCodes.REPORT_CREATE})
     @PostMapping({
         "/frozen-workflow/sessions/{sessionId}/preliminary-report/save",
         "/frozen-sessions/{sessionId}/preliminary-report/save"
@@ -227,13 +234,14 @@ public class FrozenWorkflowController extends TechnicalControllerSupport {
                 sessionId,
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest),
+                workbenchOverrideAllowed(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks(),
                 request.getPreliminaryResult())));
     }
 
     @Operation(summary = "完成术中电话回报", description = "完成术中电话回报并推进到冰石对比。")
-    @RequirePermission(M4PermissionCodes.REPORT_CREATE)
+    @RequireAnyPermission({M4PermissionCodes.WORKBENCH_QUERY, M4PermissionCodes.REPORT_CREATE})
     @PostMapping({
         "/frozen-workflow/sessions/{sessionId}/phone-back/complete",
         "/frozen-sessions/{sessionId}/phone-back/complete"
@@ -246,13 +254,14 @@ public class FrozenWorkflowController extends TechnicalControllerSupport {
                 sessionId,
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest),
+                workbenchOverrideAllowed(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks(),
                 request.getPreliminaryResult())));
     }
 
     @Operation(summary = "确认冰冻报告", description = "确认术中快速冰冻结果。")
-    @RequirePermission(M4PermissionCodes.REPORT_CREATE)
+    @RequireAnyPermission({M4PermissionCodes.WORKBENCH_QUERY, M4PermissionCodes.REPORT_CREATE})
     @PostMapping({
         "/frozen-workflow/sessions/{sessionId}/report/confirm",
         "/frozen-sessions/{sessionId}/report/confirm"
@@ -265,12 +274,13 @@ public class FrozenWorkflowController extends TechnicalControllerSupport {
                 sessionId,
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest),
+                workbenchOverrideAllowed(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks())));
     }
 
     @Operation(summary = "完成冰石对比", description = "完成冰冻与石蜡结果对比。")
-    @RequirePermission(M4PermissionCodes.REPORT_REVIEW)
+    @RequireAnyPermission({M4PermissionCodes.WORKBENCH_QUERY, M4PermissionCodes.REPORT_REVIEW})
     @PostMapping({
         "/frozen-workflow/sessions/{sessionId}/paraffin-compare/complete",
         "/frozen-sessions/{sessionId}/paraffin-compare/complete"
@@ -283,6 +293,7 @@ public class FrozenWorkflowController extends TechnicalControllerSupport {
                 sessionId,
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest),
+                workbenchOverrideAllowed(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks(),
                 request.getCompareStatus(),
@@ -290,7 +301,7 @@ public class FrozenWorkflowController extends TechnicalControllerSupport {
     }
 
     @Operation(summary = "完成剩余组织处理", description = "完成剩余组织处理并关闭冰冻会话。")
-    @RequirePermission(M3PermissionCodes.GROSSING)
+    @RequireAnyPermission({M4PermissionCodes.WORKBENCH_QUERY, M3PermissionCodes.GROSSING})
     @PostMapping({
         "/frozen-workflow/sessions/{sessionId}/remaining-tissue/complete",
         "/frozen-sessions/{sessionId}/remaining-tissue/complete"
@@ -303,6 +314,7 @@ public class FrozenWorkflowController extends TechnicalControllerSupport {
                 sessionId,
                 resolveUserId(httpServletRequest),
                 resolveOperatorName(httpServletRequest),
+                workbenchOverrideAllowed(httpServletRequest),
                 request.getTerminalCode(),
                 request.getRemarks(),
                 request.getRemainingTissueStatus())));
@@ -341,6 +353,10 @@ public class FrozenWorkflowController extends TechnicalControllerSupport {
             session.slicingCompletedAt(),
             session.slicingStartedAt(),
             session.timeoutLevel());
+    }
+
+    private boolean workbenchOverrideAllowed(HttpServletRequest request) {
+        return permissionRepository.isWorkbenchOverrideAllowed(resolveUserId(request));
     }
 
     private FrozenTaskActionResponse toActionResponse(FrozenWorkflowModels.FrozenTaskActionResult result) {

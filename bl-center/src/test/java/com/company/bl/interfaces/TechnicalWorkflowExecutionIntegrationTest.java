@@ -563,6 +563,14 @@ class TechnicalWorkflowExecutionIntegrationTest extends AbstractTechnicalWorkflo
         assertThat(embeddingBoxRows)
             .extracting(row -> row.get("embedding_box_no"))
             .containsExactly(embeddingBoxNo, embeddingBoxNo);
+        java.util.List<java.util.Map<String, Object>> samplingBlockRows = namedParameterJdbcTemplate.queryForList("""
+            select block_code
+            from sampling_blocks
+            where case_id in (:caseIds)
+            """, java.util.Map.of("caseIds", java.util.List.of(firstContext.caseId(), secondContext.caseId())));
+        assertThat(samplingBlockRows)
+            .extracting(row -> row.get("block_code"))
+            .doesNotHaveDuplicates();
     }
 
     @Test

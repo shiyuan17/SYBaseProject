@@ -37,4 +37,12 @@ final class RequestOperatorContext {
         }
         return null;
     }
+
+    static String currentRoleCode(HttpServletRequest request) {
+        Object currentRoleCode = request.getAttribute(ApiPermissionContext.CURRENT_ROLE_CODE);
+        if (currentRoleCode instanceof String roleCode && !roleCode.isBlank()) {
+            return roleCode.trim();
+        }
+        return null;
+    }
 }

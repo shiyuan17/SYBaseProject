@@ -249,19 +249,25 @@ class FrozenWorkflowSessionSupport {
 
     DiagnosticReportRepository.DiagnosticTask latestDiagnosticTaskAssignedDoctor(
         FrozenSessionContext context,
-        String operatorUserId
+        String operatorUserId,
+        boolean workbenchOverrideAllowed
     ) {
         DiagnosticReportRepository.DiagnosticTask diagnosticTask = latestDiagnosticTask(context);
-        diagnosticReportSupport.ensureAssignedDoctor(diagnosticTask, operatorUserId);
+        if (!workbenchOverrideAllowed) {
+            diagnosticReportSupport.ensureAssignedDoctor(diagnosticTask, operatorUserId);
+        }
         return diagnosticTask;
     }
 
     DiagnosticReportRepository.DiagnosticTask latestDiagnosticTaskReviewer(
         FrozenSessionContext context,
-        String operatorUserId
+        String operatorUserId,
+        boolean workbenchOverrideAllowed
     ) {
         DiagnosticReportRepository.DiagnosticTask diagnosticTask = latestDiagnosticTask(context);
-        diagnosticReportSupport.ensureReviewer(diagnosticTask, operatorUserId);
+        if (!workbenchOverrideAllowed) {
+            diagnosticReportSupport.ensureReviewer(diagnosticTask, operatorUserId);
+        }
         return diagnosticTask;
     }
 

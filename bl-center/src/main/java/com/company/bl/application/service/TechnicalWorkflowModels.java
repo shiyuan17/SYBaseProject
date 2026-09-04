@@ -35,8 +35,7 @@ public final class TechnicalWorkflowModels {
     ) {
     }
 
-    public record PendingTechnicalTaskPage(List<TaskView> items, int page, int size, long total) {
-    }
+    public record PendingTechnicalTaskPage(List<TaskView> items, int page, int size, long total) {}
 
     public record SlicingWorkbenchQuery(
         String keyword,
@@ -51,14 +50,12 @@ public final class TechnicalWorkflowModels {
         LocalDate dateFrom,
         LocalDate dateTo,
         LocalDate workDate
-    ) {
-    }
+    ) {}
 
     public record LocalDateRange(
         LocalDate dateFrom,
         LocalDate dateTo
-    ) {
-    }
+    ) {}
 
     public record TechnicalTrackingCaseListQuery(
         int page,
@@ -66,16 +63,14 @@ public final class TechnicalWorkflowModels {
         LocalDate dateFrom,
         LocalDate dateTo,
         LocalDate workDate
-    ) {
-    }
+    ) {}
 
     public record TechnicalTrackingCaseListPage(
         List<TechnicalTrackingCaseListItem> items,
         int page,
         int size,
         long total
-    ) {
-    }
+    ) {}
 
     public record TechnicalTrackingCaseListItem(
         String caseId,
@@ -88,8 +83,7 @@ public final class TechnicalWorkflowModels {
         String caseStatus,
         String latestActivityAt,
         List<String> matchedActivityTypes
-    ) {
-    }
+    ) {}
 
     public record SlicingWorkbenchView(
         SlicingWorkbenchStats stats,
@@ -105,8 +99,7 @@ public final class TechnicalWorkflowModels {
         int completedPage,
         int completedSize,
         long completedTotal
-    ) {
-    }
+    ) {}
 
     public record SlicingWorkbenchStats(
         long pendingTodayCount,
@@ -115,8 +108,7 @@ public final class TechnicalWorkflowModels {
         long completedDeptTodayCount,
         long overdueCount,
         long pendingPrintCount
-    ) {
-    }
+    ) {}
 
     public record SlicingWorkbenchRow(
         String taskId,
@@ -153,8 +145,7 @@ public final class TechnicalWorkflowModels {
         boolean mergedPrintGroup,
         List<String> taskIds,
         List<String> embeddingBoxIds
-    ) {
-    }
+    ) {}
 
     public record PendingTechnicalSpecimenRegistrationQuery(
         int page,
@@ -358,8 +349,7 @@ public final class TechnicalWorkflowModels {
     ) implements OperatorCarrier {
     }
 
-    public record TaskStartResult(String taskId, String caseId, String caseStatus, String taskStatus) {
-    }
+    public record TaskStartResult(String taskId, String caseId, String caseStatus, String taskStatus) {}
 
     public record TechnicalTaskAssignCommand(
         String taskId,
@@ -525,11 +515,9 @@ public final class TechnicalWorkflowModels {
         }
     }
 
-    public record MediaAssetInput(String fileUrl, String fileName) {
-    }
+    public record MediaAssetInput(String fileUrl, String fileName) {}
 
-    public record GrossingBlockItem(String blockSite, String blockDescription, String specialRequirement) {
-    }
+    public record GrossingBlockItem(String blockSite, String blockDescription, String specialRequirement) {}
 
     public record GrossingEmbeddingBoxItem(
         Integer sequenceNo,
@@ -595,8 +583,7 @@ public final class TechnicalWorkflowModels {
     ) {
     }
 
-    public record GrossingResult(String taskId, String caseId, String caseStatus, int createdDehydrationTaskCount) {
-    }
+    public record GrossingResult(String taskId, String caseId, String caseStatus, int createdDehydrationTaskCount) {}
 
     public record GrossingWorkbenchTaskSummary(
         String taskId,
@@ -670,8 +657,7 @@ public final class TechnicalWorkflowModels {
     ) implements OperatorCarrier {
     }
 
-    public record DehydrationBatchResult(String batchId, String batchNo, String batchStatus, int taskCount) {
-    }
+    public record DehydrationBatchResult(String batchId, String batchNo, String batchStatus, int taskCount) {}
 
     public record EmbeddingCompleteCommand(
         String taskId,
@@ -764,8 +750,7 @@ public final class TechnicalWorkflowModels {
     ) implements OperatorCarrier {
     }
 
-    public record SlicingResult(String taskId, String slicingId, List<String> slideIds, String caseStatus) {
-    }
+    public record SlicingResult(String taskId, String slicingId, List<String> slideIds, String caseStatus) {}
 
     public record SlicingSlidePrintCommand(
         String taskId,
@@ -818,8 +803,7 @@ public final class TechnicalWorkflowModels {
     ) implements OperatorCarrier {
     }
 
-    public record SlicingSlidePrintMergeGroupResult(List<String> printGroupIds) {
-    }
+    public record SlicingSlidePrintMergeGroupResult(List<String> printGroupIds) {}
 
     public record CreateSlideQcEvaluationCommand(
         String caseId,
@@ -841,8 +825,7 @@ public final class TechnicalWorkflowModels {
         String slideId,
         String evaluationResult,
         String qualityStatus
-    ) {
-    }
+    ) {}
 
     public record SlideStainingCompleteCommand(
         String taskId,
@@ -856,8 +839,7 @@ public final class TechnicalWorkflowModels {
     ) implements OperatorCarrier {
     }
 
-    public record SlideStainingResult(String taskId, String slideId, String caseStatus) {
-    }
+    public record SlideStainingResult(String taskId, String slideId, String caseStatus) {}
 
     public record CreateReworkOrderCommand(
         String caseId,
@@ -884,8 +866,7 @@ public final class TechnicalWorkflowModels {
     ) implements OperatorCarrier {
     }
 
-    public record ReworkOrderResult(String caseId, String reworkType, String status) {
-    }
+    public record ReworkOrderResult(String caseId, String reworkType, String status) {}
 
     public record TechnicalTrackingView(
         String caseId,
@@ -1003,8 +984,7 @@ public final class TechnicalWorkflowModels {
     ) {
     }
 
-    public record ReworkSummary(String reworkOrderId, String reworkType, String status, String reason) {
-    }
+    public record ReworkSummary(String reworkOrderId, String reworkType, String status, String reason) {}
 
     public record TechnicalTrackingEvent(
         String nodeCode,

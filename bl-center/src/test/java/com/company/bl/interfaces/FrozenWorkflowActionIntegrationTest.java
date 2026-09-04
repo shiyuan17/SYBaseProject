@@ -17,6 +17,47 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 class FrozenWorkflowActionIntegrationTest extends AbstractFrozenWorkflowIntegrationTest {
 
     @Test
+    void shouldCompleteFrozenReportActionsAsWorkbenchOnlyOperator() throws Exception {
+        String suffix = uniqueSuffix();
+        FrozenCaseContext diagnosing = prepareFrozenStartedDiagnosticCase(
+            "APP-FR-WB-" + suffix,
+            "BC-FR-WB-" + suffix);
+        String workbenchUserId = createWorkbenchOnlyUser("FR" + suffix);
+
+        responseBody(postJson(
+            "/api/v1/frozen-workflow/sessions/%s/preliminary-report/save".formatted(diagnosing.caseId()),
+            workbenchUserId,
+            "{\"preliminaryResult\":\"工作台冰冻初步\"}"), 200);
+        responseBody(postJson(
+            "/api/v1/frozen-workflow/sessions/%s/phone-back/complete".formatted(diagnosing.caseId()),
+            workbenchUserId,
+            "{\"preliminaryResult\":\"工作台冰冻初步\"}"), 200);
+        responseBody(postJson(
+            "/api/v1/frozen-workflow/sessions/%s/report/confirm".formatted(diagnosing.caseId()),
+            workbenchUserId,
+            "{}"), 200);
+        responseBody(postJson(
+            "/api/v1/frozen-workflow/sessions/%s/paraffin-compare/complete".formatted(diagnosing.caseId()),
+            workbenchUserId,
+            "{\"compareStatus\":\"SIGNED_OFF\",\"compareSummary\":\"工作台冰石一致\"}"), 200);
+        JsonNode closed = responseBody(postJson(
+            "/api/v1/frozen-workflow/sessions/%s/remaining-tissue/complete".formatted(diagnosing.caseId()),
+            workbenchUserId,
+            "{\"remainingTissueStatus\":\"DISPOSED\"}"), 200);
+
+        assertThat(closed.path("sessionStatus").asText()).isEqualTo("CLOSED");
+        List<String> operators = namedParameterJdbcTemplate.queryForList("""
+            select distinct operator_user_id
+            from workflow_events
+            where case_id = :caseId
+              and event_type in ('FROZEN_PRELIMINARY_REPORT_SAVED', 'FROZEN_PHONE_BACK_COMPLETED',
+                                 'FROZEN_REPORT_CONFIRMED', 'FROZEN_PARAFFIN_COMPARE_COMPLETED',
+                                 'FROZEN_REMAINING_TISSUE_COMPLETED')
+            """, Map.of("caseId", diagnosing.caseId()), String.class);
+        assertThat(operators).containsOnly(workbenchUserId);
+    }
+
+    @Test
     void shouldCompleteFrozenTechnicalActionsOnFrozenSessionsRoutes() throws Exception {
         FrozenCaseContext requested = prepareFrozenRequestedCase("APP-FR-ALIAS-003", "BC-FR-ALIAS-003");
 

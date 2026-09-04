@@ -205,7 +205,10 @@ class FrozenWorkflowService {
                 "Frozen preliminary report can only be saved during report stage");
         }
         DiagnosticReportRepository.DiagnosticTask diagnosticTask =
-            frozenWorkflowSessionSupport.latestDiagnosticTaskAssignedDoctor(context, command.operatorUserId());
+            frozenWorkflowSessionSupport.latestDiagnosticTaskAssignedDoctor(
+                context,
+                command.operatorUserId(),
+                command.workbenchOverrideAllowed());
         if (frozenWorkflowSessionSupport.hasCompletedEvent(context.events(), EVENT_FROZEN_PHONE_BACK_COMPLETED)) {
             throw new BlBusinessException(
                 BlErrorCode.OPERATION_NOT_ALLOWED,
@@ -245,7 +248,10 @@ class FrozenWorkflowService {
                 "Frozen phone back can only be completed during report stage");
         }
         DiagnosticReportRepository.DiagnosticTask diagnosticTask =
-            frozenWorkflowSessionSupport.latestDiagnosticTaskAssignedDoctor(context, command.operatorUserId());
+            frozenWorkflowSessionSupport.latestDiagnosticTaskAssignedDoctor(
+                context,
+                command.operatorUserId(),
+                command.workbenchOverrideAllowed());
         if (frozenWorkflowSessionSupport.hasCompletedEvent(context.events(), EVENT_FROZEN_PHONE_BACK_COMPLETED)) {
             throw new BlBusinessException(
                 BlErrorCode.OPERATION_NOT_ALLOWED,
@@ -284,7 +290,10 @@ class FrozenWorkflowService {
     @Transactional
     FrozenWorkflowModels.FrozenTaskActionResult confirmReport(FrozenWorkflowModels.FrozenActionCommand command) {
         FrozenSessionContext context = frozenWorkflowSessionSupport.loadSessionContext(command.sessionId());
-        frozenWorkflowSessionSupport.latestDiagnosticTaskAssignedDoctor(context, command.operatorUserId());
+        frozenWorkflowSessionSupport.latestDiagnosticTaskAssignedDoctor(
+            context,
+            command.operatorUserId(),
+            command.workbenchOverrideAllowed());
         if (!frozenWorkflowSessionSupport.hasCompletedEvent(context.events(), EVENT_FROZEN_PHONE_BACK_COMPLETED)) {
             throw new BlBusinessException(
                 BlErrorCode.OPERATION_NOT_ALLOWED,
@@ -313,7 +322,10 @@ class FrozenWorkflowService {
     @Transactional
     FrozenWorkflowModels.FrozenTaskActionResult completeParaffinCompare(FrozenWorkflowModels.FrozenParaffinCompareCommand command) {
         FrozenSessionContext context = frozenWorkflowSessionSupport.loadSessionContext(command.sessionId());
-        frozenWorkflowSessionSupport.latestDiagnosticTaskReviewer(context, command.operatorUserId());
+        frozenWorkflowSessionSupport.latestDiagnosticTaskReviewer(
+            context,
+            command.operatorUserId(),
+            command.workbenchOverrideAllowed());
         if (!frozenWorkflowSessionSupport.hasCompletedEvent(context.events(), EVENT_FROZEN_REPORT_CONFIRMED)) {
             throw new BlBusinessException(
                 BlErrorCode.OPERATION_NOT_ALLOWED,

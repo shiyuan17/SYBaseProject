@@ -3,6 +3,7 @@ package com.company.bl.interfaces.controller;
 import com.company.bl.application.service.DiagnosticReportAppService;
 import com.company.bl.application.service.DiagnosticReportModels;
 import com.company.bl.interfaces.auth.M4PermissionCodes;
+import com.company.bl.interfaces.auth.RequireAnyPermission;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.AssignDiagnosticTaskRequest;
 import com.company.bl.interfaces.dto.DiagnosticTaskActionRequest;
@@ -37,7 +38,7 @@ public class DiagnosticTaskController extends TechnicalControllerSupport {
     }
 
     @Operation(summary = "查询待处理诊断任务", description = "分页查询诊断流程待处理任务列表。")
-    @RequirePermission(M4PermissionCodes.DIAG_TASK_QUERY)
+    @RequireAnyPermission({M4PermissionCodes.WORKBENCH_QUERY, M4PermissionCodes.DIAG_TASK_QUERY})
     @GetMapping("/pending")
     public PendingDiagnosticTaskPageResponse listPending(@Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
                                                          @Parameter(description = "每页条数，默认 20") @RequestParam(defaultValue = "20") int size,

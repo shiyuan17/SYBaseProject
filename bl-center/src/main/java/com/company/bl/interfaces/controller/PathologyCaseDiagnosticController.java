@@ -4,6 +4,7 @@ import com.company.bl.application.service.DiagnosticReportAppService;
 import com.company.bl.application.service.DiagnosticReportModels;
 import com.company.bl.application.service.DiagnosticReportViews;
 import com.company.bl.interfaces.auth.M4PermissionCodes;
+import com.company.bl.interfaces.auth.RequireAnyPermission;
 import com.company.bl.interfaces.auth.RequirePermission;
 import com.company.bl.interfaces.dto.CreateMedicalOrderBlockRequest;
 import com.company.bl.interfaces.vo.CaseReportVersionListItemResponse;
@@ -63,7 +64,11 @@ public class PathologyCaseDiagnosticController extends TechnicalControllerSuppor
             result.phone(),
             result.submittingDepartmentName(),
             result.submittingDoctorName(),
+            result.wardName(),
+            result.samplingDoctorNames(),
             result.clinicalDiagnosis(),
+            result.checkItem(),
+            result.submissionDate(),
             result.applicationRemarks(),
             result.applicationFormArchiveStatus(),
             result.applicationFormArchiveLocation(),
@@ -210,7 +215,7 @@ public class PathologyCaseDiagnosticController extends TechnicalControllerSuppor
     }
 
     @Operation(summary = "查询病例报告版本列表", description = "按病例 ID 或病理号查询当前病例下的全状态报告版本列表。")
-    @RequirePermission(M4PermissionCodes.REPORT_REVIEW)
+    @RequireAnyPermission({M4PermissionCodes.WORKBENCH_QUERY, M4PermissionCodes.REPORT_REVIEW})
     @GetMapping("/{id}/report-versions")
     public List<CaseReportVersionListItemResponse> listCaseReportVersions(
         @Parameter(description = "病例 ID 或病理号") @PathVariable("id") String caseIdentifier
@@ -279,6 +284,7 @@ public class PathologyCaseDiagnosticController extends TechnicalControllerSuppor
             item.microscopicExam(),
             item.finalDiagnosis(),
             item.richTextContent(),
+            item.renderSnapshot(),
             item.remarks(),
             item.submittedAt(),
             item.reviewedAt(),

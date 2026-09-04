@@ -24,6 +24,25 @@ public class RbacPermissionRepository {
         return effectivePermissionCodes.contains(permissionCode);
     }
 
+    public boolean isWorkbenchOverrideAllowed(String userId) {
+        if (!hasPermission(userId, M4PermissionCodes.WORKBENCH_QUERY)) {
+            return false;
+        }
+        Integer matchingRole = jdbcTemplate.queryForObject("""
+            select case when exists (
+                select 1
+                from users u
+                join user_roles ur on ur.user_id = u.id
+                join roles r on r.id = ur.role_id
+                where u.id = :userId
+                  and u.enabled = 1
+                  and r.enabled = 1
+                  and (r.role_code = 'PATHOLOGY_ADMIN' or r.role_code like 'M4_WORKBENCH%')
+            ) then 1 else 0 end
+            """, Map.of("userId", userId), Integer.class);
+        return matchingRole != null && matchingRole == 1;
+    }
+
     public boolean hasAnyPermission(String userId, String[] permissionCodes) {
         if (permissionCodes == null || permissionCodes.length == 0) {
             return true;

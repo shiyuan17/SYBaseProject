@@ -152,6 +152,7 @@ public final class FrozenWorkflowModels {
         String sessionId,
         String operatorUserId,
         String operatorName,
+        boolean workbenchOverrideAllowed,
         String terminalCode,
         String remarks
     ) {
@@ -161,6 +162,7 @@ public final class FrozenWorkflowModels {
         String sessionId,
         String operatorUserId,
         String operatorName,
+        boolean workbenchOverrideAllowed,
         String terminalCode,
         String remarks,
         String preliminaryResult
@@ -171,6 +173,7 @@ public final class FrozenWorkflowModels {
         String sessionId,
         String operatorUserId,
         String operatorName,
+        boolean workbenchOverrideAllowed,
         String terminalCode,
         String remarks,
         String compareStatus,
@@ -182,6 +185,7 @@ public final class FrozenWorkflowModels {
         String sessionId,
         String operatorUserId,
         String operatorName,
+        boolean workbenchOverrideAllowed,
         String terminalCode,
         String remarks,
         String remainingTissueStatus

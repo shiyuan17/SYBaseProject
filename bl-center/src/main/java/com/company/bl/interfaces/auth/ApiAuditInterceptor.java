@@ -64,8 +64,8 @@ public class ApiAuditInterceptor implements HandlerInterceptor {
             request.getAttribute(ApiPermissionContext.OPERATION_AUDIT_RECORDED))) {
             return true;
         }
-        RequirePermission permission = findPermission(handlerMethod);
-        if (permission == null || AuthenticatedPrincipalContext.currentPrincipal(request) == null) {
+        if (!hasAuthorizationRequirement(handlerMethod)
+            || AuthenticatedPrincipalContext.currentPrincipal(request) == null) {
             return true;
         }
         if (!"GET".equalsIgnoreCase(request.getMethod())) {
@@ -81,6 +81,14 @@ public class ApiAuditInterceptor implements HandlerInterceptor {
             return permission;
         }
         return AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getBeanType(), RequirePermission.class);
+    }
+
+    private boolean hasAuthorizationRequirement(HandlerMethod handlerMethod) {
+        if (findPermission(handlerMethod) != null) {
+            return true;
+        }
+        return AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getMethod(), RequireAnyPermission.class) != null
+            || AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getBeanType(), RequireAnyPermission.class) != null;
     }
 
     private AuditOperation findAuditOperation(HandlerMethod handlerMethod) {

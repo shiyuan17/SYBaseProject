@@ -18,6 +18,32 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class M4RoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflowIntegrationTest {
 
     @Test
+    void shouldKeepPersonnelChecksForLegacyActionPermissionWithoutWorkbenchOverride() throws Exception {
+        String suffix = uniqueSuffix();
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase(
+            "APP-M4-LEGACY-" + suffix,
+            "BC-M4-LEGACY-" + suffix);
+        String legacyCreateUserId = createPermissionOnlyUser(
+            suffix,
+            "PERM_M4_REPORT_CREATE",
+            "LEGACY_CREATE");
+
+        postJson("/api/v1/pathology-reports", legacyCreateUserId, """
+            {
+              "caseId":"%s",
+              "taskId":"%s",
+              "clinicalDiagnosis":"legacy clinical",
+              "grossExam":"legacy gross",
+              "microscopicExam":"legacy microscopic",
+              "finalDiagnosis":"legacy final",
+              "richTextContent":"<p>legacy report</p>"
+            }
+            """.formatted(context.caseId(), context.diagnosticTaskId()))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+    }
+
+    @Test
     void shouldRejectCrossRoleActionsAcrossM4Workstations() throws Exception {
         postJson("/api/v1/diagnostic-tasks/DT-X/assign", USER_M4_DIAGNOSIS, """
             {
@@ -34,14 +60,12 @@ class M4RoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInteg
         postJson("/api/v1/pathology-reports/RPT-X/review", USER_M4_DIAGNOSIS, """
             {}
             """)
-            .andExpect(status().isForbidden())
-            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+            .andExpect(status().isNotFound());
 
         postJson("/api/v1/pathology-reports/RPT-X/sign", USER_M4_REVIEW, """
             {}
             """)
-            .andExpect(status().isForbidden())
-            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+            .andExpect(status().isNotFound());
 
         postJson("/api/v1/pathology-reports/formal-versions/print", USER_M4_DIAGNOSIS, """
             {
@@ -56,8 +80,7 @@ class M4RoleAuthorizationIntegrationTest extends AbstractDiagnosticWorkflowInteg
               "versionIds":["RV-X"]
             }
             """)
-            .andExpect(status().isForbidden())
-            .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+            .andExpect(status().isNotFound());
 
         postJson("/api/v1/pathology-reports/formal-versions/recall", USER_M4_TRACKING, """
             {

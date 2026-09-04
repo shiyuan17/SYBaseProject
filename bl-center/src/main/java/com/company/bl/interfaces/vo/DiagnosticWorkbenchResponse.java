@@ -1,5 +1,6 @@
 package com.company.bl.interfaces.vo;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
@@ -38,8 +39,16 @@ public record DiagnosticWorkbenchResponse(
     String submittingDepartmentName,
     @Schema(description = "Submitting doctor")
     String submittingDoctorName,
+    @Schema(description = "Ward or nursing unit")
+    String wardName,
+    @Schema(description = "Sampling doctors in stable sampling order")
+    List<String> samplingDoctorNames,
     @Schema(description = "Clinical diagnosis")
     String clinicalDiagnosis,
+    @Schema(description = "Check item from registration workbench")
+    String checkItem,
+    @Schema(description = "Application submission date in yyyy-MM-dd format")
+    String submissionDate,
     @Schema(description = "Application remarks")
     String applicationRemarks,
     @Schema(description = "Application form archive status")
@@ -167,6 +176,8 @@ public record DiagnosticWorkbenchResponse(
         String finalDiagnosis,
         @Schema(description = "Rich text content")
         String richTextContent,
+        @Schema(description = "Versioned report render snapshot")
+        JsonNode renderSnapshot,
         @Schema(description = "Diagnosis report remarks")
         String remarks,
         @Schema(description = "Submitted at")
