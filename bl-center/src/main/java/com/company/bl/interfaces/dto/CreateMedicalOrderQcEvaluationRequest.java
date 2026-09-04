@@ -15,6 +15,13 @@ import lombok.Setter;
 @RejectLegacyOperatorFields
 public class CreateMedicalOrderQcEvaluationRequest {
 
+    @Schema(description = "Target slide ID; omit for legacy order-level evaluation")
+    @Size(max = 64)
+    private String slideId;
+
+    @Schema(description = "Expected current evaluation version for optimistic locking")
+    private Integer expectedVersion;
+
     @Schema(description = "QC aspect", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank
     @Size(max = 32)

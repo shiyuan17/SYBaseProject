@@ -230,7 +230,7 @@ public class NumberingService {
 
     @Transactional
     public String generateBlockNo(String scopeKey) {
-        return generate(BIZ_BLOCK_NO, normalizeScope(scopeKey));
+        return generate(BIZ_BLOCK_NO, "GLOBAL");
     }
 
     @Transactional
@@ -323,6 +323,22 @@ public class NumberingService {
         if (rule == null || !rule.enabled()) {
             throw new BlBusinessException(BlErrorCode.NUMBERING_GENERATION_FAILED, 409,
                 "Enabled numbering rule not found for biz type " + bizType);
+        }
+        if (BIZ_BLOCK_NO.equals(bizType)
+            && (blank(rule.prefixPattern()) || blank(rule.datePattern()) || rule.seqLength() < 1)) {
+            rule = new SupportJdbcRepository.NumberingRuleRow(
+                rule.id(),
+                rule.ruleCode(),
+                rule.bizType(),
+                blank(rule.prefixPattern()) ? "BK" : rule.prefixPattern(),
+                blank(rule.datePattern()) ? "yyyyMMdd" : rule.datePattern(),
+                rule.seqLength() < 1 ? 3 : rule.seqLength(),
+                rule.resetPolicy(),
+                rule.scopeType(),
+                rule.enabled(),
+                rule.remarks(),
+                rule.createdAt(),
+                rule.updatedAt());
         }
         LocalDateTime now = LocalDateTime.now(clock);
         String datePart = supportJdbcRepository.resolveDatePart(rule.datePattern(), now);

@@ -151,10 +151,10 @@ public class CheckItemRuleService {
         String applicationType = normalizeApplicationType(rawApplicationType);
         String pathologyNo = normalizePathologyNo(rawPathologyNo);
         CheckItemRuleRow rule = repository.findByApplicationTypeForUpdate(applicationType);
-        if (repository.pathologyNumberExists(pathologyNo, caseId)) {
-            throw conflict("Pathology number already exists");
-        }
         if (rule == null || !rule.autoIncrement()) {
+            if (repository.pathologyNumberExists(pathologyNo, caseId)) {
+                throw conflict("Pathology number already exists");
+            }
             if (rule != null) {
                 repository.markRuleUsed(rule.ruleCode());
             }
@@ -166,6 +166,9 @@ public class CheckItemRuleService {
         Long sequence = template.extractSequence(pathologyNo, today);
         if (sequence == null) {
             throw invalid("Pathology number does not match selected application type");
+        }
+        if (repository.pathologyNumberExists(pathologyNo, caseId)) {
+            throw conflict("Pathology number already exists");
         }
         repository.advanceCounterToAtLeast(rule.ruleCode(), periodKey(period, today), sequence);
     }

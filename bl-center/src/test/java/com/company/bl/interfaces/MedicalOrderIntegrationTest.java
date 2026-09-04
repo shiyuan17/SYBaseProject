@@ -12,6 +12,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -377,6 +378,7 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
 
         JsonNode evaluation = responseBody(postJson("/api/v1/medical-orders/%s/qc-evaluations".formatted(orderId), USER_M4_ORDER_EXECUTE, """
             {
+              "slideId":"%s",
               "qcAspect":"SLIDE",
               "totalScore":82,
               "grade":"乙",
@@ -401,17 +403,28 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
               ],
               "terminalCode":"M4-ORD-QC-01"
             }
-            """), 200);
+            """.formatted(targetSnapshot.slideId())), 200);
         assertThat(evaluation.path("orderId").asText()).isEqualTo(orderId);
         assertThat(evaluation.path("qcAspect").asText()).isEqualTo("SLIDE");
         assertThat(evaluation.path("reworkOrderId").asText()).isNotBlank();
+        assertThat(evaluation.path("slideId").asText()).isEqualTo(targetSnapshot.slideId());
+        assertThat(evaluation.path("version").asInt()).isZero();
+
+        String reworkOrderId = evaluation.path("reworkOrderId").asText();
+        JsonNode revised = responseBody(postJson(
+            "/api/v1/medical-orders/%s/qc-evaluations".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {"slideId":"%s","expectedVersion":0,"qcAspect":"SLIDE","totalScore":85,"grade":"乙",
+             "evaluationReason":"复评","processingAction":"REWORK_URGENT","detailPayload":[],"terminalCode":"M4-ORD-QC-02"}
+            """.formatted(targetSnapshot.slideId())), 200);
+        assertThat(revised.path("version").asInt()).isEqualTo(1);
+        assertThat(revised.path("reworkOrderId").asText()).isEqualTo(reworkOrderId);
 
         JsonNode latest = responseBody(mockMvc.perform(authorized(
             get("/api/v1/medical-orders/{id}/qc-evaluations/latest", orderId),
             USER_M4_ORDER_EXECUTE)), 200);
         assertThat(latest.path("qcAspect").asText()).isEqualTo("SLIDE");
         assertThat(latest.path("grade").asText()).isEqualTo("乙");
-        assertThat(latest.path("totalScore").asInt()).isEqualTo(82);
+        assertThat(latest.path("totalScore").asInt()).isEqualTo(85);
         assertThat(latest.path("processingAction").asText()).isEqualTo("REWORK_URGENT");
         assertThat(latest.path("detailPayload").isArray()).isTrue();
 
@@ -433,6 +446,375 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
             "caseId", context.caseId(),
             "slideId", targetSnapshot.slideId()), Integer.class);
         assertThat(reworkCount).isEqualTo(1);
+    }
+
+    @Test
+    void shouldLoadSlideQcContextAndUpsertSelectedSlideEvaluation() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-QC-SLIDE", "BC-M4-ORDER-QC-SLIDE");
+        MedicalOrderTargetSnapshot target = queryMedicalOrderTargetSnapshot(context.caseId());
+        String orderId = createMedicalOrderWithTarget(context.caseId()).path("orderId").asText();
+
+        JsonNode qcContext = responseBody(mockMvc.perform(authorized(
+            get("/api/v1/medical-orders/{id}/qc-evaluations/context", orderId), USER_M4_ORDER_EXECUTE)), 200);
+        assertThat(qcContext.path("targetType").asText()).isEqualTo("SLIDE");
+        assertThat(qcContext.path("slides").size()).isEqualTo(1);
+        assertThat(qcContext.path("slides").get(0).path("slideId").asText()).isEqualTo(target.slideId());
+
+        String createPayload = """
+            {"slideId":"%s","qcAspect":"SLIDE","totalScore":90,"grade":"乙",
+             "evaluationReason":"初评","processingAction":"NO_ACTION","detailPayload":[],"terminalCode":"QC-SLIDE-C"}
+            """.formatted(target.slideId());
+        JsonNode created = responseBody(postJson(
+            "/api/v1/medical-orders/%s/qc-evaluations".formatted(orderId), USER_M4_ORDER_EXECUTE, createPayload), 200);
+        assertThat(created.path("slideId").asText()).isEqualTo(target.slideId());
+        assertThat(created.path("version").asInt()).isZero();
+
+        String updatePayload = """
+            {"slideId":"%s","expectedVersion":0,"qcAspect":"SLIDE","totalScore":96,"grade":"甲",
+             "evaluationReason":"复评","processingAction":"NO_ACTION","detailPayload":[],"terminalCode":"QC-SLIDE-U"}
+            """.formatted(target.slideId());
+        JsonNode updated = responseBody(postJson(
+            "/api/v1/medical-orders/%s/qc-evaluations".formatted(orderId), USER_M4_ORDER_EXECUTE, updatePayload), 200);
+        assertThat(updated.path("version").asInt()).isEqualTo(1);
+        assertThat(updated.path("totalScore").asInt()).isEqualTo(96);
+
+        postJson("/api/v1/medical-orders/%s/qc-evaluations".formatted(orderId), USER_M4_ORDER_EXECUTE, updatePayload)
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("RESOURCE_CONFLICT"));
+
+        Integer count = namedParameterJdbcTemplate.queryForObject("""
+            select count(1) from medical_order_qc_evaluations
+            where order_id = :orderId and target_slide_id = :slideId and qc_aspect = 'SLIDE'
+            """, Map.of("orderId", orderId, "slideId", target.slideId()), Integer.class);
+        assertThat(count).isEqualTo(1);
+
+        JsonNode latest = responseBody(mockMvc.perform(authorized(
+                get("/api/v1/medical-orders/{id}/qc-evaluations/latest", orderId), USER_M4_ORDER_EXECUTE)
+                .param("qcAspect", "SLIDE")
+                .param("slideId", target.slideId())), 200);
+        assertThat(latest.path("version").asInt()).isEqualTo(1);
+        assertThat(latest.path("evaluationReason").asText()).isEqualTo("复评");
+    }
+
+    @Test
+    void shouldResolveBlockAndSpecimenQcSlideScopesWithoutLeakingOtherTargets() throws Exception {
+        StartedDiagnosticContext targetContext = prepareStartedDiagnosticCase(
+            "APP-M4-ORDER-QC-SCOPE-TARGET", "BC-M4-ORDER-QC-SCOPE-TARGET");
+        StartedDiagnosticContext otherContext = prepareStartedDiagnosticCase(
+            "APP-M4-ORDER-QC-SCOPE-OTHER", "BC-M4-ORDER-QC-SCOPE-OTHER");
+        MedicalOrderTargetSnapshot target = queryMedicalOrderTargetSnapshot(targetContext.caseId());
+        MedicalOrderTargetSnapshot other = queryMedicalOrderTargetSnapshot(otherContext.caseId());
+
+        cloneSlide("SLIDE-QC-SAME-BLOCK", "QC-SAME-BLOCK", target.slideId(),
+            targetContext.caseId(), target.specimenId());
+        cloneSlide("SLIDE-QC-OTHER-BLOCK", "QC-OTHER-BLOCK", other.slideId(),
+            targetContext.caseId(), target.specimenId());
+        cloneSlide("SLIDE-QC-OTHER-SPECIMEN", "QC-OTHER-SPECIMEN", other.slideId(),
+            targetContext.caseId(), other.specimenId());
+
+        String blockOrderId = createMedicalOrderForQcScope(
+            targetContext.caseId(), "BLOCK", target.specimenId(), target.blockId()).path("orderId").asText();
+        JsonNode blockContext = responseBody(mockMvc.perform(authorized(
+            get("/api/v1/medical-orders/{id}/qc-evaluations/context", blockOrderId), USER_M4_ORDER_EXECUTE)), 200);
+        assertThat(blockContext.path("targetType").asText()).isEqualTo("BLOCK");
+        assertThat(slideIds(blockContext)).containsExactlyInAnyOrder(target.slideId(), "SLIDE-QC-SAME-BLOCK");
+
+        String specimenOrderId = createMedicalOrderForQcScope(
+            targetContext.caseId(), "SPECIMEN", target.specimenId(), null).path("orderId").asText();
+        JsonNode specimenContext = responseBody(mockMvc.perform(authorized(
+            get("/api/v1/medical-orders/{id}/qc-evaluations/context", specimenOrderId), USER_M4_ORDER_EXECUTE)), 200);
+        assertThat(specimenContext.path("targetType").asText()).isEqualTo("SPECIMEN");
+        assertThat(slideIds(specimenContext)).containsExactlyInAnyOrder(
+            target.slideId(), "SLIDE-QC-SAME-BLOCK", "SLIDE-QC-OTHER-BLOCK");
+        assertThat(slideIds(specimenContext)).doesNotContain("SLIDE-QC-OTHER-SPECIMEN", other.slideId());
+    }
+
+    @Test
+    void shouldCreateNoActionQcEvaluationForPendingUnprintedRoutineOrderWithoutTargetSnapshot() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-QC-LEGACY", "BC-M4-ORDER-QC-LEGACY");
+        JsonNode created = createMedicalOrder(context.caseId(), "ODI_CGRS_HE_STAIN", "ROUTINE", "legacy HE supplement");
+        String orderId = created.path("orderId").asText();
+
+        JsonNode evaluation = responseBody(postJson(
+            "/api/v1/medical-orders/%s/qc-evaluations".formatted(orderId),
+            USER_M4_ORDER_EXECUTE,
+            noActionQcEvaluationRequest("M4-ORD-QC-LEGACY-E")), 200);
+
+        assertThat(evaluation.path("orderId").asText()).isEqualTo(orderId);
+        assertThat(evaluation.path("processingAction").asText()).isEqualTo("NO_ACTION");
+        assertThat(evaluation.path("reworkOrderId").isNull()).isTrue();
+
+        JsonNode latest = responseBody(mockMvc.perform(authorized(
+            get("/api/v1/medical-orders/{id}/qc-evaluations/latest", orderId),
+            USER_M4_ORDER_EXECUTE)), 200);
+        assertThat(latest.path("orderId").asText()).isEqualTo(orderId);
+        assertThat(latest.path("processingAction").asText()).isEqualTo("NO_ACTION");
+
+        Integer reworkCount = namedParameterJdbcTemplate.queryForObject("""
+            select count(1)
+            from rework_orders
+            where case_id = :caseId
+            """, Map.of("caseId", context.caseId()), Integer.class);
+        assertThat(reworkCount).isZero();
+    }
+
+    @Test
+    void shouldCreateNoActionQcEvaluationForInProgressUnprintedRoutineOrder() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-QC-IN-PROGRESS", "BC-M4-ORDER-QC-IN-PROGRESS");
+        JsonNode created = createMedicalOrder(context.caseId(), "ODI_CGRS_HE_STAIN", "ROUTINE", "unprinted HE supplement");
+        String orderId = created.path("orderId").asText();
+
+        postJson("/api/v1/medical-orders/%s/accept".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M4-ORD-QC-IN-PROGRESS-A"}
+            """).andExpect(status().isOk());
+
+        JsonNode evaluation = responseBody(postJson(
+            "/api/v1/medical-orders/%s/qc-evaluations".formatted(orderId),
+            USER_M4_ORDER_EXECUTE,
+            noActionQcEvaluationRequest("M4-ORD-QC-IN-PROGRESS-E")), 200);
+
+        assertThat(evaluation.path("orderId").asText()).isEqualTo(orderId);
+        assertThat(evaluation.path("processingAction").asText()).isEqualTo("NO_ACTION");
+        assertThat(evaluation.path("reworkOrderId").isNull()).isTrue();
+    }
+
+    @Test
+    void shouldAllowOnlyNoActionQcForConfirmedUnprintedLiquidCytologyOrder() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase(
+            "APP-M4-ORDER-QC-LIQUID", "BC-M4-ORDER-QC-LIQUID");
+        JsonNode created = createMedicalOrder(
+            context.caseId(),
+            "ODI_LIQUID_CYTOLOGY_GYN",
+            "LIQUID_CYTOLOGY",
+            "unprinted liquid cytology");
+        String orderId = created.path("orderId").asText();
+
+        JsonNode pending = responseBody(mockMvc.perform(authorized(
+                get("/api/v1/medical-orders/pending"), USER_M4_ORDER_EXECUTE)
+                .param("page", "1")
+                .param("size", "20")
+                .param("pathologyNo", context.pathologyNo())
+                .param("orderCategoryCode", "LIQUID_CYTOLOGY")), 200);
+        assertThat(pending.path("items").get(0).path("status").asText()).isEqualTo("PENDING");
+        assertThat(pending.path("items").get(0).path("canQc").asBoolean()).isFalse();
+
+        postJson("/api/v1/medical-orders/%s/accept".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M4-ORD-QC-LIQUID-A"}
+            """).andExpect(status().isOk());
+
+        JsonNode confirmed = responseBody(mockMvc.perform(authorized(
+                get("/api/v1/medical-orders/pending"), USER_M4_ORDER_EXECUTE)
+                .param("page", "1")
+                .param("size", "20")
+                .param("pathologyNo", context.pathologyNo())
+                .param("orderCategoryCode", "LIQUID_CYTOLOGY")), 200);
+        JsonNode confirmedItem = confirmed.path("items").get(0);
+        assertThat(confirmedItem.path("status").asText()).isEqualTo("IN_PROGRESS");
+        assertThat(confirmedItem.path("printedAt").isNull()).isTrue();
+        assertThat(confirmedItem.path("targetSlideId").isNull()).isTrue();
+        assertThat(confirmedItem.path("canQc").asBoolean()).isTrue();
+
+        JsonNode qcContext = responseBody(mockMvc.perform(authorized(
+            get("/api/v1/medical-orders/{id}/qc-evaluations/context", orderId), USER_M4_ORDER_EXECUTE)), 200);
+        assertThat(qcContext.path("targetResolved").asBoolean()).isFalse();
+        assertThat(qcContext.path("slides").size()).isZero();
+
+        postJson("/api/v1/medical-orders/%s/qc-evaluations".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {
+              "qcAspect":"SLIDE",
+              "totalScore":90,
+              "grade":"乙",
+              "evaluationReason":"requires remake",
+              "processingAction":"REMAKE",
+              "detailPayload":[],
+              "terminalCode":"M4-ORD-QC-LIQUID-R"
+            }
+            """)
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("OPERATION_NOT_ALLOWED"));
+
+        JsonNode evaluation = responseBody(postJson(
+            "/api/v1/medical-orders/%s/qc-evaluations".formatted(orderId),
+            USER_M4_ORDER_EXECUTE,
+            noActionQcEvaluationRequest("M4-ORD-QC-LIQUID-E")), 200);
+        assertThat(evaluation.path("processingAction").asText()).isEqualTo("NO_ACTION");
+        assertThat(evaluation.path("reworkOrderId").isNull()).isTrue();
+
+        postJson("/api/v1/medical-orders/%s/terminate".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {
+              "terminalCode":"M4-ORD-QC-LIQUID-T",
+              "terminationReasonCode":"OTHER",
+              "terminationReasonLabel":"Other",
+              "remarks":"cannot continue"
+            }
+            """).andExpect(status().isOk());
+
+        JsonNode terminated = responseBody(mockMvc.perform(authorized(
+                get("/api/v1/medical-orders/pending"), USER_M4_ORDER_EXECUTE)
+                .param("page", "1")
+                .param("size", "20")
+                .param("pathologyNo", context.pathologyNo())
+                .param("orderCategoryCode", "LIQUID_CYTOLOGY")
+                .param("status", "TERMINATED")), 200);
+        assertThat(terminated.path("items").get(0).path("canQc").asBoolean()).isFalse();
+
+        String cancelledOrderId = createMedicalOrder(
+            context.caseId(),
+            "ODI_LIQUID_CYTOLOGY_GYN",
+            "LIQUID_CYTOLOGY",
+            "cancelled liquid cytology").path("orderId").asText();
+        postJson("/api/v1/medical-orders/%s/cancel".formatted(cancelledOrderId), USER_M4_DIAGNOSIS, """
+            {"terminalCode":"M4-ORD-QC-LIQUID-C"}
+            """).andExpect(status().isOk());
+
+        JsonNode cancelled = responseBody(mockMvc.perform(authorized(
+                get("/api/v1/medical-orders/pending"), USER_M4_ORDER_EXECUTE)
+                .param("page", "1")
+                .param("size", "20")
+                .param("pathologyNo", context.pathologyNo())
+                .param("orderCategoryCode", "LIQUID_CYTOLOGY")
+                .param("status", "CANCELLED")), 200);
+        assertThat(cancelled.path("items").get(0).path("canQc").asBoolean()).isFalse();
+    }
+
+    @Test
+    void shouldCreateNoActionQcEvaluationForCompletedMedicalOrder() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-QC-COMPLETED", "BC-M4-ORDER-QC-COMPLETED");
+        JsonNode created = createMedicalOrderWithTarget(context.caseId());
+        String orderId = created.path("orderId").asText();
+
+        postJson("/api/v1/medical-orders/%s/accept".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M4-ORD-QC-COMPLETED-A"}
+            """).andExpect(status().isOk());
+        postJson("/api/v1/medical-orders/%s/print-slide".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M4-ORD-QC-COMPLETED-P"}
+            """).andExpect(status().isOk());
+        postJson("/api/v1/medical-orders/%s/complete".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M4-ORD-QC-COMPLETED-C"}
+            """).andExpect(status().isOk());
+
+        JsonNode evaluation = responseBody(postJson(
+            "/api/v1/medical-orders/%s/qc-evaluations".formatted(orderId),
+            USER_M4_ORDER_EXECUTE,
+            noActionQcEvaluationRequest("M4-ORD-QC-COMPLETED-E")), 200);
+
+        assertThat(evaluation.path("orderId").asText()).isEqualTo(orderId);
+        assertThat(evaluation.path("processingAction").asText()).isEqualTo("NO_ACTION");
+        assertThat(evaluation.path("reworkOrderId").isNull()).isTrue();
+    }
+
+    @Test
+    void shouldRejectReworkQcEvaluationWithoutTargetSnapshotWithoutWritingRecords() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-QC-NO-TARGET-REWORK", "BC-M4-ORDER-QC-NO-TARGET-REWORK");
+        JsonNode created = createMedicalOrder(context.caseId(), "ODI_CGRS_HE_STAIN", "ROUTINE", "legacy HE supplement");
+        String orderId = created.path("orderId").asText();
+
+        postJson("/api/v1/medical-orders/%s/qc-evaluations".formatted(orderId), USER_M4_ORDER_EXECUTE, """
+            {
+              "qcAspect":"SLIDE",
+              "totalScore":90,
+              "grade":"乙",
+              "evaluationReason":"requires reslicing",
+              "processingAction":"REMAKE",
+              "detailPayload":[],
+              "terminalCode":"M4-ORD-QC-NO-TARGET-REWORK-E"
+            }
+            """)
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("OPERATION_NOT_ALLOWED"));
+
+        Integer evaluationCount = namedParameterJdbcTemplate.queryForObject("""
+            select count(1)
+            from medical_order_qc_evaluations
+            where order_id = :orderId
+            """, Map.of("orderId", orderId), Integer.class);
+        Integer reworkCount = namedParameterJdbcTemplate.queryForObject("""
+            select count(1)
+            from rework_orders
+            where case_id = :caseId
+            """, Map.of("caseId", context.caseId()), Integer.class);
+        assertThat(evaluationCount).isZero();
+        assertThat(reworkCount).isZero();
+    }
+
+    @Test
+    void shouldRejectNoActionQcEvaluationForCancelledTerminatedAndNonRoutineOrders() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-QC-INVALID-STATES", "BC-M4-ORDER-QC-INVALID-STATES");
+        String cancelledOrderId = createMedicalOrderWithTarget(context.caseId()).path("orderId").asText();
+        String terminatedOrderId = createMedicalOrderWithTarget(context.caseId()).path("orderId").asText();
+        String nonRoutineOrderId = createMedicalOrder(
+            context.caseId(),
+            "ODI_TSRS_MASSON",
+            "SPECIAL",
+            "unprinted special stain").path("orderId").asText();
+
+        postJson("/api/v1/medical-orders/%s/cancel".formatted(cancelledOrderId), USER_M4_DIAGNOSIS, """
+            {"terminalCode":"M4-ORD-QC-CANCELLED-C"}
+            """).andExpect(status().isOk());
+        postJson("/api/v1/medical-orders/%s/accept".formatted(terminatedOrderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M4-ORD-QC-TERMINATED-A"}
+            """).andExpect(status().isOk());
+        postJson("/api/v1/medical-orders/%s/print-slide".formatted(terminatedOrderId), USER_M4_ORDER_EXECUTE, """
+            {"terminalCode":"M4-ORD-QC-TERMINATED-P"}
+            """).andExpect(status().isOk());
+        postJson("/api/v1/medical-orders/%s/terminate".formatted(terminatedOrderId), USER_M4_ORDER_EXECUTE, """
+            {
+              "terminalCode":"M4-ORD-QC-TERMINATED-T",
+              "terminationReasonCode":"OTHER",
+              "terminationReasonLabel":"Other",
+              "remarks":"cannot continue"
+            }
+            """).andExpect(status().isOk());
+
+        for (String orderId : List.of(cancelledOrderId, terminatedOrderId, nonRoutineOrderId)) {
+            postJson(
+                "/api/v1/medical-orders/%s/qc-evaluations".formatted(orderId),
+                USER_M4_ORDER_EXECUTE,
+                noActionQcEvaluationRequest("M4-ORD-QC-INVALID-E"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("OPERATION_NOT_ALLOWED"));
+        }
+
+        Integer evaluationCount = namedParameterJdbcTemplate.queryForObject("""
+            select count(1)
+            from medical_order_qc_evaluations
+            where order_id in (:orderIds)
+            """, Map.of("orderIds", List.of(cancelledOrderId, terminatedOrderId, nonRoutineOrderId)), Integer.class);
+        assertThat(evaluationCount).isZero();
+    }
+
+    @Test
+    void shouldReturnSuccessfulEmptyLatestQcEvaluationWhenOrderHasNoHistory() throws Exception {
+        StartedDiagnosticContext context = prepareStartedDiagnosticCase("APP-M4-ORDER-QC-EMPTY", "BC-M4-ORDER-QC-EMPTY");
+        JsonNode created = createMedicalOrderWithTarget(context.caseId());
+        String orderId = created.path("orderId").asText();
+
+        String response = mockMvc.perform(authorized(
+                get("/api/v1/medical-orders/{id}/qc-evaluations/latest", orderId),
+                USER_M4_ORDER_EXECUTE))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        JsonNode root = objectMapper.readTree(response);
+
+        assertThat(root.path("code").asText()).isEqualTo("SUCCESS");
+        assertThat(root.path("data").isNull()).isTrue();
+    }
+
+    @Test
+    void shouldKeepMedicalOrderNotFoundErrorForLatestQcEvaluation() throws Exception {
+        String response = mockMvc.perform(authorized(
+                get("/api/v1/medical-orders/{id}/qc-evaluations/latest", "MO-NOT-FOUND-QC"),
+                USER_M4_ORDER_EXECUTE))
+            .andExpect(status().isNotFound())
+            .andReturn()
+            .getResponse()
+            .getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        JsonNode root = objectMapper.readTree(response);
+
+        assertThat(root.path("code").asText()).isEqualTo("RESOURCE_NOT_FOUND");
+        assertThat(root.path("data").isNull()).isTrue();
     }
 
     @Test
@@ -988,6 +1370,20 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
             """.formatted(caseId, orderType, orderContent, orderItemId)), 200);
     }
 
+    private String noActionQcEvaluationRequest(String terminalCode) {
+        return """
+            {
+              "qcAspect":"SLIDE",
+              "totalScore":100,
+              "grade":"甲",
+              "evaluationReason":"routine quality review",
+              "processingAction":"NO_ACTION",
+              "detailPayload":[],
+              "terminalCode":"%s"
+            }
+            """.formatted(terminalCode);
+    }
+
     private JsonNode createMedicalOrderWithTarget(String caseId) throws Exception {
         return createMedicalOrderWithTarget(caseId, "ODI_CGRS_HE_STAIN", "ROUTINE", "HE补片");
     }
@@ -1020,6 +1416,48 @@ class MedicalOrderIntegrationTest extends AbstractDiagnosticWorkflowIntegrationT
             targetSnapshot.blockNo(),
             targetSnapshot.slideId(),
             targetSnapshot.slideNo())), 200);
+    }
+
+    private JsonNode createMedicalOrderForQcScope(String caseId, String targetType, String specimenId,
+                                                   String blockId) throws Exception {
+        String blockFields = blockId == null ? "" : "\"targetBlockId\":\"" + blockId + "\",";
+        return responseBody(postJson("/api/v1/medical-orders", USER_M4_DIAGNOSIS, """
+            {
+              "caseId":"%s",
+              "orderType":"ROUTINE",
+              "orderContent":"QC scope test",
+              "orderItemId":"ODI_CGRS_HE_STAIN",
+              "targetType":"%s",
+              "targetSpecimenId":"%s",
+              %s
+              "terminalCode":"M4-ORD-QC-SCOPE"
+            }
+            """.formatted(caseId, targetType, specimenId, blockFields)), 200);
+    }
+
+    private void cloneSlide(String slideId, String slideNo, String sourceSlideId, String caseId, String specimenId) {
+        namedParameterJdbcTemplate.update("""
+            insert into slides
+                (id, case_id, specimen_id, slicing_id, embedding_box_id, sampling_block_id,
+                 slide_no, slide_label, combined_slide_flag, quality_status, slide_status,
+                 slice_count, created_at, updated_at)
+            select :slideId, :caseId, :specimenId, slicing_id, embedding_box_id, sampling_block_id,
+                   :slideNo, slide_label, combined_slide_flag, quality_status, slide_status,
+                   slice_count, current_timestamp, current_timestamp
+            from slides
+            where id = :sourceSlideId
+            """, Map.of(
+            "slideId", slideId,
+            "slideNo", slideNo,
+            "sourceSlideId", sourceSlideId,
+            "caseId", caseId,
+            "specimenId", specimenId));
+    }
+
+    private List<String> slideIds(JsonNode context) {
+        List<String> ids = new ArrayList<>();
+        context.path("slides").forEach(slide -> ids.add(slide.path("slideId").asText()));
+        return ids;
     }
 
     private MedicalOrderTargetSnapshot queryMedicalOrderTargetSnapshot(String caseId) {

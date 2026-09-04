@@ -12,6 +12,8 @@ public interface MedicalOrderRepository {
 
     Optional<MedicalOrder> findMedicalOrderById(String orderId);
 
+    void lockMedicalOrder(String orderId);
+
     Optional<MedicalOrderItemSnapshot> findMedicalOrderItemSnapshotById(String orderItemId);
 
     List<MedicalOrder> findMedicalOrdersByCaseId(String caseId);
@@ -59,6 +61,14 @@ public interface MedicalOrderRepository {
     void insertMedicalOrderQcEvaluation(CreateMedicalOrderQcEvaluationCommand command);
 
     Optional<MedicalOrderQcEvaluation> findLatestMedicalOrderQcEvaluation(String orderId);
+
+    Optional<MedicalOrderQcEvaluation> findLatestMedicalOrderQcEvaluation(String orderId,
+                                                                           String qcAspect,
+                                                                           String targetSlideId);
+
+    List<MedicalOrderQcEvaluation> findMedicalOrderQcEvaluations(String orderId);
+
+    int updateMedicalOrderQcEvaluation(UpdateMedicalOrderQcEvaluationCommand command);
 
     int updateMedicalOrderTargetSnapshot(UpdateMedicalOrderTargetSnapshotCommand command);
 
@@ -116,6 +126,26 @@ public interface MedicalOrderRepository {
         String processingAction,
         String reworkType,
         String reworkOrderId,
+        String targetSlideId,
+        String targetSlideNo,
+        int version,
+        String remarks,
+        String evaluatorUserId,
+        String evaluatorName,
+        LocalDateTime evaluatedAt,
+        JsonNode detailPayload
+    ) {
+    }
+
+    record UpdateMedicalOrderQcEvaluationCommand(
+        String id,
+        int expectedVersion,
+        Integer totalScore,
+        String grade,
+        String evaluationReason,
+        String processingAction,
+        String reworkType,
+        String reworkOrderId,
         String remarks,
         String evaluatorUserId,
         String evaluatorName,
@@ -159,6 +189,9 @@ public interface MedicalOrderRepository {
         String processingAction,
         String reworkType,
         String reworkOrderId,
+        String targetSlideId,
+        String targetSlideNo,
+        int version,
         String remarks,
         String evaluatorUserId,
         String evaluatorName,

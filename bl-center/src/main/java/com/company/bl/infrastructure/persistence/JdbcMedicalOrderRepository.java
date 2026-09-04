@@ -111,6 +111,12 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
     }
 
     @Override
+    public void lockMedicalOrder(String orderId) {
+        jdbcTemplate.queryForList("select id from medical_orders where id = :orderId for update",
+            Map.of("orderId", orderId), String.class);
+    }
+
+    @Override
     public void insertMedicalOrderBlock(CreateMedicalOrderBlockCommand command) {
         jdbcTemplate.update("""
             insert into medical_order_blocks
@@ -406,11 +412,13 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
         jdbcTemplate.update("""
             insert into medical_order_qc_evaluations
                 (id, order_id, case_id, qc_aspect, total_score, grade, evaluation_reason, processing_action,
-                 rework_type, rework_order_id, remarks, evaluator_user_id, evaluator_name, evaluated_at,
+                 rework_type, rework_order_id, target_slide_id, target_slide_no, version,
+                 remarks, evaluator_user_id, evaluator_name, evaluated_at,
                  detail_payload_json, created_at, updated_at)
             values
                 (:id, :orderId, :caseId, :qcAspect, :totalScore, :grade, :evaluationReason, :processingAction,
-                 :reworkType, :reworkOrderId, :remarks, :evaluatorUserId, :evaluatorName, :evaluatedAt,
+                 :reworkType, :reworkOrderId, :targetSlideId, :targetSlideNo, :version,
+                 :remarks, :evaluatorUserId, :evaluatorName, :evaluatedAt,
                  :detailPayloadJson, :createdAt, :updatedAt)
             """, new MapSqlParameterSource()
             .addValue("id", command.id())
@@ -423,6 +431,9 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
             .addValue("processingAction", command.processingAction())
             .addValue("reworkType", command.reworkType())
             .addValue("reworkOrderId", command.reworkOrderId())
+            .addValue("targetSlideId", command.targetSlideId())
+            .addValue("targetSlideNo", command.targetSlideNo())
+            .addValue("version", command.version())
             .addValue("remarks", command.remarks())
             .addValue("evaluatorUserId", command.evaluatorUserId())
             .addValue("evaluatorName", command.evaluatorName())
@@ -435,13 +446,85 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
     @Override
     public Optional<MedicalOrderQcEvaluation> findLatestMedicalOrderQcEvaluation(String orderId) {
         List<MedicalOrderQcEvaluation> rows = jdbcTemplate.query("""
-            select *
+            """ + medicalOrderQcEvaluationSelect() + """
             from medical_order_qc_evaluations
             where order_id = :orderId
-            order by evaluated_at desc, created_at desc
-            limit 1
+            order by evaluated_at desc, created_at desc, id desc
+            fetch first 1 row only
             """, Map.of("orderId", orderId), this::mapMedicalOrderQcEvaluation);
         return rows.stream().findFirst();
+    }
+
+    @Override
+    public Optional<MedicalOrderQcEvaluation> findLatestMedicalOrderQcEvaluation(String orderId,
+                                                                                 String qcAspect,
+                                                                                 String targetSlideId) {
+        List<MedicalOrderQcEvaluation> rows = jdbcTemplate.query("""
+            """ + medicalOrderQcEvaluationSelect() + """
+            from medical_order_qc_evaluations
+            where order_id = :orderId
+              and qc_aspect = :qcAspect
+              and (target_slide_id = :targetSlideId or (target_slide_id is null and :targetSlideId is null))
+            order by evaluated_at desc, created_at desc, id desc
+            fetch first 1 row only
+            """, new MapSqlParameterSource()
+            .addValue("orderId", orderId)
+            .addValue("qcAspect", qcAspect)
+            .addValue("targetSlideId", targetSlideId), this::mapMedicalOrderQcEvaluation);
+        return rows.stream().findFirst();
+    }
+
+    @Override
+    public List<MedicalOrderQcEvaluation> findMedicalOrderQcEvaluations(String orderId) {
+        return jdbcTemplate.query("""
+            """ + medicalOrderQcEvaluationSelect() + """
+            from medical_order_qc_evaluations
+            where order_id = :orderId
+            order by evaluated_at desc, created_at desc, id desc
+            """, Map.of("orderId", orderId), this::mapMedicalOrderQcEvaluation);
+    }
+
+    @Override
+    public int updateMedicalOrderQcEvaluation(UpdateMedicalOrderQcEvaluationCommand command) {
+        return jdbcTemplate.update("""
+            update medical_order_qc_evaluations
+            set total_score = :totalScore,
+                grade = :grade,
+                evaluation_reason = :evaluationReason,
+                processing_action = :processingAction,
+                rework_type = :reworkType,
+                rework_order_id = :reworkOrderId,
+                remarks = :remarks,
+                evaluator_user_id = :evaluatorUserId,
+                evaluator_name = :evaluatorName,
+                evaluated_at = :evaluatedAt,
+                detail_payload_json = :detailPayloadJson,
+                version = version + 1,
+                updated_at = :updatedAt
+            where id = :id and version = :expectedVersion
+            """, new MapSqlParameterSource()
+            .addValue("id", command.id())
+            .addValue("expectedVersion", command.expectedVersion())
+            .addValue("totalScore", command.totalScore())
+            .addValue("grade", command.grade())
+            .addValue("evaluationReason", command.evaluationReason())
+            .addValue("processingAction", command.processingAction())
+            .addValue("reworkType", command.reworkType())
+            .addValue("reworkOrderId", command.reworkOrderId())
+            .addValue("remarks", command.remarks())
+            .addValue("evaluatorUserId", command.evaluatorUserId())
+            .addValue("evaluatorName", command.evaluatorName())
+            .addValue("evaluatedAt", command.evaluatedAt())
+            .addValue("detailPayloadJson", toJson(command.detailPayload()))
+            .addValue("updatedAt", command.evaluatedAt()));
+    }
+
+    private String medicalOrderQcEvaluationSelect() {
+        return """
+            select id, order_id, case_id, qc_aspect, total_score, grade, evaluation_reason,
+                   processing_action, rework_type, rework_order_id, target_slide_id, target_slide_no,
+                   version, remarks, evaluator_user_id, evaluator_name, evaluated_at, detail_payload_json
+            """;
     }
 
     private String selectSql() {
@@ -717,6 +800,9 @@ public class JdbcMedicalOrderRepository implements MedicalOrderRepository {
             rs.getString("processing_action"),
             rs.getString("rework_type"),
             rs.getString("rework_order_id"),
+            rs.getString("target_slide_id"),
+            rs.getString("target_slide_no"),
+            rs.getInt("version"),
             rs.getString("remarks"),
             rs.getString("evaluator_user_id"),
             rs.getString("evaluator_name"),

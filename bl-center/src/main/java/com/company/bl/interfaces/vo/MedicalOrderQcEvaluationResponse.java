@@ -5,10 +5,18 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(name = "MedicalOrderQcEvaluationResponse", description = "Medical order QC evaluation response")
 public record MedicalOrderQcEvaluationResponse(
+    @Schema(description = "QC evaluation ID")
+    String qcEvaluationId,
     @Schema(description = "Order ID")
     String orderId,
     @Schema(description = "Case ID")
     String caseId,
+    @Schema(description = "Target slide ID")
+    String slideId,
+    @Schema(description = "Target slide number")
+    String slideNo,
+    @Schema(description = "Optimistic locking version")
+    int version,
     @Schema(description = "QC aspect")
     String qcAspect,
     @Schema(description = "Total score")

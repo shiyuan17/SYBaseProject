@@ -19,7 +19,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -29,6 +31,7 @@ public class MedicalOrderWorkflowService {
     private final DiagnosticReportSupport diagnosticReportSupport;
     private final BillingManagementService billingManagementService;
     private final TechnicalWorkflowRepository technicalWorkflowRepository;
+    private final MedicalOrderQcSupport medicalOrderQcSupport;
 
     MedicalOrderWorkflowService(MedicalOrderRepository medicalOrderRepository,
                                 DiagnosticReportSupport diagnosticReportSupport,
@@ -38,6 +41,7 @@ public class MedicalOrderWorkflowService {
         this.diagnosticReportSupport = diagnosticReportSupport;
         this.billingManagementService = billingManagementService;
         this.technicalWorkflowRepository = technicalWorkflowRepository;
+        this.medicalOrderQcSupport = new MedicalOrderQcSupport(technicalWorkflowRepository);
     }
 
     @Transactional(readOnly = true)
@@ -380,24 +384,49 @@ public class MedicalOrderWorkflowService {
         DiagnosticReportModels.MedicalOrderQcEvaluationCommand command
     ) {
         MedicalOrderRepository.MedicalOrder order = getOrder(command.orderId());
-        if (!canQc(order)) {
+        medicalOrderRepository.lockMedicalOrder(order.id());
+        String normalizedAction = medicalOrderQcSupport.normalizeProcessingAction(command.processingAction());
+        TechnicalWorkflowProcessingRecords.Slide selectedSlide = medicalOrderQcSupport.resolveQcTargetSlide(order, command.slideId());
+        if (command.slideId() != null && selectedSlide == null) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409,
+                "Slide is outside the medical order target scope");
+        }
+        TechnicalWorkflowProcessingRecords.Slide reworkSlide = command.slideId() == null ? resolveTargetSlide(order) : selectedSlide;
+        if (!medicalOrderQcSupport.canCreateQcEvaluation(order, normalizedAction, reworkSlide != null)) {
             throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409, "Medical order cannot be QC evaluated");
         }
+        MedicalOrderRepository.MedicalOrderQcEvaluation current = medicalOrderRepository
+            .findLatestMedicalOrderQcEvaluation(order.id(), command.qcAspect(), command.slideId())
+            .orElse(null);
+        if (current == null && command.expectedVersion() != null) {
+            throw medicalOrderQcSupport.versionConflict();
+        }
+        if (current != null && (command.expectedVersion() == null || command.expectedVersion() != current.version())) {
+            throw medicalOrderQcSupport.versionConflict();
+        }
+        if (current != null && current.reworkOrderId() != null
+            && !medicalOrderQcSupport.normalizeProcessingAction(current.processingAction()).equals(normalizedAction)) {
+            throw new BlBusinessException(BlErrorCode.OPERATION_NOT_ALLOWED, 409,
+                "Processing action is locked after rework creation");
+        }
         LocalDateTime now = LocalDateTime.now();
-        String normalizedAction = normalizeProcessingAction(command.processingAction());
-        String reworkType = resolveReworkType(command.qcAspect(), normalizedAction);
-        String reworkOrderId = null;
+        String reworkType = current == null ? null : current.reworkType();
+        String reworkOrderId = current == null ? null : current.reworkOrderId();
         String qcRemarks = command.remarks();
-        if (reworkType != null) {
+        if (reworkOrderId == null) {
+            reworkType = medicalOrderQcSupport.resolveReworkType(command.qcAspect(), normalizedAction);
+        }
+        if (reworkType != null && reworkOrderId == null) {
             reworkOrderId = diagnosticReportSupport.nextId("RWO");
-            String reworkRemarks = "REWORK_URGENT".equals(normalizedAction) ? appendUrgentFlag(command.remarks()) : command.remarks();
+            String reworkRemarks = "REWORK_URGENT".equals(normalizedAction)
+                ? medicalOrderQcSupport.appendUrgentFlag(command.remarks()) : command.remarks();
             technicalWorkflowRepository.insertReworkOrder(new TechnicalWorkflowProcessingRecords.CreateReworkOrderCommand(
                 reworkOrderId,
                 order.caseId(),
-                order.targetSpecimenId(),
-                order.targetBlockId(),
-                null,
-                order.targetSlideId(),
+                reworkSlide == null ? order.targetSpecimenId() : reworkSlide.specimenId(),
+                reworkSlide == null ? order.targetBlockId() : reworkSlide.samplingBlockId(),
+                reworkSlide == null ? null : reworkSlide.embeddingBoxId(),
+                reworkSlide == null ? order.targetSlideId() : reworkSlide.id(),
                 reworkType,
                 "PENDING",
                 firstPresent(command.evaluationReason(), "Medical order QC rework"),
@@ -407,33 +436,76 @@ public class MedicalOrderWorkflowService {
                 reworkRemarks));
             qcRemarks = reworkRemarks;
         }
-        medicalOrderRepository.insertMedicalOrderQcEvaluation(new MedicalOrderRepository.CreateMedicalOrderQcEvaluationCommand(
-            diagnosticReportSupport.nextId("MOQ"),
-            order.id(),
-            order.caseId(),
-            command.qcAspect(),
-            command.totalScore(),
-            command.grade(),
-            command.evaluationReason(),
-            normalizedAction,
-            reworkType,
-            reworkOrderId,
-            qcRemarks,
-            command.operatorUserId(),
-            command.operatorName(),
-            now,
-            command.detailPayload()));
+        if (current == null) {
+            medicalOrderRepository.insertMedicalOrderQcEvaluation(new MedicalOrderRepository.CreateMedicalOrderQcEvaluationCommand(
+                diagnosticReportSupport.nextId("MOQ"), order.id(), order.caseId(), command.qcAspect(), command.totalScore(),
+                command.grade(), command.evaluationReason(), normalizedAction, reworkType, reworkOrderId,
+                selectedSlide == null ? null : selectedSlide.id(), selectedSlide == null ? null : selectedSlide.slideNo(), 0,
+                qcRemarks, command.operatorUserId(), command.operatorName(), now, command.detailPayload()));
+        } else {
+            int updated = medicalOrderRepository.updateMedicalOrderQcEvaluation(
+                new MedicalOrderRepository.UpdateMedicalOrderQcEvaluationCommand(
+                    current.id(), current.version(), command.totalScore(), command.grade(), command.evaluationReason(),
+                    normalizedAction, reworkType, reworkOrderId, qcRemarks, command.operatorUserId(),
+                    command.operatorName(), now, command.detailPayload()));
+            if (updated != 1) {
+                throw medicalOrderQcSupport.versionConflict();
+            }
+        }
         diagnosticReportSupport.insertWorkflowEvent(order.caseId(), "MEDICAL_ORDER_QC", "QC_EVALUATE", "SUCCESS",
             command.operatorUserId(), command.operatorName(), command.terminalCode(), order.orderNumber());
-        return toQcEvaluationResult(medicalOrderRepository.findLatestMedicalOrderQcEvaluation(order.id()).orElseThrow());
+        return medicalOrderQcSupport.toResult(medicalOrderRepository
+            .findLatestMedicalOrderQcEvaluation(order.id(), command.qcAspect(), command.slideId()).orElseThrow());
     }
 
     @Transactional(readOnly = true)
-    DiagnosticReportModels.MedicalOrderQcEvaluationResult getLatestMedicalOrderQcEvaluation(String orderId) {
+    DiagnosticReportModels.MedicalOrderQcEvaluationResult getLatestMedicalOrderQcEvaluation(String orderId,
+                                                                                              String qcAspect,
+                                                                                              String slideId) {
         getOrder(orderId);
-        return medicalOrderRepository.findLatestMedicalOrderQcEvaluation(orderId)
-            .map(this::toQcEvaluationResult)
-            .orElseThrow(() -> new BlBusinessException(BlErrorCode.RESOURCE_NOT_FOUND, 404, "Medical order QC evaluation not found"));
+        if ((qcAspect == null || qcAspect.isBlank()) && (slideId == null || slideId.isBlank())) {
+            return medicalOrderRepository.findLatestMedicalOrderQcEvaluation(orderId)
+                .map(medicalOrderQcSupport::toResult)
+                .orElse(null);
+        }
+        if (qcAspect == null || qcAspect.isBlank()) {
+            throw new BlBusinessException(BlErrorCode.INVALID_ARGUMENT, 400, "QC aspect is required when slide ID is provided");
+        }
+        return medicalOrderRepository.findLatestMedicalOrderQcEvaluation(orderId, qcAspect, medicalOrderQcSupport.blankToNull(slideId))
+            .map(medicalOrderQcSupport::toResult)
+            .orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    DiagnosticReportModels.MedicalOrderQcContextResult getMedicalOrderQcContext(String orderId) {
+        MedicalOrderRepository.MedicalOrder order = getOrder(orderId);
+        List<TechnicalWorkflowProcessingRecords.Slide> slides = medicalOrderQcSupport.resolveQcTargetSlides(order);
+        Map<String, MedicalOrderRepository.MedicalOrderQcEvaluation> currentBySlideAndAspect = new LinkedHashMap<>();
+        for (MedicalOrderRepository.MedicalOrderQcEvaluation evaluation
+            : medicalOrderRepository.findMedicalOrderQcEvaluations(order.id())) {
+            if (evaluation.targetSlideId() != null) {
+                currentBySlideAndAspect.putIfAbsent(evaluation.targetSlideId() + "\u0000" + evaluation.qcAspect(), evaluation);
+            }
+        }
+        Map<String, TechnicalWorkflowRecords.SamplingBlock> blocks = new LinkedHashMap<>();
+        Map<String, Specimen> specimens = new LinkedHashMap<>();
+        List<DiagnosticReportModels.MedicalOrderQcSlideContext> items = slides.stream().map(slide -> {
+            TechnicalWorkflowRecords.SamplingBlock block = blocks.computeIfAbsent(slide.samplingBlockId(), id ->
+                technicalWorkflowRepository.findSamplingBlockById(id).orElse(null));
+            Specimen specimen = specimens.computeIfAbsent(slide.specimenId(), id ->
+                technicalWorkflowRepository.findSpecimenById(id).orElse(null));
+            List<DiagnosticReportModels.MedicalOrderQcEvaluationResult> evaluations = currentBySlideAndAspect.entrySet().stream()
+                .filter(entry -> entry.getKey().startsWith(slide.id() + "\u0000"))
+                .map(entry -> medicalOrderQcSupport.toResult(entry.getValue()))
+                .toList();
+            return new DiagnosticReportModels.MedicalOrderQcSlideContext(
+                slide.id(), slide.slideNo(), slide.specimenId(), specimen == null ? null : specimen.specimenNo(),
+                slide.samplingBlockId(), block == null ? null : block.blockCode(), order.orderItemName(),
+                slide.slideStatus(), slide.qualityStatus(), evaluations);
+        }).toList();
+        return new DiagnosticReportModels.MedicalOrderQcContextResult(
+            order.id(), order.caseId(), medicalOrderQcSupport.resolveQcTargetType(order), !items.isEmpty(),
+            items.isEmpty() ? "UNLINKED_SLIDE" : null, items);
     }
 
     @Transactional
@@ -632,7 +704,7 @@ public class MedicalOrderWorkflowService {
             canPrint(order),
             canRelease(order),
             canTerminate(order),
-            canQc(order));
+            medicalOrderQcSupport.canQc(order));
     }
 
     private String stringify(LocalDateTime time) {
@@ -734,13 +806,6 @@ public class MedicalOrderWorkflowService {
             && !isTerminated(order);
     }
 
-    private boolean canQc(MedicalOrderRepository.MedicalOrder order) {
-        return DiagnosticReportConstants.ORDER_IN_PROGRESS.equals(order.status())
-            && order.printedAt() != null
-            && !isTerminated(order)
-            && hasTargetSnapshot(order);
-    }
-
     private boolean canMergeRoutineOrder(MedicalOrderRepository.MedicalOrder order) {
         if (order == null) {
             return false;
@@ -752,11 +817,6 @@ public class MedicalOrderWorkflowService {
             && order.completedAt() == null
             && order.cancelledAt() == null
             && !isTerminated(order);
-    }
-
-    private boolean hasTargetSnapshot(MedicalOrderRepository.MedicalOrder order) {
-        return order.targetType() != null && !order.targetType().isBlank()
-            && order.targetSlideId() != null && !order.targetSlideId().isBlank();
     }
 
     private boolean isTerminated(MedicalOrderRepository.MedicalOrder order) {
@@ -804,48 +864,6 @@ public class MedicalOrderWorkflowService {
             return null;
         }
         return technicalWorkflowRepository.findSpecimenById(specimenId).orElse(null);
-    }
-
-    private String normalizeProcessingAction(String processingAction) {
-        if (processingAction == null || processingAction.isBlank()) {
-            return "NO_ACTION";
-        }
-        String normalized = processingAction.trim().toUpperCase();
-        if (Set.of("NONE", "NO_NEED", "NO_ACTION", "NO").contains(normalized)) {
-            return "NO_ACTION";
-        }
-        return normalized;
-    }
-
-    private String resolveReworkType(String qcAspect, String processingAction) {
-        if (processingAction == null || processingAction.isBlank() || "NO_ACTION".equals(processingAction)) {
-            return null;
-        }
-        return "GROSSING".equalsIgnoreCase(qcAspect) ? "REGROSSING" : "RESLICE";
-    }
-
-    private String appendUrgentFlag(String remarks) {
-        if (remarks == null || remarks.isBlank()) {
-            return "URGENT";
-        }
-        return remarks.contains("URGENT") ? remarks : remarks + " URGENT";
-    }
-
-    private DiagnosticReportModels.MedicalOrderQcEvaluationResult toQcEvaluationResult(MedicalOrderRepository.MedicalOrderQcEvaluation evaluation) {
-        return new DiagnosticReportModels.MedicalOrderQcEvaluationResult(
-            evaluation.orderId(),
-            evaluation.caseId(),
-            evaluation.qcAspect(),
-            evaluation.totalScore(),
-            evaluation.grade(),
-            evaluation.evaluationReason(),
-            evaluation.processingAction(),
-            evaluation.reworkType(),
-            evaluation.reworkOrderId(),
-            evaluation.remarks(),
-            evaluation.evaluatorName(),
-            stringify(evaluation.evaluatedAt()),
-            evaluation.detailPayload());
     }
 
     private ChangedMedicalOrderBlockTarget resolveChangedMedicalOrderBlockTarget(

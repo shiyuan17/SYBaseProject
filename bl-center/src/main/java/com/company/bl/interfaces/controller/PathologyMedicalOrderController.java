@@ -17,6 +17,7 @@ import com.company.bl.interfaces.dto.TerminateMedicalOrderRequest;
 import com.company.bl.interfaces.vo.MedicalOrderBillingResponse;
 import com.company.bl.interfaces.vo.MedicalOrderOperationResponse;
 import com.company.bl.interfaces.vo.MedicalOrderQcEvaluationResponse;
+import com.company.bl.interfaces.vo.MedicalOrderQcContextResponse;
 import com.company.bl.interfaces.vo.MedicalOrderSlidePrintResponse;
 import com.company.bl.interfaces.vo.MedicalOrderTargetSnapshotResponse;
 import com.company.bl.interfaces.vo.PendingMedicalOrderPageResponse;
@@ -24,6 +25,7 @@ import com.company.bl.interfaces.vo.PendingMedicalOrderResponse;
 import com.company.bl.interfaces.vo.RoutineMedicalOrderMergeResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -307,6 +309,8 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
         DiagnosticReportModels.MedicalOrderQcEvaluationResult result = diagnosticReportAppService.createMedicalOrderQcEvaluation(
             new DiagnosticReportModels.MedicalOrderQcEvaluationCommand(
                 orderId,
+                request.getSlideId(),
+                request.getExpectedVersion(),
                 request.getQcAspect(),
                 request.getTotalScore(),
                 request.getGrade(),
@@ -320,11 +324,30 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
         return toQcEvaluationResponse(result);
     }
 
-    @Operation(summary = "查询最新医嘱质控评价", description = "返回病理医嘱最新一次质控评价。")
+    @Operation(summary = "查询最新医嘱质控评价", description = "返回病理医嘱最新一次质控评价；医嘱存在但尚无历史评价时，成功响应的 data 为 null。")
     @RequirePermission(M4PermissionCodes.MEDICAL_ORDER_QC)
     @GetMapping("/{id}/qc-evaluations/latest")
-    public MedicalOrderQcEvaluationResponse getLatestQcEvaluation(@PathVariable("id") String orderId) {
-        return toQcEvaluationResponse(diagnosticReportAppService.getLatestMedicalOrderQcEvaluation(orderId));
+    @Schema(nullable = true)
+    public MedicalOrderQcEvaluationResponse getLatestQcEvaluation(@PathVariable("id") String orderId,
+                                                                  @RequestParam(required = false) String qcAspect,
+                                                                  @RequestParam(required = false) String slideId) {
+        DiagnosticReportModels.MedicalOrderQcEvaluationResult result =
+            diagnosticReportAppService.getLatestMedicalOrderQcEvaluation(orderId, qcAspect, slideId);
+        return result == null ? null : toQcEvaluationResponse(result);
+    }
+
+    @Operation(summary = "查询医嘱质控上下文", description = "返回医嘱目标范围内的全部切片及每片当前评价。")
+    @RequirePermission(M4PermissionCodes.MEDICAL_ORDER_QC)
+    @GetMapping("/{id}/qc-evaluations/context")
+    public MedicalOrderQcContextResponse getQcContext(@PathVariable("id") String orderId) {
+        DiagnosticReportModels.MedicalOrderQcContextResult context =
+            diagnosticReportAppService.getMedicalOrderQcContext(orderId);
+        return new MedicalOrderQcContextResponse(
+            context.orderId(), context.caseId(), context.targetType(), context.targetResolved(), context.unlinkedReason(),
+            context.slides().stream().map(slide -> new MedicalOrderQcContextResponse.SlideItem(
+                slide.slideId(), slide.slideNo(), slide.specimenId(), slide.specimenNo(), slide.blockId(), slide.blockNo(),
+                slide.projectName(), slide.slideStatus(), slide.qualityStatus(),
+                slide.evaluations().stream().map(this::toQcEvaluationResponse).toList())).toList());
     }
 
     @Operation(summary = "取消病理医嘱", description = "由诊断医生取消待处理病理医嘱。")
@@ -419,8 +442,12 @@ public class PathologyMedicalOrderController extends TechnicalControllerSupport 
 
     private MedicalOrderQcEvaluationResponse toQcEvaluationResponse(DiagnosticReportModels.MedicalOrderQcEvaluationResult result) {
         return new MedicalOrderQcEvaluationResponse(
+            result.qcEvaluationId(),
             result.orderId(),
             result.caseId(),
+            result.slideId(),
+            result.slideNo(),
+            result.version(),
             result.qcAspect(),
             result.totalScore(),
             result.grade(),

@@ -61,6 +61,16 @@ class NumberingServiceTest {
     }
 
     @Test
+    void shouldGenerateGloballyUniqueBlockNumbersAcrossCaseScopes() {
+        String first = numberingService.generateBlockNo("CASE-ONE");
+        String second = numberingService.generateBlockNo("CASE-TWO");
+
+        assertTrue(first.startsWith("BK"));
+        assertTrue(second.startsWith("BK"));
+        assertTrue(!first.equals(second));
+    }
+
+    @Test
     void shouldWriteSuccessAuditLogWhenUpdatingRule() {
         numberingService.updateRule("NR_APPLICATION", new NumberingService.UpdateNumberingRuleCommand(
             "APZ", "yyyyMMdd", 4, "DAILY", "GLOBAL", true, "success audit"));
