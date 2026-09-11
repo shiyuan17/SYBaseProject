@@ -13,6 +13,8 @@ out/
 .codegraph/
 .cursor/
 .codex/
+.codex-tmp/
+.zed/
 .understand-anything/
 .repomix/
 .agents/
